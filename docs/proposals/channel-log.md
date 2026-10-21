@@ -37,19 +37,28 @@ CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
   harmless: the client keeps the higher.
 - **`ListChanges(channel_id, since_seq, limit)`** returns rows with a
   higher seq in seq order, tombstones and thread replies included, plus
-  `channel_seq` and `too_old`. The sweep records the highest seq it ever
-  hard-deleted in `swept_seq`; `too_old` is `since_seq < swept_seq`, the
-  one case where the client falls back to a fresh open.
+  `channel_seq` and `has_more`. As built there is no `too_old`: the sweep
+  still records the highest seq it hard-deleted in `swept_seq`, but
+  nothing reads it. Instead `ListChanges` and `ListMessages` both carry
+  `retention_floor_id`, the sweep's own cutoff (one helper, so they never
+  disagree; empty with retention off), and the client drops any held row
+  whose id, or whose root's id, is below it. A hard delete leaves no
+  tombstone and no event, and the floor is how it reaches a client.
 - **Deletes are tombstones.** One path for roots, replies and top-level
   messages: set `deleted_at`, blank the content, drop reactions,
   attachments, mentions and links, delete the files through the port,
   bump the seq. The retention sweep hard-deletes tombstones with
   everything else. Every read that hands rows to a client skips them,
   except `ListChanges`.
-- **Socket events shrink to `message_created` and `message_updated`**,
-  both carrying the full row with its seq. Reactions, pins, thread
-  summaries and deletes are all a `message_updated`. Outgoing webhooks
-  keep their own event vocabulary.
+- **Every socket event about a message carries its seq.** The plan was
+  to shrink the events to `message_created` and `message_updated`, both
+  carrying the full row; that was dropped at step 4, because the
+  integrations subscriber forwards every `message_updated` to outgoing
+  webhooks as `message.updated`, and full-row updates for reactions,
+  pins and deletes would have changed what hooks receive. So the events
+  keep their kinds, and `reactions_changed`, `message_pinned`,
+  `thread_changed` and `message_deleted` each gained a `seq`: the row's
+  position after that change. Webhook payloads are unchanged.
 - **Per-viewer fields stay an overlay.** A thread's `unread_count`,
   `muted` and `participating` are not row facts; the server adds them per
   request (as `addThreadViewerStates` does) and the client applies its
@@ -96,12 +105,17 @@ query with the embedded author as fallback.
    other tombstone so each RPC answers as before, and a quote of a
    deleted message now reads as deleted rather than disappearing, since
    `reply_to_message_id` is kept.
-4. Server: `ListChanges` and `too_old`; reactions, pins and thread
-   summaries also publish `message_updated` with the row.
+4. Server: `ListChanges`, and a seq on every realtime event about a
+   message. As built: the events keep their kinds, with `seq` added to
+   `reactions_changed`, `message_pinned`, `thread_changed` and
+   `message_deleted` (no `message_updated` for those, see The contract);
+   `retention_floor_id` on `ListChanges` and `ListMessages` in place of
+   `too_old`, with `swept_seq` left informational.
 5. Web: the new store and loader, unit-tested, unwired.
 6. Web: the switch. Delete `history.ts`, the timeline reducer modules and
    `timelineLoads.ts`; lift the cap; reconnect calls `ListChanges`.
-7. Cleanup: drop the legacy socket events and old queries; rewrite the
+7. Cleanup: drop the old queries the switched client no longer calls
+   (the socket events stay, see The contract); rewrite the
    history and state sections of `realtime.md`, `web.md`, `messaging.md`
    and `data.md`.
 8. Next release: backfill any `NULL` seq, set `NOT NULL`, raise the floor.

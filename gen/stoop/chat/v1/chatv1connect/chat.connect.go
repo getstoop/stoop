@@ -143,6 +143,8 @@ const (
 	// ChatServiceListMessagesProcedure is the fully-qualified name of the ChatService's ListMessages
 	// RPC.
 	ChatServiceListMessagesProcedure = "/stoop.chat.v1.ChatService/ListMessages"
+	// ChatServiceListChangesProcedure is the fully-qualified name of the ChatService's ListChanges RPC.
+	ChatServiceListChangesProcedure = "/stoop.chat.v1.ChatService/ListChanges"
 	// ChatServiceSearchMessagesProcedure is the fully-qualified name of the ChatService's
 	// SearchMessages RPC.
 	ChatServiceSearchMessagesProcedure = "/stoop.chat.v1.ChatService/SearchMessages"
@@ -315,6 +317,10 @@ type ChatServiceClient interface {
 	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// ListChanges catches a channel up from a log position: every row with
+	// a higher seq, tombstones and thread replies included. Same access as
+	// ListMessages. See docs/architecture/messaging.md → History.
+	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
 	// SearchMessages finds messages by their words within one space the
 	// caller belongs to, newest first. See docs/architecture/messaging.md.
 	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
@@ -657,6 +663,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("ListMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		listChanges: connect.NewClient[v1.ListChangesRequest, v1.ListChangesResponse](
+			httpClient,
+			baseURL+ChatServiceListChangesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListChanges")),
+			connect.WithClientOptions(opts...),
+		),
 		searchMessages: connect.NewClient[v1.SearchMessagesRequest, v1.SearchMessagesResponse](
 			httpClient,
 			baseURL+ChatServiceSearchMessagesProcedure,
@@ -802,6 +814,7 @@ type chatServiceClient struct {
 	listThreadMutes             *connect.Client[v1.ListThreadMutesRequest, v1.ListThreadMutesResponse]
 	sendMessage                 *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
 	listMessages                *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	listChanges                 *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
 	searchMessages              *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
 	setMessagePinned            *connect.Client[v1.SetMessagePinnedRequest, v1.SetMessagePinnedResponse]
 	listPinnedMessages          *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
@@ -1040,6 +1053,11 @@ func (c *chatServiceClient) ListMessages(ctx context.Context, req *connect.Reque
 	return c.listMessages.CallUnary(ctx, req)
 }
 
+// ListChanges calls stoop.chat.v1.ChatService.ListChanges.
+func (c *chatServiceClient) ListChanges(ctx context.Context, req *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error) {
+	return c.listChanges.CallUnary(ctx, req)
+}
+
 // SearchMessages calls stoop.chat.v1.ChatService.SearchMessages.
 func (c *chatServiceClient) SearchMessages(ctx context.Context, req *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error) {
 	return c.searchMessages.CallUnary(ctx, req)
@@ -1243,6 +1261,10 @@ type ChatServiceHandler interface {
 	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// ListChanges catches a channel up from a log position: every row with
+	// a higher seq, tombstones and thread replies included. Same access as
+	// ListMessages. See docs/architecture/messaging.md → History.
+	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
 	// SearchMessages finds messages by their words within one space the
 	// caller belongs to, newest first. See docs/architecture/messaging.md.
 	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
@@ -1581,6 +1603,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("ListMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceListChangesHandler := connect.NewUnaryHandler(
+		ChatServiceListChangesProcedure,
+		svc.ListChanges,
+		connect.WithSchema(chatServiceMethods.ByName("ListChanges")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceSearchMessagesHandler := connect.NewUnaryHandler(
 		ChatServiceSearchMessagesProcedure,
 		svc.SearchMessages,
@@ -1767,6 +1795,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
 		case ChatServiceListMessagesProcedure:
 			chatServiceListMessagesHandler.ServeHTTP(w, r)
+		case ChatServiceListChangesProcedure:
+			chatServiceListChangesHandler.ServeHTTP(w, r)
 		case ChatServiceSearchMessagesProcedure:
 			chatServiceSearchMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceSetMessagePinnedProcedure:
@@ -1982,6 +2012,10 @@ func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListMessages is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListChanges is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error) {

@@ -61,14 +61,28 @@ everyone's problem. A dropped subscription is visible to the gateway as a
 closed channel, which closes the socket with `StatusTryAgainLater`; the
 client reconnects and refetches. So:
 
-- Events are **best-effort**. There is no replay, no acknowledgement, no
-  sequence number a client could use to detect a gap.
-- **`ListMessages` is the source of truth**, always. The socket is an
+- Events are **best-effort**. There is no replay and no acknowledgement:
+  an event that was dropped is never resent. What every event about a
+  message does carry is the row's position in its channel's log, `seq`
+  (`Message.seq` on `message_created` and `message_updated`, a `seq`
+  field on `message_deleted`, `reactions_changed`, `message_pinned` and
+  `thread_changed`;
+  [proposals/channel-log.md](../proposals/channel-log.md)). Positions are
+  monotonic per channel but not dense — a rolled-back write leaves a gap
+  — so a client cannot tell a lost event from a gap in the numbering. It
+  can, and the socket guarantees nothing else, apply events by "higher
+  seq wins" and ask `ListChanges` for everything after the seq it holds
+  ([messaging.md](messaging.md#history)). Events about anything other than
+  a message carry no position.
+- **The RPCs are the source of truth**, always: `ListMessages` for a
+  window, `ListChanges` for what has happened since. The socket is an
   optimisation over polling, not a separate protocol with its own state.
 - Recovery is uniform: on reconnect the client invalidates every query and
   lets them refetch. That path runs on every reconnect, not just after a
   drop, so it is exercised constantly rather than being a rarely-taken
-  branch that rots.
+  branch that rots. (The web client in this repository still works this
+  way; a client on the channel log catches up with `ListChanges` from the
+  seq it holds instead.)
 
 Because every payload is a protobuf message, a cross-process
 implementation of `Bus` is a marshal/unmarshal wrapper behind the same
@@ -218,9 +232,9 @@ the server side.
 | 3 | `ready` | — | Connection established; carries the initial snapshot. |
 | 4 | `ping` | — | Reserved. Liveness today is a WebSocket control ping every 30 s with a 10 s timeout; the envelope pair exists for clients that cannot see control frames. |
 | 5 | `credential_revoked` | user | The credential this socket was opened with is gone; the socket closes with code 4001 right after. Never forwarded to a socket opened with another credential. |
-| 10 | `message_created` | space / user | A `stoop.chat.v1.Message`, the same type `ListMessages` returns. |
-| 11 | `message_deleted` | space / user | |
-| 23 | `message_updated` | space / user | Edits, and link previews arriving after the fact. |
+| 10 | `message_created` | space / user | A `stoop.chat.v1.Message`, the same type `ListMessages` returns, with its `seq`. |
+| 11 | `message_deleted` | space / user | Ids and the tombstone's `seq`. |
+| 23 | `message_updated` | space / user | Edits, link previews arriving after the fact, and a root becoming a placeholder; the full row with its `seq`. |
 | 12 | `channel_created` | space / user | To each participant for a new or reopened DM. |
 | 24 | `channel_updated` | space | Rename, topic, post policy. |
 | 25 | `channel_deleted` | space | |
@@ -240,8 +254,9 @@ the server side.
 | 19 | `activity_item_created` | user | |
 | 21 | `presence_changed` | space | Online, offline (after the grace period), do not disturb turning on or off, including when it ends on its own, or moving between only mobile and anything else. |
 | 22 | `user_typing` | space / user | |
-| 27 | `reactions_changed` | space / user | |
-| 32 | `message_pinned` | space | Ids, the flag, who and when; not the list. |
+| 27 | `reactions_changed` | space / user | The message's full reaction list and its new `seq`. |
+| 32 | `message_pinned` | space | Ids, the flag, who and when, and the message's new `seq`; not the list. |
+| 34 | `thread_changed` | space / user | A root's full thread summary after a reply lands or goes, and the root's new `seq`. |
 | 29 | `voice_state_changed` | space / user | Join, leave, mute, camera, screen share. |
 
 ### ClientEvent

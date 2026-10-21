@@ -510,6 +510,40 @@ query, so anything that commits after it has a higher seq and reaches the
 client as a change; each row carries the `seq` it was last stamped with
 ([data.md](data.md#chat), [proposals/channel-log.md](../proposals/channel-log.md)).
 
+### Catching up: `ListChanges`
+
+`ListChanges(channel_id, since_seq, limit)` is the channel log from a
+position: every row of the channel with a `seq` above `since_seq`, in
+`seq` order, a default page of 100 and a maximum of 200, under the same
+gate as `ListMessages` (`internal/chat/changes.go`). It is the one read
+that applies no shown filter (`ListMessageChanges` in
+`queries/chat/messages.sql`): a tombstone comes back as a `Message` with
+`deleted` set, no content and nothing attached, exactly as a placeholder
+does, and a thread reply comes back with `in_channel` false and its
+`thread_root_id`. A row is in the log once, at its latest position, so a
+message sent and then edited is one row with the edit's seq. The response
+carries `channel_seq`, read with the channel row before the rows query,
+and `has_more`, true when the page was full.
+
+A row with no `seq` — written by an older binary during a rollback — is
+never above `since_seq` and is left for the next full load; that is
+accepted.
+
+The client rule is one comparison: a held row is replaced by one that
+arrives with a higher seq. A live event whose seq is exactly the next is
+applied; any other gap, and every reconnect, is one `ListChanges` from the
+seq held, repeated while `has_more`.
+
+**The retention floor.** Both `ListMessages` and `ListChanges` answer
+with `retention_floor_id`: the message id below which the sweep removes
+top-level messages, computed as the sweep computes its cutoff
+(`retentionFloor`, shared with `SweepMessages` so the two can never
+disagree), empty when retention is off. A client drops any held row whose
+id, or whose thread root's id, is below the floor, on any load. That is
+how the sweep's hard deletes, which publish nothing and leave no
+tombstone, reach a client that holds the rows; `channels.swept_seq` plays
+no part in it.
+
 The client's side of this — the single flat window, the 300-row cap, the
 liveness rule — is in [realtime.md](realtime.md#history-windows).
 

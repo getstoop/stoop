@@ -120,6 +120,7 @@ func TestE2EPrivateChannelOutsider(t *testing.T) {
 		}{
 			{chat + "ListMessages", map[string]any{"channelId": captains}},
 			{chat + "ListMessages", map[string]any{"channelId": captains, "threadRootId": root}},
+			{chat + "ListChanges", map[string]any{"channelId": captains}},
 			{chat + "SendMessage", map[string]any{"channelId": captains, "content": "hello?"}},
 			{chat + "EditMessage", map[string]any{"messageId": root, "content": "mine now"}},
 			{chat + "DeleteMessage", map[string]any{"messageId": root}},

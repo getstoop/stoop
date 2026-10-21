@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -142,6 +143,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	var row messageRow
 	var linksToFetch []string
 	var thread dbgen.Thread
+	var rootSeq int64 // the root's position once its summary changed
 	var threadMarker string
 	var threadRootID *string
 	if threadRoot != nil {
@@ -187,7 +189,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 				return fmt.Errorf("record thread reply: %w", err)
 			}
 			// The root's summary changed with it.
-			if _, err := stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
+			if rootSeq, err = stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
 				return err
 			}
 			if threadMarker, err = qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
@@ -255,7 +257,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
 	if threadRoot != nil {
-		if ev := s.threadChanged(ctx, channel, threadRoot.ID, &thread); ev != nil {
+		if ev := s.threadChanged(ctx, channel, threadRoot.ID, &thread, rootSeq); ev != nil {
 			s.publishTo(channel, participants, ev)
 		}
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
@@ -356,9 +358,13 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	if err := s.addThreadViewerStates(ctx, messages); err != nil {
 		return nil, err
 	}
+	floor, err := s.retentionFloorID(ctx, time.Now())
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&chatv1.ListMessagesResponse{
 		Messages: messages, HasOlder: hasOlder, HasNewer: hasNewer, ThreadRootId: openThread,
-		ChannelSeq: channel.Seq,
+		ChannelSeq: channel.Seq, RetentionFloorId: floor,
 	}), nil
 }
 

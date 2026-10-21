@@ -47,6 +47,19 @@ WHERE m.channel_id = $1
 ORDER BY m.id ASC
 LIMIT $2;
 
+-- ListMessageChanges is the channel log from a position: every row stamped
+-- above since_seq, in seq order, for ListChanges. Deliberately no shown
+-- filter: a tombstone and a thread reply are changes the client applies
+-- to what it holds, so every row comes back. A row with no seq (written by
+-- an older binary during a rollback) is never above since_seq and is left
+-- for the next full load.
+-- name: ListMessageChanges :many
+SELECT * FROM message_with_reply m
+WHERE m.channel_id = $1
+  AND m.seq > sqlc.arg(since_seq)::bigint
+ORDER BY m.seq
+LIMIT sqlc.arg('limit');
+
 -- GetMessageWithReply is one message with the reply columns, for the
 -- events that resend a message after it changes.
 -- name: GetMessageWithReply :one

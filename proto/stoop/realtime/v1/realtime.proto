@@ -208,6 +208,8 @@ message ReactionsChanged {
   string channel_id = 2;
   string message_id = 3;
   repeated stoop.chat.v1.Reaction reactions = 4;
+  // The row's log position after this change (Message.seq).
+  int64 seq = 5;
 }
 
 message MessageDeleted {
@@ -216,6 +218,8 @@ message MessageDeleted {
   string space_id = 3;
   // Set when the message was a reply in a thread.
   string thread_root_id = 4;
+  // The row's log position after this change: the tombstone's seq.
+  int64 seq = 5;
 }
 
 // ThreadChanged carries a root's full thread summary after a reply is sent
@@ -225,6 +229,8 @@ message ThreadChanged {
   string channel_id = 2;
   string root_message_id = 3;
   stoop.chat.v1.ThreadSummary thread = 4;
+  // The row's log position after this change: the root's new seq.
+  int64 seq = 5;
 }
 
 // MessagePinned is broadcast to the space when a message is pinned or
@@ -239,6 +245,8 @@ message MessagePinned {
   // Set when pinned.
   stoop.chat.v1.MessageAuthor pinned_by = 5;
   google.protobuf.Timestamp pinned_at = 6;
+  // The row's log position after this change (Message.seq).
+  int64 seq = 7;
 }
 
 // SpaceJoined is delivered on the joining user's personal topic; the gateway

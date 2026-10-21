@@ -180,6 +180,7 @@ var procedures = map[string]authctx.Rule{
 	chatv1connect.ChatServiceDeleteThreadProcedure:       needs(authctx.MessagesModerate),
 	chatv1connect.ChatServiceToggleReactionProcedure:     needs(authctx.MessagesPost, authctx.DMsPost),
 	chatv1connect.ChatServiceListMessagesProcedure:       needs(authctx.MessagesRead, authctx.DMsRead),
+	chatv1connect.ChatServiceListChangesProcedure:        needs(authctx.MessagesRead, authctx.DMsRead),
 	chatv1connect.ChatServiceListPinnedMessagesProcedure: needs(authctx.MessagesRead, authctx.DMsRead),
 	chatv1connect.ChatServiceSearchMessagesProcedure:     needs(authctx.MessagesRead),
 

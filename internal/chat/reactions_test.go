@@ -66,6 +66,10 @@ func TestReactions(t *testing.T) {
 	if ev == nil || ev.MessageId != id || ev.ChannelId != channelID || ev.SpaceId != spaceID || len(ev.Reactions) != 1 {
 		t.Errorf("expected ReactionsChanged for the message, got %+v", ev)
 	}
+	// The event carries the position the toggle stamped the row with.
+	if stamped := messageSeq(t, pool, id); ev.GetSeq() != stamped || message.Seq != stamped {
+		t.Errorf("ReactionsChanged seq %d, answer seq %d, want the row's %d", ev.GetSeq(), message.Seq, stamped)
+	}
 
 	// Two users, same emoji: one group of two, in reaction order; a second
 	// emoji sorts by emoji, not arrival.
@@ -84,8 +88,8 @@ func TestReactions(t *testing.T) {
 	if got := reactions(message)["👍"]; len(got) != 1 || got[0] != authctx.UserID(owner) {
 		t.Errorf("after bea toggles off: %v", reactions(message))
 	}
-	if ev := (<-sub.Events()).GetReactionsChanged(); ev == nil || len(ev.Reactions) != 2 || len(ev.Reactions[1].UserIds) != 1 {
-		t.Errorf("ReactionsChanged after bea's removal: %+v", ev)
+	if ev := (<-sub.Events()).GetReactionsChanged(); ev == nil || len(ev.Reactions) != 2 || len(ev.Reactions[1].UserIds) != 1 || ev.Seq != messageSeq(t, pool, id) {
+		t.Errorf("ReactionsChanged after bea's removal: %+v, row stamped %d", ev, messageSeq(t, pool, id))
 	}
 	message, _ = toggle(owner, id, "🎉")
 	if _, ok := reactions(message)["🎉"]; ok || len(message.Reactions) != 1 {

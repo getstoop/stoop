@@ -54,7 +54,7 @@ func (s *Service) CountExpiredMessages(ctx context.Context, now time.Time, days 
 	if days <= 0 {
 		return 0, nil
 	}
-	return s.q.CountExpiredMessages(ctx, cutoffID(retentionCutoff(now, days)))
+	return s.q.CountExpiredMessages(ctx, retentionFloor(now, days))
 }
 
 // SweepMessages deletes the messages the retention setting no longer
@@ -67,7 +67,7 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 	if err != nil || days <= 0 {
 		return 0, err
 	}
-	cutoff := cutoffID(retentionCutoff(now, days))
+	cutoff := retentionFloor(now, days)
 	var removed int64
 	for {
 		rows, err := s.q.ListExpiredMessages(ctx, dbgen.ListExpiredMessagesParams{Cutoff: cutoff, Limit: retentionBatch})
