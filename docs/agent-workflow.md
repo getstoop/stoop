@@ -268,7 +268,8 @@ force-pushes, and a pull request can only merge once every CI job is green
   (reply quote, `?m=`) can replace `["messages", channelId]` wholesale,
   and a non-live window never contains the newest message. A realtime
   message event reaches a timeline through `applyTimelineEvent` (or
-  `appendMessage` for a send's reply), which runs the timeline reducer,
+  `appendMessage`, `replaceMessage` and `removeMessageFromCache` for the
+  reader's own send, edit and delete), which runs the timeline reducer,
   and a `queryFn` refetch must keep a non-live window rather than swap
   the newest page in under the reader.
 - **Dividers are siblings of message rows, not children.** `.new-divider`

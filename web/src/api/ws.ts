@@ -1,7 +1,6 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
 import { withChannelEvent } from "../core/channelTimeline";
-import { withoutMessage, withReplaced } from "../core/messageList";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
@@ -273,8 +272,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       break;
     case "messageUpdated": {
       // A root deleted while its thread has replies arrives as an update.
-      applyTimelineEvent(queryClient, event);
-      applyBesideTimelines(queryClient, payload.value.channelId, event);
+      applyMessageEvent(queryClient, payload.value.channelId, event);
       break;
     }
     case "threadChanged": {
@@ -301,15 +299,13 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "reactionsChanged": {
       // Swap in the message's full reaction list; no refetch, no unread
       // effect, no activity item.
-      applyTimelineEvent(queryClient, event);
-      applyBesideTimelines(queryClient, payload.value.channelId, event);
+      applyMessageEvent(queryClient, payload.value.channelId, event);
       break;
     }
     case "messageDeleted": {
       const d = payload.value;
       // A root that goes takes its thread's window with it.
-      applyTimelineEvent(queryClient, event);
-      applyBesideTimelines(queryClient, d.channelId, event);
+      applyMessageEvent(queryClient, d.channelId, event);
       // The channel's newest message may have changed; refetch the list.
       queryClient.invalidateQueries({
         queryKey: d.spaceId ? ["channels", d.spaceId] : ["dms"],
@@ -514,29 +510,48 @@ function leaveVoiceIn(spaceId: string) {
   if (useVoiceStore.getState().connection?.spaceId === spaceId) leaveVoice();
 }
 
-// Drops a message from every window of its channel (withoutMessage). A
-// root that goes takes its thread's window with it.
+// Drops a message the reader deleted from every window of its channel, as
+// its MessageDeleted will. A root that goes takes its thread's window
+// with it.
 export function removeMessageFromCache(
   queryClient: QueryClient,
   channelId: string,
   messageId: string,
 ) {
+  applyMessageEvent(
+    queryClient,
+    channelId,
+    create(ServerEventSchema, {
+      payload: { case: "messageDeleted", value: { channelId, messageId } },
+    }),
+  );
   queryClient.removeQueries({
     queryKey: ["messages", channelId, messageId],
     exact: true,
   });
-  queryClient.setQueriesData<Message[]>(
-    { queryKey: ["messages", channelId] },
-    (old) => old && withoutMessage(old, messageId),
+}
+
+// Swaps in a message's new version (the reader's edit) in every window of
+// its channel, as its MessageUpdated will.
+export function replaceMessage(queryClient: QueryClient, message: Message) {
+  applyMessageEvent(
+    queryClient,
+    message.channelId,
+    create(ServerEventSchema, {
+      payload: { case: "messageUpdated", value: message },
+    }),
   );
 }
 
-// Swaps in a message's new version in every window of its channel.
-export function replaceMessage(queryClient: QueryClient, message: Message) {
-  queryClient.setQueriesData<Message[]>(
-    { queryKey: ["messages", message.channelId] },
-    (old) => old && withReplaced(old, message),
-  );
+// An edit, a deletion or a reaction: through the reducer for the
+// timelines, and straight onto the copies beside them.
+function applyMessageEvent(
+  queryClient: QueryClient,
+  channelId: string,
+  event: ServerEvent,
+) {
+  applyTimelineEvent(queryClient, event);
+  applyBesideTimelines(queryClient, channelId, event);
 }
 
 // Also used by the send-message mutation, so delivery via RPC response and

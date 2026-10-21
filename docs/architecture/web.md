@@ -202,11 +202,13 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   newest page, or one around a message), a catch-up after a reconnect, a
   refresh, an older or a newer page — and the events each has kept
   while out. Its rules: those events are replayed over that request's
-  answer alone; only the latest load counts, and a refresh waits for an
-  open on its way; an open drops every page still out, and a reconnect
-  drops one asked for before it; a failed load keeps what is shown. A new
-  message beyond a window that stops short of the newest is counted
-  (`pendingNewer`), not shown. The caller does the fetching and
+  answer alone; only the latest load counts, and a refresh gives way to
+  an open asked for since the last reconnect; an open drops every page
+  still out, and a reconnect drops one asked for before it; a failed load
+  keeps what is shown when it was for that window (a catch-up, a refresh,
+  or an open naming the same channel). A new message beyond a window that
+  stops short of the newest is counted (`pendingNewer`), not shown, and
+  the count clears once a load reaches the newest message. The caller does the fetching and
   dispatches each start, answer and failure.
 - `timelinePaging.ts` — the pages either side of what is held: one at a
   time, none while an open is out, a new message replayed over a newer

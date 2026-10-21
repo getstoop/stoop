@@ -392,7 +392,13 @@ messages query's first load and refetches, a page either way, a jump)
 starts under an id and hands the reducer its answer. A message created,
 edited or deleted, or a reaction, reaches every timeline of its channel
 through the reducer (`applyTimelineEvent`), which puts a new message in
-the timeline it shows in and keeps the event for each request out. So an
+the timeline it shows in and keeps the event for each request out. The
+reader's own send, edit and delete go the same way (`appendMessage`,
+`replaceMessage`, `removeMessageFromCache` make the event the socket will
+bring). A pin, a thread's summary and a reaction before the server
+answers are still written to the cache alone. The history store forgets
+a window's state when the cache lets go of it: unused for a while,
+removed, or the whole cache cleared for a change of account. So an
 edit or a deletion that lands while a page is out is replayed over the
 page when it comes, rather than lost under it; Ready drops a page asked
 for before it (it may have read the server while the socket was down)
@@ -417,8 +423,9 @@ message, refetches the newest page.
 (`member_updated`, `groups_changed`) and Ready invalidate every window. A
 live one is fetched again from the newest message back to its oldest row
 (`fetchLiveWindow`, pages of 100), so history the reader paged in is
-redrawn rather than dropped; a window that isn't live is left as it is,
-and a refetch waits for a jump already on its way.
+redrawn rather than dropped. A window that isn't live is left as it is,
+and a refetch is skipped (the query keeps what it holds) while a jump
+asked for since the last reconnect is on its way.
 Message windows do not refetch on tab focus: the socket keeps them current.
 
 **The window is capped at 300 rows** (`WINDOW_CAP`). Paging in one

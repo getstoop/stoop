@@ -52,6 +52,8 @@ export type Request = {
   kind: RequestKind;
   // The reconnects before it started.
   since: number;
+  // An open's channel, when the caller names it.
+  channelId?: string;
   // The events that arrived while it was out.
   kept: ServerEvent[];
 };
@@ -63,7 +65,9 @@ export type Timeline<H extends Header = Header> = {
 };
 
 export type TimelineAction<H extends Header = Header> =
-  | { type: "started"; id: number; kind: RequestKind }
+  // An open may name its channel: one that fails over a window of the
+  // same channel (a jump) keeps that window.
+  | { type: "started"; id: number; kind: RequestKind; channelId?: string }
   | {
       type: "loaded";
       id: number;
@@ -102,7 +106,7 @@ export function timelineReducer<H extends Header>(
 ): Timeline<H> {
   switch (action.type) {
     case "started":
-      return started(state, action.id, action.kind);
+      return started(state, action.id, action.kind, action.channelId);
     case "loaded": {
       const request = state.requests.find((out) => out.id === action.id);
       if (!request || isPage(request.kind)) return state;
@@ -132,9 +136,13 @@ export function timelineReducer<H extends Header>(
       if (isPage(request.kind)) {
         return { ...without(state, request), shown: notPaging(state.shown) };
       }
-      // A load that can't reach the server keeps what is on screen, which
-      // has had every event already.
-      if (state.shown.state === "ready" && action.outcome === "failed")
+      // A load of what is on screen that can't reach the server keeps it,
+      // and it has had every event already.
+      const same =
+        request.kind !== "open" ||
+        (state.shown.state === "ready" &&
+          request.channelId === state.shown.channelId);
+      if (state.shown.state === "ready" && action.outcome === "failed" && same)
         return without(state, request);
       return settled(state, request, { state: action.outcome });
     }
@@ -182,19 +190,31 @@ function started<H extends Header>(
   state: Timeline<H>,
   id: number,
   kind: RequestKind,
+  channelId?: string,
 ): Timeline<H> {
   if (isPage(kind)) return startedPage(state, id, kind);
-  // A new window on its way will be fresher than a refresh.
-  if (kind === "refresh" && state.requests.some((out) => out.kind === "open"))
-    return state;
+  // A new window on its way will be fresher than a refresh, unless it
+  // was asked for before a reconnect.
+  const opening = state.requests.some(
+    (out) => out.kind === "open" && out.since === state.reconnects,
+  );
+  if (kind === "refresh" && opening) return state;
   // A load puts any other load out of date; an open, everything out.
   const reconnects = state.reconnects + (kind === "catchUp" ? 1 : 0);
-  const kept =
-    kind === "open" ? [] : state.requests.filter((out) => isPage(out.kind));
+  const request: Request = { id, kind, since: reconnects, kept: [] };
+  if (kind === "open") {
+    if (channelId !== undefined) request.channelId = channelId;
+    return {
+      ...state,
+      reconnects,
+      shown: notPaging(state.shown),
+      requests: [request],
+    };
+  }
   return {
     ...state,
     reconnects,
-    requests: [...kept, { id, kind, since: reconnects, kept: [] }],
+    requests: [...state.requests.filter((out) => isPage(out.kind)), request],
   };
 }
 
@@ -205,10 +225,13 @@ function caughtUp<H extends Header>(
   next: Ready<H>,
 ): Shown<H> {
   if (current.state !== "ready") return next;
+  const page = withNewestPage(current.page, next.page);
   return {
     ...current,
-    page: withNewestPage(current.page, next.page),
+    page,
     header: next.header,
+    // At the newest message: everything counted is now shown.
+    pendingNewer: page.hasNewer ? current.pendingNewer : 0,
   };
 }
 

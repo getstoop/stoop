@@ -95,7 +95,12 @@ export async function loadWindow(
     return have;
   const id = ++lastRequest;
   const kind = have ? "refresh" : "open";
-  const out = step(queryClient, t, { type: "started", id, kind }, false);
+  const out = step(
+    queryClient,
+    t,
+    { type: "started", id, kind, channelId: t.channelId },
+    false,
+  );
   // A jump on its way will be fresher.
   if (!wasOut(out.after, id)) return have ?? [];
   let res: ListMessagesResponse | undefined;
@@ -223,7 +228,12 @@ async function replaceWindow(
   fetch: () => Promise<ListMessagesResponse>,
 ): Promise<ListMessagesResponse | null> {
   const id = ++lastRequest;
-  step(queryClient, t, { type: "started", id, kind: "open" });
+  step(queryClient, t, {
+    type: "started",
+    id,
+    kind: "open",
+    channelId: t.channelId,
+  });
   let res: ListMessagesResponse;
   try {
     res = await fetch();

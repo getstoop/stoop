@@ -126,6 +126,7 @@ export function step(
   action: TimelineAction<undefined>,
   write = true,
 ): { before: WindowState; after: WindowState } {
+  watch(queryClient);
   const before = windowOf(queryClient, t);
   const after = timelineReducer(before, action);
   const id = timelineId(t);
@@ -207,6 +208,21 @@ export function reconnected() {
       windows[id] = timelineReducer(state, { type: "reconnected" });
     }
     return { windows };
+  });
+}
+
+const watched = new WeakSet<QueryClient>();
+
+// A window the cache lets go of takes its reducer state with it: one
+// unused for a while, one removed, or every one when the cache is cleared
+// for a change of account.
+function watch(queryClient: QueryClient) {
+  if (watched.has(queryClient)) return;
+  watched.add(queryClient);
+  queryClient.getQueryCache().subscribe((event) => {
+    const key = event.query.queryKey;
+    if (event.type !== "removed" || !isTimelineKey(key)) return;
+    forget({ channelId: String(key[1]), rootId: key[2] as string | undefined });
   });
 }
 
