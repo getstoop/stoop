@@ -45,19 +45,45 @@ type Item =
   | { kind: "message"; key: string; message: Message; continued: boolean }
   | { kind: "day" | "new"; key: string; label: string };
 
-// What a realtime event does to the screen: a rename retitles it, losing
-// the channel ends it, and the rest is the timeline's (core/channelTimeline).
-function withEvent(current: State, event: ServerEvent): State {
+// What a realtime event does to the screen: losing the channel ends it,
+// a rename or a member coming or going changes the title, and the rest is
+// the timeline's (core/channelTimeline). A replay (live false) leaves the
+// member count alone: the answer it is replayed over may have counted
+// them already, and unlike the rest a count isn't safe to apply twice.
+function withEvent(current: State, event: ServerEvent, live = true): State {
   if (current.state !== "ready") return current;
   const { view } = current;
   if (losesChannel(event, view.space.id, view.channel.id, view.myUserId)) return { state: "gone" };
-  if (event.payload.case === "channelUpdated") {
-    if (event.payload.value.id !== view.channel.id) return current;
-    const { name, private: closed, topic, postPolicy } = event.payload.value;
-    return { ...current, view: { ...view, channel: { ...view.channel, name, private: closed, topic, postPolicy } } };
+  const payload = event.payload;
+  switch (payload.case) {
+    case "channelUpdated": {
+      if (payload.value.id !== view.channel.id) return current;
+      const { name, private: closed, topic, postPolicy } = payload.value;
+      return { ...current, view: { ...view, channel: { ...view.channel, name, private: closed, topic, postPolicy } } };
+    }
+    case "spaceUpdated":
+      if (payload.value.space?.id !== view.space.id) return current;
+      return { ...current, view: { ...view, space: payload.value.space } };
+    case "memberJoined":
+    case "memberRemoved":
+      // A private channel's members join and leave it on their own.
+      if (!live || view.channel.private || payload.value.spaceId !== view.space.id) return current;
+      return withMemberCount(current, payload.case === "memberJoined" ? 1 : -1);
+    case "channelMemberJoined":
+    case "channelMemberLeft":
+      if (!live || !view.channel.private || payload.value.channelId !== view.channel.id) return current;
+      return withMemberCount(current, payload.case === "channelMemberJoined" ? 1 : -1);
   }
   const messages = withChannelEvent(view.messages, event, view.channel.id);
   return messages === view.messages ? current : { ...current, view: { ...view, messages } };
+}
+
+function replayed(current: State, event: ServerEvent): State {
+  return withEvent(current, event, false);
+}
+
+function withMemberCount(current: State & { state: "ready" }, change: number): State {
+  return { ...current, view: { ...current.view, memberCount: Math.max(0, current.view.memberCount + change) } };
 }
 
 export default function Channel({
@@ -78,11 +104,11 @@ export default function Channel({
   const [active, setActive] = useState(AppState.currentState === "active");
   const list = useRef<FlatList<Item>>(null);
 
-  const load = useCallback(async (): Promise<State> => {
+  const load = useCallback(async (back = ""): Promise<State> => {
     const token = await sessionToken(server.id).catch(() => null);
     if (!token) return { state: "ended" };
     try {
-      const loaded = await loadChannel(server.origin, token, spaceId, channelId);
+      const loaded = await loadChannel(server.origin, token, spaceId, channelId, back);
       return { state: "ready", token, view: loaded, newAfter: loaded.channel.lastReadMessageId, loadingOlder: false };
     } catch (err) {
       if (err instanceof ChannelGone) return { state: "gone" };
@@ -94,22 +120,30 @@ export default function Channel({
     }
   }, [server, spaceId, channelId]);
 
-  // As the space's screen: overlapping loads show only the latest. A
-  // load's page was fetched before whatever arrives while the rest of it
-  // runs, so events are kept from its start and replayed over its result.
+  // A request's answer may predate whatever arrives while it is out, so
+  // each request in flight keeps the events from its start, to replay
+  // over its answer.
+  const missed = useRef(new Set<ServerEvent[]>());
+  const keeping = useCallback(async <T,>(request: () => Promise<T>): Promise<[T, ServerEvent[]]> => {
+    const events: ServerEvent[] = [];
+    missed.current.add(events);
+    try {
+      return [await request(), events];
+    } finally {
+      missed.current.delete(events);
+    }
+  }, []);
+
+  // As the space's screen: overlapping loads show only the latest.
   const latest = useRef(0);
-  const missed = useRef<ServerEvent[] | null>(null);
   const settle = useCallback(
-    async (merge: (current: State, next: State) => State) => {
+    async (merge: (current: State, next: State) => State, back = "") => {
       const mine = ++latest.current;
-      missed.current = [];
-      const next = await load();
+      const [next, events] = await keeping(() => load(back));
       if (mine !== latest.current) return;
-      const events = missed.current ?? [];
-      missed.current = null;
-      setView((current) => events.reduce(withEvent, merge(current, next)));
+      setView((current) => events.reduce(replayed, merge(current, next)));
     },
-    [load],
+    [load, keeping],
   );
 
   const open = useCallback(() => settle((_, next) => next), [settle]);
@@ -123,28 +157,30 @@ export default function Channel({
     };
   }, [open]);
 
-  // After a reconnect, the newest page in place of the newest end held;
-  // the header's facts may have changed too. A reconnect that can't load
-  // keeps what is on screen.
+  // After a reconnect, everything held is fetched again, from the newest
+  // message down to back, the oldest held; the header's facts may have
+  // changed too. A reconnect that can't load keeps what is on screen.
   const catchUp = useCallback(
-    () =>
+    (back: string) =>
       settle((current, next) => {
         if (current.state !== "ready") return next;
         if (next.state === "failed") return current;
         if (next.state !== "ready") return next;
         const merged = withNewestPage(current.view, next.view);
         return { ...current, token: next.token, view: { ...next.view, ...merged } };
-      }),
+      }, back),
     [settle],
   );
 
   useServerEvents(server.id, (event) => {
     if (event.payload.case === "ready") {
-      if (view.state === "ready") catchUp();
-      else if (view.state === "failed") open();
+      // A load still out may have read the server before the socket was
+      // back, so it starts again.
+      if (view.state === "ready") catchUp(view.view.messages[0]?.id ?? "");
+      else if (view.state === "loading" || view.state === "failed") open();
       return;
     }
-    missed.current?.push(event);
+    for (const events of missed.current) events.push(event);
     if (view.state !== "ready") return;
     if (losesChannel(event, spaceId, channelId, view.view.myUserId)) latest.current++;
     setView((current) => withEvent(current, event));
@@ -157,21 +193,24 @@ export default function Channel({
     const oldest = view.view.messages[0];
     if (!oldest) return;
     setView((current) => (current.state === "ready" ? { ...current, loadingOlder: true } : current));
-    const page = await loadOlder(server.origin, view.token, channelId, oldest.id).catch(() => null);
+    const [page, events] = await keeping(() =>
+      loadOlder(server.origin, view.token, channelId, oldest.id).catch(() => null),
+    );
     setView((current) => {
       if (current.state !== "ready") return current;
       const held = current.view.messages;
       if (!page || held[0]?.id !== oldest.id) return { ...current, loadingOlder: false };
       // Messages that arrived meanwhile are already below; the page goes
-      // above whatever is held now.
+      // above whatever is held now, with what changed in it meanwhile.
       const above = page.messages.filter((message) => !held.some((cached) => cached.id === message.id));
-      return {
+      const next: State = {
         ...current,
         loadingOlder: false,
         view: { ...current.view, messages: [...above, ...held], hasOlder: page.hasOlder },
       };
+      return events.reduce(replayed, next);
     });
-  }, [view, server.origin, channelId]);
+  }, [view, server.origin, channelId, keeping]);
 
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.

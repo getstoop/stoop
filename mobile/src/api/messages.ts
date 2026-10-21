@@ -6,7 +6,7 @@ import { authClient, chatClient } from "./clients";
 // A channel's screen: the channel and its space for the title, how many
 // people can read it, who is reading (for the "New" line and what
 // mentions them), and the newest page of its messages. Older pages load
-// as the reader scrolls up; realtime events keep the newest end current
+// as the reader scrolls up; realtime events keep what is held current
 // (core/channelTimeline).
 
 export type ChannelView = Page & {
@@ -24,11 +24,15 @@ const PAGE = 50;
 // the reader can no longer see it.
 export class ChannelGone extends Error {}
 
+// With back, the id of the oldest message held, the history down to it
+// too: after a reconnect, as on web, everything held is fetched again,
+// since an older message may have been edited or deleted meanwhile.
 export async function loadChannel(
   origin: string,
   token: string,
   spaceId: string,
   channelId: string,
+  back = "",
 ): Promise<ChannelView> {
   const chat = chatClient(origin, token);
   const options = { timeoutMs: TIMEOUT_MS };
@@ -44,14 +48,15 @@ export async function loadChannel(
   const memberCount = channel.private
     ? (await chat.listChannelMembers({ channelId }, options)).userIds.length
     : (await chat.listMembers({ spaceId }, options)).members.length;
-  return {
-    space,
-    channel,
-    memberCount,
-    myUserId: user.id,
-    messages: page.messages,
-    hasOlder: page.hasOlder,
-  };
+  let messages = page.messages;
+  let hasOlder = page.hasOlder;
+  while (back && hasOlder && messages[0] && messages[0].id > back) {
+    const older = await chat.listMessages({ channelId, beforeId: messages[0].id, limit: PAGE }, options);
+    if (older.messages.length === 0) break;
+    messages = [...older.messages, ...messages];
+    hasOlder = older.hasOlder;
+  }
+  return { space, channel, memberCount, myUserId: user.id, messages, hasOlder };
 }
 
 // The page before the oldest message held.
