@@ -22,7 +22,10 @@ function* tsFiles(dir) {
   }
 }
 
-const IMPORT = /(?:^|\s)(?:import|export)\b[^"']*?from\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']/g;
+// import … from "x", export … from "x", import("x"), and the bare
+// import "x" that loads a module for its side effects.
+const IMPORT =
+  /(?:^|\s)(?:import|export)\b[^"']*?from\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']|(?:^|\s)import\s*["']([^"']+)["']/g;
 
 function allowed(file, spec) {
   if (spec.startsWith(".")) {
@@ -36,7 +39,7 @@ function allowed(file, spec) {
 let failed = 0;
 for (const file of tsFiles(core)) {
   for (const match of readFileSync(file, "utf8").matchAll(IMPORT)) {
-    const spec = match[1] ?? match[2];
+    const spec = match[1] ?? match[2] ?? match[3];
     if (allowed(file, spec)) continue;
     console.error(
       `${relative(root, file)}  imports "${spec}": core may import only core, web/src/gen and @bufbuild/protobuf`,
