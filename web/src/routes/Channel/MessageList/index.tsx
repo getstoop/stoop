@@ -43,7 +43,13 @@ import {
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { openSidePanel, useSidePanelStore } from "../../../stores/sidePanel";
 import { MessageRow } from "../MessageRow";
-import { type Edges, edgesReached, newestChange } from "./edges";
+import {
+  type Anchor,
+  anchorMoved,
+  type Edges,
+  edgesReached,
+  newestChange,
+} from "./edges";
 import {
   estimateSize,
   indexOfMessage,
@@ -174,7 +180,7 @@ export function MessageList({
   const listRef = useRef<HTMLDivElement>(null);
   const landedOnce = useRef(false);
   const edges = useRef<Edges>({ older: false, newer: false });
-  const anchor = useRef<{ id: string; top: number } | null>(null);
+  const anchor = useRef<Anchor | null>(null);
   const atBottomRef = useRef(true);
   const liveRef = useRef(live);
   liveRef.current = live;
@@ -215,19 +221,23 @@ export function MessageList({
       // back at a stale position on the next change (an arrival).
       const state = useHistoryStore.getState().channels[timelineId(timeline)];
       if (!state || state.loading) return;
-      const page = (id: string | undefined, load: typeof loadOlder) => {
+      const page = (
+        edge: Anchor["edge"],
+        id: string | undefined,
+        load: typeof loadOlder,
+      ) => {
         const element = id && document.getElementById(`${rowIdPrefix}${id}`);
         anchor.current = element
-          ? { id, top: element.getBoundingClientRect().top }
+          ? { edge, id, top: element.getBoundingClientRect().top }
           : null;
         void load(queryClient, timeline).then((brought) => {
           if (brought === 0) anchor.current = null;
         });
       };
       if (reached.older && !before.older && state.hasOlder) {
-        page(messages[0]?.id, loadOlder);
+        page("older", messages[0]?.id, loadOlder);
       } else if (reached.newer && !before.newer && state.hasNewer) {
-        page(messages[messages.length - 1]?.id, loadNewer);
+        page("newer", messages[messages.length - 1]?.id, loadNewer);
       }
     },
   });
@@ -235,7 +245,9 @@ export function MessageList({
   // a preview): the view keeps its place when the row is above it, and
   // stays at the bottom when it is there. A row's first measurement keeps
   // the virtualiser's rule — the rows a landing is still settling over
-  // must not each move the view.
+  // must not each move the view. Not while scrolling up, where rows
+  // settling above would cascade — except for the head, which grows when
+  // the beginning is reached, which is where an upward scroll ends.
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (
     item,
     _delta,
@@ -244,7 +256,10 @@ export function MessageList({
     const offset = instance.scrollOffset ?? 0;
     if (!instance.itemSizeCache.has(item.key)) return item.start < offset;
     if (liveRef.current && atBottomRef.current) return true;
-    return item.end <= offset && instance.scrollDirection !== "backward";
+    return (
+      item.end <= offset &&
+      (item.index === 0 || instance.scrollDirection !== "backward")
+    );
   };
   const scrollToBottom = useCallback(() => {
     virtualizer.scrollToEnd();
@@ -299,6 +314,13 @@ export function MessageList({
     const pinned = anchor.current;
     const list = listRef.current;
     if (!pinned || !list) return;
+    // A change elsewhere while the page is still out (an arrival, an edit)
+    // keeps the anchor for the page; its top follows any scroll since.
+    if (!anchorMoved(pinned, messages)) {
+      const row = document.getElementById(`${rowIdPrefix}${pinned.id}`);
+      if (row) pinned.top = row.getBoundingClientRect().top;
+      return;
+    }
     anchor.current = null;
     const index = indexOfMessage(items, pinned.id);
     // getTotalSize brings the measurements up to date with the rows
@@ -307,12 +329,10 @@ export function MessageList({
     const start = virtualizer.measurementsCache[index]?.start;
     if (index < 0 || start === undefined) return;
     // The body sits at the top of the scrolled content, so a row's top on
-    // screen is the list's top plus its offset less the scroll.
+    // screen is the list's top plus its offset less the scroll. The scroll
+    // event this raises is the virtualiser's cue to render the rows there
+    // before the frame is painted.
     list.scrollTop = list.getBoundingClientRect().top + start - pinned.top;
-    // The virtualiser hears of a scroll from the element's event, a frame
-    // on. Its rule for a row measured before then — move the view by the
-    // change when the row is above it — needs the position as it is now.
-    virtualizer.scrollOffset = list.scrollTop;
   }, [items]);
 
   // Jump to a message and flash it. If it isn't in the window, one round

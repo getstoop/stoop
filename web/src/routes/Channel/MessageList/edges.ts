@@ -23,6 +23,23 @@ export function edgesReached(
   };
 }
 
+// Where the view was pinned before a page was asked for: the message at
+// the edge being extended, and where its top sat on screen.
+export interface Anchor {
+  edge: "older" | "newer";
+  id: string;
+  top: number;
+}
+
+// Whether the page the anchor was taken for has landed: the window's
+// message at that edge is no longer the anchored one. A change elsewhere
+// (an arrival at the other end, an edit, a deletion) leaves it pending.
+export function anchorMoved(anchor: Anchor, messages: Message[]): boolean {
+  const atEdge =
+    anchor.edge === "older" ? messages[0] : messages[messages.length - 1];
+  return atEdge?.id !== anchor.id;
+}
+
 // How the window's newest message changed since `seen`: "first" when no
 // window was seen before, "arrival" when one message was added at the
 // end, "same" when the newest is as it was (a page prepended, an edit),

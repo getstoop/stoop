@@ -455,8 +455,12 @@ top-to-bottom scroll container that starts at the bottom.
   screen; once the window has changed (a page prepended or appended, the
   far end pruned) a layout effect puts it back there from the row's
   measured offset in the new window, before anything is painted. The
-  anchor is noted only for a page that will be asked for and dropped if
-  it brings nothing, or an arrival later would restore a stale position.
+  anchor is noted only for a page that will be asked for, says which edge
+  it is for, and is consumed only when that edge's message changes
+  (`anchorMoved`): a change elsewhere while the page is out — someone
+  posting, editing or deleting — leaves it pending, with its top
+  refreshed from the row on screen. It is dropped if the page brings
+  nothing, or an arrival later would restore a stale position.
   (The virtualiser's own `anchorTo: "end"` is not used: it anchors on
   whatever row is at the top of the view, which at `scrollTop` 0 is the
   head, so a prepend would leave the view at the top showing the new

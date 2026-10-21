@@ -4,7 +4,7 @@ import {
   type Message,
   MessageSchema,
 } from "../../../gen/stoop/chat/v1/message_pb";
-import { edgesReached, newestChange } from "./edges";
+import { anchorMoved, edgesReached, newestChange } from "./edges";
 
 const message = (id: string): Message =>
   create(MessageSchema, { id, channelId: "c1" });
@@ -48,6 +48,34 @@ describe("edgesReached", () => {
       older: false,
       newer: false,
     });
+  });
+});
+
+describe("anchorMoved", () => {
+  const a = message("a");
+  const b = message("b");
+  const c = message("c");
+  const older = { edge: "older" as const, id: "b", top: 100 };
+  const newer = { edge: "newer" as const, id: "b", top: 100 };
+
+  it("stays pending while the anchored edge is as it was", () => {
+    expect(anchorMoved(older, [b, c])).toBe(false);
+    expect(anchorMoved(newer, [a, b])).toBe(false);
+  });
+
+  it("an older page moves the oldest; an arrival at the end does not", () => {
+    expect(anchorMoved(older, [a, b, c])).toBe(true);
+    expect(anchorMoved(older, [b, c, a])).toBe(false);
+  });
+
+  it("a newer page moves the newest; a prepend does not", () => {
+    expect(anchorMoved(newer, [a, b, c])).toBe(true);
+    expect(anchorMoved(newer, [c, a, b])).toBe(false);
+  });
+
+  it("a window without the anchored message counts as moved", () => {
+    expect(anchorMoved(older, [a, c])).toBe(true);
+    expect(anchorMoved(newer, [])).toBe(true);
   });
 });
 

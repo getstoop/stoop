@@ -134,8 +134,50 @@ test("the list renders only the rows near the viewport", async ({
     "the DOM still holds only the rows near the view",
   ).toBeLessThan(DOM_BOUND);
 
-  // Away from the bottom the pill offers the way back, and takes it.
+  // Away from the bottom the pill offers the way back.
   await expect(pill, "the pill is offered").toHaveText("Jump to latest ↓");
+
+  // A message posted while an older page is still out neither moves the
+  // viewed row then, nor when the page lands: the page's request is held
+  // here until the message has arrived.
+  const B = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
+  await signIn(B, tokens.bea);
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
+  let hold = false;
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await A.route("**/stoop.chat.v1.ChatService/ListMessages", async (route) => {
+    if (hold) await held;
+    await route.continue();
+  });
+  hold = true;
+  const pageRequest = A.waitForRequest(/ChatService\/ListMessages/);
+  await scrollToTop();
+  const heldId = `msg-${ids[SEED - 100]}`;
+  await expect(A.locator(`#${heldId}`)).toBeAttached();
+  const heldTop = await topOf(heldId);
+  await pageRequest;
+  await say(B, "posted while a page is out");
+  await expect(pill, "the arrival counts on the pill").toHaveText(
+    "1 new message ↓",
+  );
+  expect(
+    Math.abs((await topOf(heldId)) - heldTop),
+    "…and does not move the viewed row",
+  ).toBeLessThan(3);
+  hold = false;
+  release();
+  await expect(list, "the held page lands").toHaveAttribute("data-rows", "151");
+  await expect
+    .poll(async () => Math.abs((await topOf(heldId)) - heldTop), {
+      message: "…with the viewed row still where it was",
+    })
+    .toBeLessThan(3);
+  await A.unroute("**/stoop.chat.v1.ChatService/ListMessages");
+
+  // The pill takes the way back to the bottom.
   await pill.click();
   await expect(pill, "Jump to latest hides the pill").toHaveCount(0);
   await expect
@@ -148,9 +190,6 @@ test("the list renders only the rows near the viewport", async ({
 
   // An arrival while at the bottom is followed; one while scrolled up is
   // counted on the pill and does not move the view.
-  const B = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
-  await signIn(B, tokens.bea);
-  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
   await say(B, "hello from bea");
   await expect(
     A.locator(".message", { hasText: "hello from bea" }),

@@ -287,7 +287,11 @@ force-pushes, and a pull request can only merge once every CI job is green
   a row (a quote's jump, the list's `scrollTop`) before asserting on it.
   `.message-content .md-lines` `.first()` is the window's oldest only
   while the view is at the top, and `.last()` the newest only at the
-  bottom. `virtual-list.spec.ts` is the model.
+  bottom. Avoid `.nth(n)` on `.message` for a row's absolute position in
+  the channel: it indexes the rendered rows, and a spec that posts twenty
+  or so messages (`formatting`, `edits`, `pins`, `attachments`, `unfurl`)
+  sits close to the bound at which the first ones leave the DOM; find a
+  row by text or id instead. `virtual-list.spec.ts` is the model.
 - **Below 768px the rail and channel sidebar are a transformed drawer.**
   `position: fixed` elements rendered inside `.channel-sidebar` (the invite
   modal) are positioned relative to the sidebar while it is translated, so
