@@ -3,7 +3,8 @@ import type { Reaction } from "../gen/stoop/chat/v1/reaction_pb";
 
 // How a message, an edit, a deletion or a reaction changes a timeline's
 // list of messages, oldest first. Web applies these to every cached
-// window of a channel (api/ws.ts); the app to the list it holds.
+// window of a channel through the timeline reducer (core/timelineState),
+// as the app does to the list it holds.
 
 // The list with message added at the end, or the same list if it is
 // already there: the send's reply and the realtime event both deliver it.

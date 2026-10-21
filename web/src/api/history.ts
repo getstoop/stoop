@@ -1,8 +1,15 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
+import type { Page } from "../core/channelTimeline";
+import {
+  initialTimeline,
+  type TimelineAction,
+  type Timeline as TimelineState,
+  timelineReducer,
+} from "../core/timelineState";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
-import { chatClient } from "./clients";
+import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 
 // The timeline shows one contiguous *window* of a channel's messages: the
 // flat ["messages", channelId] array (a thread's: ["messages", channelId,
@@ -13,6 +20,13 @@ import { chatClient } from "./clients";
 // message again. Whichever end is being extended, the far end is pruned
 // past WINDOW_CAP so the DOM stays bounded — the cap is what makes this
 // tolerable without virtualization (STOOP-58).
+//
+// What each answer and event does to a window is the shared timeline
+// reducer's (core/timelineState). Its state sits here, beside the window,
+// whose messages stay in the query cache: other writers change them there
+// (a pin, a thread's summary, a reaction before the server answers), so
+// each step reads them from the cache and writes back what changed. The
+// requests themselves are in timelineLoads.ts.
 
 export const HISTORY_PAGE = 50;
 export const WINDOW_CAP = 300;
@@ -33,11 +47,16 @@ export const timelineKey = (t: Timeline) =>
 export const timelineId = (t: Timeline) =>
   t.rootId ? `${t.channelId}/${t.rootId}` : t.channelId;
 
+// Whether a key under ["messages"] is a timeline's window, rather than a
+// thread's root or a linked message (["messages", channelId, id, "root"]).
+export const isTimelineKey = (key: readonly unknown[]) =>
+  key[0] === "messages" && (key.length === 2 || key.length === 3);
+
 export interface ChannelHistory {
   // The server said there may be messages beyond the window's edges.
   hasOlder: boolean;
   hasNewer: boolean;
-  // In-flight page (or jump), so the sentinels don't double-fire.
+  // A page (or jump) in flight, so the sentinels don't double-fire.
   loading: boolean;
   // Messages that arrived while the window wasn't live; shown on the
   // "Jump to latest" pill, fetched when it's pressed.
@@ -50,255 +69,237 @@ export interface ChannelHistory {
   aroundThread?: string;
 }
 
-const IDLE: ChannelHistory = {
-  hasOlder: false,
-  hasNewer: false,
-  loading: false,
-  pendingNewer: 0,
-};
+export type WindowState = TimelineState<undefined>;
+type Where = Pick<ChannelHistory, "landOn" | "aroundThread">;
 
 interface HistoryState {
-  // By timelineId.
+  // What the timeline reads, by timelineId: undefined until a window is in.
   channels: Record<string, ChannelHistory>;
-  // The base query delivered a fresh window; take the server's edge hints.
-  seed: (t: Timeline, res: ListMessagesResponse) => void;
-  // Prepend the page before the window's oldest message.
-  loadOlder: (queryClient: QueryClient, t: Timeline) => Promise<number>;
-  // Append the page after the window's newest message.
-  loadNewer: (queryClient: QueryClient, t: Timeline) => Promise<number>;
-  // Replace the window with one centred on messageId; found is false if
-  // it isn't in the timeline (deleted, or a bogus link). A reply that
-  // shows only in its thread centres a channel on its root instead and
-  // names the thread to open.
-  jumpTo: (
-    queryClient: QueryClient,
-    t: Timeline,
-    messageId: string,
-  ) => Promise<{ found: boolean; threadRootId?: string }>;
-  // Replace a non-live window with the newest page.
-  jumpToLatest: (queryClient: QueryClient, t: Timeline) => Promise<void>;
-  // A message was created while the window isn't live.
-  noteArrival: (t: Timeline) => void;
-  // The timeline scrolled to landOn.
-  landed: (t: Timeline) => void;
-  // The thread a fetch around a reply named, once: reading it clears it,
-  // so a later jump in the same window can't open it again.
-  takeAroundThread: (t: Timeline) => string | undefined;
+  // The reducer's state, by timelineId.
+  windows: Record<string, WindowState>;
 }
+
+export const useHistoryStore = create<HistoryState>(() => ({
+  channels: {},
+  windows: {},
+}));
 
 export const isLive = (h: ChannelHistory | undefined) => !h?.hasNewer;
 
-// The listMessages request for a timeline, before its paging fields.
-const scope = (t: Timeline) => ({
-  channelId: t.channelId,
-  threadId: t.rootId ?? "",
-});
-
-// The server's largest page, for fetchLiveWindow's catch-up.
-const SPAN_PAGE = 100;
-
-// The newest rows back to `have`'s oldest, for refetching a live window
-// (a rename, Ready): the rows redraw from the server and the history the
-// reader paged in stays.
-export async function fetchLiveWindow(
-  t: Timeline,
-  have: Message[],
-): Promise<ListMessagesResponse> {
-  const oldestId = have[0]?.id;
-  const bound = Math.max(have.length, WINDOW_CAP);
-  const newest = await chatClient.listMessages({
-    ...scope(t),
-    limit: SPAN_PAGE,
-  });
-  let rows = newest.messages;
-  let hasOlder = newest.hasOlder;
-  const reached = () => rows.some((m) => m.id === oldestId);
-  while (hasOlder && rows.length > 0 && rows.length < bound && !reached()) {
-    const older = await chatClient.listMessages({
-      ...scope(t),
-      beforeId: rows[0].id,
-      limit: SPAN_PAGE,
-    });
-    rows = [...older.messages, ...rows];
-    hasOlder = older.hasOlder;
+// A timeline's reducer state, with the messages its window holds now.
+export function windowOf(queryClient: QueryClient, t: Timeline): WindowState {
+  const kept: WindowState =
+    useHistoryStore.getState().windows[timelineId(t)] ?? initialTimeline;
+  const messages = queryClient.getQueryData<Message[]>(timelineKey(t));
+  const { shown } = kept;
+  if (messages === undefined)
+    return shown.state === "ready"
+      ? { ...kept, shown: { state: "loading" } }
+      : kept;
+  if (shown.state === "ready") {
+    if (shown.page.messages === messages) return kept;
+    return { ...kept, shown: { ...shown, page: { ...shown.page, messages } } };
   }
-  const start = rows.findIndex((m) => m.id === oldestId);
-  if (start > 0) {
-    rows = rows.slice(start);
-    hasOlder = true;
-  }
-  return { ...newest, messages: rows, hasOlder };
+  // Put in the cache by something else first.
+  return {
+    ...kept,
+    shown: {
+      state: "ready",
+      channelId: t.channelId,
+      rootId: t.rootId,
+      page: { messages, hasOlder: false, hasNewer: false },
+      header: undefined,
+      newAfter: null,
+      loadingOlder: false,
+      loadingNewer: false,
+      pendingNewer: 0,
+    },
+  };
 }
 
-export const useHistoryStore = create<HistoryState>((set, get) => {
-  const patch = (t: Timeline, p: Partial<ChannelHistory>) =>
-    set((s) => ({
-      channels: {
-        ...s.channels,
-        [timelineId(t)]: { ...(s.channels[timelineId(t)] ?? IDLE), ...p },
-      },
-    }));
-  const fromResponse = (res: ListMessagesResponse): ChannelHistory => ({
+// Runs one action through the reducer and keeps the result. Its messages
+// go to the cache unless the caller is a queryFn, which returns them. A
+// timeline that is gone leaves the cache.
+export function step(
+  queryClient: QueryClient,
+  t: Timeline,
+  action: TimelineAction<undefined>,
+  write = true,
+): { before: WindowState; after: WindowState } {
+  watch(queryClient);
+  const before = windowOf(queryClient, t);
+  const after = timelineReducer(before, action);
+  const id = timelineId(t);
+  if (after.shown.state === "gone") {
+    forget(t);
+    queryClient.removeQueries({ queryKey: timelineKey(t), exact: true });
+    return { before, after };
+  }
+  useHistoryStore.setState((s) => ({
+    windows: { ...s.windows, [id]: after },
+    channels: withHistory(s.channels, id, after),
+  }));
+  const { shown } = after;
+  if (
+    write &&
+    shown.state === "ready" &&
+    (before.shown.state !== "ready" ||
+      shown.page.messages !== before.shown.page.messages)
+  ) {
+    queryClient.setQueryData<Message[]>(timelineKey(t), shown.page.messages);
+  }
+  return { before, after };
+}
+
+// Whether a request was still counted when its answer came.
+export const wasOut = (state: WindowState, id: number) =>
+  state.requests.some((out) => out.id === id);
+
+export function pageOf(res: ListMessagesResponse): Page {
+  return {
+    messages: res.messages,
     hasOlder: res.hasOlder,
     hasNewer: res.hasNewer,
-    loading: false,
-    pendingNewer: 0,
-    aroundThread: res.threadRootId || undefined,
+  };
+}
+
+// Sets where the timeline lands, and the thread a fetch around a reply
+// named.
+export function setWhere(t: Timeline, where: Where) {
+  useHistoryStore.setState((s) => {
+    const id = timelineId(t);
+    const current = s.channels[id];
+    if (!current) return s;
+    return { channels: { ...s.channels, [id]: { ...current, ...where } } };
   });
-  // Runs one page fetch, guarded against overlap; returns the page or null.
-  const page = async (
-    t: Timeline,
-    fetch: () => Promise<ListMessagesResponse>,
-  ) => {
-    const cur = get().channels[timelineId(t)] ?? IDLE;
-    if (cur.loading) return null;
-    patch(t, { loading: true });
-    try {
-      return await fetch();
-    } catch {
-      return null;
-    } finally {
-      patch(t, { loading: false });
+}
+
+// The timeline scrolled to landOn.
+export const landed = (t: Timeline) => setWhere(t, { landOn: undefined });
+
+// The thread a fetch around a reply named, once: reading it clears it, so
+// a later jump in the same window can't open it again.
+export function takeAroundThread(t: Timeline): string | undefined {
+  const thread =
+    useHistoryStore.getState().channels[timelineId(t)]?.aroundThread;
+  if (thread) setWhere(t, { aroundThread: undefined });
+  return thread;
+}
+
+// A realtime event, for every timeline of its channel: what each window
+// holds, and the requests out that will replay it.
+export function applyTimelineEvent(
+  queryClient: QueryClient,
+  event: ServerEvent,
+) {
+  const channelId = channelOf(event);
+  if (!channelId) return;
+  for (const t of timelinesOf(queryClient, channelId)) {
+    step(queryClient, t, { type: "event", event });
+  }
+}
+
+// The socket is back: a page asked for before now may have missed what
+// changed while it was down.
+export function reconnected() {
+  useHistoryStore.setState((s) => {
+    const windows: Record<string, WindowState> = {};
+    for (const [id, state] of Object.entries(s.windows)) {
+      windows[id] = timelineReducer(state, { type: "reconnected" });
     }
+    return { windows };
+  });
+}
+
+const watched = new WeakSet<QueryClient>();
+
+// A window the cache lets go of takes its reducer state with it: one
+// unused for a while, one removed, or every one when the cache is cleared
+// for a change of account.
+function watch(queryClient: QueryClient) {
+  if (watched.has(queryClient)) return;
+  watched.add(queryClient);
+  queryClient.getQueryCache().subscribe((event) => {
+    const key = event.query.queryKey;
+    if (event.type !== "removed" || !isTimelineKey(key)) return;
+    forget({ channelId: String(key[1]), rootId: key[2] as string | undefined });
+  });
+}
+
+function forget(t: Timeline) {
+  const id = timelineId(t);
+  useHistoryStore.setState((s) => {
+    const { [id]: _window, ...windows } = s.windows;
+    const { [id]: _history, ...channels } = s.channels;
+    return { windows, channels };
+  });
+}
+
+// What the timeline reads, kept as the same object while nothing in it
+// changed so a row isn't drawn again for an event elsewhere.
+function withHistory(
+  channels: Record<string, ChannelHistory>,
+  id: string,
+  state: WindowState,
+): Record<string, ChannelHistory> {
+  const current = channels[id];
+  const { shown } = state;
+  if (shown.state !== "ready") {
+    if (!current) return channels;
+    const { [id]: _gone, ...rest } = channels;
+    return rest;
+  }
+  const next: ChannelHistory = {
+    hasOlder: shown.page.hasOlder,
+    hasNewer: !!shown.page.hasNewer,
+    loading:
+      shown.loadingOlder ||
+      shown.loadingNewer ||
+      state.requests.some((out) => out.kind === "open"),
+    pendingNewer: shown.pendingNewer,
+    landOn: current?.landOn,
+    aroundThread: current?.aroundThread,
   };
+  if (
+    current &&
+    current.hasOlder === next.hasOlder &&
+    current.hasNewer === next.hasNewer &&
+    current.loading === next.loading &&
+    current.pendingNewer === next.pendingNewer
+  )
+    return channels;
+  return { ...channels, [id]: next };
+}
 
-  return {
-    channels: {},
-    seed: (t, res) =>
-      set((s) => ({
-        channels: { ...s.channels, [timelineId(t)]: fromResponse(res) },
-      })),
+function channelOf(event: ServerEvent): string | undefined {
+  const payload = event.payload;
+  switch (payload.case) {
+    case "messageCreated":
+    case "messageUpdated":
+    case "messageDeleted":
+    case "reactionsChanged":
+    case "channelDeleted":
+      return payload.value.channelId;
+    default:
+      return undefined;
+  }
+}
 
-    loadOlder: async (queryClient, t) => {
-      const cur = get().channels[timelineId(t)] ?? IDLE;
-      const have = queryClient.getQueryData<Message[]>(timelineKey(t));
-      if (!cur.hasOlder || !have?.length) return 0;
-      const res = await page(t, () =>
-        chatClient.listMessages({
-          ...scope(t),
-          beforeId: have[0].id,
-          limit: HISTORY_PAGE,
-        }),
-      );
-      if (!res) return 0;
-      let pruned = false;
-      queryClient.setQueryData<Message[]>(timelineKey(t), (old) => {
-        if (!old) return old;
-        const seen = new Set(old.map((m) => m.id));
-        let next = [...res.messages.filter((m) => !seen.has(m.id)), ...old];
-        if (next.length > WINDOW_CAP) {
-          next = next.slice(0, WINDOW_CAP);
-          pruned = true;
-        }
-        return next;
-      });
-      patch(t, {
-        hasOlder: res.hasOlder,
-        // Dropping the newest rows means the window no longer ends at the
-        // newest message; arrivals count on the pill from here.
-        ...(pruned ? { hasNewer: true } : {}),
-      });
-      return res.messages.length;
-    },
-
-    loadNewer: async (queryClient, t) => {
-      const cur = get().channels[timelineId(t)] ?? IDLE;
-      const have = queryClient.getQueryData<Message[]>(timelineKey(t));
-      if (!cur.hasNewer || !have?.length) return 0;
-      const res = await page(t, () =>
-        chatClient.listMessages({
-          ...scope(t),
-          afterId: have[have.length - 1].id,
-          limit: HISTORY_PAGE,
-        }),
-      );
-      if (!res) return 0;
-      let pruned = false;
-      queryClient.setQueryData<Message[]>(timelineKey(t), (old) => {
-        if (!old) return old;
-        const seen = new Set(old.map((m) => m.id));
-        let next = [...old, ...res.messages.filter((m) => !seen.has(m.id))];
-        if (next.length > WINDOW_CAP) {
-          next = next.slice(next.length - WINDOW_CAP);
-          pruned = true;
-        }
-        return next;
-      });
-      patch(t, {
-        hasNewer: res.hasNewer,
-        ...(pruned ? { hasOlder: true } : {}),
-        // Back at the newest message: everything that arrived is now loaded.
-        ...(res.hasNewer ? {} : { pendingNewer: 0 }),
-      });
-      return res.messages.length;
-    },
-
-    jumpTo: async (queryClient, t, messageId) => {
-      // A thread's root is not one of its replies: the window that shows
-      // it is the first page, the replies after it, with nothing older.
-      if (t.rootId && messageId === t.rootId) {
-        const first = await page(t, () =>
-          chatClient.listMessages({
-            ...scope(t),
-            afterId: messageId,
-            limit: HISTORY_PAGE,
-          }),
-        );
-        if (!first) return { found: false };
-        queryClient.setQueryData<Message[]>(timelineKey(t), first.messages);
-        get().seed(t, first);
-        patch(t, { hasOlder: false, landOn: { id: messageId } });
-        return { found: true };
-      }
-      const res = await page(t, () =>
-        chatClient.listMessages({
-          ...scope(t),
-          aroundId: messageId,
-          limit: HISTORY_PAGE,
-        }),
-      );
-      if (!res) return { found: false };
-      queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
-      get().seed(t, res);
-      const threadRootId = res.threadRootId || undefined;
-      // The caller opens the thread from the answer; nothing is left to
-      // take later.
-      patch(t, {
-        landOn: { id: threadRootId ?? messageId },
-        aroundThread: undefined,
-      });
-      return { found: true, threadRootId };
-    },
-
-    jumpToLatest: async (queryClient, t) => {
-      if (isLive(get().channels[timelineId(t)])) return;
-      const res = await page(t, () =>
-        chatClient.listMessages({ ...scope(t), limit: HISTORY_PAGE }),
-      );
-      if (!res) return;
-      queryClient.setQueryData<Message[]>(timelineKey(t), res.messages);
-      get().seed(t, res);
-      patch(t, { landOn: "bottom" });
-    },
-
-    landed: (t) => patch(t, { landOn: undefined }),
-
-    takeAroundThread: (t) => {
-      const thread = get().channels[timelineId(t)]?.aroundThread;
-      if (thread) patch(t, { aroundThread: undefined });
-      return thread;
-    },
-
-    noteArrival: (t) =>
-      set((s) => {
-        const cur = s.channels[timelineId(t)];
-        if (!cur?.hasNewer) return s;
-        return {
-          channels: {
-            ...s.channels,
-            [timelineId(t)]: { ...cur, pendingNewer: cur.pendingNewer + 1 },
-          },
-        };
-      }),
-  };
-});
+// The channel's timelines: its own and its threads', those with a window
+// in the cache and those whose first load is still out.
+function timelinesOf(queryClient: QueryClient, channelId: string): Timeline[] {
+  const found = new Map<string, Timeline>();
+  for (const query of queryClient
+    .getQueryCache()
+    .findAll({ queryKey: ["messages", channelId] })) {
+    if (!isTimelineKey(query.queryKey)) continue;
+    const rootId = query.queryKey[2] as string | undefined;
+    const t = { channelId, rootId };
+    found.set(timelineId(t), t);
+  }
+  for (const id of Object.keys(useHistoryStore.getState().windows)) {
+    const [owner, rootId] = id.split("/");
+    if (owner === channelId) found.set(id, { channelId, rootId });
+  }
+  return [...found.values()];
+}

@@ -8,12 +8,16 @@ import {
   withRootDeleted,
 } from "./messageList";
 
-// The app's channel timeline: the window of messages it holds, and what a
-// reconnect and a realtime event do to it. Web keeps its windows in the
-// query cache (api/ws.ts) and needs none of this.
+// A channel's window of messages, and what a reconnect and a realtime
+// event do to it (the timeline reducer, core/timelineState, runs these).
 
-// A run of a channel's messages, oldest first, and whether more lie above.
-export type Page = { messages: Message[]; hasOlder: boolean };
+// A run of a channel's messages, oldest first, whether more lie above, and
+// whether more lie below: absent or false, it reaches the newest message.
+export type Page = {
+  messages: Message[];
+  hasOlder: boolean;
+  hasNewer?: boolean;
+};
 
 // After a reconnect, when events may have been missed: the newest page in
 // place of the newest end of what is held. History paged in above it stays
@@ -32,25 +36,26 @@ export function withNewestPage(held: Page, page: Page): Page {
   };
 }
 
-// What a realtime event does to the channel's messages, by web's rules
-// (messageList): the same list when it is about something else. A reply
-// that stays in its thread is not in the channel's timeline. Applying an
-// event a second time changes nothing, so events that arrived during a
-// load can be replayed over its result.
+// What a realtime event does to the channel's messages, or with rootId to
+// one thread's replies, by web's rules (messageList): the same list when
+// it is about something else. A reply that stays in its thread is not in
+// the channel's timeline. Applying an event a second time changes
+// nothing, so events that arrived during a load can be replayed over its
+// result.
 export function withChannelEvent(
   messages: Message[],
   event: ServerEvent,
   channelId: string,
+  rootId?: string,
 ): Message[] {
   const payload = event.payload;
   switch (payload.case) {
     case "messageCreated": {
       const message = payload.value;
-      if (
-        message.channelId !== channelId ||
-        (message.threadRootId && !message.inChannel)
-      )
-        return messages;
+      const shows = rootId
+        ? message.threadRootId === rootId
+        : !message.threadRootId || message.inChannel;
+      if (message.channelId !== channelId || !shows) return messages;
       return withMessage(messages, message);
     }
     case "messageUpdated": {

@@ -138,7 +138,7 @@ The stores, and what each is for:
 | ----- | ----- |
 | `connection` | Socket status, our user id, the channel currently on screen, who is online, who is on do not disturb, and typing hints with expiry. |
 | `voice` | The LiveKit room, the track registry keyed by participant and source, participants from the gateway, mute/deafen/camera/screen flags. |
-| `history` (in `api/history.ts`) | Per-channel window metadata: `hasOlder`, `hasNewer`, `loading`, `pendingNewer`, and where to land after a jump. |
+| `history` (in `api/history.ts`) | Each timeline's reducer state (`core/timelineState.ts`: the requests out and what each has kept), and what the timeline reads from it: `hasOlder`, `hasNewer`, `loading`, `pendingNewer`, and where to land after a jump. The messages stay in the query cache. |
 | `layout` | `drawerOpen`. That is the entire mobile navigation state. |
 | `sidePanel` | What the side panel shows, or nothing, saved per tab ([The side panel](#the-side-panel)). |
 | `dialogs` | The promise-shaped `confirm` / `prompt` / `notice` queue. |
@@ -156,11 +156,14 @@ are testable and reusable:
 
 - `queries.ts`, `channels.ts`, `dms.ts`, `invites.ts`, `activity.ts` —
   query keys and fetchers.
-- `history.ts` — the message window state machine
+- `history.ts` — the message windows: each runs the shared timeline
+  reducer, whose state sits beside the window in the query cache, and
+  `timelineLoads.ts` makes the requests that fill it
   ([realtime.md](realtime.md#history-windows)).
-- `ws.ts` — the realtime client and the event → cache mapping. What an
-  event does to a list of messages is `core/messageList.ts`, applied to
-  every cached window of the channel.
+- `ws.ts` — the realtime client and the event → cache mapping. A message
+  event reaches every timeline of its channel through the reducer
+  (`applyTimelineEvent`); the copies beside them (a thread's root, a
+  linked message) take it from `core/channelTimeline.ts` directly.
 - `unreads.ts` — the unread/badge derivations, which route an empty space
   id to the DM list instead of a space's channels.
 - `mutes.ts` — the one place the effective mute is derived for the
@@ -189,20 +192,28 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   to show; it keeps no copy of the role table. The server still enforces.
 - `messageList.ts` — what a new message, an edit, a deletion or a reaction
   does to a list of messages.
-- `channelTimeline.ts` — the app's window of a channel's messages: what a
-  realtime event does to it, and how a reconnect's newest page joins the
-  history already held.
-- `timelineState.ts` — a channel's timeline as a reducer, which the app's
-  channel screen runs (web's is still `api/history.ts` and `api/ws.ts`).
-  It holds what is shown (a window of messages, with an optional header
-  beside it), the requests out (an open, a catch-up after a reconnect,
-  an older page) under ids the app picks, and the events each has kept
+- `channelTimeline.ts` — a window of a channel's messages, or of one
+  thread's replies: what a realtime event does to it, and how a
+  reconnect's newest page joins the history already held.
+- `timelineState.ts` — a timeline as a reducer, which the app's channel
+  screen and web's windows (`api/history.ts`) both run. It holds what is
+  shown (a window of messages, with an optional header beside it), the
+  requests out under ids the caller picks — an open (a new window: the
+  newest page, or one around a message), a catch-up after a reconnect, a
+  refresh, an older or a newer page — and the events each has kept
   while out. Its rules: those events are replayed over that request's
-  answer alone, over an older page without new messages; only the latest
-  open or catch-up counts; an open drops every older page still out, and
-  so does a reconnect for one asked for before it; a failed catch-up
-  keeps what is shown. The app does the fetching and dispatches each
-  start, answer and failure.
+  answer alone; only the latest load counts, and a refresh gives way to
+  an open asked for since the last reconnect; an open drops every page
+  still out, and a reconnect drops one asked for before it; a failed load
+  keeps what is shown when it was for that window (a catch-up, a refresh,
+  or an open naming the same channel). A new message beyond a window that
+  stops short of the newest is counted (`pendingNewer`), not shown, and
+  the count clears once a load reaches the newest message. The caller does the fetching and
+  dispatches each start, answer and failure.
+- `timelinePaging.ts` — the pages either side of what is held: one at a
+  time, none while an open is out, a new message replayed over a newer
+  page only once it reaches the newest, and the cap that drops the far
+  end and sets that end's flag.
 - `timelineEvents.ts` — what a realtime event does to what a timeline
   holds: its messages, and its header if it carries one (the channel,
   its space, the member count, who is reading). A rename changes the
@@ -468,7 +479,7 @@ reads its own activity items; the channel reads only items outside
 threads.
 
 A reply also sent to the channel is one message in both timelines
-(`appendMessage` routes it to both). In the channel it carries a line
+(the reducer puts it in each, `core/channelTimeline.ts`). In the channel it carries a line
 naming its thread (`Message.thread_root`) that opens the thread on it;
 in the thread it is tagged "Also sent to #channel". The thread's box
 offers the choice as a checkbox, cleared after each send.

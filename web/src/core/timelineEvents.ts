@@ -19,8 +19,10 @@ export type ChannelHeader = {
 
 export type Header = ChannelHeader | undefined;
 
+// A thread's timeline names its root: it holds that thread's replies.
 export type Held<H extends Header> = {
   channelId: string;
+  rootId?: string;
   page: Page;
   header: H;
 };
@@ -35,21 +37,23 @@ export function withTimelineEvent<T extends Held<Header>>(
   event: ServerEvent,
   live: boolean,
 ): T | null {
-  const { header, channelId, page } = held;
-  if (losesTimeline(header, event, channelId)) return null;
+  const { header, channelId, rootId, page } = held;
+  if (losesTimeline(header, event, channelId, rootId)) return null;
   const nextHeader: T["header"] = header
     ? withHeaderEvent(header, event, live)
     : header;
-  const messages = withChannelEvent(page.messages, event, channelId);
+  const messages = withChannelEvent(page.messages, event, channelId, rootId);
   if (nextHeader === header && messages === page.messages) return held;
   return { ...held, header: nextHeader, page: { ...page, messages } };
 }
 
-// With no header, only the channel's deletion says it is lost.
+// With no header, only the channel's deletion says it is lost, or for a
+// thread its root's.
 function losesTimeline(
   header: Header,
   event: ServerEvent,
   channelId: string,
+  rootId: string | undefined,
 ): boolean {
   if (header)
     return losesChannel(
@@ -58,9 +62,13 @@ function losesTimeline(
       header.channel.id,
       header.myUserId,
     );
+  const payload = event.payload;
+  if (payload.case === "channelDeleted")
+    return payload.value.channelId === channelId;
   return (
-    event.payload.case === "channelDeleted" &&
-    event.payload.value.channelId === channelId
+    payload.case === "messageDeleted" &&
+    !!rootId &&
+    payload.value.messageId === rootId
   );
 }
 

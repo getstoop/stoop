@@ -380,9 +380,29 @@ cache sees one timeline regardless of how it got filled.
 A thread has its own window, `["messages", channelId, rootId]`, filled
 and paged the same way through `ListMessages` with `thread_id`; the store
 calls either a *timeline* (`Timeline` in `history.ts`). Because a thread's
-key sits under its channel's, an edit, a reaction, a delete or a thread's
-new summary is one write to the `["messages", channelId]` prefix, and
-`appendMessage` puts a new message in the timeline it shows in.
+key sits under its channel's, a thread's new summary or a pin is one
+write to the `["messages", channelId]` prefix.
+
+**Each window runs the shared timeline reducer** (`core/timelineState.ts`,
+the one the app's channel screen runs). Its state — the requests out and
+the events each has kept — sits in the history store beside the window;
+the messages stay in the cache, and each step reads them from there and
+writes back what changed. Every request (`api/timelineLoads.ts`: the
+messages query's first load and refetches, a page either way, a jump)
+starts under an id and hands the reducer its answer. A message created,
+edited or deleted, or a reaction, reaches every timeline of its channel
+through the reducer (`applyTimelineEvent`), which puts a new message in
+the timeline it shows in and keeps the event for each request out. The
+reader's own send, edit and delete go the same way (`appendMessage`,
+`replaceMessage`, `removeMessageFromCache` make the event the socket will
+bring). A pin, a thread's summary and a reaction before the server
+answers are still written to the cache alone. The history store forgets
+a window's state when the cache lets go of it: unused for a while,
+removed, or the whole cache cleared for a change of account. So an
+edit or a deletion that lands while a page is out is replayed over the
+page when it comes, rather than lost under it; Ready drops a page asked
+for before it (it may have read the server while the socket was down)
+and asks again from what is held then.
 
 `ListMessages` fills it ([messaging.md](messaging.md#history)): the newest
 page on opening a channel, `before_id` on scrolling up, `after_id` on
@@ -403,7 +423,9 @@ message, refetches the newest page.
 (`member_updated`, `groups_changed`) and Ready invalidate every window. A
 live one is fetched again from the newest message back to its oldest row
 (`fetchLiveWindow`, pages of 100), so history the reader paged in is
-redrawn rather than dropped; a window that isn't live is left as it is.
+redrawn rather than dropped. A window that isn't live is left as it is,
+and a refetch is skipped (the query keeps what it holds) while a jump
+asked for since the last reconnect is on its way.
 Message windows do not refetch on tab focus: the socket keeps them current.
 
 **The window is capped at 300 rows** (`WINDOW_CAP`). Paging in one

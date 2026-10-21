@@ -18,6 +18,8 @@ import { errorText } from "../../api/errors";
 import { useChannelGroups } from "../../api/groups";
 import {
   isLive,
+  landed,
+  takeAroundThread,
   timelineId,
   timelineKey,
   useHistoryStore,
@@ -27,6 +29,12 @@ import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
 import { historyRetentionNote } from "../../api/retention";
 import { messagePath, shareUrl, threadPath } from "../../api/shareLinks";
+import {
+  jumpTo as jumpWindowTo,
+  jumpToLatest as jumpWindowToLatest,
+  loadNewer,
+  loadOlder,
+} from "../../api/timelineLoads";
 import { removeMessageFromCache } from "../../api/ws";
 import { GalleryMedia, galleryMedia } from "../../components/Attachments";
 import { EmojiPicker } from "../../components/EmojiPicker";
@@ -159,10 +167,6 @@ export function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null);
   const history = useHistoryStore((s) => s.channels[timelineId(timeline)]);
   const live = isLive(history);
-  const loadOlder = useHistoryStore((s) => s.loadOlder);
-  const loadNewer = useHistoryStore((s) => s.loadNewer);
-  const storeJumpTo = useHistoryStore((s) => s.jumpTo);
-  const storeJumpToLatest = useHistoryStore((s) => s.jumpToLatest);
   const anchor = useRef<{ id: string; top: number } | null>(null);
   const setAnchor = useCallback(
     (id: string | undefined) => {
@@ -175,16 +179,16 @@ export function MessageList({
     const have = queryClient.getQueryData<Message[]>(timelineKey(timeline));
     setAnchor(have?.[0]?.id);
     return loadOlder(queryClient, timeline);
-  }, [loadOlder, queryClient, timeline, setAnchor]);
+  }, [queryClient, timeline, setAnchor]);
   const loadNewerAnchored = useCallback(async () => {
     const have = queryClient.getQueryData<Message[]>(timelineKey(timeline));
     setAnchor(have?.[have.length - 1]?.id);
     return loadNewer(queryClient, timeline);
-  }, [loadNewer, queryClient, timeline, setAnchor]);
+  }, [queryClient, timeline, setAnchor]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every window change
   useLayoutEffect(() => {
-    const store = useHistoryStore.getState();
-    const land = store.channels[timelineId(timeline)]?.landOn;
+    const land =
+      useHistoryStore.getState().channels[timelineId(timeline)]?.landOn;
     if (land) {
       // A jump replaced the window: land where it asked, once that's rendered.
       const el =
@@ -192,7 +196,7 @@ export function MessageList({
           ? bottomRef.current
           : document.getElementById(`${rowIdPrefix}${land.id}`);
       if (!el) return;
-      store.landed(timeline);
+      landed(timeline);
       anchor.current = null;
       if (land === "bottom") el.scrollIntoView();
       else flash(el);
@@ -234,7 +238,7 @@ export function MessageList({
         flash(el);
         return true;
       }
-      const { found, threadRootId: thread } = await storeJumpTo(
+      const { found, threadRootId: thread } = await jumpWindowTo(
         queryClient,
         timeline,
         id,
@@ -251,7 +255,7 @@ export function MessageList({
       }
       return found;
     },
-    [rowIdPrefix, storeJumpTo, queryClient, timeline, spaceId, channelId],
+    [rowIdPrefix, queryClient, timeline, spaceId, channelId],
   );
 
   // A deep link: land on the message as soon as the window holds it (the
@@ -266,7 +270,7 @@ export function MessageList({
     setJumped(visit);
     // The first window already came centred on a reply's root: land there
     // and open the thread at the reply, without asking the server again.
-    const thread = useHistoryStore.getState().takeAroundThread(timeline);
+    const thread = takeAroundThread(timeline);
     if (thread && thread !== jumpTarget) {
       void jumpTo(thread);
       openSidePanel("thread", {
@@ -385,7 +389,7 @@ export function MessageList({
   const jumpToLatest = async () => {
     setUnseen(0);
     if (live) bottomRef.current?.scrollIntoView();
-    else await storeJumpToLatest(queryClient, timeline);
+    else await jumpWindowToLatest(queryClient, timeline);
   };
   const seenNewest = useRef<string | undefined>(undefined);
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
