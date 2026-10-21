@@ -1,11 +1,11 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useMemo, useRef } from "react";
-import { isBot } from "../../api/identity";
 import { useInstanceUsers } from "../../api/queries";
 import { AddToSpaceModal } from "../../components/AddToSpaceModal";
 import { BotMark } from "../../components/BotMark";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
+import { isBot } from "../../core/identity";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import type { InstanceUser } from "../../gen/stoop/instance/v1/user_pb";
 import { notice } from "../../stores/dialogs";

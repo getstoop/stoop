@@ -3,7 +3,8 @@ import { useEffect } from "react";
 import { chatClient } from "../api/clients";
 import { useChannelRecord } from "../api/dms";
 import { hasAttention } from "../api/notifications";
-import { isUnread, patchChannel, recomputeSpaceUnread } from "../api/unreads";
+import { patchChannel, recomputeSpaceUnread } from "../api/unreads";
+import { isUnread } from "../core/unreads";
 import { useConnectionStore } from "../stores/connection";
 
 // While a channel is on screen and the window has attention, keep the

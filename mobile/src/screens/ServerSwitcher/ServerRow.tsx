@@ -1,6 +1,7 @@
+import { badgeCount } from "@stoop/core/unreads";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
-import { badgeCount, mentionLabel } from "../../api/spaces";
+import { mentionLabel } from "../../api/spaces";
 import { CheckIcon } from "../../components/Icons";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";

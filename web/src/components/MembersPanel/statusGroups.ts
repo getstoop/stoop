@@ -1,4 +1,4 @@
-import { isBot } from "../../api/identity";
+import { isBot } from "../../core/identity";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 
 // Offline members fold away by default once a space is big enough that

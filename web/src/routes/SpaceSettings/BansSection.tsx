@@ -2,12 +2,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { canManageMembers } from "../../api/permissions";
 import {
   DataTable,
   PersonCell,
   type TableColumn,
 } from "../../components/DataTable";
+import { canManageMembers } from "../../core/permissions";
 import type { Ban } from "../../gen/stoop/chat/v1/chat_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 

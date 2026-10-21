@@ -17,7 +17,7 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
-import { writtenLength } from "../../api/mentions";
+import { writtenLength } from "../../core/mentions";
 import { newLine } from "./commands";
 import { fromMarkdown, readableAddress, toMarkdown } from "./markdown";
 import { type MentionContext, mentions, NO_MENTIONS } from "./mentions";

@@ -13,7 +13,6 @@ import {
 } from "react";
 import { useLinkableChannels } from "../../api/channelLinks";
 import { chatClient } from "../../api/clients";
-import { dayLabel } from "../../api/dates";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import { useChannelGroups } from "../../api/groups";
@@ -23,8 +22,6 @@ import {
   timelineKey,
   useHistoryStore,
 } from "../../api/history";
-import { mentionMembers } from "../../api/mentions";
-import { canDeleteAnyMessage, canManageChannels } from "../../api/permissions";
 import { setMessagePinned } from "../../api/pins";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import { toggleReaction } from "../../api/reactions";
@@ -35,6 +32,9 @@ import { GalleryMedia, galleryMedia } from "../../components/Attachments";
 import { EmojiPicker } from "../../components/EmojiPicker";
 import { GroupCard } from "../../components/GroupCard";
 import { UserCard } from "../../components/UserCard";
+import { dayLabel } from "../../core/dates";
+import { mentionMembers } from "../../core/mentions";
+import { canDeleteAnyMessage, canManageChannels } from "../../core/permissions";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { confirm, notice } from "../../stores/dialogs";

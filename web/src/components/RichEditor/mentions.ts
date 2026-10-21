@@ -8,13 +8,15 @@ import {
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
   CHANNEL_LINK_CLASS,
-  currentHandle,
   groupMentionClass,
+  mentionClass,
+} from "../../api/mentionClasses";
+import {
+  currentHandle,
   type MentionChannels,
   type MentionGroups,
   type MentionMembers,
   type MentionRef,
-  mentionClass,
   mentionText,
   NO_CHANNELS,
   NO_GROUPS,
@@ -22,7 +24,7 @@ import {
   soleChannel,
   soleMention,
   splitEveryone,
-} from "../../api/mentions";
+} from "../../core/mentions";
 import { schema } from "./schema";
 
 // A mention is a node carrying who it names. This plugin draws each as

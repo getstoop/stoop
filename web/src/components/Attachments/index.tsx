@@ -3,7 +3,7 @@ import {
   isPlayableAudio,
   isPlayableVideo,
 } from "../../api/files";
-import { plainText } from "../../api/markdown";
+import { plainText } from "../../core/markdown";
 import type { Attachment, Message } from "../../gen/stoop/chat/v1/message_pb";
 import { AttachmentCard } from "./AttachmentCard";
 import { AudioAttachment } from "./AudioAttachment";

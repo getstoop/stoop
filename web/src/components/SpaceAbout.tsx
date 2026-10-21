@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { canManageChannels } from "../api/permissions";
 import { useMembers } from "../api/queries";
+import { canManageChannels } from "../core/permissions";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { Modal } from "./Modal";
 import { SpaceIcon } from "./SpaceIcon";

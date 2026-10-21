@@ -1,11 +1,11 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { fullDateTime, shortDateTime } from "../../api/dates";
+import { useMe } from "../../api/queries";
+import { fullDateTime, shortDateTime } from "../../core/dates";
 import type {
   MentionChannels,
   MentionGroups,
   MentionMembers,
-} from "../../api/mentions";
-import { useMe } from "../../api/queries";
+} from "../../core/mentions";
 import type { PinnedMessage } from "../../gen/stoop/chat/v1/pin_pb";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";

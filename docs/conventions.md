@@ -19,7 +19,10 @@ in their head. Add to this when a new rule earns its place.
 - **Anything used by more than one feature lives at the top of
   `components/`** (`LearnMore.tsx`, `Avatar.tsx`), never inside another
   feature's directory. Pure helpers shared across the app go in
-  `src/api/` (`errors.ts`, `formatting.ts`).
+  `src/api/` (`errors.ts`, `formatting.ts`). A helper the phone app could
+  use too goes in `src/core/` (`dates.ts`, `markdown/`). Code there
+  imports only `core/`, `gen/` and `@bufbuild/protobuf`, and the app
+  imports it as source (`mobile/README.md` → Code shared with web).
 - **Routes follow the same rule.** `routes/Channel.tsx` should be the
   page's layout and data wiring; the parts it lays out are components.
 - **Icon collections are the exception.** `Icons.tsx` and

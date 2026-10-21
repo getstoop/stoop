@@ -1,5 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { sameDay } from "../../api/dates";
+import { sameDay } from "../../core/dates";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 // A day separator goes above the first message of each calendar day.

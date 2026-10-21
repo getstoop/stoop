@@ -101,7 +101,7 @@ sections, in this order:
   parser case exercised through Chrome, a login and a composer is a slow
   and flaky way to catch what a named test case catches directly.
 
-  `web/src/api/markdown/text.ts` mirrors `plainText` in
+  `web/src/core/markdown/text.ts` mirrors `plainText` in
   `internal/chat/markdown.go`; they generate the same previews on
   opposite sides of the wire, so a case added to one belongs in the
   other.

@@ -125,7 +125,7 @@ the request succeeds with no message and no event goes out.
 `messages.content` is a small chat-style Markdown subset, and **the
 client renders it — the server never does.**
 
-Rendering goes through a parser (`web/src/api/markdown/`) to a tree, then
+Rendering goes through a parser (`web/src/core/markdown/`) to a tree, then
 to React nodes. Never `innerHTML`. That is why there is no sanitizer in the
 codebase and no XSS surface to audit: user content becomes text nodes and
 element props, and there is no code path where it becomes markup.

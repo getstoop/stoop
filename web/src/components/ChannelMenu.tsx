@@ -10,13 +10,13 @@ import {
 } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
-import { canManageChannels } from "../api/permissions";
 import {
   channelPath,
   copyShareLink,
   shareOrigin,
   shareUrl,
 } from "../api/shareLinks";
+import { canManageChannels } from "../core/permissions";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { confirm, notice, prompt } from "../stores/dialogs";

@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
-import { canActOn, canManageMembers, roleLabel } from "../../api/permissions";
 import { useMe, useMembers } from "../../api/queries";
 import {
   DataTable,
@@ -10,6 +9,7 @@ import {
   type TableColumn,
 } from "../../components/DataTable";
 import { DotsMenu, type MenuItem } from "../../components/DotsMenu";
+import { canActOn, canManageMembers, roleLabel } from "../../core/permissions";
 import { InstanceRole } from "../../gen/stoop/auth/v1/auth_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { type Space, SpaceRole } from "../../gen/stoop/chat/v1/space_pb";

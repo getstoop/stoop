@@ -20,7 +20,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import type { Format } from "../../api/formatting";
-import { type MentionRef, mentionText } from "../../api/mentions";
+import { type MentionRef, mentionText } from "../../core/mentions";
 import { linkAround } from "./links";
 import { schema } from "./schema";
 

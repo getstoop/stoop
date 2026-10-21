@@ -1,5 +1,5 @@
 import { Schema } from "prosemirror-model";
-import { type MentionRef, mentionText } from "../../api/mentions";
+import { type MentionRef, mentionText } from "../../core/mentions";
 import { readableAddress } from "./markdown";
 
 // The message format as a document schema, and nothing more: a quote holds

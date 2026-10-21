@@ -1,9 +1,9 @@
 import { Link, Navigate, useParams, useSearch } from "@tanstack/react-router";
-import { canDeleteSpace, canManageChannels } from "../../api/permissions";
 import { useSpaces } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
 import { SettingsFrame } from "../../components/SettingsFrame";
 import { SpaceIcon } from "../../components/SpaceIcon";
+import { canDeleteSpace, canManageChannels } from "../../core/permissions";
 import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
 import { AboutSection } from "./AboutSection";
 import { BansSection } from "./BansSection";

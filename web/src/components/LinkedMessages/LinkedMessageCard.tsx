@@ -1,9 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Link } from "@tanstack/react-router";
 import { useLinkableChannels } from "../../api/channelLinks";
-import { fullDateTime, shortDateTime } from "../../api/dates";
 import { useChannelGroups } from "../../api/groups";
-import { mentionMembers } from "../../api/mentions";
 import {
   useChannels,
   useLinkedMessage,
@@ -12,6 +10,8 @@ import {
   useSpaces,
 } from "../../api/queries";
 import { type LinkedMessage, messageSearch } from "../../api/shareLinks";
+import { fullDateTime, shortDateTime } from "../../core/dates";
+import { mentionMembers } from "../../core/mentions";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";

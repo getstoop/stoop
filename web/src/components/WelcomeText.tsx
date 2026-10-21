@@ -1,4 +1,4 @@
-import type { MentionMembers } from "../api/mentions";
+import type { MentionMembers } from "../core/mentions";
 import { MessageBody } from "./MessageBody";
 
 // A greeting is prose, not a mention: @names in it render as plain

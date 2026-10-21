@@ -1,7 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { shortDateTime } from "../../api/dates";
 import { errorText } from "../../api/errors";
 import {
   DND_DURATIONS,
@@ -13,6 +12,7 @@ import {
 import { useMe } from "../../api/queries";
 import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
+import { shortDateTime } from "../../core/dates";
 import { notice } from "../../stores/dialogs";
 
 // Do not disturb belongs to the account: turned on here, it holds alerts on

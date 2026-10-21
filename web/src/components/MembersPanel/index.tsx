@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { isBot } from "../../api/identity";
 import { useMembers } from "../../api/queries";
+import { isBot } from "../../core/identity";
 import { useConnectionStore } from "../../stores/connection";
 import { SearchIcon } from "../Icons";
 import { Input } from "../Input";

@@ -3,10 +3,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useLinkableChannels } from "../../api/channelLinks";
 import { useChannelGroups } from "../../api/groups";
-import { mentionMembers } from "../../api/mentions";
-import { canManageChannels } from "../../api/permissions";
 import { setMessagePinned, usePins } from "../../api/pins";
 import { useMembers, useSpaces } from "../../api/queries";
+import { mentionMembers } from "../../core/mentions";
+import { canManageChannels } from "../../core/permissions";
 import { PinIcon } from "../Icons";
 import { PinRow } from "./PinRow";
 

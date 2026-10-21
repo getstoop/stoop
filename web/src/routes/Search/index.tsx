@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
-import { mentionMembers } from "../../api/mentions";
 import { useChannels, useMembers, useSpaces } from "../../api/queries";
 import {
   highlightPattern,
@@ -14,6 +13,7 @@ import {
 import { SearchIcon } from "../../components/Icons";
 import { Input } from "../../components/Input";
 import { MenuButton } from "../../components/MenuButton";
+import { mentionMembers } from "../../core/mentions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { ResultRow } from "./ResultRow";
 

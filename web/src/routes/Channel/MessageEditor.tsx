@@ -3,12 +3,12 @@ import { useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { errorText } from "../../api/errors";
 import { type Format, shortcutFormat } from "../../api/formatting";
-import { isBlankMessage } from "../../api/markdown";
 import { replaceShortcodes } from "../../api/shortcodes";
 import { replaceMessage } from "../../api/ws";
 import { FormatToolbar } from "../../components/FormatToolbar";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import type { MentionContext } from "../../components/RichEditor/mentions";
+import { isBlankMessage } from "../../core/markdown";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 

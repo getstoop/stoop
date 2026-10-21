@@ -148,8 +148,8 @@ again as usual.
 
 ## Make targets
 
-From the repo root; none of them joins `make lint`, `make test` or
-`make build`.
+From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
+`make test` and `make build`: lint runs it, and so does CI.
 
 | Target | What it does |
 | --- | --- |
@@ -158,7 +158,7 @@ From the repo root; none of them joins `make lint`, `make test` or
 | `make mobile-metro` | Starts Metro for a build already on the phone |
 | `make mobile-prebuild` | Regenerates `ios/` and `android/` from `app.json` |
 | `make mobile-theme` | Regenerates `src/theme/generated.ts` from the web themes |
-| `make mobile-typecheck` | `tsc --noEmit` over `mobile/`, generated client included |
+| `make mobile-typecheck` | `tsc --noEmit` over `mobile/` and the web code it shares |
 | `make mobile-sim` | A release build onto the iPhone simulator (`sim="iPhone 16 Pro"` for another) |
 | `make mobile-e2e` | The Maestro flows on a throwaway server (below) |
 
@@ -222,9 +222,26 @@ already allows that in development, so nothing in `app.json` adds it:
 - **Android:** cleartext is allowed only in the debug manifest
   (`src/debug/AndroidManifest.xml`); a release build refuses it.
 
-## The shared generated client
+## Code shared with web
 
-`@stoop/gen/*` maps to `../web/src/gen/*` (`tsconfig.json`; Metro reads
-the same mapping). `metro.config.js` makes every package resolve from
-`mobile/node_modules`, so the generated files use this app's
-`@bufbuild/protobuf`, never a second copy from `web/node_modules`.
+The app keeps no copies of web code. Two folders of web are shared as
+source, not packages:
+
+- `@stoop/gen/*` maps to `../web/src/gen/*`, the client generated from
+  the protos.
+- `@stoop/core/*` maps to `../web/src/core/*`, web's code that needs no
+  browser. That covers the Markdown parser, mention tokens, permissions,
+  dates, badge counts, and how messages, edits, deletions and reactions
+  change a list of messages. Its tests run with web's (`make test`).
+
+Both mappings are in `tsconfig.json`; Metro reads them too, and
+`metro.config.js` watches both folders. `metro.config.js` also makes every
+package resolve from `mobile/node_modules`, so the shared files use this
+app's `@bufbuild/protobuf`, never a second copy from `web/node_modules`.
+
+`tsconfig.json` includes all of `web/src/core`, not only what the app
+imports yet. `make lint` and CI typecheck the app, so a web change the
+app could not compile fails there. `scripts/check-core.mjs` keeps
+`core/` importing only itself, the generated client and the protobuf
+runtime. Anything that needs the DOM, a store, React or a web package
+stays in `web/src/api/`.

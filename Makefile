@@ -101,7 +101,8 @@ lint:
 	golangci-lint run
 	golangci-lint run --config .golangci-names.yml --new-from-merge-base origin/main
 	scripts/compose-check.sh
-	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles && pnpm check:fields
+	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles && pnpm check:fields && pnpm check:core
+	$(MAKE) mobile-typecheck
 
 test:
 	go test ./...
@@ -120,8 +121,9 @@ migrate-new:
 	goose -dir internal/db/migrations create $(name) sql
 
 # ---- Phone app -------------------------------------------------------------
-# mobile/ (README there). Kept out of lint, test and build: they need Xcode
-# or the Android SDK, and CI has neither yet.
+# mobile/ (README there). Kept out of test and build: they need Xcode or
+# the Android SDK, and CI has neither yet. Lint typechecks it, which needs
+# only Node: it shares web/src/core and web/src/gen as source.
 
 ## mobile-prebuild: regenerate mobile/ios and mobile/android from app.json
 ## (both are generated and gitignored)
@@ -146,9 +148,10 @@ mobile-metro:
 mobile-theme:
 	node scripts/gen-mobile-theme.mjs
 
-## mobile-typecheck: tsc over mobile/, generated client included
+## mobile-typecheck: tsc over mobile/, with the web code it shares
+## (web/src/core, web/src/gen); part of lint
 mobile-typecheck:
-	cd mobile && pnpm exec tsc --noEmit
+	cd mobile && pnpm install --frozen-lockfile --silent && pnpm exec tsc --noEmit
 
 ## mobile-sim: a release build onto the iPhone simulator, for the flows
 mobile-sim:

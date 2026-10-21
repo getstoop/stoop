@@ -5,7 +5,7 @@ import {
   editChannelTopic,
   isAnnouncement,
 } from "../api/channels";
-import { canManageChannels } from "../api/permissions";
+import { canManageChannels } from "../core/permissions";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { Modal } from "./Modal";

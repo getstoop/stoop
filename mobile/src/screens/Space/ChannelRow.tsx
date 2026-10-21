@@ -1,6 +1,7 @@
+import { badgeCount } from "@stoop/core/unreads";
 import { type Channel, ChannelPostPolicy } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { StyleSheet, Text, View } from "react-native";
-import { badgeCount, mentionLabel } from "../../api/spaces";
+import { mentionLabel } from "../../api/spaces";
 import { LockIcon, MegaphoneIcon, MutedIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 

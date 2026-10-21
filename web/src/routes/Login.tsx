@@ -10,12 +10,12 @@ import {
   passwordFormShown,
   resetOffered,
 } from "../api/passwordReset";
-import { roleLabel } from "../api/permissions";
 import { useInstanceStatus, useInvitePreview, useMe } from "../api/queries";
 import { safeRedirect } from "../api/safeRedirect";
 import { Field } from "../components/Field";
 import { LoginProviders } from "../components/LoginProviders";
 import { SpaceIcon } from "../components/SpaceIcon";
+import { roleLabel } from "../core/permissions";
 import type { InvitePreview } from "../gen/stoop/chat/v1/invite_pb";
 import {
   PasswordSignIn,

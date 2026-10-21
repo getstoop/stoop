@@ -1,8 +1,8 @@
 import { type QueryClient, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { type MentionGroups, mentionGroups, NO_GROUPS } from "../core/mentions";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import { chatClient } from "./clients";
-import { type MentionGroups, mentionGroups, NO_GROUPS } from "./mentions";
 import { channelsQuery } from "./queries";
 
 // A space's groups, each mentioned all at once as @handle in its public

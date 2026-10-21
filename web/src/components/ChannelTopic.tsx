@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { editChannelTopic } from "../api/channels";
-import { canManageChannels } from "../api/permissions";
+import { canManageChannels } from "../core/permissions";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import { ChannelAbout } from "./ChannelAbout";

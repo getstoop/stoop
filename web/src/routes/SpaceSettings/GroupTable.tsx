@@ -1,10 +1,10 @@
 import { useMemo, useRef } from "react";
 import { groupCount } from "../../api/groups";
-import { mentionToken } from "../../api/mentions";
 import { CopyButton } from "../../components/CopyButton";
 import { DataTable, type TableColumn } from "../../components/DataTable";
 import { DotsMenu } from "../../components/DotsMenu";
 import { PeopleIcon } from "../../components/Icons";
+import { mentionToken } from "../../core/mentions";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 

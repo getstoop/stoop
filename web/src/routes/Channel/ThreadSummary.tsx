@@ -1,7 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { fullDateTime, shortDateTime } from "../../api/dates";
 import { Avatar } from "../../components/Avatar";
 import { BellOffIcon } from "../../components/Icons";
+import { fullDateTime, shortDateTime } from "../../core/dates";
 import type { ThreadSummary as Summary } from "../../gen/stoop/chat/v1/message_pb";
 
 // The line under a root that has replies: who replied lately, how many,

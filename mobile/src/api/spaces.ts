@@ -37,11 +37,6 @@ export async function loadSpaces(
   return spaces.map((space) => ({ space, mentions: mentions.get(space.id) ?? 0 }));
 }
 
-// As web's badgeCount: past a hundred the exact number tells you nothing.
-export function badgeCount(n: number): string {
-  return n > 99 ? "99+" : String(n);
-}
-
 // "1 mention", "3 mentions": a badge's count as a screen reader says it.
 export function mentionLabel(n: number): string {
   return n === 1 ? "1 mention" : `${n} mentions`;

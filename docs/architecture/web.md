@@ -14,6 +14,7 @@ routes/       pages: layout and data wiring
 components/   everything a page lays out
 hooks/        behaviour shared across components
 api/          the seam with the server: clients, queries, event handling, pure helpers
+core/         pure helpers the phone app shares as source: no DOM, stores or React
 stores/       ephemeral client state (zustand)
 gen/          generated protobuf + service descriptors — never edited
 styles/       one stylesheet per feature; themes.css and tokens.css above them
@@ -157,10 +158,9 @@ are testable and reusable:
   query keys and fetchers.
 - `history.ts` — the message window state machine
   ([realtime.md](realtime.md#history-windows)).
-- `ws.ts` — the realtime client and the event → cache mapping.
-- `markdown/` — the message format's parser: blocks a line at a time
-  (`blocks.ts`), inline syntax with a cursor (`inline.ts`), and the
-  plain-text and link readers (`text.ts`).
+- `ws.ts` — the realtime client and the event → cache mapping. What an
+  event does to a list of messages is `core/messageList.ts`, applied to
+  every cached window of the channel.
 - `unreads.ts` — the unread/badge derivations, which route an empty space
   id to the DM list instead of a space's channels.
 - `mutes.ts` — the one place the effective mute is derived for the
@@ -171,11 +171,26 @@ are testable and reusable:
   do not ask: the badge counts in `activity.ts` and the desktop banner in
   `ws.ts` read the server's `item.muted` stamp, which is right even on a
   cache that has never loaded the space.
-- `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
-  through `useMyPermissions`) to decide which controls to show; it keeps no
-  copy of the role table. The server still enforces.
 - `theme.ts`, `presence.ts`, `emoji.ts`, `shortcodes.ts`, `formatting.ts`,
-  `errors.ts`, `loginErrors.ts`, `dates.ts`.
+  `errors.ts`, `loginErrors.ts`, `mentionClasses.ts`.
+
+`core/` holds the helpers that need no browser, so the phone app imports
+them as source instead of keeping copies (`mobile/README.md` → Code shared
+with web). `scripts/check-core.mjs` refuses any import from outside
+`core/`, `gen/` and `@bufbuild/protobuf`:
+
+- `markdown/` — the message format's parser: blocks a line at a time
+  (`blocks.ts`), inline syntax with a cursor (`inline.ts`), and the
+  plain-text and link readers (`text.ts`).
+- `mentions.ts` — mention and channel-link tokens, and the autocomplete's
+  matching. The pills' class names stay web's, in `api/mentionClasses.ts`.
+- `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
+  through `useMyPermissions` in `api/queries.ts`) to decide which controls
+  to show; it keeps no copy of the role table. The server still enforces.
+- `messageList.ts` — what a new message, an edit, a deletion or a reaction
+  does to a list of messages.
+- `unreads.ts` (`badgeCount`, `isUnread`), `reactions.ts`
+  (`toggledReactions`), `dates.ts`, `emojiText.ts`, `identity.ts`.
 
 `errors.ts` maps Connect codes to human sentences, so a server-side error
 string is never load-bearing for what a person reads.
