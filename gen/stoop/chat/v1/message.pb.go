@@ -313,7 +313,13 @@ type Message struct {
 	// Set on a reply also sent to the channel: its root's author and an
 	// excerpt, for the line in the channel saying which thread it answers.
 	// No author or preview when the root is a placeholder.
-	ThreadRoot    *ReplyRef `protobuf:"bytes,20,opt,name=thread_root,json=threadRoot,proto3" json:"thread_root,omitempty"`
+	ThreadRoot *ReplyRef `protobuf:"bytes,20,opt,name=thread_root,json=threadRoot,proto3" json:"thread_root,omitempty"`
+	// The channel log position when this row last changed: the channel's
+	// seq, taken by the write that sent, edited, deleted, reacted to, pinned
+	// or unpinned it, gave it a link preview, or changed its thread summary.
+	// Higher is newer; a client keeps the copy with the higher seq. 0 only
+	// on a row a binary from before the log wrote (a rollback).
+	Seq           int64 `protobuf:"varint,21,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -486,6 +492,13 @@ func (x *Message) GetThreadRoot() *ReplyRef {
 		return x.ThreadRoot
 	}
 	return nil
+}
+
+func (x *Message) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no
@@ -699,7 +712,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
-	"\aexpired\x18\x05 \x01(\bR\aexpired\"\xee\x06\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\"\x80\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -725,7 +738,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"in_channel\x18\x13 \x01(\bR\tinChannel\x128\n" +
 	"\vthread_root\x18\x14 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\n" +
-	"threadRoot\"\x94\x02\n" +
+	"threadRoot\x12\x10\n" +
+	"\x03seq\x18\x15 \x01(\x03R\x03seq\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
 	"\vreply_count\x18\x01 \x01(\x05R\n" +
 	"replyCount\x12>\n" +

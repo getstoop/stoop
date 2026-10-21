@@ -14,7 +14,7 @@ import (
 // joins the view; one that has a reason not to is added here with it.
 var channelReadsWithoutTheView = map[string]string{
 	"GetChannel":                 "one row by id; every caller checks access itself (accessChannel, requireManageChannel)",
-	"LockChannel":                "a row lock inside DeleteChannel, after its permission check",
+	"LockChannel":                "a row lock inside DeleteChannel and the message deletes, after their permission checks (internal/chat/seq.go)",
 	"CountPublicChannelsInSpace": "counts the channels everyone sees, for the last-channel rule",
 	"ListChannelIDsByKind":       "a space's voice rooms to clear on a kick; ids only, never returned to a client",
 	"ListAllChannelsBySpace":     "Space settings for channels.manage: every channel, with who is in each",

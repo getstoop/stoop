@@ -119,7 +119,7 @@ func (q *Queries) ListDMCandidates(ctx context.Context, arg ListDMCandidatesPara
 }
 
 const listDMChannelsByUser = `-- name: ListDMChannelsByUser :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, r.last_read_message_id, d.closed_at,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, c.swept_seq, r.last_read_message_id, d.closed_at,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
@@ -168,6 +168,8 @@ func (q *Queries) ListDMChannelsByUser(ctx context.Context, userID string) ([]Li
 			&i.Channel.Topic,
 			&i.Channel.PostPolicy,
 			&i.Channel.Private,
+			&i.Channel.Seq,
+			&i.Channel.SweptSeq,
 			&i.LastReadMessageID,
 			&i.ClosedAt,
 			&i.Muted,
@@ -243,7 +245,7 @@ const openDMChannel = `-- name: OpenDMChannel :one
 INSERT INTO channels (id, space_id, name, kind, dm_key)
 VALUES ($1, NULL, '', 3, $2)
 ON CONFLICT (dm_key) DO UPDATE SET dm_key = EXCLUDED.dm_key
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private, seq, swept_seq
 `
 
 type OpenDMChannelParams struct {
@@ -273,6 +275,8 @@ func (q *Queries) OpenDMChannel(ctx context.Context, arg OpenDMChannelParams) (C
 		&i.Topic,
 		&i.PostPolicy,
 		&i.Private,
+		&i.Seq,
+		&i.SweptSeq,
 	)
 	return i, err
 }

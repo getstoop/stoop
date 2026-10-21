@@ -113,6 +113,9 @@ func (s *Service) deleteTopLevel(ctx context.Context, msg messageRow, channel db
 	}
 	placeholder := false
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("lock channel: %w", err)
+		}
 		replies, err := qtx.LockThread(ctx, msg.ID)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("lock thread: %w", err)
@@ -122,7 +125,8 @@ func (s *Service) deleteTopLevel(ctx context.Context, msg messageRow, channel db
 			if err := qtx.MakePlaceholder(ctx, msg.ID); err != nil {
 				return fmt.Errorf("keep placeholder: %w", err)
 			}
-			return nil
+			_, err := stampMessage(ctx, qtx, channel.ID, msg.ID)
+			return err
 		}
 		if err := qtx.DeleteMessage(ctx, msg.ID); err != nil {
 			return fmt.Errorf("delete message: %w", err)
@@ -162,6 +166,9 @@ func (s *Service) deleteThreadReply(ctx context.Context, msg messageRow, channel
 	var thread *dbgen.Thread
 	rootGone := false
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("lock channel: %w", err)
+		}
 		if _, err := qtx.LockThread(ctx, rootID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("lock thread: %w", err)
 		}
@@ -179,7 +186,8 @@ func (s *Service) deleteThreadReply(ctx context.Context, msg messageRow, channel
 		}
 		if err == nil && recounted.ReplyCount > 0 {
 			thread = &recounted
-			return nil
+			_, err := stampMessage(ctx, qtx, channel.ID, rootID)
+			return err
 		}
 		if err := qtx.DeleteThreadSummary(ctx, rootID); err != nil {
 			return fmt.Errorf("delete thread summary: %w", err)
@@ -189,7 +197,9 @@ func (s *Service) deleteThreadReply(ctx context.Context, msg messageRow, channel
 			return fmt.Errorf("load root: %w", err)
 		}
 		if root.DeletedAt == nil {
-			return nil
+			// The summary under it went; the root itself stays.
+			_, err := stampMessage(ctx, qtx, channel.ID, rootID)
+			return err
 		}
 		rootGone = true
 		if err := qtx.DeleteMessage(ctx, rootID); err != nil {
@@ -249,6 +259,9 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 		return nil, fmt.Errorf("list attachments: %w", err)
 	}
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("lock channel: %w", err)
+		}
 		if err := qtx.DeleteMessage(ctx, root.ID); err != nil {
 			return fmt.Errorf("delete thread: %w", err)
 		}

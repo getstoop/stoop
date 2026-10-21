@@ -99,6 +99,12 @@ message Message {
   // excerpt, for the line in the channel saying which thread it answers.
   // No author or preview when the root is a placeholder.
   ReplyRef thread_root = 20;
+  // The channel log position when this row last changed: the channel's
+  // seq, taken by the write that sent, edited, deleted, reacted to, pinned
+  // or unpinned it, gave it a link preview, or changed its thread summary.
+  // Higher is newer; a client keeps the copy with the higher seq. 0 only
+  // on a row a binary from before the log wrote (a rollback).
+  int64 seq = 21;
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no

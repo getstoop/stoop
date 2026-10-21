@@ -58,7 +58,7 @@ func (q *Queries) IsPrivateChannelMember(ctx context.Context, arg IsPrivateChann
 }
 
 const listAllChannelsBySpace = `-- name: ListAllChannelsBySpace :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, c.swept_seq,
     (SELECT count(*) FROM channel_members pm WHERE pm.channel_id = c.id)::int AS member_count,
     (NOT c.private OR EXISTS (SELECT 1 FROM channel_members pm
                               WHERE pm.channel_id = c.id AND pm.user_id = $1))::bool AS joined
@@ -102,6 +102,8 @@ func (q *Queries) ListAllChannelsBySpace(ctx context.Context, arg ListAllChannel
 			&i.Channel.Topic,
 			&i.Channel.PostPolicy,
 			&i.Channel.Private,
+			&i.Channel.Seq,
+			&i.Channel.SweptSeq,
 			&i.MemberCount,
 			&i.Joined,
 		); err != nil {

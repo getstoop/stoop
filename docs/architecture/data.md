@@ -86,8 +86,9 @@ not a space power.
 
 **`channels`** — `name`, `kind` (1 text, 2 voice, 3 DM), `position`,
 `topic`, `last_message_id`, `post_policy` (who may post; see
-[messaging.md](messaging.md#announcement-channels)), and the two columns that make direct messages
-work:
+[messaging.md](messaging.md#announcement-channels)), `seq` and `swept_seq`
+(the channel log, under `messages` below), and the two columns that make
+direct messages work:
 
 ```sql
 ALTER TABLE channels ALTER COLUMN space_id DROP NOT NULL;
@@ -139,7 +140,7 @@ unmuted; channel mutes are left alone and go when the channel does.
 
 **`messages`** — `channel_id`, `author_id`, `content`, `created_at`,
 `edited_at`, `reply_to_message_id`, `mentions_entire_channel`, `mentions_here`,
-`thread_root_id`, `in_channel`, `deleted_at`, and `search`, a stored column Postgres generates from `content`
+`thread_root_id`, `in_channel`, `deleted_at`, `seq`, and `search`, a stored column Postgres generates from `content`
 (`to_tsvector('simple', content)`) for message search. The index that
 matters for history:
 
@@ -151,6 +152,24 @@ Every history read is a range scan on that index. There is no separate
 timestamp ordering because ids are UUIDv7 — see below. Search reads the
 GIN index on `search` instead
 ([messaging.md](messaging.md#search)).
+
+`seq` is the channel log ([proposals/channel-log.md](../proposals/channel-log.md)).
+`channels.seq` counts the channel's render-affecting message writes, and
+each one — a send, an edit, a reaction, a pin or unpin, a link preview
+arriving or dismissed, a root kept as a placeholder, a root whose thread
+summary changed — takes the next value with
+`UPDATE channels SET seq = seq + 1 … RETURNING seq` and stamps the row in
+the same transaction. The row lock is the point: writes to one channel
+commit one at a time, so "next" is exact, and every transaction that
+writes message rows takes the channel row first (`internal/chat/seq.go`).
+A hard delete stamps nothing. `channels.swept_seq` is for the retention
+sweep to record the highest seq it hard-deleted; nothing writes it yet.
+`messages.seq` is nullable this release and `NOT NULL` the next;
+migration 00068 backfilled it as each row's rank by id in its channel.
+
+```sql
+CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
+```
 
 Threads add three columns. `thread_root_id` points a reply at its root,
 `ON DELETE CASCADE`, so really deleting a root takes its replies; a root

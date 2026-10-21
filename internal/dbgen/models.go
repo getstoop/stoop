@@ -32,6 +32,8 @@ type Channel struct {
 	Topic         string
 	PostPolicy    string
 	Private       bool
+	Seq           int64
+	SweptSeq      int64
 }
 
 type ChannelMember struct {
@@ -228,6 +230,7 @@ type Message struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
+	Seq                   *int64
 }
 
 type MessageAttachment struct {
@@ -274,6 +277,7 @@ type MessageWithReply struct {
 	ThreadReplyCount      int32
 	ThreadLastReplyAt     *time.Time
 	ThreadRecentAuthorIds []string
+	Seq                   *int64
 }
 
 type OutgoingWebhook struct {

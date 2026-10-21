@@ -505,6 +505,11 @@ Combining parameters is an `InvalidArgument`, and `around_id` on a message
 in another channel is a `NotFound` — the same answer as a message that
 doesn't exist, so an id can't be probed for existence.
 
+`channel_seq` on the response is the channel's `seq`, read before the page
+query, so anything that commits after it has a higher seq and reaches the
+client as a change; each row carries the `seq` it was last stamped with
+([data.md](data.md#chat), [proposals/channel-log.md](../proposals/channel-log.md)).
+
 The client's side of this — the single flat window, the 300-row cap, the
 liveness rule — is in [realtime.md](realtime.md#history-windows).
 

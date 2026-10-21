@@ -187,19 +187,6 @@ func (q *Queries) ListLinkPreviewsForMessages(ctx context.Context, dollar_1 []st
 	return items, nil
 }
 
-const lockMessageForLinks = `-- name: LockMessageForLinks :one
-SELECT id FROM messages WHERE id = $1 FOR UPDATE
-`
-
-// LockMessageForLinks waits out an edit rebuilding the message's link
-// rows, which holds the message row from its content update onwards.
-func (q *Queries) LockMessageForLinks(ctx context.Context, id string) (string, error) {
-	row := q.db.QueryRow(ctx, lockMessageForLinks, id)
-	var id_2 string
-	err := row.Scan(&id_2)
-	return id_2, err
-}
-
 const setLinkPreview = `-- name: SetLinkPreview :exec
 UPDATE link_previews
 SET state = $2, fetched_at = now(), title = $3, description = $4, site_name = $5,

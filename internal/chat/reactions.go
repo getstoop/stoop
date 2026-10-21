@@ -58,20 +58,30 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	}
 
 	params := dbgen.AddReactionParams{MessageID: msg.ID, UserID: userID, Emoji: req.Msg.Emoji}
-	added, err := s.q.AddReaction(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("add reaction: %w", err)
-	}
-	if added == 0 {
-		removed, err := s.q.RemoveReaction(ctx, dbgen.RemoveReactionParams(params))
+	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+			return err
+		}
+		added, err := qtx.AddReaction(ctx, params)
 		if err != nil {
-			return nil, fmt.Errorf("remove reaction: %w", err)
+			return fmt.Errorf("add reaction: %w", err)
+		}
+		if added > 0 {
+			return nil
+		}
+		removed, err := qtx.RemoveReaction(ctx, dbgen.RemoveReactionParams(params))
+		if err != nil {
+			return fmt.Errorf("remove reaction: %w", err)
 		}
 		// Neither added nor there to remove: the message became a
 		// placeholder after the check above.
 		if removed == 0 {
-			return nil, placeholderError()
+			return placeholderError()
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// The toggle is saved: a failed reload answers with no message and
