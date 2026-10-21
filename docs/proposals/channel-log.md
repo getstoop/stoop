@@ -113,7 +113,19 @@ query with the embedded author as fallback.
    `message_deleted` (no `message_updated` for those, see The contract);
    `retention_floor_id` on `ListChanges` and `ListMessages` in place of
    `too_old`, with `swept_seq` left informational.
-5. Web: the new store and loader, unit-tested, unwired.
+5. Web: the new store and loader, unit-tested, unwired. As built
+   (`web/src/core/channelLog/`, `web/src/api/channelLog.ts`;
+   `web.md` → The channel log store): the floor spares pinned rows, and
+   a reply under a root below the floor only when the root is held and
+   unpinned, as the sweep does; a catch-up page moves the log's seq only
+   when `has_more` is false and the loader continues from the last row's
+   seq meanwhile; `opened` moves a view's generation like `jumped`, since
+   both replace the range; a created event retires a pending send by
+   likeness (author, text, thread, quote, attachment count) when it beats
+   the send's answer, which retires by id; an event before a log's first
+   page is kept without judging the gap, and the page's `channel_seq`
+   sets the position; the floor never tightens a view's range, since a
+   pinned row may still lie below it.
 6. Web: the switch. Delete `history.ts`, the timeline reducer modules and
    `timelineLoads.ts`; lift the cap; reconnect calls `ListChanges`.
 7. Cleanup: drop the old queries the switched client no longer calls
