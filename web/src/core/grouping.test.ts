@@ -6,8 +6,13 @@ import {
   MessageAuthorSchema,
   MessageSchema,
   ThreadSummarySchema,
-} from "../../gen/stoop/chat/v1/message_pb";
-import { continues, sameMinute, startsDay } from "./grouping";
+} from "../gen/stoop/chat/v1/message_pb";
+import {
+  continues,
+  firstNewMessageId,
+  sameMinute,
+  startsDay,
+} from "./grouping";
 
 const at = (time: string) => timestampFromDate(new Date(`2026-10-15T${time}`));
 
@@ -105,5 +110,25 @@ describe("sameMinute", () => {
     const a = new Date("2026-10-15T10:00:59");
     expect(sameMinute(a, new Date("2026-10-15T10:00:00"))).toBe(true);
     expect(sameMinute(a, new Date("2026-10-15T10:01:00"))).toBe(false);
+  });
+});
+
+describe("firstNewMessageId", () => {
+  const from = (id: string, author: string) =>
+    message(id, "10:00:00", { author: { id: author } });
+  const list = [from("01", "ada"), from("02", "me"), from("03", "bea")];
+
+  it("is the first message after the marker", () => {
+    expect(firstNewMessageId(list, "01", "me")).toBe("03");
+    expect(firstNewMessageId(list, "", "me")).toBe("01");
+  });
+
+  it("skips the reader's own messages", () => {
+    expect(firstNewMessageId([from("02", "me")], "01", "me")).toBeUndefined();
+  });
+
+  it("is none when nothing is new, or no marker was taken", () => {
+    expect(firstNewMessageId(list, "03", "me")).toBeUndefined();
+    expect(firstNewMessageId(list, null, "me")).toBeUndefined();
   });
 });

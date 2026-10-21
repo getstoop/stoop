@@ -1,0 +1,78 @@
+appId: ${APP_ID}
+name: Open a channel and read it, from what is new back to the beginning, kept live
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters, unread"
+    timeout: 15000
+- tapOn: "chapters, unread"
+# The title says the channel, its space and how many can read it.
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+# dee's last two notes are new since ada read them (seed.mjs).
+# On a day boundary the line reads "Today · New messages".
+- assertVisible: ".*New messages"
+- assertVisible: "Chapter 55 notes"
+# Live: a message written, edited and deleted elsewhere changes here as
+# it happens, through the realtime socket.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: say
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Fresh from another device
+- extendedWaitUntil:
+    visible: "Fresh from another device"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reword
+      TEXT: Reworded from another device
+- extendedWaitUntil:
+    visible: "Reworded from another device.*"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: unsay
+- extendedWaitUntil:
+    notVisible: "Reworded from another device.*"
+    timeout: 10000
+# Older pages load on the way up, to the first note.
+- scrollUntilVisible:
+    element: "This is the beginning of #chapters."
+    direction: UP
+    timeout: 60000
+- assertVisible: "Chapter 1 notes"
+# Reading it marked it read: back on the space, chapters isn't unread.
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "chapters"
+    timeout: 10000
+- assertNotVisible: "chapters, unread"

@@ -1,6 +1,6 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { type Channel, ChannelPostPolicy } from "@stoop/gen/stoop/chat/v1/channel_pb";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { mentionLabel } from "../../api/spaces";
 import { LockIcon, MegaphoneIcon, MutedIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -9,16 +9,17 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // channel and a megaphone for an announcement channel), its name, bold
 // while it has unread messages, and a mention count or an unread dot. A
 // muted channel is dimmed and shows neither, and nothing is waiting
-// anywhere in a muted space. Not a button yet: the channel itself is the
-// next screen.
+// anywhere in a muted space. Pressing it opens the channel.
 export default function ChannelRow({
   channel,
   spaceMuted,
   mentions,
+  onPress,
 }: {
   channel: Channel;
   spaceMuted: boolean;
   mentions: number;
+  onPress: () => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -36,7 +37,12 @@ export default function ChannelRow({
     .join(", ");
 
   return (
-    <View style={[styles.row, channel.muted && styles.muted]} accessible accessibilityLabel={label}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, channel.muted && styles.muted, pressed && styles.pressed]}
+    >
       <View style={styles.mark}>
         {channel.private ? (
           <LockIcon color={theme.textMuted} />
@@ -58,7 +64,7 @@ export default function ChannelRow({
       ) : unread ? (
         <View style={styles.dot} />
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -70,9 +76,13 @@ function makeStyles(theme: Theme) {
       gap: 12,
       minHeight: 48,
       paddingHorizontal: 12,
+      borderRadius: tokens.radiusMd,
     },
     muted: {
       opacity: 0.5,
+    },
+    pressed: {
+      backgroundColor: theme.hover,
     },
     mark: {
       width: 20,

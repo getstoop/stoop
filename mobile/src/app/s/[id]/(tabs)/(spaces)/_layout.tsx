@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { useTheme } from "../../../../theme";
+import { useTheme } from "../../../../../theme";
 
 // The Spaces tab is a stack of its own, so a space's channels push over
 // the list with the tab bar still showing. The list carries its own
