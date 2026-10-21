@@ -181,6 +181,7 @@ SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_messag
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
+       AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = $1
@@ -202,9 +203,10 @@ type ListChannelsBySpaceRow struct {
 }
 
 // ListChannelsBySpace is the space's public channels and the private
-// ones the caller is in, with the caller's read marker, how many
-// messages are newer than it (all of them if they've never opened it),
-// and whether they muted it.
+// ones the caller is in, with the caller's read marker, how many shown
+// messages are newer than it (all of them if they've never opened it; a
+// tombstone counts only as the placeholder of a thread with live
+// replies), and whether they muted it.
 func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpaceParams) ([]ListChannelsBySpaceRow, error) {
 	rows, err := q.db.Query(ctx, listChannelsBySpace, arg.UserID, arg.SpaceID)
 	if err != nil {
@@ -307,6 +309,23 @@ func (q *Queries) NextChannelSeq(ctx context.Context, id string) (int64, error) 
 	var seq int64
 	err := row.Scan(&seq)
 	return seq, err
+}
+
+const raiseChannelSweptSeq = `-- name: RaiseChannelSweptSeq :exec
+UPDATE channels SET swept_seq = GREATEST(swept_seq, $2::bigint) WHERE id = $1
+`
+
+type RaiseChannelSweptSeqParams struct {
+	ID  string
+	Seq int64
+}
+
+// RaiseChannelSweptSeq records that the retention sweep hard-deleted rows
+// stamped up to seq; it never goes down, so 0 (no row removed was
+// stamped) leaves it alone.
+func (q *Queries) RaiseChannelSweptSeq(ctx context.Context, arg RaiseChannelSweptSeqParams) error {
+	_, err := q.db.Exec(ctx, raiseChannelSweptSeq, arg.ID, arg.Seq)
+	return err
 }
 
 const setChannelLastMessage = `-- name: SetChannelLastMessage :exec

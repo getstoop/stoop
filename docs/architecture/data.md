@@ -155,41 +155,60 @@ GIN index on `search` instead
 
 `seq` is the channel log ([proposals/channel-log.md](../proposals/channel-log.md)).
 `channels.seq` counts the channel's render-affecting message writes, and
-each one — a send, an edit, a reaction, a pin or unpin, a link preview
-arriving or dismissed, a root kept as a placeholder, a root whose thread
-summary changed — takes the next value with
+each one — a send, an edit, a delete, a reaction, a pin or unpin, a link
+preview arriving or dismissed, a root whose thread summary changed —
+takes the next value with
 `UPDATE channels SET seq = seq + 1 … RETURNING seq` and stamps the row in
 the same transaction. The row lock is the point: writes to one channel
-commit one at a time, so "next" is exact, and every RPC transaction that
-writes message rows takes the channel row first (`internal/chat/seq.go`).
-The retention sweep is the exception until step 3 of the proposal brings
-its deletes under the same rule. A hard delete stamps nothing. `channels.swept_seq` is for the retention
-sweep to record the highest seq it hard-deleted; nothing writes it yet.
+commit one at a time, so "next" is exact, and every transaction that
+writes message rows takes the channel row first (`internal/chat/seq.go`),
+the retention sweep included. `channels.swept_seq` is the highest seq the
+sweep has hard-deleted in the channel, raised with `GREATEST` so it never
+goes down; a client holding a position below it has a gap it cannot fill.
 `messages.seq` is nullable this release and `NOT NULL` the next;
 migration 00068 backfilled it as each row's rank by id in its channel.
+
+**Deleting a message leaves a tombstone.** `deleted_at` is set, `content`
+is blanked (so the generated `search` column is empty), the row's
+`message_reactions`, `message_attachments`, `message_mentions`,
+`message_links`, `channel_pins` and `activity_items` are deleted in the
+same statement (`TombstoneMessage`), and the row is stamped.
+`reply_to_message_id`, `thread_root_id` and `in_channel` stay as they
+were, so a quote of it reads as a quote of a deleted message and a
+deleted reply keeps its place in its thread. Only the retention sweep
+hard-deletes message rows, tombstones with everything else past the
+cutoff; deleting a channel or a space still cascades through `messages`.
+A tombstone is *shown* to a reader only when it is a root whose thread
+still has live replies (a `threads` row exists exactly then), and every
+query that hands rows to a client — the channel and thread pages,
+`around_id`, search, pins, `last_message_id`, unread counts, the thread
+summary and `GetMessage`, where every RPC starts — reads by that rule, so
+a hidden tombstone answers as a message that does not exist.
 
 ```sql
 CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
 ```
 
 Threads add three columns. `thread_root_id` points a reply at its root,
-`ON DELETE CASCADE`, so really deleting a root takes its replies; a root
-deleted while it has replies is kept as a placeholder with `deleted_at`
-set instead. `in_channel` says whether a row shows in the channel's
+`ON DELETE CASCADE`, so the sweep's hard delete of a root takes its
+replies; a deleted root is a tombstone, shown as a placeholder while its
+thread has live replies. `in_channel` says whether a row shows in the channel's
 timeline: true for every top-level message, false for a reply that stays
 in its thread, and a `CHECK` refuses false without a root.
 `messages_channel_timeline_idx` is `(channel_id, id DESC) WHERE
 in_channel` and `messages_thread_idx` is `(thread_root_id, id DESC)`, so
 a channel page and a thread page are each one range scan.
 
-**`threads`** — one row per root with replies: `reply_count`,
+**`threads`** — one row per root with live replies: `reply_count`,
 `last_reply_id`, `last_reply_at` and `recent_author_ids`, the summary
 under the root, kept by the send and delete paths so a page of history
-needs no count per message. It goes with its root.
+needs no count per message. A delete recounts it over the replies that
+are not tombstones and drops it when none is left; it goes with its root.
 
 **`thread_mutes`** and **`thread_reads`** — `(user_id, root_message_id)`,
 the thread twins of `channel_mutes` and `channel_reads`; both go with the
-root. Who is in a thread is not stored: it comes from the thread's
+root, and with its thread when a tombstoned root loses its last live
+reply. Who is in a thread is not stored: it comes from the thread's
 messages.
 
 **`message_with_reply`** is a view: every `messages` column but `search`,

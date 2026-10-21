@@ -171,27 +171,29 @@ func TestChannelLogStampsEveryWrite(t *testing.T) {
 	alsoSent := send(&chatv1.SendMessageRequest{Content: "also in the channel", ThreadRootId: first.Id, AlsoSendToChannel: true})
 	expect("reply also sent to the channel", 2, alsoSent.Id, first.Id)
 
-	// Deleting a reply stamps the root; the reply itself is gone.
+	// Every delete is a tombstone, stamped like any other write. Deleting
+	// a reply stamps it and the root, whose summary changed.
 	remove(reply.Id)
-	expect("delete reply", 1, first.Id)
+	expect("delete reply", 2, reply.Id, first.Id)
 	// A root with replies left is kept as a placeholder, and stamped.
 	remove(first.Id)
 	expect("delete root to placeholder", 1, first.Id)
-	// The last reply takes the placeholder with it: nothing left to stamp.
+	// The last reply takes the placeholder with it: both are stamped.
 	remove(alsoSent.Id)
-	expect("delete last reply under a placeholder", 0)
-	// A hard delete stamps nothing.
+	expect("delete last reply under a placeholder", 2, alsoSent.Id, first.Id)
+	// A top-level message with no replies is one tombstone.
 	remove(second.Id)
-	expect("delete top-level", 0)
+	expect("delete top-level", 1, second.Id)
 
 	root := send(&chatv1.SendMessageRequest{Content: "a thread to moderate"})
 	expect("send", 1, root.Id)
-	send(&chatv1.SendMessageRequest{Content: "its reply", ThreadRootId: root.Id})
+	threadReply := send(&chatv1.SendMessageRequest{Content: "its reply", ThreadRootId: root.Id})
 	expect("reply", 2, root.Id)
 	if _, err := svc.DeleteThread(owner, connect.NewRequest(&chatv1.DeleteThreadRequest{MessageId: root.Id})); err != nil {
 		t.Fatal(err)
 	}
-	expect("delete thread", 0)
+	// Delete thread stamps every row it tombstones.
+	expect("delete thread", 2, threadReply.Id, root.Id)
 
 	// The page says where the channel's log stood, and every row is at or
 	// below it.

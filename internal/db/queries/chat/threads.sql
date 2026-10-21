@@ -2,10 +2,12 @@
 -- Only internal/chat may use these queries. docs/architecture/messaging.md.
 
 -- ListThreadBefore pages a thread backwards, like ListMessagesBefore; the
--- root itself is not a reply and is not returned.
+-- root itself is not a reply and is not returned, and a deleted reply is
+-- a tombstone nobody is shown.
 -- name: ListThreadBefore :many
 SELECT * FROM message_with_reply m
 WHERE m.thread_root_id = sqlc.arg(root_id)::uuid
+  AND m.deleted_at IS NULL
   AND (sqlc.narg('before_id')::uuid IS NULL OR m.id < sqlc.narg('before_id')::uuid)
 ORDER BY m.id DESC
 LIMIT sqlc.arg('limit');
@@ -13,6 +15,7 @@ LIMIT sqlc.arg('limit');
 -- name: ListThreadAfter :many
 SELECT * FROM message_with_reply m
 WHERE m.thread_root_id = sqlc.arg(root_id)::uuid
+  AND m.deleted_at IS NULL
   AND (m.id > sqlc.arg('after_id')::uuid OR (sqlc.arg('inclusive')::bool AND m.id = sqlc.arg('after_id')::uuid))
 ORDER BY m.id ASC
 LIMIT sqlc.arg('limit');
@@ -35,11 +38,12 @@ RETURNING root_message_id, reply_count, last_reply_id, last_reply_at, recent_aut
 -- name: LockThread :one
 SELECT reply_count FROM threads WHERE root_message_id = $1 FOR UPDATE;
 
--- RecomputeThread recounts a root's summary from its remaining replies,
--- after one is deleted.
+-- RecomputeThread recounts a root's summary from its live replies, after
+-- one becomes a tombstone.
 -- name: RecomputeThread :one
 WITH replies AS (
-    SELECT id, author_id, created_at FROM messages WHERE thread_root_id = sqlc.arg(root_id)::uuid
+    SELECT id, author_id, created_at FROM messages
+    WHERE thread_root_id = sqlc.arg(root_id)::uuid AND deleted_at IS NULL
 ), latest AS (
     SELECT id, created_at FROM replies ORDER BY id DESC LIMIT 1
 ), authors AS (
@@ -55,22 +59,17 @@ UPDATE threads SET
 WHERE root_message_id = sqlc.arg(root_id)::uuid
 RETURNING root_message_id, reply_count, last_reply_id, last_reply_at, recent_author_ids;
 
+-- DeleteThreadSummary drops the summary once a thread has no live reply;
+-- the row exists exactly while it has one.
 -- name: DeleteThreadSummary :exec
 DELETE FROM threads WHERE root_message_id = $1;
 
--- MakePlaceholder keeps a root whose thread still has replies as an empty
--- row: no text, attachments, previews, reactions, mentions, pin or
--- activity. Its files are deleted through the port afterwards.
--- name: MakePlaceholder :exec
-WITH attachments AS (DELETE FROM message_attachments WHERE message_id = sqlc.arg(id)::uuid),
-links AS (DELETE FROM message_links WHERE message_id = sqlc.arg(id)::uuid),
-reactions AS (DELETE FROM message_reactions WHERE message_id = sqlc.arg(id)::uuid),
-mentions AS (DELETE FROM message_mentions WHERE message_id = sqlc.arg(id)::uuid),
-pins AS (DELETE FROM channel_pins WHERE message_id = sqlc.arg(id)::uuid),
-activity AS (DELETE FROM activity_items WHERE message_id = sqlc.arg(id)::uuid)
-UPDATE messages SET content = '', mentions_entire_channel = false, mentions_here = false,
-    edited_at = NULL, deleted_at = now()
-WHERE id = sqlc.arg(id)::uuid;
+-- ListLiveThreadReplies is every reply under a root that is not yet a
+-- tombstone, oldest first, for Delete thread.
+-- name: ListLiveThreadReplies :many
+SELECT id FROM messages
+WHERE thread_root_id = sqlc.arg(root_id)::uuid AND deleted_at IS NULL
+ORDER BY id;
 
 -- ListThreadFileIDs lists the files of a root and every reply under it,
 -- for Delete thread.
@@ -81,14 +80,15 @@ WHERE m.id = sqlc.arg(root_id)::uuid OR m.thread_root_id = sqlc.arg(root_id)::uu
 
 -- ThreadParticipants are who a new reply's thread_reply activity goes
 -- to: the people in the thread before reply_id (its root's author,
--- repliers, and people @mentioned by name, as ThreadViewerStates counts
--- them), less anyone who muted it and anyone who can no longer read the
--- channel: message rows outlive a leave or a kick.
+-- repliers whose reply still stands, and people @mentioned by name, as
+-- ThreadViewerStates counts them), less anyone who muted it and anyone
+-- who can no longer read the channel: message rows outlive a leave or a
+-- kick.
 -- name: ThreadParticipants :many
 WITH thread AS (
     SELECT m.id, m.channel_id, m.author_id, m.mentions_entire_channel, m.mentions_here FROM messages m
     WHERE m.id = sqlc.arg(root_id)::uuid
-       OR (m.thread_root_id = sqlc.arg(root_id)::uuid AND m.id < sqlc.arg(reply_id)::uuid)
+       OR (m.thread_root_id = sqlc.arg(root_id)::uuid AND m.id < sqlc.arg(reply_id)::uuid AND m.deleted_at IS NULL)
 ), people AS (
     SELECT t.author_id AS user_id FROM thread t
     UNION

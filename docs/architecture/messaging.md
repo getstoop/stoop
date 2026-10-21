@@ -526,12 +526,17 @@ range below the smallest id for the cutoff instant (`cutoffID`), with no
 extra index.
 
 Each batch of 1000 lists the attachment files of the messages and their
-replies, deletes the messages, recomputes `last_message_id` for the channels touched, and
-deletes the files through the port. Foreign keys do the rest: mentions,
-reactions, attachment links, link rows, pins and activity items cascade,
-and a reply's `reply_to_message_id` goes `NULL`. Read markers have no
-foreign key and compare by id, so unread counts stay right with the
-marker's message gone.
+replies, then takes the channels touched one at a time, in id order: one
+transaction per channel that locks the channel row first (the rule every
+message write follows, [data.md](data.md#chat)), hard-deletes the
+batch's roots there and the replies under them — tombstones included,
+since a deleted row past the cutoff is just a row — raises
+`channels.swept_seq` to the highest `seq` among the rows removed, and
+recomputes `last_message_id`. The files go through the port once the
+batch is done. Foreign keys do the rest: a reply's
+`reply_to_message_id` goes `NULL`, and the thread summary, mutes and
+read markers cascade. Read markers have no foreign key and compare by
+id, so unread counts stay right with the marker's message gone.
 
 No events are published. A swept message is old enough to be off almost
 every screen, and it is gone on the next load. The history head says
@@ -546,8 +551,9 @@ cursor. What the code does:
 
 - **Storage.** `messages.search` is a stored generated column,
   `to_tsvector('simple', content)`, with a GIN index (migration 00029).
-  Postgres maintains it on every insert and update; deletes are hard, so
-  nothing stale stays. `simple` means whole lowercased words, no
+  Postgres maintains it on every insert and update; a delete blanks the
+  content, and the query skips tombstones besides, so nothing stale is
+  found. `simple` means whole lowercased words, no
   stemming, in any language. The column is for this query's `WHERE`
   and nothing reads it back: it runs larger than the content it indexes.
   A message reaches a client through the `message_with_reply` view
@@ -638,10 +644,24 @@ anyone from.
 - **Edits** set `messages.edited_at` and republish the message as
   `MessageUpdated`. The same event carries link previews when they arrive,
   so clients need one update path rather than two.
-- **Deletions** remove the row and, through the `FileDirectory` port, its
-  attachments' files. `messages.moderate` covers other people's; your own
-  are always yours. A root whose thread has replies is kept as a
-  placeholder instead ([Threads](#threads)).
+- **Deletions** leave a tombstone (`internal/chat/tombstones.go`): one
+  path for a top-level message, a reply and a root, in one transaction
+  that takes the channel row first. The row keeps its id, place and
+  `reply_to_message_id`; `deleted_at` is set, the text goes, and its
+  reactions, attachments, mentions, link rows, pin and activity items are
+  deleted with it, the files through the `FileDirectory` port once the
+  transaction has committed. The row is stamped like any other write, so
+  the channel log carries the delete. Nobody is shown it afterwards — not
+  the channel or thread pages, `around_id`, search, pins or the channel's
+  newest message — except a root whose thread still has live replies,
+  which the channel shows as a placeholder ([Threads](#threads)); any
+  other tombstone answers every RPC as a message that does not exist.
+  Clients still hear `MessageDeleted` where a row used to vanish and
+  `MessageUpdated` with `deleted` set for a placeholder, until the
+  channel log replaces those events
+  ([proposals/channel-log.md](../proposals/channel-log.md)). Only the
+  retention sweep hard-deletes message rows. `messages.moderate` covers
+  other people's; your own are always yours.
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is
   idempotent by construction — the primary key decides whether it is an
   insert or a delete — and publishes `ReactionsChanged` with the message's
@@ -712,20 +732,28 @@ in the root's thread and not in the channel's timeline
   after the marker, and is 0 unless the caller is in the thread and
   hasn't muted it. `SetThreadMuted` and `MarkThreadRead` tell the
   person's other devices with `ThreadMuted` and `ThreadRead`.
-- **Deleting a reply** recounts its root's summary under a lock on the
-  `threads` row, so a concurrent send's increment and the recount can't
-  miss each other, and publishes `MessageDeleted` with the thread's root
-  and then `ThreadChanged`.
-- **Deleting a root** with replies keeps it as a placeholder
-  (`MakePlaceholder`): `deleted_at` is set and its text, attachments and
-  their files, link rows, reactions, mentions, pin and activity items go.
-  Clients get `MessageUpdated` with `deleted` set. Edits, reactions,
-  quotes and new replies on it are refused; a quote of it reads like a
-  quote of a deleted message. Deleting its last reply deletes it too. A
-  root with no replies is deleted outright, as before.
+- **Deleting a reply** tombstones it and recounts its root's summary
+  over the live replies, under a lock on the `threads` row so a
+  concurrent send's increment and the recount can't miss each other. The
+  root is stamped too, since its summary changed, and the channel hears
+  `MessageDeleted` with the thread's root and then `ThreadChanged`.
+  Nothing counts a deleted reply any more: not the summary's count or
+  recent authors, not who is in the thread, not a thread's unread count.
+- **Deleting a root** with live replies leaves it shown as a
+  placeholder: the tombstone (no text, attachments, previews, reactions,
+  mentions, pin or activity) stays in the channel with its summary, and
+  its thread still opens. Clients get `MessageUpdated` with `deleted`
+  set. Edits, reactions, quotes and new replies on it are refused; a
+  quote of it reads like a quote of a deleted message. When its last
+  live reply goes the summary row is dropped and the placeholder is
+  hidden with it — stamped again, its thread mutes and read markers
+  deleted, `MessageDeleted` published for the reply and then for the
+  root. A root with no replies is hidden at once, as a hard delete was.
 - **Delete thread** (`DeleteThread`) is moderation: `messages.moderate`
-  in the space, never in a DM. It deletes the root, and the cascade on
-  `thread_root_id` takes the replies.
+  in the space, never in a DM. It is the bulk form of the same path: the
+  live replies and then the root become tombstones in one transaction,
+  each with its own seq, the summary is dropped, and the channel hears
+  one `MessageDeleted` for the root.
 
 ## Direct messages
 

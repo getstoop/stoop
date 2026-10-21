@@ -30,19 +30,6 @@ func (q *Queries) CountExpiredMessages(ctx context.Context, cutoff string) (int6
 	return column_1, err
 }
 
-const countRepliesUnder = `-- name: CountRepliesUnder :one
-SELECT count(*)::bigint FROM messages WHERE thread_root_id = ANY($1::uuid[])
-`
-
-// CountRepliesUnder counts the replies the cascade will take with these
-// roots.
-func (q *Queries) CountRepliesUnder(ctx context.Context, ids []string) (int64, error) {
-	row := q.db.QueryRow(ctx, countRepliesUnder, ids)
-	var column_1 int64
-	err := row.Scan(&column_1)
-	return column_1, err
-}
-
 const createMessage = `-- name: CreateMessage :one
 
 INSERT INTO messages (id, channel_id, author_id, content, mentions_entire_channel, mentions_here, reply_to_message_id,
@@ -119,27 +106,36 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 	return i, err
 }
 
-const deleteMessage = `-- name: DeleteMessage :exec
-DELETE FROM messages WHERE id = $1
+const deleteExpiredMessages = `-- name: DeleteExpiredMessages :one
+WITH removed AS (
+    DELETE FROM messages
+    WHERE id = ANY($1::uuid[]) OR thread_root_id = ANY($1::uuid[])
+    RETURNING seq
+)
+SELECT count(*)::bigint AS removed, COALESCE(max(seq), 0)::bigint AS max_seq FROM removed
 `
 
-func (q *Queries) DeleteMessage(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, deleteMessage, id)
-	return err
+type DeleteExpiredMessagesRow struct {
+	Removed int64
+	MaxSeq  int64
 }
 
-const deleteMessagesByIDs = `-- name: DeleteMessagesByIDs :exec
-DELETE FROM messages WHERE id = ANY($1::uuid[])
-`
-
-func (q *Queries) DeleteMessagesByIDs(ctx context.Context, ids []string) error {
-	_, err := q.db.Exec(ctx, deleteMessagesByIDs, ids)
-	return err
+// DeleteExpiredMessages hard-deletes these roots and every reply under
+// them, in one channel whose row the caller holds, and reports how many
+// rows went and the highest seq among them (0 when none was stamped),
+// for channels.swept_seq.
+func (q *Queries) DeleteExpiredMessages(ctx context.Context, ids []string) (DeleteExpiredMessagesRow, error) {
+	row := q.db.QueryRow(ctx, deleteExpiredMessages, ids)
+	var i DeleteExpiredMessagesRow
+	err := row.Scan(&i.Removed, &i.MaxSeq)
+	return i, err
 }
 
 const getMessage = `-- name: GetMessage :one
 SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
-FROM messages WHERE id = $1
+FROM messages m
+WHERE id = $1
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
 `
 
 type GetMessageRow struct {
@@ -158,6 +154,10 @@ type GetMessageRow struct {
 	Seq                   *int64
 }
 
+// GetMessage is the message an RPC starts from, so it finds only what a
+// reader is shown: a live message, or a deleted root whose thread still
+// has live replies (kept as a placeholder). Any other tombstone is not
+// found, as a hard-deleted message was.
 func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, error) {
 	row := q.db.QueryRow(ctx, getMessage, id)
 	var i GetMessageRow
@@ -249,9 +249,9 @@ type ListExpiredMessagesRow struct {
 }
 
 // Message retention: top-level messages older than the cutoff id
-// (UUIDv7, so id order is time order), less pinned ones, oldest first. A
-// thread goes by its root's age, so replies are never listed: deleting
-// the root takes them, however recent.
+// (UUIDv7, so id order is time order), less pinned ones, oldest first,
+// tombstones included. A thread goes by its root's age, so replies are
+// never listed: deleting the root takes them, however recent.
 func (q *Queries) ListExpiredMessages(ctx context.Context, arg ListExpiredMessagesParams) ([]ListExpiredMessagesRow, error) {
 	rows, err := q.db.Query(ctx, listExpiredMessages, arg.Cutoff, arg.Limit)
 	if err != nil {
@@ -301,6 +301,7 @@ const listMessagesAfter = `-- name: ListMessagesAfter :many
 SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
+  AND (m.deleted_at IS NULL OR m.thread_reply_count > 0)
   AND (m.id > $3::uuid OR ($4::bool AND m.id = $3::uuid))
 ORDER BY m.id ASC
 LIMIT $2
@@ -364,6 +365,7 @@ const listMessagesBefore = `-- name: ListMessagesBefore :many
 SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
+  AND (m.deleted_at IS NULL OR m.thread_reply_count > 0)
   AND ($3::uuid IS NULL OR m.id < $3::uuid)
 ORDER BY m.id DESC
 LIMIT $2
@@ -377,7 +379,9 @@ type ListMessagesBeforeParams struct {
 
 // ListMessagesBefore carries the replied-to message's quote (if any) so
 // the client can render it without a second round trip. Only rows that
-// show in the channel: a thread's replies are paged by ListThreadBefore.
+// show in the channel: a thread's replies are paged by ListThreadBefore,
+// and a tombstone shows only as the placeholder of a thread with live
+// replies (the threads row exists while there are any).
 func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, listMessagesBefore, arg.ChannelID, arg.Limit, arg.BeforeID)
 	if err != nil {
@@ -420,12 +424,17 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 
 const recomputeChannelLastMessage = `-- name: RecomputeChannelLastMessage :exec
 UPDATE channels c
-SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id AND m.in_channel ORDER BY m.id DESC LIMIT 1)
+SET last_message_id = (
+    SELECT m.id FROM messages m
+    WHERE m.channel_id = c.id AND m.in_channel
+      AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
+    ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1
 `
 
-// RecomputeChannelLastMessage repoints a channel at its newest remaining
-// message that shows in the channel, after a delete.
+// RecomputeChannelLastMessage repoints a channel at its newest message
+// that shows in the channel, after a delete: not a tombstone, unless it
+// is the placeholder of a thread with live replies.
 func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, recomputeChannelLastMessage, id)
 	return err
@@ -444,6 +453,32 @@ type StampMessageSeqParams struct {
 // (NextChannelSeq in channels.sql); no row means the message is gone.
 func (q *Queries) StampMessageSeq(ctx context.Context, arg StampMessageSeqParams) (int64, error) {
 	result, err := q.db.Exec(ctx, stampMessageSeq, arg.Seq, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const tombstoneMessage = `-- name: TombstoneMessage :execrows
+WITH attachments AS (DELETE FROM message_attachments WHERE message_id = $1::uuid),
+links AS (DELETE FROM message_links WHERE message_id = $1::uuid),
+reactions AS (DELETE FROM message_reactions WHERE message_id = $1::uuid),
+mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
+pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
+activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
+UPDATE messages SET content = '', mentions_entire_channel = false, mentions_here = false,
+    edited_at = NULL, deleted_at = now()
+WHERE id = $1::uuid AND deleted_at IS NULL
+`
+
+// TombstoneMessage is the one way a message is deleted
+// (internal/chat/tombstones.go): the row stays with deleted_at set and no
+// text (the search column follows), and what a hard delete used to
+// cascade goes with it. reply_to_message_id, thread_root_id and
+// in_channel stay. No row means it was a tombstone already. Its files are
+// deleted through the port afterwards.
+func (q *Queries) TombstoneMessage(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, tombstoneMessage, id)
 	if err != nil {
 		return 0, err
 	}
