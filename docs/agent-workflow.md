@@ -273,10 +273,21 @@ force-pushes, and a pull request can only merge once every CI job is green
   and a `queryFn` refetch must keep a non-live window rather than swap
   the newest page in under the reader.
 - **Dividers are siblings of message rows, not children.** `.new-divider`
-  and `.day-divider` sit between `.message` elements in `.message-list`
-  (so the row's absolutely positioned avatar stays aligned). From a
-  divider, the message it introduces is `nextElementSibling`, not
-  `closest(".message")`.
+  and `.day-divider` sit between `.message` elements in
+  `.message-list-body` (so the row's absolutely positioned avatar stays
+  aligned). From a divider, the message it introduces is
+  `nextElementSibling`, not `closest(".message")`.
+- **A message row far from the viewport is not in the DOM.** The list is
+  virtualised (`docs/architecture/web.md` → The message list): the DOM
+  holds the rows on screen plus a few either side, whatever the window
+  holds. A spec that counts `.message` elements, or locates a row by id
+  without bringing it on screen, sees only the rendered rows. Read the
+  window from the list instead — `.message-list[data-rows]` is how many
+  messages it holds and `data-oldest` the id of its first — and scroll to
+  a row (a quote's jump, the list's `scrollTop`) before asserting on it.
+  `.message-content .md-lines` `.first()` is the window's oldest only
+  while the view is at the top, and `.last()` the newest only at the
+  bottom. `virtual-list.spec.ts` is the model.
 - **Below 768px the rail and channel sidebar are a transformed drawer.**
   `position: fixed` elements rendered inside `.channel-sidebar` (the invite
   modal) are positioned relative to the sidebar while it is translated, so

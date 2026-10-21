@@ -428,6 +428,70 @@ because iOS Safari zooms into anything smaller. Everything else in
 `styles/mobile.css` is spacing, in one media query, so there is one place
 to look for what changes below 768px.
 
+## The message list
+
+`routes/Channel/MessageList/` draws a timeline's window
+([realtime.md](realtime.md#history-windows)) for the channel and, with a
+`threadRoot`, for a thread in the side panel. It is virtualised with
+`@tanstack/react-virtual`: only the rows near the viewport are in the DOM,
+each positioned at its measured offset inside `.message-list-body`, which
+is as tall as the whole window. `.message-list` stays an ordinary
+top-to-bottom scroll container that starts at the bottom.
+
+- **One item per row** (`MessageList/items.ts`): the head (the window's
+  older edge — "Loading earlier messages…", the beginning marker with the
+  first-run card, or a thread's root above its reply count), a day line,
+  the "New messages" line, each message, and the foot (the newer edge).
+  Dividers are rows beside the messages, never wrappers round them
+  (`.new-divider + *` is still the message it introduces). The head and
+  foot carry the list's top and bottom padding, so the body's height is
+  the rows' alone, and a divider's spacing is padding in this list
+  (`styles/virtual-list.css`), since a row's measured height is its border
+  box. Rows are keyed by message id, so a page prepended keeps every
+  measured height; a row that grows later (an image arriving, a link
+  preview) is re-measured by the virtualiser's `ResizeObserver`.
+- **The view does not move when the window changes at an edge.** Before
+  a page is asked for, the list notes where the edge's message sits on
+  screen; once the window has changed (a page prepended or appended, the
+  far end pruned) a layout effect puts it back there from the row's
+  measured offset in the new window, before anything is painted. The
+  anchor is noted only for a page that will be asked for and dropped if
+  it brings nothing, or an arrival later would restore a stale position.
+  (The virtualiser's own `anchorTo: "end"` is not used: it anchors on
+  whatever row is at the top of the view, which at `scrollTop` 0 is the
+  head, so a prepend would leave the view at the top showing the new
+  rows.) A row re-measured later (an image arriving) keeps the view in
+  place when it is above it, and at the bottom when the view is there
+  (`shouldAdjustScrollPositionOnItemSizeChange`); a row's first
+  measurement keeps the virtualiser's rule, since the rows a landing is
+  settling over must not each move the view.
+- **Landing is by index.** `scrollToIndex` centres a jumped-to row
+  (`landOn`, a reply quote, a deep link) and `scrollToEnd` lands at the
+  bottom; the virtualiser keeps retargeting as rows around the target are
+  measured. A jump to a row the window holds but the DOM doesn't scrolls
+  to it, and the row flashes once it renders; only a row outside the
+  window asks the server (`jumpTo` in `api/timelineLoads.ts`). In a
+  thread, a jump to the root lands on the head when the head shows it.
+- **Edge loading is by the rows on screen** (`MessageList/edges.ts`): on
+  each of the virtualiser's changes, the rows at the list's own
+  `scrollTop` and its bottom edge are looked up, and when they come within
+  `EDGE_LEAD` rows of the window's first or last item, `loadOlder` or
+  `loadNewer` runs. The element's position is read rather than the
+  virtualiser's range because a row measured as it mounts reports before
+  a landing scroll, from wherever the view was. It is armed by the first
+  landing (a list renders at its top before it lands at the bottom) and
+  paused while a replaced window has yet to land.
+- **Following is unchanged:** an arrival (the window extended by one at
+  its end, `newestChange`) moves the view only when it is already within
+  `NEAR_BOTTOM` of the bottom or the message is the reader's own; otherwise
+  it counts on the "Jump to latest" pill.
+- **What the window holds is on the list element:** `data-rows` and
+  `data-oldest`. A browser spec reads those rather than counting
+  `.message` elements, which are only the rows near the viewport.
+
+`WINDOW_CAP` still bounds the window (`api/history.ts`); with the DOM no
+longer the reason for it, a later step can lift it.
+
 ## The side panel
 
 `components/SidePanel` is the right-hand column any page can open. It

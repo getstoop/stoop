@@ -38,6 +38,9 @@ importers:
       '@tanstack/react-table':
         specifier: ^9.2.4
         version: 9.2.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@tanstack/react-virtual':
+        specifier: ^3.14.21
+        version: 3.14.21(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       livekit-client:
         specifier: ^2.22.3
         version: 2.22.3(@types/dom-mediacapture-record@1.0.22)
@@ -1114,6 +1117,12 @@ packages:
     peerDependencies:
       react: '>=18'
 
+  '@tanstack/react-virtual@3.14.21':
+    resolution: {integrity: sha512-wWE/ZJDNNDp18JHWy7n5PQooqerHePVkEEu6Op0twKQ2InF9DPhYMQptQY0syDEviMd3/r8D0OUvKJibDGm9HQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   '@tanstack/router-core@1.171.33':
     resolution: {integrity: sha512-TK31LyRZuVwwmWrv3oSCBN7OuM4R1qQZePRTiexFyqQUuCo3ERHZgzArosynwZKtYlEf4qbFCvbW7UUfvGiiZw==}
     engines: {node: '>=20.19'}
@@ -1124,6 +1133,9 @@ packages:
   '@tanstack/table-core@9.2.4':
     resolution: {integrity: sha512-GwdDyGGr6UXAtubF14yAwcXvdaogqfsQgIk89Suebjxob/Rjq2xvfmXsjDF1rQmKmhHsJm9TOY7myxv3i6geJw==}
     engines: {node: '>=20'}
+
+  '@tanstack/virtual-core@3.19.6':
+    resolution: {integrity: sha512-CsTW892z23gy7IyxYTTorVu1uZWB+0N349rSMgKz4rFLPpLza7F7TpcCKeI5iUAwYQCt8QUlOU67J+KXCxtpGw==}
 
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
@@ -2893,6 +2905,12 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
+  '@tanstack/react-virtual@3.14.21(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@tanstack/virtual-core': 3.19.6
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+
   '@tanstack/router-core@1.171.33':
     dependencies:
       '@tanstack/history': 1.162.4
@@ -2905,6 +2923,8 @@ snapshots:
   '@tanstack/table-core@9.2.4':
     dependencies:
       '@tanstack/store': 0.11.1
+
+  '@tanstack/virtual-core@3.19.6': {}
 
   '@testing-library/dom@10.4.2':
     dependencies:
