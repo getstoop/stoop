@@ -14,7 +14,7 @@ export function caughtUp(
   res: ListChangesResponse,
 ): ChannelLog {
   const next = withFloor(
-    withArrivals(log, res.messages, "catchUp"),
+    withArrivals(log, res.messages, false),
     res.retentionFloorId,
   );
   if (res.hasMore) return next;

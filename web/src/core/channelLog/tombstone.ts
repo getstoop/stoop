@@ -3,28 +3,24 @@ import {
   type Message,
   MessageSchema,
 } from "../../gen/stoop/chat/v1/message_pb";
+import type { MessageDeleted } from "../../gen/stoop/realtime/v1/realtime_pb";
 
 // A deletion as the log keeps it: the row stays, as a tombstone, so a
 // stale copy that arrives later cannot bring the message back.
 
-export type Deletion = {
-  id: string;
-  channelId: string;
-  threadRootId: string;
-  seq: bigint;
-};
-
-// The held row as a tombstone at the deletion's seq: deleted, no content
-// and nothing attached. Made from the event alone when the row was never
-// held.
+// The held row as a tombstone at the deletion's seq: deleted, no content,
+// nothing attached, and no thread summary (the server deletes a root this
+// way only once its thread has no live replies; a root deleted while they
+// live arrives as an update, a placeholder with its summary). Made from
+// the event alone when the row was never held.
 export function tombstoneOf(
   held: Message | undefined,
-  deletion: Deletion,
+  deletion: MessageDeleted,
 ): Message {
   const base =
     held ??
     create(MessageSchema, {
-      id: deletion.id,
+      id: deletion.messageId,
       channelId: deletion.channelId,
       threadRootId: deletion.threadRootId,
     });
@@ -39,6 +35,7 @@ export function tombstoneOf(
     mentionsEntireChannel: false,
     mentionsHere: false,
     editedAt: undefined,
+    thread: undefined,
     seq: deletion.seq,
   };
 }

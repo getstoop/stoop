@@ -34,9 +34,6 @@ export type ChannelLog = {
   channel: View;
   // One per open thread, by its root's id.
   threads: Record<string, View>;
-  // The reader's own sends the server has not answered: a client-made id,
-  // seq 0, never in rows.
-  pending: Message[];
   // The retention floor's id, "" when retention is off.
   floor: string;
   // A gap was seen in the sequence, or the socket reconnected: a
@@ -62,7 +59,6 @@ export function emptyLog(channelId: string): ChannelLog {
     rows: new Map(),
     channel: emptyView,
     threads: {},
-    pending: [],
     floor: "",
     needsCatchUp: false,
   };

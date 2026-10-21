@@ -1,27 +1,26 @@
 import {
   channelOfEvent,
+  forgetItems,
   inRange,
-  isLive,
   isShown,
   jumped,
   opened,
   paged,
   reconnected as reconnectedLog,
-  sendFailed as sendFailedLog,
-  sendStarted as sendStartedLog,
-  sendSucceeded as sendSucceededLog,
   showsInChannel,
+  type ThreadOverlay,
   viewOf,
   withEvent,
+  withThreadOverlay,
 } from "../core/channelLog";
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
-import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import { catchUp } from "./channelLogCatchUp";
 import {
   beganLoading,
   endedLoading,
   ensureLog,
+  epochOf,
   forgetLog,
   generationOf,
   logOf,
@@ -34,8 +33,8 @@ import {
 import { chatClient } from "./clients";
 
 // The loader for the channel logs (core/channelLog): the requests that
-// fill a view, the events and reconnects that keep a log current, and the
-// reader's own sends. Not yet wired: the app still runs api/history.ts.
+// fill a view, and the events and reconnects that keep a log current. Not
+// yet wired: the app still runs api/history.ts.
 
 export const HISTORY_PAGE = 50;
 
@@ -61,38 +60,43 @@ export const openChannel = (channelId: string) => open({ channelId });
 export const openThread = (channelId: string, rootId: string) =>
   open({ channelId, rootId });
 
-// The newest page, as the view's range. A failure is the caller's to
-// show; the log stays, empty, for a retry.
+// The newest page, as the view's range. The log starts empty before the
+// request, so events about the channel have somewhere to go meanwhile. A
+// failure is the caller's to show; the log stays for a retry.
 async function open(view: ViewRef): Promise<void> {
+  ensureLog(view.channelId);
   const generation = generationOf(view);
   const res = await request(view, () =>
     chatClient.listMessages({ ...scope(view), limit: HISTORY_PAGE }),
   );
+  if (!res) return;
   settle(view, (log) => opened(log, { rootId: view.rootId, generation, res }));
 }
 
 export const loadOlder = (view: ViewRef) => loadPage(view, "older");
 export const loadNewer = (view: ViewRef) => loadPage(view, "newer");
 
-// One page per view per direction at a time.
-const paging = new Set<string>();
+type Direction = "older" | "newer";
+
+// The directions a page is out in, by view.
+const paging = new Map<string, Set<Direction>>();
 
 // The page beyond one edge of the range; how many rows it brought, 0 when
 // there was nothing to ask for, the request failed, or the range was
-// replaced while it was out.
-async function loadPage(
-  view: ViewRef,
-  direction: "older" | "newer",
-): Promise<number> {
-  const held = viewOf(ensureLog(view.channelId), view.rootId);
+// replaced while it was out. One page per view per direction at a time.
+async function loadPage(view: ViewRef, direction: Direction): Promise<number> {
+  const log = logOf(view.channelId);
+  const held = log && viewOf(log, view.rootId);
   if (!held) return 0;
   const from =
     direction === "older"
       ? held.hasOlder && held.oldestId
       : held.hasNewer && held.newestId;
-  const key = `${viewKey(view)}:${direction}`;
-  if (!from || paging.has(key)) return 0;
-  paging.add(key);
+  const key = viewKey(view);
+  const out = paging.get(key) ?? new Set<Direction>();
+  if (!from || out.has(direction)) return 0;
+  out.add(direction);
+  paging.set(key, out);
   try {
     const res = await request(view, () =>
       chatClient.listMessages({
@@ -101,6 +105,7 @@ async function loadPage(
         limit: HISTORY_PAGE,
       }),
     );
+    if (!res) return 0;
     const stale = generationOf(view) !== held.generation;
     updateLog(view.channelId, (log) =>
       paged(log, direction, {
@@ -113,15 +118,17 @@ async function loadPage(
   } catch {
     return 0;
   } finally {
-    paging.delete(key);
+    out.delete(direction);
+    if (paging.get(key) === out && out.size === 0) paging.delete(key);
   }
 }
 
 // Lands the view on a message: where it is held and shown inside the
 // range, without a request; otherwise a page around it replaces the
-// range. found is false when it isn't in the timeline (deleted, or a
-// bogus link). A reply that shows only in its thread centres a channel on
-// its root and names the thread to open at the reply.
+// range (and opens the channel, for a deep link). found is false when it
+// isn't in the timeline (deleted, or a bogus link). A reply that shows
+// only in its thread centres a channel on its root and names the thread
+// to open at the reply.
 export async function jumpTo(
   view: ViewRef,
   messageId: string,
@@ -145,7 +152,7 @@ export async function jumpTo(
     return { found: true };
   }
   const generation = held?.generation ?? 0;
-  let res: ListMessagesResponse;
+  let res: ListMessagesResponse | undefined;
   try {
     res = await request(view, () =>
       chatClient.listMessages({
@@ -157,11 +164,14 @@ export async function jumpTo(
   } catch {
     return { found: false };
   }
+  // Forgotten meanwhile, or a later jump replaced the range: this one is
+  // not where the reader is going.
+  if (!res || generationOf(view) !== generation) return { found: false };
   if (atRoot) res = { ...res, hasOlder: false };
-  // A later jump replaced the range meanwhile: this one is not where the
-  // reader is going.
-  if (generationOf(view) !== generation) return { found: false };
-  settle(view, (log) => jumped(log, { rootId: view.rootId, generation, res }));
+  const page = res;
+  settle(view, (log) =>
+    jumped(log, { rootId: view.rootId, generation, res: page }),
+  );
   const threadRootId = (!atRoot && res.threadRootId) || undefined;
   setLanding(view, { id: threadRootId ?? messageId });
   return { found: true, threadRootId };
@@ -170,13 +180,14 @@ export async function jumpTo(
 // Replaces a view that stops short of the newest row with the newest page
 // (the "Jump to latest" pill, a send from history).
 export async function jumpToLatest(view: ViewRef): Promise<void> {
-  const held = viewOf(ensureLog(view.channelId), view.rootId);
-  if (held && isLive(held)) return;
-  const generation = held?.generation ?? 0;
+  const log = logOf(view.channelId);
+  const held = log && viewOf(log, view.rootId);
+  if (!held?.hasNewer) return;
+  const generation = held.generation;
   const res = await request(view, () =>
     chatClient.listMessages({ ...scope(view), limit: HISTORY_PAGE }),
   );
-  if (generationOf(view) !== generation) return;
+  if (!res || generationOf(view) !== generation) return;
   settle(view, (log) => jumped(log, { rootId: view.rootId, generation, res }));
   setLanding(view, "bottom");
 }
@@ -190,6 +201,16 @@ export function applyEvent(event: ServerEvent) {
   if (after?.needsCatchUp) void catchUp(channelId);
 }
 
+// The reader's half of a root's thread summary, from their own read and
+// mute events (api/threads.ts): no seq, patched on the held copy.
+export function patchThread(
+  channelId: string,
+  rootId: string,
+  patch: ThreadOverlay,
+) {
+  updateLog(channelId, (log) => withThreadOverlay(log, rootId, patch));
+}
+
 // The socket is back: every log owes a catch-up from where it stands.
 export function reconnected() {
   for (const channelId of Object.keys(useChannelLogStore.getState().logs)) {
@@ -198,46 +219,28 @@ export function reconnected() {
   }
 }
 
-// The UI no longer shows the channel: its log goes.
+// The UI no longer shows the channel: its log goes, and a page still out
+// for it answers to nobody.
 export function forget(channelId: string) {
   forgetLog(channelId);
-  for (const key of [...paging]) {
+  forgetItems(channelId);
+  for (const key of [...paging.keys()]) {
     if (key === channelId || key.startsWith(`${channelId}/`))
       paging.delete(key);
   }
 }
 
-// The reader's send, shown at the bottom of the view until the server
-// answers. The draft carries a client-made id and the reader as author;
-// the view names its channel and thread.
-export function sendStarted(view: ViewRef, draft: Message) {
-  ensureLog(view.channelId);
-  updateLog(view.channelId, (log) =>
-    sendStartedLog(log, {
-      ...draft,
-      channelId: view.channelId,
-      threadRootId: view.rootId ?? draft.threadRootId,
-    }),
-  );
-}
-
-export function sendSucceeded(
-  channelId: string,
-  draftId: string,
-  row: Message,
-) {
-  updateLog(channelId, (log) => sendSucceededLog(log, draftId, row));
-}
-
-export function sendFailed(channelId: string, draftId: string) {
-  updateLog(channelId, (log) => sendFailedLog(log, draftId));
-}
-
-// A request for a view, counted as loading while out.
-async function request<T>(view: ViewRef, send: () => Promise<T>): Promise<T> {
+// A request for a view, counted as loading while out; undefined when the
+// channel was forgotten meanwhile, its answer being nobody's.
+async function request<T>(
+  view: ViewRef,
+  send: () => Promise<T>,
+): Promise<T | undefined> {
+  const epoch = epochOf(view.channelId);
   beganLoading(view);
   try {
-    return await send();
+    const res = await send();
+    return epochOf(view.channelId) === epoch ? res : undefined;
   } finally {
     endedLoading(view);
   }

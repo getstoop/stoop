@@ -43,7 +43,7 @@ function changeOf(event: ServerEvent): Change | null {
       return {
         channelId: row.channelId,
         seq: row.seq,
-        apply: (log) => withArrivals(log, [row], "event"),
+        apply: (log) => withArrivals(log, [row], true),
       };
     }
     case "reactionsChanged": {
@@ -77,22 +77,15 @@ function changeOf(event: ServerEvent): Change | null {
       };
     }
     case "messageDeleted": {
-      const { channelId, messageId, threadRootId, seq } = payload.value;
+      const deletion = payload.value;
       return {
-        channelId,
-        seq,
+        channelId: deletion.channelId,
+        seq: deletion.seq,
         apply: (log) =>
           withArrivals(
             log,
-            [
-              tombstoneOf(log.rows.get(messageId), {
-                id: messageId,
-                channelId,
-                threadRootId,
-                seq,
-              }),
-            ],
-            "event",
+            [tombstoneOf(log.rows.get(deletion.messageId), deletion)],
+            true,
           ),
       };
     }
@@ -111,5 +104,5 @@ function patched(
 ): ChannelLog {
   const held = log.rows.get(id);
   if (!held) return log;
-  return withArrivals(log, [{ ...change(held), seq }], "event");
+  return withArrivals(log, [{ ...change(held), seq }], true);
 }

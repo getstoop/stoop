@@ -158,3 +158,50 @@ describe("jumped", () => {
     expect(log.rows.has(id(149))).toBe(true);
   });
 });
+
+describe("a page carrying a stale copy", () => {
+  const edited = () =>
+    withEvent(
+      openedOn(rows(100, 150)),
+      event({
+        case: "messageUpdated",
+        value: message(id(120), { content: "reworded", seq: 51n }),
+      }),
+    );
+  const stale = () => message(id(120), { seq: 21n });
+
+  it("keeps an edit over an older page", () => {
+    const log = paged(edited(), "older", {
+      generation: 1,
+      res: page([...rows(50, 100), stale()]),
+    });
+    expect(log.rows.get(id(120))?.content).toBe("reworded");
+  });
+
+  it("keeps an edit over a new range", () => {
+    const log = opened(edited(), {
+      generation: 1,
+      res: page([...rows(100, 120), stale(), ...rows(121, 150)]),
+    });
+    expect(log.rows.get(id(120))?.content).toBe("reworded");
+    expect(channelItems(log).find((row) => row.id === id(120))?.content).toBe(
+      "reworded",
+    );
+  });
+
+  it("keeps a deletion over a page with the row", () => {
+    const gone = withEvent(
+      openedOn(rows(100, 150)),
+      event({
+        case: "messageDeleted",
+        value: { channelId: CHANNEL, messageId: id(120), seq: 51n },
+      }),
+    );
+    const log = paged(gone, "older", {
+      generation: 1,
+      res: page([...rows(50, 100), stale()]),
+    });
+    expect(log.rows.get(id(120))?.deleted).toBe(true);
+    expect(ids(channelItems(log))).not.toContain(id(120));
+  });
+});

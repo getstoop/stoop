@@ -69,7 +69,15 @@ export function updateLog(
   return after;
 }
 
+// Forgetting a channel starts a new epoch for it: a request out for the
+// old log answers to nobody, even once the channel is opened again.
+const epochs = new Map<string, number>();
+
+export const epochOf = (channelId: string): number =>
+  epochs.get(channelId) ?? 0;
+
 export function forgetLog(channelId: string) {
+  epochs.set(channelId, epochOf(channelId) + 1);
   useChannelLogStore.setState((state) => {
     const { [channelId]: _gone, ...logs } = state.logs;
     const status: Record<string, ViewStatus> = {};
@@ -84,9 +92,12 @@ export function forgetLog(channelId: string) {
   }
 }
 
-// The view's generation now, for a request to answer under.
-export const generationOf = (view: ViewRef): number =>
-  viewOf(ensureLog(view.channelId), view.rootId)?.generation ?? 0;
+// The view's generation now, for a request to answer under; 0 for a view,
+// or a channel, not yet held.
+export function generationOf(view: ViewRef): number {
+  const log = logOf(view.channelId);
+  return log ? (viewOf(log, view.rootId)?.generation ?? 0) : 0;
+}
 
 export function beganLoading(view: ViewRef) {
   const key = viewKey(view);
@@ -108,8 +119,10 @@ export const setLanding = (view: ViewRef, landOn: ViewStatus["landOn"]) =>
 // The list scrolled to where the jump asked.
 export const landed = (view: ViewRef) => setStatus(view, { landOn: null });
 
+// A view's status lives only while its channel's log does.
 function setStatus(view: ViewRef, change: Partial<ViewStatus>) {
   useChannelLogStore.setState((state) => {
+    if (!state.logs[view.channelId]) return state;
     const key = viewKey(view);
     const current = state.status[key] ?? { loading: false, landOn: null };
     const next = { ...current, ...change };

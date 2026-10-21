@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { withEvent } from "./events";
-import { channelItems, isLive, pendingNewer, threadItems } from "./items";
+import { channelItems, threadItems } from "./items";
 import {
   CHANNEL,
   event,
@@ -11,7 +11,6 @@ import {
   openedThread,
   rows,
 } from "./testing";
-import { emptyView } from "./types";
 
 const root = id(3);
 // Replies sort after their root, as UUIDv7 ids do.
@@ -52,7 +51,7 @@ describe("channel items", () => {
     expect(ids(channelItems(log))).toEqual(ids(rows(0, 10)));
   });
 
-  it("hands back the same array while its rows and drafts are unchanged", () => {
+  it("hands back the same array while nothing it shows changed", () => {
     const log = mixed();
     const first = channelItems(log);
     expect(channelItems(log)).toBe(first);
@@ -63,6 +62,36 @@ describe("channel items", () => {
       event({ case: "messageCreated", value: message(id(8), { seq: 12n }) }),
     );
     expect(channelItems(changed)).not.toBe(first);
+  });
+
+  it("keeps its identity over a change to a reply that stays in its thread", () => {
+    const log = mixed();
+    const first = channelItems(log);
+    const edited = withEvent(
+      log,
+      event({
+        case: "messageUpdated",
+        value: message(inThread, {
+          seq: 11n,
+          threadRootId: root,
+          inChannel: false,
+          content: "reworded",
+        }),
+      }),
+    );
+    expect(edited.rows).not.toBe(log.rows);
+    expect(channelItems(edited)).toBe(first);
+  });
+
+  it("keeps its identity over a row beyond its range", () => {
+    const log = openedOn(rows(0, 10), { hasNewer: true });
+    const first = channelItems(log);
+    const beyond = withEvent(
+      log,
+      event({ case: "messageCreated", value: message(id(20), { seq: 11n }) }),
+    );
+    expect(beyond.channel.pendingNewer).toBe(1);
+    expect(channelItems(beyond)).toBe(first);
   });
 });
 
@@ -86,12 +115,19 @@ describe("thread items", () => {
     expect(threadItems(log, hiddenRoot)).toEqual([]);
     expect(log.channelId).toBe(CHANNEL);
   });
-});
 
-describe("a view's flags", () => {
-  it("is live when nothing newer lies beyond, and counts what arrived beyond", () => {
-    expect(isLive(emptyView)).toBe(false);
-    expect(isLive({ ...emptyView, hasNewer: false })).toBe(true);
-    expect(pendingNewer({ ...emptyView, pendingNewer: 3 })).toBe(3);
+  it("keeps its identity over a change elsewhere in the channel", () => {
+    const log = openedThread(mixed(), root, [
+      message(inThread, { seq: 6n, threadRootId: root, inChannel: false }),
+    ]);
+    const first = threadItems(log, root);
+    const elsewhere = withEvent(
+      log,
+      event({
+        case: "messageUpdated",
+        value: message(id(6), { seq: 11n, content: "reworded" }),
+      }),
+    );
+    expect(threadItems(elsewhere, root)).toBe(first);
   });
 });

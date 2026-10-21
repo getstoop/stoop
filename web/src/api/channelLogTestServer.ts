@@ -11,6 +11,7 @@ import {
   type Message,
   MessageAuthorSchema,
   MessageSchema,
+  ThreadSummarySchema,
 } from "../gen/stoop/chat/v1/message_pb";
 import { ServerEventSchema } from "../gen/stoop/realtime/v1/realtime_pb";
 import { useConnectionStore } from "../stores/connection";
@@ -176,6 +177,30 @@ export function deleteOnServer(messageId: string, announce = true) {
         },
       }),
     );
+}
+
+// A reply lands: the reply itself, then the root's summary, each at its
+// own seq, as the server stamps them.
+export function replyOnServer(rootId: string, replyId: string) {
+  postOnServer(replyId, { threadRootId: rootId, inChannel: false });
+  const root = server.rows.find((row) => row.id === rootId);
+  if (!root) throw new Error(`no row ${rootId}`);
+  const replyCount = (root.thread?.replyCount ?? 0) + 1;
+  const row = stamped({
+    ...root,
+    thread: create(ThreadSummarySchema, { replyCount }),
+  });
+  applyEvent(
+    event({
+      case: "threadChanged",
+      value: {
+        channelId: CHANNEL,
+        rootMessageId: rootId,
+        thread: { replyCount },
+        seq: row.seq,
+      },
+    }),
+  );
 }
 
 export function pinOnServer(messageId: string, announce = true) {

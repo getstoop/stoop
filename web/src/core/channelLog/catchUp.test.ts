@@ -106,3 +106,32 @@ describe("reconnected", () => {
     expect(log.channelId).toBe(CHANNEL);
   });
 });
+
+describe("events out of order", () => {
+  it("are settled by the catch-up", () => {
+    const later = withEvent(
+      openedOn(rows(0, 10), { hasOlder: false }),
+      event({ case: "messageCreated", value: message(id(11), { seq: 12n }) }),
+    );
+    expect(later.needsCatchUp).toBe(true);
+    const earlier = withEvent(
+      later,
+      event({ case: "messageCreated", value: message(id(10), { seq: 11n }) }),
+    );
+    expect(earlier.seq).toBe(11);
+    expect(earlier.needsCatchUp).toBe(true);
+    const log = caughtUp(
+      earlier,
+      changes([message(id(10), { seq: 11n }), message(id(11), { seq: 12n })], {
+        channelSeq: 12,
+      }),
+    );
+    expect(log.seq).toBe(12);
+    expect(log.needsCatchUp).toBe(false);
+    expect(ids(channelItems(log))).toEqual([
+      ...ids(rows(0, 10)),
+      id(10),
+      id(11),
+    ]);
+  });
+});

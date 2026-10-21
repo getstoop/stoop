@@ -6,11 +6,10 @@
 export { caughtUp, nextSince, reconnected } from "./catchUp";
 export { channelOfEvent, withEvent } from "./events";
 export { withFloor } from "./floor";
-export { channelItems, isLive, pendingNewer, threadItems } from "./items";
+export { channelItems, forgetItems, threadItems } from "./items";
+export { type ThreadOverlay, withThreadOverlay } from "./overlay";
 export { jumped, opened, type PageAnswer, paged } from "./pages";
-export { matchesPending } from "./pending";
 export { isShown, showsInChannel } from "./rows";
-export { sendFailed, sendStarted, sendSucceeded } from "./sends";
 export {
   type ChannelLog,
   emptyLog,

@@ -1,7 +1,6 @@
-import { create } from "@bufbuild/protobuf";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { channelItems, threadItems } from "../core/channelLog";
-import { MessageSchema } from "../gen/stoop/chat/v1/message_pb";
 import { useConnectionStore } from "../stores/connection";
 import {
   applyEvent,
@@ -14,9 +13,8 @@ import {
   loadOlder,
   openChannel,
   openThread,
+  patchThread,
   reconnected,
-  sendStarted,
-  sendSucceeded,
   useChannelLogStore,
 } from "./channelLog";
 import {
@@ -30,6 +28,7 @@ import {
   next,
   pinOnServer,
   postOnServer,
+  replyOnServer,
   resetServer,
   server,
   settle,
@@ -150,6 +149,19 @@ describe("a gap", () => {
     expect(listChanges).toHaveBeenCalledTimes(1);
     expect(logOf().needsCatchUp).toBe(true);
   });
+
+  it("stops a catch-up the server refuses", async () => {
+    vi.useFakeTimers();
+    await openChannel(CHANNEL);
+    listChanges.mockRejectedValueOnce(
+      new ConnectError("not yours", Code.PermissionDenied),
+    );
+    postOnServer(next(0), {}, false);
+    postOnServer(next(1));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(listChanges).toHaveBeenCalledTimes(1);
+    expect(logOf().needsCatchUp).toBe(true);
+  });
 });
 
 describe("reconnect", () => {
@@ -263,25 +275,19 @@ describe("jumps", () => {
   });
 });
 
-describe("sends", () => {
-  const draft = create(MessageSchema, {
-    id: "draft",
-    content: "hello",
-    author: { id: "me" },
-  });
-
-  it("shows the draft, then the row, whichever answers first", async () => {
+describe("the thread overlay", () => {
+  it("patches the reader's half of a held root without a seq", async () => {
     await openChannel(CHANNEL);
-    sendStarted(VIEW, draft);
-    expect(ids().slice(-1)).toEqual(["draft"]);
-    const row = postOnServer(next(0), {
-      content: "hello",
-      author: { id: "me" },
+    replyOnServer(id(390), next(0));
+    expect(logOf().rows.get(id(390))?.thread).toMatchObject({
+      replyCount: 1,
+      participating: false,
     });
-    expect(ids().slice(-1)).toEqual([next(0)]);
-    sendSucceeded(CHANNEL, "draft", row);
-    expect(ids().slice(-1)).toEqual([next(0)]);
-    expect(ids().filter((rowId) => rowId === next(0))).toHaveLength(1);
+    const before = logOf().rows.get(id(390));
+    patchThread(CHANNEL, id(390), { participating: true, unreadCount: 0 });
+    const after = logOf().rows.get(id(390));
+    expect(after?.thread).toMatchObject({ replyCount: 1, participating: true });
+    expect(after?.seq).toBe(before?.seq);
   });
 });
 
@@ -312,5 +318,27 @@ describe("forget", () => {
       }),
     );
     expect(logOf()).toBeUndefined();
+  });
+
+  it("lets a page out answer to nobody, and pages again once reopened", async () => {
+    await openChannel(CHANNEL);
+    server.holding = true;
+    const paging = loadOlder(VIEW);
+    forget(CHANNEL);
+    server.holding = false;
+    await openChannel(CHANNEL);
+    await answer();
+    expect(await paging).toBe(0);
+    expect(ids()).toHaveLength(HISTORY_PAGE);
+    expect(statusOf()?.loading).toBe(false);
+    expect(await loadOlder(VIEW)).toBe(HISTORY_PAGE);
+    expect(ids()).toHaveLength(2 * HISTORY_PAGE);
+  });
+
+  it("keeps a channel never opened out of the store", async () => {
+    expect(await loadOlder({ channelId: "unopened" })).toBe(0);
+    await jumpToLatest({ channelId: "unopened" });
+    expect(useChannelLogStore.getState().logs.unopened).toBeUndefined();
+    expect(listMessages).not.toHaveBeenCalled();
   });
 });

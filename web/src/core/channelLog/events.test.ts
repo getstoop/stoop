@@ -229,3 +229,15 @@ describe("a created row and the views", () => {
     expect(log.threads[root].pendingNewer).toBe(1);
   });
 });
+
+describe("a deleted root", () => {
+  it("is hidden once its thread has no live replies, summary and all", () => {
+    const root = message(id(3), { seq: 4n, thread: { replyCount: 1 } });
+    const log = withEvent(
+      openedOn([...rows(0, 3), root, ...rows(4, 10, 5)], { hasOlder: false }),
+      deleted(id(3), 11),
+    );
+    expect(ids(channelItems(log))).not.toContain(id(3));
+    expect(log.rows.get(id(3))?.thread).toBeUndefined();
+  });
+});
