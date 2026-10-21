@@ -523,7 +523,11 @@ does, and a thread reply comes back with `in_channel` false and its
 `thread_root_id`. A row is in the log once, at its latest position, so a
 message sent and then edited is one row with the edit's seq. The response
 carries `channel_seq`, read with the channel row before the rows query,
-and `has_more`, true when the page was full.
+and `has_more`, true when the page was full. `channel_seq` becomes the
+client's position only once `has_more` is false: a full page says nothing
+about what lies between its last row and the counter, so while `has_more`
+is true the client asks again from the last row's seq and its position
+does not move.
 
 A row with no `seq` — written by an older binary during a rollback — is
 never above `since_seq` and is left for the next full load; that is
@@ -538,11 +542,15 @@ seq held, repeated while `has_more`.
 with `retention_floor_id`: the message id below which the sweep removes
 top-level messages, computed as the sweep computes its cutoff
 (`retentionFloor`, shared with `SweepMessages` so the two can never
-disagree), empty when retention is off. A client drops any held row whose
-id, or whose thread root's id, is below the floor, on any load. That is
-how the sweep's hard deletes, which publish nothing and leave no
-tombstone, reach a client that holds the rows; `channels.swept_seq` plays
-no part in it.
+disagree), empty when retention is off. The sweep keeps a pinned root and
+its thread, so the client's rule follows it: on any load, drop a held row
+whose id is below the floor unless it is pinned (`Message.pinned` is on
+the row), and drop a reply whose root's id is below the floor unless the
+root is pinned (the root row carries the flag). That is how the sweep's
+hard deletes, which publish nothing and leave no tombstone, reach a
+client that holds the rows; `channels.swept_seq` plays no part in it. The
+floor is advisory: a setting that cannot be read is logged and the answer
+carries none, and the next successful answer carries it.
 
 The client's side of this — the single flat window, the 300-row cap, the
 liveness rule — is in [realtime.md](realtime.md#history-windows).

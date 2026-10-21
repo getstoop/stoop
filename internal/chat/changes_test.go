@@ -271,7 +271,8 @@ func TestListsCarryTheRetentionFloor(t *testing.T) {
 // ListChanges is read under ListMessages's gate: someone outside the space
 // is refused, someone in the space but outside a private channel does not
 // find it, and a credential without messages.read is refused, each with
-// the code ListMessages gives.
+// the code ListMessages gives. A direct message is not covered: the path
+// is the same one, with dms.read in place of messages.read.
 func TestListChangesIsGatedLikeListMessages(t *testing.T) {
 	fixture := newPrivateFixture(t)
 	stranger := newUser(t, fixture.pool, "stranger", authctx.RoleMember)

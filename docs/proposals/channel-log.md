@@ -41,9 +41,11 @@ CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
   still records the highest seq it hard-deleted in `swept_seq`, but
   nothing reads it. Instead `ListChanges` and `ListMessages` both carry
   `retention_floor_id`, the sweep's own cutoff (one helper, so they never
-  disagree; empty with retention off), and the client drops any held row
-  whose id, or whose root's id, is below it. A hard delete leaves no
-  tombstone and no event, and the floor is how it reaches a client.
+  disagree; empty with retention off), and the client drops a held row
+  below it unless it is pinned, and a reply whose root is below it unless
+  the root is pinned, since the sweep keeps a pinned root and its thread
+  (`Message.pinned` is on the row). A hard delete leaves no tombstone and
+  no event, and the floor is how it reaches a client.
 - **Deletes are tombstones.** One path for roots, replies and top-level
   messages: set `deleted_at`, blank the content, drop reactions,
   attachments, mentions and links, delete the files through the port,

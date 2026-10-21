@@ -5202,8 +5202,10 @@ type ListMessagesResponse struct {
 	// in the page with a higher seq is newer still and is kept.
 	ChannelSeq int64 `protobuf:"varint,5,opt,name=channel_seq,json=channelSeq,proto3" json:"channel_seq,omitempty"`
 	// The message id below which the retention sweep removes top-level
-	// messages, as of this answer; empty when retention is off. A client
-	// drops any held row whose id, or whose thread root's id, is below it.
+	// messages, as of this answer; empty when retention is off. The sweep
+	// keeps a pinned root and its thread, so a client drops a held row whose
+	// id is below it unless the row is pinned (Message.pinned), and a reply
+	// whose root's id is below it unless the root is pinned.
 	RetentionFloorId string `protobuf:"bytes,6,opt,name=retention_floor_id,json=retentionFloorId,proto3" json:"retention_floor_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -5344,8 +5346,9 @@ func (x *ListChangesRequest) GetLimit() int32 {
 }
 
 // A client holding a seq asks for everything after it, applies each row by
-// "higher seq wins", drops any held row whose id, or whose thread root's
-// id, is below retention_floor_id, and repeats while has_more.
+// "higher seq wins", drops the held rows retention_floor_id says the sweep
+// has taken (an unpinned row below it, a reply whose root is below it and
+// not pinned), and repeats while has_more.
 type ListChangesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Ordered by seq, ascending. A row is in the channel log once, at its
@@ -5354,9 +5357,13 @@ type ListChangesResponse struct {
 	// and its thread_root_id.
 	Messages []*Message `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
 	// The channel's seq, read before the rows were: anything that commits
-	// after it has a higher seq and reaches the client as a change.
+	// after it has a higher seq and reaches the client as a change. It
+	// becomes the client's position only once has_more is false; while
+	// has_more is true the client asks again from the last row's seq and
+	// its position does not move.
 	ChannelSeq int64 `protobuf:"varint,2,opt,name=channel_seq,json=channelSeq,proto3" json:"channel_seq,omitempty"`
-	// True when the page was full: ask again from the last row's seq.
+	// True when the page was full: more of the log is stamped above the
+	// last row.
 	HasMore bool `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// As ListMessagesResponse.retention_floor_id.
 	RetentionFloorId string `protobuf:"bytes,4,opt,name=retention_floor_id,json=retentionFloorId,proto3" json:"retention_floor_id,omitempty"`

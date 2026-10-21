@@ -358,13 +358,9 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	if err := s.addThreadViewerStates(ctx, messages); err != nil {
 		return nil, err
 	}
-	floor, err := s.retentionFloorID(ctx, time.Now())
-	if err != nil {
-		return nil, err
-	}
 	return connect.NewResponse(&chatv1.ListMessagesResponse{
 		Messages: messages, HasOlder: hasOlder, HasNewer: hasNewer, ThreadRootId: openThread,
-		ChannelSeq: channel.Seq, RetentionFloorId: floor,
+		ChannelSeq: channel.Seq, RetentionFloorId: s.retentionFloorID(ctx, time.Now()),
 	}), nil
 }
 

@@ -748,8 +748,10 @@ message ListMessagesResponse {
   // in the page with a higher seq is newer still and is kept.
   int64 channel_seq = 5;
   // The message id below which the retention sweep removes top-level
-  // messages, as of this answer; empty when retention is off. A client
-  // drops any held row whose id, or whose thread root's id, is below it.
+  // messages, as of this answer; empty when retention is off. The sweep
+  // keeps a pinned root and its thread, so a client drops a held row whose
+  // id is below it unless the row is pinned (Message.pinned), and a reply
+  // whose root's id is below it unless the root is pinned.
   string retention_floor_id = 6;
 }
 
@@ -762,8 +764,9 @@ message ListChangesRequest {
 }
 
 // A client holding a seq asks for everything after it, applies each row by
-// "higher seq wins", drops any held row whose id, or whose thread root's
-// id, is below retention_floor_id, and repeats while has_more.
+// "higher seq wins", drops the held rows retention_floor_id says the sweep
+// has taken (an unpinned row below it, a reply whose root is below it and
+// not pinned), and repeats while has_more.
 message ListChangesResponse {
   // Ordered by seq, ascending. A row is in the channel log once, at its
   // latest position. A tombstone comes back as a Message with deleted set,
@@ -771,9 +774,13 @@ message ListChangesResponse {
   // and its thread_root_id.
   repeated Message messages = 1;
   // The channel's seq, read before the rows were: anything that commits
-  // after it has a higher seq and reaches the client as a change.
+  // after it has a higher seq and reaches the client as a change. It
+  // becomes the client's position only once has_more is false; while
+  // has_more is true the client asks again from the last row's seq and
+  // its position does not move.
   int64 channel_seq = 2;
-  // True when the page was full: ask again from the last row's seq.
+  // True when the page was full: more of the log is stamped above the
+  // last row.
   bool has_more = 3;
   // As ListMessagesResponse.retention_floor_id.
   string retention_floor_id = 4;

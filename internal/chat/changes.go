@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"connectrpc.com/connect"
@@ -50,12 +51,9 @@ func (s *Service) ListChanges(ctx context.Context, req *connect.Request[chatv1.L
 	if err := s.addThreadViewerStates(ctx, messages); err != nil {
 		return nil, err
 	}
-	floor, err := s.retentionFloorID(ctx, time.Now())
-	if err != nil {
-		return nil, err
-	}
 	return connect.NewResponse(&chatv1.ListChangesResponse{
-		Messages: messages, ChannelSeq: channel.Seq, HasMore: int32(len(rows)) == limit, RetentionFloorId: floor,
+		Messages: messages, ChannelSeq: channel.Seq, HasMore: int32(len(rows)) == limit,
+		RetentionFloorId: s.retentionFloorID(ctx, time.Now()),
 	}), nil
 }
 
@@ -67,17 +65,20 @@ func retentionFloor(now time.Time, days int) string {
 }
 
 // retentionFloorID is retentionFloor under the instance's policy; "" when
-// retention is off.
-func (s *Service) retentionFloorID(ctx context.Context, now time.Time) (string, error) {
+// retention is off. The floor is advisory, so a setting that can't be
+// read is logged and means none, never a failed list: the next answer
+// carries it.
+func (s *Service) retentionFloorID(ctx context.Context, now time.Time) string {
 	if s.policy == nil {
-		return "", nil
+		return ""
 	}
 	days, err := s.policy.MessageRetentionDays(ctx)
 	if err != nil {
-		return "", fmt.Errorf("read retention: %w", err)
+		slog.Default().Warn("could not read the retention setting", "err", err)
+		return ""
 	}
 	if days <= 0 {
-		return "", nil
+		return ""
 	}
-	return retentionFloor(now, days), nil
+	return retentionFloor(now, days)
 }

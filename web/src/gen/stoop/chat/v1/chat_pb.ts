@@ -2259,8 +2259,10 @@ export type ListMessagesResponse = Message<"stoop.chat.v1.ListMessagesResponse">
 
   /**
    * The message id below which the retention sweep removes top-level
-   * messages, as of this answer; empty when retention is off. A client
-   * drops any held row whose id, or whose thread root's id, is below it.
+   * messages, as of this answer; empty when retention is off. The sweep
+   * keeps a pinned root and its thread, so a client drops a held row whose
+   * id is below it unless the row is pinned (Message.pinned), and a reply
+   * whose root's id is below it unless the root is pinned.
    *
    * @generated from field: string retention_floor_id = 6;
    */
@@ -2307,8 +2309,9 @@ export const ListChangesRequestSchema: GenMessage<ListChangesRequest> = /*@__PUR
 
 /**
  * A client holding a seq asks for everything after it, applies each row by
- * "higher seq wins", drops any held row whose id, or whose thread root's
- * id, is below retention_floor_id, and repeats while has_more.
+ * "higher seq wins", drops the held rows retention_floor_id says the sweep
+ * has taken (an unpinned row below it, a reply whose root is below it and
+ * not pinned), and repeats while has_more.
  *
  * @generated from message stoop.chat.v1.ListChangesResponse
  */
@@ -2325,14 +2328,18 @@ export type ListChangesResponse = Message<"stoop.chat.v1.ListChangesResponse"> &
 
   /**
    * The channel's seq, read before the rows were: anything that commits
-   * after it has a higher seq and reaches the client as a change.
+   * after it has a higher seq and reaches the client as a change. It
+   * becomes the client's position only once has_more is false; while
+   * has_more is true the client asks again from the last row's seq and
+   * its position does not move.
    *
    * @generated from field: int64 channel_seq = 2;
    */
   channelSeq: bigint;
 
   /**
-   * True when the page was full: ask again from the last row's seq.
+   * True when the page was full: more of the log is stamped above the
+   * last row.
    *
    * @generated from field: bool has_more = 3;
    */
