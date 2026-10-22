@@ -107,7 +107,10 @@ BEGIN
 
   -- Each row takes a channel log position above its channel's counter, in
   -- time order, as a write by the server would (messages.seq is required),
-  -- and the counters follow.
+  -- and the counters follow. The channel rows are locked first, in id
+  -- order, and held to the end of this block: the server may be running,
+  -- and a send that read the same counter would stamp the same position.
+  PERFORM id FROM channels WHERE id = ANY(chans) ORDER BY id FOR UPDATE;
   INSERT INTO messages (id, channel_id, author_id, content, created_at, seq)
   SELECT pg_temp.uuid7(r.ts), r.channel_id, r.author_id, r.content, r.ts,
          c.seq + row_number() OVER (PARTITION BY r.channel_id ORDER BY r.ts)
