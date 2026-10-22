@@ -123,7 +123,7 @@ list (left, or deleted their account) is shown from their profile
 on `member_removed`), since the deleted mark lives there and no page is
 fetched again to bring it.
 
-## The steps, as landed
+## The steps and their pull requests
 
 1. **Virtualise `MessageList`** against the then-current cache, the 300
    cap still on. [#525](https://github.com/getstoop/stoop/pull/525). As
@@ -261,6 +261,20 @@ as a bug:
   versioned facts: a deletion blanks held quotes on the client, but an
   edit of the quoted message leaves older quotes showing the old excerpt
   until the quoting row is fetched again, as before the channel log.
+- `DeleteThread` reads its root outside the transaction
+  (`internal/chat/threads.go`, `GetMessage` before `inTx`), so a root
+  deleted or edited in between returns `NotFound` once, or is tombstoned
+  from a stale copy.
+- The `ListChanges` gate test does not cover a DM; it is the same code
+  path as `ListMessages`, which is covered.
+- Browser specs still use `.nth(n)` on `.message` rows at about 21 sites
+  (`attachments`, `edits`, `media-preview`, `pins`, `unfurl`, `usercard`,
+  `reachability`, `search`, `shortcodes`), safe while each addresses the
+  first or last of a handful of on-screen rows.
+- `closedThread` (step 7) can drop a row that `stretched` would have
+  needed: a thread closes while the channel's first page is still out and
+  an also-sent reply arrived by event in between. The row is missing
+  until the next event about the channel brings a gap and a catch-up.
 
 ## Open
 
@@ -280,6 +294,7 @@ as a bug:
   timeline reducer (`core/timelineState.ts`, `timelinePaging.ts`,
   `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,
   `messageList.ts`, each headed with a note saying the web app no longer
-  uses it). When that screen is next touched it re-points at
+  uses it, and `timelineTesting.ts`, their tests' fixtures). When that
+  screen is next touched it re-points at
   `core/channelLog` and those modules go with their tests
   (`mobile/README.md` → Code shared with web).

@@ -136,7 +136,7 @@ and lands.
 ## Deliberately deferred
 
 Federation, end-to-end encryption, plugins, a SQLite mode, and multi-node
-scaling. (The companion phone app is not deferred: it lives in `mobile/`
+scaling. (The companion mobile app is not deferred: it lives in `mobile/`
 and shares `web/src/core` as source, [../../mobile/README.md](../../mobile/README.md).)
 The `events.Bus` interface is the only concession made
 to the last of those today, and it is a real one: because every payload on
