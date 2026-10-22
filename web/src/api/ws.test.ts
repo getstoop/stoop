@@ -109,6 +109,22 @@ describe("events about a message", () => {
   });
 });
 
+describe("member_updated", () => {
+  it("refetches the DM list, whose participants a conversation's rows read", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["dms"], []);
+    queryClient.setQueryData(["channels", "s1"], []);
+    receive(queryClient, {
+      case: "memberUpdated",
+      value: { spaceId: "s1", userId: "ada" },
+    });
+    expect(queryClient.getQueryState(["dms"])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["channels", "s1"])?.isInvalidated).toBe(
+      false,
+    );
+  });
+});
+
 describe("Ready", () => {
   it("asks every held log for the changes since its seq", async () => {
     const queryClient = new QueryClient();

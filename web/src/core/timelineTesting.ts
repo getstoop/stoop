@@ -1,3 +1,5 @@
+// Kept for the mobile app, which imports it through @stoop/core; the web
+// app no longer uses it (it runs core/channelLog, proposals/channel-log.md).
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { type Message, MessageSchema } from "../gen/stoop/chat/v1/message_pb";
 import {

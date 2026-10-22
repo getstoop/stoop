@@ -449,6 +449,42 @@ describe("forget", () => {
     expect(ids()).toHaveLength(2 * HISTORY_PAGE);
   });
 
+  it("lets a catch-up out answer to nobody, and catches up afresh", async () => {
+    await openChannel(CHANNEL);
+    postOnServer(next(0), {}, false);
+    server.holding = true;
+    reconnected();
+    forget(CHANNEL);
+    server.holding = false;
+    await openChannel(CHANNEL);
+    server.holding = true;
+    postOnServer(next(1), {}, false);
+    reconnected();
+    // The stale answer (the changes before the reopen) lands first.
+    await answer();
+    expect(logOf().needsCatchUp).toBe(true);
+    expect(ids()).not.toContain(next(1));
+    await answer();
+    expect(ids()).toContain(next(1));
+    expect(logOf().needsCatchUp).toBe(false);
+    expect(listChanges).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not count a forgotten page's end against a page out now", async () => {
+    await openChannel(CHANNEL);
+    server.holding = true;
+    const stale = loadOlder(VIEW);
+    forget(CHANNEL);
+    const reopening = openChannel(CHANNEL);
+    expect(statusOf()?.loading).toBe(true);
+    await answer();
+    await stale;
+    expect(statusOf()?.loading).toBe(true);
+    await answer();
+    await reopening;
+    expect(statusOf()?.loading).toBe(false);
+  });
+
   it("keeps a channel never opened out of the store", async () => {
     expect(await loadOlder({ channelId: "unopened" })).toBe(0);
     await jumpToLatest({ channelId: "unopened" });

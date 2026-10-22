@@ -355,6 +355,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         ["channels", payload.value.spaceId],
         (old) => old?.filter((x) => x.id !== payload.value.channelId),
       );
+      // The one-message copies fetched for it (linkedMessageKey) go too.
       queryClient.removeQueries({
         queryKey: ["messages", payload.value.channelId],
       });
@@ -452,6 +453,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         queryKey: ["user-profile", payload.value.userId],
       });
       queryClient.invalidateQueries({ queryKey: ["bots"] });
+      // A conversation's rows read their author from its participants, as
+      // its header and its row in the list do.
+      queryClient.invalidateQueries({ queryKey: ["dms"] });
       if (payload.value.userId === useConnectionStore.getState().userId) {
         queryClient.invalidateQueries({ queryKey: ["me"] });
       }

@@ -36,7 +36,7 @@ const SEED = 400;
 const MID = SEED / 2 - 1;
 const VIEWPORT = { width: 1100, height: 700 };
 
-test("windowed history, jumps, the cap and ?m= deep links", async ({
+test("windowed history, jumps, paging forward and ?m= deep links", async ({
   browser,
 }) => {
   // This spec seeds SEED messages and pages through all of them; the

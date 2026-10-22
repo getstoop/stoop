@@ -18,7 +18,7 @@ import {
 import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
-import { catchUp } from "./channelLogCatchUp";
+import { catchUp, forgetCatchUp } from "./channelLogCatchUp";
 import {
   beganLoading,
   endedLoading,
@@ -312,6 +312,7 @@ export function reconnected() {
 export function forget(channelId: string) {
   forgetLog(channelId);
   forgetItems(channelId);
+  forgetCatchUp(channelId);
   for (const key of [...paging.keys()]) {
     if (key === channelId || key.startsWith(`${channelId}/`))
       paging.delete(key);
@@ -319,7 +320,9 @@ export function forget(channelId: string) {
 }
 
 // A request for a view, counted as loading while out; undefined when the
-// channel was forgotten meanwhile, its answer being nobody's.
+// channel was forgotten meanwhile, its answer being nobody's. Forgetting
+// also dropped its count, so its end is counted only in its own epoch,
+// never against a page out for the log re-created since.
 async function request<T>(
   view: ViewRef,
   send: () => Promise<T>,
@@ -330,7 +333,7 @@ async function request<T>(
     const res = await send();
     return epochOf(view.channelId) === epoch ? res : undefined;
   } finally {
-    endedLoading(view);
+    if (epochOf(view.channelId) === epoch) endedLoading(view);
   }
 }
 

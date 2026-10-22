@@ -161,8 +161,16 @@ query with the embedded author as fallback.
    only then. `window.spec.ts` no longer asserts the 300 cap (2,000 is
    beyond what a spec can seed; pruning is the model's unit tests') and
    reloads before its second jump, since a jump to a held row is a
-   scroll now. The timeline reducer modules under `core/` were not
-   deleted: see step 7.
+   scroll now. Known and left as is: `member_removed` leaves an
+   embedded author's `deleted` mark stale until a page is fetched again
+   (an account that deletes itself keeps its old name without the mark,
+   since the overlay reads only the members list); `hasPage` can flip
+   back to false when a swept root's thread view was the only view with
+   a page (`floor.ts` drops the view), reachable only with a swept root
+   whose panel already says it is not available; a refused reaction is
+   reverted to the list as it was at the click, not the latest held
+   (as before the switch). The timeline reducer modules under `core/`
+   were not deleted: see step 7.
 7. Cleanup: the mobile app's channel screen still runs the timeline
    reducer (`core/timelineState.ts`, `timelinePaging.ts`,
    `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,
