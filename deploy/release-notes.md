@@ -1,83 +1,63 @@
-Stoop 0.13.0
+Stoop 0.14.0
 
-**Confirm it's you.** Changes that could keep an account after its session
-is stolen now need a log-in from the last five minutes, and the way to get
-one without logging out is the new **Confirm it's you** page (`/confirm`):
-the password, or a login provider linked to the account. Confirming
-replaces the session, so a stolen copy of it stops working.
+Changes since 0.13.0:
 
-- **For people:** changing the password or email, linking or unlinking a
-  provider, making a personal token and deleting the account ask to
-  confirm first. The forms no longer ask for the current password. The
-  Security tab shows a banner and holds those sections until then.
-- **Log out everywhere** (was "Sign out everywhere else") now logs out
-  this device too and revokes every personal token.
-- **For admins:** resetting a password, changing a role, handing on
-  ownership, the login providers, the email (SMTP) settings, and making a
-  bot token or a webhook URL or secret also need a recent log-in. Server
-  admin offers Confirm it's you when one is refused. A temporary password
-  after a reset now shows in a modal that says what happens for the
-  person.
-- **Desktop app:** confirming with a provider opens the system browser
-  and returns to the app, as signing in does.
-
-**API changes** (`stoop.auth.v1`):
-
-- `RevokeOtherSessions` is replaced by `SignOutEverywhere`, which ends the
-  calling session too.
-- New `Reauthenticate` (confirm with the password).
-- The current-password fields on `ChangePassword`, `RequestEmailChange`,
-  `RemoveEmail` and `DeleteAccount` are deprecated and ignored; these need
-  a recent log-in instead. A refusal is `failed_precondition` with the
-  response header `Stoop-Confirm: required`.
-- **Scripts using a personal token** for the admin actions above are now
-  refused: a token is never a recent log-in. Do those from the app.
-
-**Also:** `#channel` links in messages, and a pasted message link shows who
-said it and where.
-
-**Upgrading:** no database migrations and no pinned versions moved. Rolls
-back to 0.12.0 as usual. People are not logged out by the upgrade.
-
-**Known issues:** none.
-
-Changes since 0.12.0:
-
-- Bump the actions group with 4 updates (c366dfa7)
-- Add an Expo development build that reaches the server from a phone (2a3e7d99)
-- Leave merging to the maintainer instead of auto-merging (888795e7)
-- Keep mobile/ out of the Docker build context (41923eec)
-- Link #channels in messages (972dd9cc)
-- Close the gaps review found in #channel links (4f0e3787)
-- Take the mobile push proposal back out of this branch (438058b8)
-- Show pasted message links as who said it and where (c1233f5b)
-- Drop the space between # and a channel's name (b0be8ff8)
-- Show the welcome screen in the web app's themes (7e27d8ac)
-- Expect #general in the browser specs (ed8c399b)
-- Add a server: check a typed address, on Expo Router (6574e6e8)
-- Sign in from the phone: password, providers, a new account (1aaa0a0a)
-- Sign in: no cookies, confirm password, forgot password (d5cc0607)
-- Ask a passwordless account for a recent sign-in, not nothing (6945fc70)
-- Sign in: answer review — bounded sign-out, ordered saves, a retry (57498693)
-- Sign in: check again after saving that the person is still here (0b63d1c9)
-- Proposal: confirm it's you before account changes (f4f1d4dc)
-- Auth: no lasting way in from a stolen session (6be66579)
-- Sign out everywhere: this session too, and no token slips past it (cdfff977)
-- Confirm it's you: reauthenticate in place before account changes (a6919ece)
-- Confirm: go back by href, keeping the target's query (ede4b4e4)
-- Reauth: replace a session once, and keep other tabs through it (4df925f1)
-- Redirects: refuse /\host too; check a refused desktop code is spent (362bca0a)
-- Tidy what still described the old password checks (28dc15de)
-- Realtime: report the call on a fresh socket, not only a reconnect (2adff386)
-- Security tab: signing out first, and what waits for confirming dimmed (861f74ca)
-- Security tab: a rule above the banner, a tighter Sign out everywhere (a340dd39)
-- Security tab: no rule under the banner (475c230e)
-- Security tab: say plainly what confirming means (0a026552)
-- Security tab: the banner's explanation on its own line (86601c4e)
-- Security tab: Log out everywhere, as the sidebar says Log out (d4419ec3)
-- Security tab: dimmed once, inert while waiting, and log in throughout (7fd116d3)
-- Security tab: logged out in the delete-account text too (68c76ad8)
-- Admin actions that hand out lasting access need a recent sign-in (5f09fab7)
-- Server admin: the temporary password after a reset, in a modal (9c310746)
-- Reset modal: room around the password, and a copy icon (839022c7)
-- One component for a secret shown once (fc8fd1c3)
+- Join from an invite link on the phone (a67e268f)
+- Invite: the space's own icon in the card (7eb3251a)
+- Invite: answer review — bad links, missed joins, closed sign-up, deadlines (a00ca48f)
+- Maestro flows for the phone app's happy paths (184c5321)
+- Spaces tab: the server's spaces, with the tab bar (1d6c0156)
+- Spaces: each space's description under its name (9867447c)
+- You tab: a theme picker, kept on the phone (bf8d23be)
+- iOS: the system's own tab bar (94134703)
+- iOS tabs: the theme's surface behind each tab, no flash on first open (9f59b6c1)
+- Tell the system the theme's light or dark (f4edc197)
+- README: the native iOS tab bar and the colour scheme it follows (49f519aa)
+- Server switcher: a sheet of every server on the phone (96237963)
+- Server switcher: swap the server in place under the closing sheet (1924012b)
+- Presence: a grace before offline, and a phone mark for mobile (3fde4e9e)
+- Mobile: hold the realtime socket to every server while open (bf9f3e22)
+- Presence: announce in order, and reconcile a reconnect's spaces (744586c6)
+- Presence: a larger, framed phone for online on mobile (2eb1bd96)
+- Presence: a smaller frame with a home button (020eec4c)
+- Presence: rewrap the phone mark comment (e90ca36c)
+- Mobile: a space's channels, with who is in each voice room (e8de7203)
+- Mobile: a space's channels follow the realtime socket (415128fe)
+- Mobile: open a server on Spaces again, and test the channels live (b0a27b89)
+- Mobile: space channels review fixes (da5f3fcd)
+- Share web's browser-free helpers with the app as @stoop/core (f70919d4)
+- check-core: catch bare side-effect imports (2d793ce7)
+- Mobile: read a channel, kept live (d29c7d66)
+- Mobile: channel review fixes (8c55f960)
+- Mobile: channel catches up fully after a reconnect (fa4d77c5)
+- Mobile: an older page can't undo a newer edit (495e6bc1)
+- Core: a channel's timeline as a shared reducer (54479163)
+- Core: the timeline's window apart from its header (791edbe1)
+- Web: message windows run the shared timeline reducer (4946a891)
+- Web: review fixes for the shared timeline windows (59c67e9c)
+- Chat: the channel log's sequence, stamped on every write (56361b8a)
+- Chat: the seq's NotFound is made per call, and the sweep is named (3127dadd)
+- Chat: every delete is a tombstone, and the sweep holds the channel row (389a881b)
+- Web: virtualise the channel message list (eb60c5e1)
+- Chat: a hidden root loses its pin, and a late preview leaves a tombstone alone (aa04148d)
+- Web: the list's anchor waits for its page, and the head's growth is kept (4af441fe)
+- Chat: ListChanges catches a channel up, and every message event carries its seq (9da15e7b)
+- Chat: the floor spares pinned threads, and a partial page is no position (062bb77c)
+- Web: the edited row stays mounted, and an emptied list follows again (7c681074)
+- Chat: a write checks its target again under the channel lock (2b873f30)
+- Web: the channel log store and its loader, unwired (9bc3c1e1)
+- Web: review fixes for the channel log store (6a6eca37)
+- Web: the message timeline runs on the channel log (016aa865)
+- Web: review fixes for the channel log switch (ab95d453)
+- Web: a departed author is shown from their profile (69ad2a13)
+- E2E: read a row's anchored position from a frame that has it (f8c41e6d)
+- Web: review fixes for the channel log's gaps, ties, floor and reconnect (afb2b4fb)
+- Web: the list asks for no page while an anchor is pending (2183f754)
+- Docs: the list asks for no page while an anchor is pending (08bfab59)
+- E2E: read a row's anchored position from a frame that has it (0389cb50)
+- Web: the list asks for no page while an anchor is pending (807122e4)
+- Docs: the list asks for no page while an anchor is pending (6e155dbe)
+- E2E: the drag's arrow is repeated until the row is over another (86aa17b3)
+- Web: the list reads its edges from a landing (6e0bd361)
+- Web: the channel log's cleanup step (80bd8d48)
+- Docs: review follow-ups for the channel log's cleanup step (1e1abf17)
