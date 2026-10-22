@@ -211,7 +211,7 @@ fetched again to bring it.
    app and delete the reducer modules; that is left open, below, since
    the mobile channel screen is built one screen per pull request on its
    own track.
-8. **The contract, one release later** (this PR; ships in 0.15.0, after
+8. **The contract, one release later** (#534; ships in 0.15.0, after
    0.14.0 carried steps 1 to 7). Migration 00069 makes `messages.seq`
    `NOT NULL` and raises the schema floor to 68, so 0.14.0, whose code
    always stamps the column, still starts against the result and 0.13.0
