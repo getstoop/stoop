@@ -198,11 +198,20 @@ test("mentions notify, badge and read", async ({ browser }) => {
     "Everyone in this channel",
   );
   // The picker follows the caret: away from the query it closes, so
-  // Enter can't replace the wrong words; back at it, it reopens.
+  // Enter can't replace the wrong words; back at it, it reopens. The
+  // close comes from the editor reporting the caret's move, which needs
+  // the editor focused when Home is pressed; seen once on CI staying
+  // open, so the failure names where focus was.
   await A.keyboard.press("Home");
-  await expect(picker(A), "the caret leaving the query closes it").toHaveCount(
-    0,
-  );
+  await expect(
+    picker(A),
+    `the caret leaving the query closes it (focus: ${await A.evaluate(
+      () =>
+        `${document.activeElement?.className ?? "none"} selection ${
+          document.getSelection()?.anchorOffset ?? "none"
+        }`,
+    )})`,
+  ).toHaveCount(0);
   await A.keyboard.press("End");
   await expect(picker(A), "…and coming back reopens it").toContainText(
     "Everyone in this channel",
