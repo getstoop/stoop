@@ -621,7 +621,11 @@ window" is what the view's range holds.
   (`anchorMoved`): a change elsewhere while the page is out — someone
   posting, editing or deleting — leaves it pending, with its top
   refreshed from the row on screen. It is dropped if the page brings
-  nothing, or an arrival later would restore a stale position.
+  nothing, or an arrival later would restore a stale position. While an
+  anchor is pending the list asks for no page: a row measured as the page
+  mounts can run the edge check before the layout effect has put the
+  view back, and it would read the edges from the position about to be
+  replaced (seen on CI, where a row's height differs from its estimate).
   (The virtualiser's own `anchorTo: "end"` is not used: it anchors on
   whatever row is at the top of the view, which at `scrollTop` 0 is the
   head, so a prepend would leave the view at the top showing the new
