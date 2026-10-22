@@ -12,7 +12,7 @@ of each connected client.
                        ▼                              ▼
         Subscription (Casey's tab)     Subscription (Ada's phone)
                        │                              │
-              gateway writes a binary frame ──► ws.ts applies it to the query cache
+              gateway writes a binary frame ──► ws.ts applies it to the channel log
 ```
 
 `internal/chat` does not import `internal/realtime`, and the gateway does

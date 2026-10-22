@@ -46,8 +46,13 @@ export function threadItems(log: ChannelLog, rootId: string): Message[] {
   });
 }
 
-// The channel's remembered answers go with its log.
-export function forgetItems(channelId: string) {
+// The channel's remembered answers go with its log; one thread's with its
+// view.
+export function forgetItems(channelId: string, rootId?: string) {
+  if (rootId !== undefined) {
+    listed.delete(`${channelId}/${rootId}`);
+    return;
+  }
   for (const key of [...listed.keys()]) {
     if (key === channelId || key.startsWith(`${channelId}/`))
       listed.delete(key);

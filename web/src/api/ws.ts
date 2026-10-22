@@ -517,10 +517,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
 }
 
 // Where an activity item points: a space channel, or a direct message.
-export function activityPath(item: {
-  spaceId: string;
-  channelId: string;
-}): string {
+function activityPath(item: { spaceId: string; channelId: string }): string {
   return item.spaceId
     ? `/s/${item.spaceId}/c/${item.channelId}`
     : `/dm/${item.channelId}`;

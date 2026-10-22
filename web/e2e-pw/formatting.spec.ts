@@ -1,5 +1,5 @@
-import type { Page } from "@playwright/test";
-import { expect, paste, seed, signIn, test } from "./lib";
+import type { Locator, Page } from "@playwright/test";
+import { expect, paste, rowByText, seed, signIn, test } from "./lib";
 
 // Formatting in the message box and the timeline: typed marker pairs turn
 // into styled text in the editor, the toolbar and its shortcuts style the
@@ -26,8 +26,10 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   const last = (p: Page) => p.locator(".message-content").last();
   const clickTool = (p: Page, label: string) =>
     p.locator(`.composer .format-button[aria-label="${label}"]`).click();
-  const clickAction = async (p: Page, index: number, label: string) => {
-    const row = p.locator(".message").nth(index);
+  // By text, not position: twenty or so posts in, the first row sits near
+  // the virtualised list's bound (agent-workflow.md → Traps).
+  const first = (p: Page) => rowByText(p, "bold it under gone code");
+  const clickAction = async (row: Locator, label: string) => {
     await row.hover();
     await row.locator(`.message-action[aria-label="${label}"]`).click();
   };
@@ -362,7 +364,7 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
     .not.toBe("rgba(0, 0, 0, 0)");
 
   // Previews are plain: the reply bar, the reply quote, and B's activity row.
-  await clickAction(A, 0, "Reply");
+  await clickAction(first(A), "Reply");
   const bar = A.locator(".reply-bar");
   await expect(bar, "reply bar preview carries the words").toContainText(
     "bold it under gone code",
@@ -386,7 +388,7 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
   );
 
   // Editing shows the formatting, not the markers, and keeps it.
-  await clickAction(A, 0, "Edit");
+  await clickAction(first(A), "Edit");
   const editor = A.locator(".message-editor .rich-editor-content");
   await expect(editor, "the edit box has focus").toBeFocused();
   await expect(

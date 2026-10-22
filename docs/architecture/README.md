@@ -67,7 +67,7 @@ this plainly.
 | Package             | Owns |
 | ------------------- | ---- |
 | `internal/auth`     | users (incl. instance role and kind), credentials (sessions, personal tokens, bot and hook tokens), password hashing, OIDC sign-in and account linking, self-service profiles, the auth interceptor |
-| `internal/chat`     | spaces, members (incl. space role), channels + read markers + mutes, messages (replies, edits, reactions, attachments), mentions, activity, invites, bans, blocks, direct messages, link records |
+| `internal/chat`     | spaces, members (incl. space role), channels + read markers + mutes, messages (replies, edits, reactions, attachments; every write stamped with the channel's `seq`, deletes as tombstones, `ListChanges` from a position), mentions, activity, invites, bans, blocks, direct messages, link records |
 | `internal/instance` | instance status, runtime settings (registration policy, quotas, reachability, login providers), user administration |
 | `internal/realtime` | the WebSocket gateway; in-memory presence, typing and voice state (no database access at all) |
 | `internal/voice`    | LiveKit token minting, the `/livekit` signaling proxy, ICE/TURN sources |
@@ -113,13 +113,13 @@ one its reasoning, its enforcement, and what it costs.
 | [modules.md](modules.md) | Module boundaries, the full port catalogue, the composition root, startup and shutdown, and what extraction would actually involve. |
 | [contracts.md](contracts.md) | Protobuf as the source of truth, the complete RPC and HTTP surface, code generation, and compatibility rules. |
 | [data.md](data.md) | The Postgres schema table by table, who owns what, migrations, sqlc, transactions, and what is deliberately not stored. |
-| [realtime.md](realtime.md) | The events bus, the WebSocket gateway, the wire protocol, ephemeral state, and how the client applies events to its cache. |
+| [realtime.md](realtime.md) | The events bus, the WebSocket gateway, the wire protocol, ephemeral state, and how the client applies events to the channel log and the query cache. |
 | [identity.md](identity.md) | Accounts, passwords, sessions, OIDC sign-in, rate limiting, and the CSRF posture. |
 | [permissions.md](permissions.md) | The two permission axes, the fixed permission table, invites, bans, and blocks. |
-| [messaging.md](messaging.md) | Messages and their Markdown, mentions and activity, unreads, history windows, direct messages, and link previews. |
+| [messaging.md](messaging.md) | Messages and their Markdown, mentions and activity, unreads, history and the channel log (`seq`, tombstones, `ListChanges`), direct messages, and link previews. |
 | [files.md](files.md) | Uploads, image normalisation, the blob port, the download handler, the sweep, and the quota. |
 | [voice.md](voice.md) | LiveKit tokens, the signaling proxy, ICE and TURN, the stage, and why media never touches Stoop. |
-| [web.md](web.md) | The React client: routing, the query cache as the single source of truth, stores, themes, the settings frame and tables. |
+| [web.md](web.md) | The React client: routing, the query cache and the channel log store as the one home of each fact, themes, the settings frame, tables, and the virtualised message list. |
 | [design-system.md](design-system.md) | The web kit as built: grounds and the colour contract, the non-colour tokens, which shared part to reach for, how a part earns its place, and the lint that holds it. |
 | [runtime.md](runtime.md) | Process model, configuration precedence, front doors, security headers, background work, and how a build is produced. |
 | [diagnostics.md](diagnostics.md) | The Diagnostics tab and its panels, the `internal/diag` instruments, the health-check port, the sampler, and `GET /metrics`. |
@@ -135,8 +135,10 @@ and lands.
 
 ## Deliberately deferred
 
-Federation, end-to-end encryption, mobile apps, plugins, a SQLite mode, and
-multi-node scaling. The `events.Bus` interface is the only concession made
+Federation, end-to-end encryption, plugins, a SQLite mode, and multi-node
+scaling. (The companion mobile app is not deferred: it lives in `mobile/`
+and shares `web/src/core` as source, [../../mobile/README.md](../../mobile/README.md).)
+The `events.Bus` interface is the only concession made
 to the last of those today, and it is a real one: because every payload on
 the bus is already a protobuf message, a cross-process implementation is a
 marshal/unmarshal wrapper behind the same interface. `internal/eventrelay`

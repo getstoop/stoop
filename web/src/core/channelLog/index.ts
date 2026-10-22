@@ -25,4 +25,4 @@ export {
   LOG_CAP,
   type View,
 } from "./types";
-export { inRange, viewOf } from "./views";
+export { closedThread, inRange, viewOf } from "./views";

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   channelOfEvent,
+  closedThread,
   FROM_ANSWER,
   forgetItems,
   inRange,
@@ -26,6 +27,7 @@ import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import { catchUp, forgetCatchUp } from "./channelLogCatchUp";
 import {
   beganLoading,
+  closeView,
   endedLoading,
   ensureLog,
   epochOf,
@@ -34,6 +36,7 @@ import {
   hasOpened,
   logOf,
   readView,
+  requestEpoch,
   setLanding,
   updateLog,
   useChannelLogStore,
@@ -68,7 +71,8 @@ export {
 
 // Who has the channel on screen: its page, and each open thread of it.
 // The log goes when the last of them leaves, so what is held is what is
-// shown, and a page out for it answers to nobody.
+// shown, and a page out for it answers to nobody; a thread that leaves
+// while the channel stays takes only its own view (closeThread).
 const holders = new Map<string, number>();
 
 // Holds the channel's log while the component is mounted and opens the
@@ -87,10 +91,12 @@ export function useOpenView(view: ViewRef, landing?: string) {
     return () => {
       left = true;
       const held = (holders.get(channelId) ?? 1) - 1;
-      if (held > 0) holders.set(channelId, held);
-      else {
+      if (held === 0) {
         holders.delete(channelId);
         forget(channelId);
+      } else {
+        holders.set(channelId, held);
+        if (rootId) closeThread(channelId, rootId);
       }
     };
   }, [channelId, rootId]);
@@ -365,6 +371,17 @@ async function refreshPage(
   }
 }
 
+// The panel no longer shows the thread while its channel stays held: the
+// thread's view goes from the log with the rows only it kept, and a page
+// still out for it answers to nobody.
+export function closeThread(channelId: string, rootId: string) {
+  const view = { channelId, rootId };
+  updateLog(channelId, (log) => closedThread(log, rootId));
+  forgetItems(channelId, rootId);
+  closeView(view);
+  paging.delete(viewKey(view));
+}
+
 // The UI no longer shows the channel: its log goes, and a page still out
 // for it answers to nobody.
 export function forget(channelId: string) {
@@ -378,20 +395,20 @@ export function forget(channelId: string) {
 }
 
 // A request for a view, counted as loading while out; undefined when the
-// channel was forgotten meanwhile, its answer being nobody's. Forgetting
-// also dropped its count, so its end is counted only in its own epoch,
-// never against a page out for the log re-created since.
+// channel was forgotten, or the thread closed, meanwhile, its answer being
+// nobody's. Either also dropped its count, so its end is counted only in
+// its own epoch, never against a page out for the view opened since.
 async function request<T>(
   view: ViewRef,
   send: () => Promise<T>,
 ): Promise<T | undefined> {
-  const epoch = epochOf(view.channelId);
+  const epoch = requestEpoch(view);
   beganLoading(view);
   try {
     const res = await send();
-    return epochOf(view.channelId) === epoch ? res : undefined;
+    return requestEpoch(view) === epoch ? res : undefined;
   } finally {
-    if (epochOf(view.channelId) === epoch) endedLoading(view);
+    if (requestEpoch(view) === epoch) endedLoading(view);
   }
 }
 

@@ -82,8 +82,9 @@ places**, and nowhere else:
   there, carry none of them.
 
 Everything else that hangs off `channel_id` — messages, read markers,
-reactions, replies, attachments, link previews, history windows — works on
-a DM unchanged, because it never asks which kind it has.
+reactions, replies, attachments, link previews, history pages and the
+channel log — works on a DM unchanged, because it never asks which kind it
+has.
 
 ## Sending a message
 
@@ -552,8 +553,9 @@ client that holds the rows; `channels.swept_seq` plays no part in it. The
 floor is advisory: a setting that cannot be read is logged and the answer
 carries none, and the next successful answer carries it.
 
-The client's side of this — the single flat window, the 300-row cap, the
-liveness rule — is in [realtime.md](realtime.md#history-windows).
+The client's side of this — one log per channel merged by seq, views as
+ranges over it, the liveness rule and the 2,000-row cap — is in
+[realtime.md](realtime.md#the-channel-log-on-the-client).
 
 ## Message retention
 
@@ -698,10 +700,11 @@ anyone from.
   newest message — except a root whose thread still has live replies,
   which the channel shows as a placeholder ([Threads](#threads)); any
   other tombstone answers every RPC as a message that does not exist.
-  Clients still hear `MessageDeleted` where a row used to vanish and
-  `MessageUpdated` with `deleted` set for a placeholder, until the
-  channel log replaces those events
-  ([proposals/channel-log.md](../proposals/channel-log.md)). Only the
+  Clients hear `MessageDeleted`, carrying the tombstone's `seq`, where a
+  row used to vanish, and `MessageUpdated` with `deleted` set for a
+  placeholder; the events keep their kinds because outgoing webhooks
+  forward them ([realtime.md](realtime.md#serverevent),
+  [proposals/channel-log.md](../proposals/channel-log.md)). Only the
   retention sweep hard-deletes message rows. `messages.moderate` covers
   other people's; your own are always yours.
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is

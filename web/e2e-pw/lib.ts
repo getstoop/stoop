@@ -227,6 +227,17 @@ export const say = async (page: Page, text: string) => {
 
 const DIALOG = ".modal[data-dialog]";
 
+// A message row by its text, wherever the view holds it. The list is
+// virtualised, so `.message` nth(n) indexes the rendered rows, not the
+// channel; matching on `.message-content` keeps a quote of the text in a
+// later row from matching too. It matches every rendered row whose content
+// contains the text, so a spec that posts the same words twice must
+// disambiguate.
+export const rowByText = (page: Page, text: string) =>
+  page.locator(".message", {
+    has: page.locator(".message-content", { hasText: text }),
+  });
+
 // The app's own modal, not a native dialog.
 export async function acceptDialog(page: Page, answer?: string) {
   await expect(page.locator(DIALOG)).toBeVisible();

@@ -69,12 +69,30 @@ export function updateLog(
   return after;
 }
 
-// Forgetting a channel starts a new epoch for it: a request out for the
-// old log answers to nobody, even once the channel is opened again.
+// Forgetting a channel, or closing a thread's view, starts a new epoch for
+// it: a request out for the old log or view answers to nobody, even once
+// it is opened again. Keyed by channel id, or by a thread's view key.
 const epochs = new Map<string, number>();
 
-export const epochOf = (channelId: string): number =>
-  epochs.get(channelId) ?? 0;
+export const epochOf = (key: string): number => epochs.get(key) ?? 0;
+
+// The epoch a request for a view answers under: its channel's and its
+// own, either of which forgetting or closing moves on.
+export const requestEpoch = (view: ViewRef): number =>
+  epochOf(view.channelId) + epochOf(viewKey(view));
+
+// A thread's view closed while its channel stays held: its status, its
+// count of requests out and its epoch go.
+export function closeView(view: ViewRef) {
+  const key = viewKey(view);
+  epochs.set(key, epochOf(key) + 1);
+  out.delete(key);
+  useChannelLogStore.setState((state) => {
+    if (!(key in state.status)) return state;
+    const { [key]: _gone, ...status } = state.status;
+    return { status };
+  });
+}
 
 export function forgetLog(channelId: string) {
   epochs.set(channelId, epochOf(channelId) + 1);

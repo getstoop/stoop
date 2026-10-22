@@ -308,7 +308,9 @@ force-pushes, and a pull request can only merge once every CI job is green
   the channel: it indexes the rendered rows, and a spec that posts twenty
   or so messages (`formatting`, `edits`, `pins`, `attachments`, `unfurl`)
   sits close to the bound at which the first ones leave the DOM; find a
-  row by text or id instead. `virtual-list.spec.ts` is the model.
+  row by text or id instead: `rowByText(page, text)` in `web/e2e-pw/lib.ts`
+  matches on `.message-content`, so a quote of the text in a later row
+  does not match. `virtual-list.spec.ts` is the model.
 - **Below 768px the rail and channel sidebar are a transformed drawer.**
   `position: fixed` elements rendered inside `.channel-sidebar` (the invite
   modal) are positioned relative to the sidebar while it is translated, so
