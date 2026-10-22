@@ -113,9 +113,28 @@ query with the embedded author as fallback.
    `message_deleted` (no `message_updated` for those, see The contract);
    `retention_floor_id` on `ListChanges` and `ListMessages` in place of
    `too_old`, with `swept_seq` left informational.
-5. Web: the new store and loader, unit-tested, unwired.
+5. Web: the new store and loader, unit-tested, unwired. As built
+   (`web/src/core/channelLog/`, `web/src/api/channelLog.ts`;
+   `web.md` → The channel log store): the floor spares pinned rows, and
+   a reply under a root below the floor only when the root is held and
+   unpinned, as the sweep does; a catch-up page moves the log's seq only
+   when `has_more` is false and the loader continues from the last row's
+   seq meanwhile; `opened` moves a view's generation like `jumped`, since
+   both replace the range; there are no pending sends in the model (the
+   composer awaits the answer and merges its row, as today); an event
+   before a log's first page is kept without judging the gap, and the
+   page's `channel_seq` sets the position; the floor never tightens a
+   view's range, since a pinned row may still lie below it. Known and
+   left as is: `pendingNewer` counts any row new to the log beyond a
+   non-live range, not only created ones; rows outside every range are
+   never pruned, so memory there is bounded only by the floor; a held
+   reply whose root was never held survives the floor until reload.
 6. Web: the switch. Delete `history.ts`, the timeline reducer modules and
    `timelineLoads.ts`; lift the cap; reconnect calls `ListChanges`.
+   `applyThreadChanged`, `applyThreadRead` and `applyThreadMuted`
+   (`api/threads.ts`) move onto `withThreadOverlay` (the loader's
+   `patchThread`), the seq-less patch for the reader's half of a root's
+   thread summary.
 7. Cleanup: drop the old queries the switched client no longer calls
    (the socket events stay, see The contract); rewrite the
    history and state sections of `realtime.md`, `web.md`, `messaging.md`

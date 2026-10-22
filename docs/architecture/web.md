@@ -149,6 +149,67 @@ handler tell "a message arrived in the channel I am reading" from "a
 message arrived somewhere else", which is the difference between marking
 something read and raising a badge.
 
+### The channel log store (not yet wired)
+
+The channel log ([../proposals/channel-log.md](../proposals/channel-log.md))
+replaces the history store above with one **log per channel**, not per
+view. Step 5 built it; step 6 wires it and deletes `history.ts`, the
+timeline reducer modules and `timelineLoads.ts`. Until then nothing in the
+app imports it.
+
+`core/channelLog/` is the pure model. A `ChannelLog` holds `seq`, the log
+position through which every change is known; `rows`, every row known by
+id, tombstones included; a `View` for the channel and one per open thread
+(a range of two ids with `hasOlder` and `hasNewer`, a `pendingNewer` count
+for the pill, and a `generation`); the retention `floor`; and
+`needsCatchUp`. Its rules, one file each, all pure:
+
+- **Merge by seq** (`rows.ts`): a copy replaces the held row only with a
+  higher seq. A tombstone is a row with `deleted` set: it stays in the map,
+  hidden, so a stale copy cannot bring it back, and shows only as the
+  placeholder root of a thread that still has replies.
+- **Events** (`events.ts`): each of the five message events yields a row at
+  the event's seq. The next seq advances the position; one further on is
+  applied too (higher wins) but marks a gap; one at or below is ignored.
+  Before the first page (seq 0) rows are kept and the page decides.
+- **Pages** (`pages.ts`): `opened` and `jumped` replace a view's range and
+  move its generation, so a page out for the old range is dropped when it
+  answers; `paged` grows the range. The first page a log sees sets its seq;
+  later pages never move it.
+- **Prune** (`prune.ts`): a view holds at most `LOG_CAP` (2000) shown rows.
+  Past that the end away from the reader goes and that end's flag is set
+  (paging older makes the view stop being live). A dropped row leaves the
+  map unless another view still lists it.
+- **Catch-up** (`catchUp.ts`, `floor.ts`): a `ListChanges` page merges
+  every row, places a row new to the log as an event would, and drops what
+  is below the retention floor, sparing pinned roots and their threads as
+  the sweep does. The position moves only on the last page, to the
+  channel's seq or the highest row's.
+- **Overlay** (`overlay.ts`): the reader's half of a root's thread summary
+  (`participating`, `muted`, `unreadCount`) is not a row fact and has no
+  seq; `withThreadOverlay` patches it on the held copy, for the app's own
+  read and mute events.
+- **Items** (`items.ts`): `channelItems` and `threadItems` remember their
+  last answer per view and hand it back while the rows are the same map,
+  or while every item is still the same object, so a change to rows a
+  list does not show leaves its identity alone.
+
+The reader's own send is not in the model: as today, the composer awaits
+`SendMessage` and the answer's row (a `Message` with a seq) is merged like
+an event's.
+
+`api/channelLog.ts` is the loader: a Zustand store of logs by channel
+(`api/channelLogStore.ts`, with each view's `loading` and `landOn` and the
+hooks `useChannelItems`, `useThreadItems`, `useView`, `useViewStatus`),
+and `openChannel`, `openThread`, `loadOlder` and `loadNewer` (one request
+per view per direction), `jumpTo`, `jumpToLatest`, `applyEvent`,
+`patchThread`, `reconnected` and `forget` (which also ends the epoch a
+page still out was asked in, so its answer is dropped).
+`api/channelLogCatchUp.ts` runs one `ListChanges` loop per channel, shared
+by concurrent callers, retried with backoff capped at 15 s while the
+socket is open; a refusal that won't change (no access, not found, signed
+out, a bad request) ends it with `needsCatchUp` still set.
+
 ## The api/ layer
 
 Pure helpers and query definitions, deliberately outside components so they
