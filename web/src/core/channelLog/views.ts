@@ -1,5 +1,5 @@
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
-import { isShown, showsInChannel } from "./rows";
+import { isShown, showsInChannel, withoutRows } from "./rows";
 import { type ChannelLog, emptyView, type View } from "./types";
 
 // The views of a log: the channel's (rootId undefined) and one per open
@@ -25,6 +25,19 @@ export function withoutView(log: ChannelLog, rootId: string): ChannelLog {
   if (!(rootId in log.threads)) return log;
   const { [rootId]: _gone, ...threads } = log.threads;
   return { ...log, threads };
+}
+
+// A thread's view closed: the view goes, and with it the rows only it
+// kept (its replies, and its root when the channel's range doesn't hold
+// it). A row no view listed stays as it was.
+export function closedThread(log: ChannelLog, rootId: string): ChannelLog {
+  if (!(rootId in log.threads)) return log;
+  const next = withoutView(log, rootId);
+  const gone: string[] = [];
+  for (const row of log.rows.values()) {
+    if (referenced(log, row) && !referenced(next, row)) gone.push(row.id);
+  }
+  return { ...next, rows: withoutRows(next.rows, gone) };
 }
 
 export function inRange(view: View, id: string): boolean {

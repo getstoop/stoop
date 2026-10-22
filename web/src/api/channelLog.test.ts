@@ -5,6 +5,7 @@ import { useConnectionStore } from "../stores/connection";
 import {
   applyEvent,
   catchUp,
+  closeThread,
   forget,
   HISTORY_PAGE,
   holdRow,
@@ -522,6 +523,56 @@ describe("the floor", () => {
     expect(ids()).not.toContain(id(100));
     expect(ids()).toContain(id(90));
     expect(logOf().rows.has(next(0))).toBe(true);
+  });
+});
+
+describe("closing a thread", () => {
+  const threadKey = (rootId: string) => `${CHANNEL}/${rootId}`;
+
+  it("drops the thread's view and its replies, keeping the channel's rows", async () => {
+    await openChannel(CHANNEL);
+    postOnServer("r1", { threadRootId: id(390), inChannel: false });
+    await openThread(CHANNEL, id(390));
+    expect(logOf().rows.has("r1")).toBe(true);
+    closeThread(CHANNEL, id(390));
+    expect(logOf().threads).toEqual({});
+    expect(logOf().rows.has("r1")).toBe(false);
+    expect(ids()).toContain(id(390));
+    expect(ids()).toHaveLength(HISTORY_PAGE);
+    expect(statusOf(threadKey(id(390)))).toBeUndefined();
+  });
+
+  it("drops a root held for the panel alone", async () => {
+    await openChannel(CHANNEL);
+    postOnServer("r1", { threadRootId: id(10), inChannel: false });
+    holdRow(CHANNEL, server.rows[10]);
+    await openThread(CHANNEL, id(10));
+    expect(logOf().rows.has(id(10))).toBe(true);
+    closeThread(CHANNEL, id(10));
+    expect(logOf().rows.has(id(10))).toBe(false);
+    expect(logOf().rows.has("r1")).toBe(false);
+    expect(ids()).toHaveLength(HISTORY_PAGE);
+  });
+
+  it("lets a page out for the thread answer to nobody, and opens it afresh", async () => {
+    await openChannel(CHANNEL);
+    postOnServer("r1", { threadRootId: id(390), inChannel: false });
+    server.holding = true;
+    const opening = openThread(CHANNEL, id(390));
+    expect(statusOf(threadKey(id(390)))?.loading).toBe(true);
+    closeThread(CHANNEL, id(390));
+    expect(statusOf(threadKey(id(390)))).toBeUndefined();
+    await answer();
+    await opening;
+    expect(logOf().threads).toEqual({});
+    expect(statusOf(threadKey(id(390)))).toBeUndefined();
+    server.holding = false;
+    await openThread(CHANNEL, id(390));
+    expect(threadItems(logOf(), id(390)).map((row) => row.id)).toEqual([
+      id(390),
+      "r1",
+    ]);
+    expect(statusOf(threadKey(id(390)))?.loading).toBe(false);
   });
 });
 

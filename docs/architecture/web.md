@@ -242,8 +242,9 @@ hooks `useChannelItems`, `useThreadItems`, `useRow`, `useView`,
 `loadNewer` (one request per view per direction), `jumpTo`,
 `jumpToLatest` (which opens a view not yet held on its newest page: the
 fallback when a landing's message is gone), `applyEvent`, `patchThread`,
-`reconnected` and `forget` (which also ends the epoch a page still out
-was asked in, so its answer is dropped). `reconnected` owes every held
+`reconnected`, `closeThread` (a thread's view goes from its channel's log
+with the rows only it kept) and `forget` (the whole log; either also ends
+the epoch a page still out was asked in, so its answer is dropped). `reconnected` owes every held
 log a catch-up and, once it is done, asks for the newest page of each
 view that has one again (the channel's, each open thread's, and an open
 thread's root, which a thread's page never lists), merged with the server
@@ -275,7 +276,9 @@ case the list's jump brings the page around it instead, so no second
 page races the first. The channel page holds the channel it shows and
 each open thread holds its channel too; the log is forgotten when the
 last holder leaves, so what is held is what is on screen, as the old
-store forgot a window when the cache let go of it. Memory is bounded by
+store forgot a window when the cache let go of it, and a thread that
+closes while its channel stays held drops only its own view
+(`closeThread`). Memory is bounded by
 `LOG_CAP` per view, with rows outside every view bounded only by the
 retention floor until the log goes (the proposal's known leftovers).
 
@@ -345,7 +348,8 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   timeline reducer the web app ran before the channel log. **The web app
   no longer imports them**; they stay, each headed with a note saying so,
   because the mobile app's channel screen runs them until it re-points
-  at `core/channelLog` (channel-log.md step 7). What they are:
+  at `core/channelLog` ([../proposals/channel-log.md](../proposals/channel-log.md)
+  → Open). What they are:
 - `messageList.ts` — what a new message, an edit, a deletion or a reaction
   does to a list of messages.
 - `channelTimeline.ts` — a window of a channel's messages, or of one
@@ -707,25 +711,31 @@ not build its own.
 
 Adding a kind is a registry entry and its component. The muted channels
 list (`components/MutedChannels`) is the simplest. The first was a
-thread (`routes/Channel/ThreadView.tsx`): its root, fetched as a
-one-message page under the channel's key so realtime writes reach it,
-then its replies through the same `MessageList` as the channel, and a
-`Composer` that replies into it.
+thread (`routes/Channel/ThreadView.tsx`): its root from the channel's
+log when the page beside it holds it, otherwise fetched as a one-message
+copy (`useThreadRoot`) and handed to the log with `holdRow`, so edits and
+its summary reach it from then on; then its replies as a view on the same
+log, through the same `MessageList` as the channel, and a `Composer` that
+replies into it. It holds the channel's log while open (`useOpenView`),
+and closing it drops the thread's view and the rows only that view kept
+(`closeThread` in `api/channelLog.ts`); the log itself goes only when
+the last holder leaves.
 
 The summary under a root carries the reader's own half (`participating`,
 `muted`, `unreadCount`), which `ThreadChanged` never does, since every
-viewer gets the same event. `api/threads.ts` keeps it: a new summary
-keeps the cached half and adds others' replies to the count of a thread
-the reader is in and hasn't muted, and a first reply works that out from
-the cached root. `MessageUpdated` and the `EditMessage` answer carry
-only the shared half too, so `replaceMessage` (`api/ws.ts`) keeps the
-cached half when it swaps in an edited root. The open thread marks
-itself read once the window has attention (`useMarkThreadRead`), and
-reads its own activity items; the channel reads only items outside
-threads.
+viewer gets the same event. `api/threads.ts` keeps it through
+`patchThread`: a new summary keeps the held half and adds others'
+replies to the count of a thread the reader is in and hasn't muted, and
+a first reply works that out from the held root. `MessageUpdated` and
+the `EditMessage` answer carry only the shared half too, so the log keeps
+the held half when it merges an edited root (`withViewerHalf`,
+`core/channelLog/rows.ts`). The open thread marks itself read once the
+window has attention (`useMarkThreadRead`), and reads its own activity
+items; the channel reads only items outside threads.
 
-A reply also sent to the channel is one message in both timelines
-(the reducer puts it in each, `core/channelTimeline.ts`). In the channel it carries a line
+A reply also sent to the channel is one message in both timelines: one
+row in the log, listed by the channel's view and the thread's
+(`showsInChannel`, `core/channelLog/rows.ts`). In the channel it carries a line
 naming its thread (`Message.thread_root`) that opens the thread on it;
 in the thread it is tagged "Also sent to #channel". The thread's box
 offers the choice as a checkbox, cleared after each send.

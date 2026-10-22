@@ -89,15 +89,18 @@ kept there (Ready, then VoiceStateChanged); a screen that needs other
 events listens with `useServerEvents`. A space's channels screen
 reloads, after a moment's quiet, whenever one touches that space, as
 when a channel is created, renamed, deleted or read. A channel applies
-messages created, edited and deleted to the list it holds, by web's own
-rules (`core/messageList.ts`), and after a reconnect it fetches
-everything held again and joins it to the history already loaded. Those
-rules, and what happens when an event or a reconnect lands while a load
-is out, are the timeline reducer web's windows run too
+messages created, edited and deleted to the list it holds, by the rules
+web's timeline ran before its channel log (`core/messageList.ts`), and
+after a reconnect it fetches everything held again and joins it to the
+history already loaded. Those rules, and what happens when an event or a
+reconnect lands while a load is out, are the timeline reducer
 (`core/timelineState.ts`, with the header's rules in
-`core/timelineEvents.ts`); the
-screen (`src/screens/Channel/index.tsx`) fetches, marks read and draws
-the rows `core/timelineItems.ts` builds.
+`core/timelineEvents.ts`), which the web app has since replaced with
+`core/channelLog` (one log per channel, rows merged by the server's
+`seq`; `docs/proposals/channel-log.md`). The reducer stays in `core/`
+for this app until its channel screen re-points at the log; the screen
+(`src/screens/Channel/index.tsx`) fetches, marks read and draws the rows
+`core/timelineItems.ts` builds.
 
 ## Themes
 
@@ -250,9 +253,12 @@ source, not packages:
 - `@stoop/core/*` maps to `../web/src/core/*`, web's code that needs no
   browser. That covers the Markdown parser, mention tokens, permissions,
   dates, badge counts, which messages run together and where the "New"
-  line goes, how messages, edits, deletions and reactions change a list
-  of messages, and a channel's timeline as a reducer. Its tests run with
-  web's (`make test`).
+  line goes, and two models of a channel's messages: `core/channelLog`,
+  the channel log web's timeline runs on, and the older timeline reducer
+  (`core/timelineState.ts` with the other `core/timeline*.ts` modules,
+  `core/channelTimeline.ts` and `core/messageList.ts`), which this app's
+  channel screen still uses until it re-points at the log; those modules
+  go then. Its tests run with web's (`make test`).
 
 Both mappings are in `tsconfig.json`; Metro reads them too, and
 `metro.config.js` watches both folders. `metro.config.js` also makes every
