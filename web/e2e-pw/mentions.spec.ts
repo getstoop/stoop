@@ -198,20 +198,21 @@ test("mentions notify, badge and read", async ({ browser }) => {
     "Everyone in this channel",
   );
   // The picker follows the caret: away from the query it closes, so
-  // Enter can't replace the wrong words; back at it, it reopens. The
-  // close comes from the editor reporting the caret's move, which needs
-  // the editor focused when Home is pressed; seen once on CI staying
-  // open, so the failure names where focus was.
-  await A.keyboard.press("Home");
-  await expect(
-    picker(A),
-    `the caret leaving the query closes it (focus: ${await A.evaluate(
-      () =>
-        `${document.activeElement?.className ?? "none"} selection ${
-          document.getSelection()?.anchorOffset ?? "none"
-        }`,
-    )})`,
-  ).toHaveCount(0);
+  // Enter can't replace the wrong words; back at it, it reopens. Home
+  // takes the caret to the start of the document, and ProseMirror undoes
+  // exactly that move when it comes within 200 ms of the editor gaining
+  // focus, taking it for the browser's cursor-to-start on focus
+  // (prosemirror-view, DOMObserver.flush). B's click above can take the
+  // window from A, so type() re-focuses A's editor and the first Home can
+  // be spent that way; the undo clears the focus mark, so a second press
+  // always lands. Pressing Home at a line start is a no-op otherwise.
+  await expect(async () => {
+    await A.keyboard.press("Home");
+    await expect(
+      picker(A),
+      "the caret leaving the query closes it",
+    ).toHaveCount(0, { timeout: 1000 });
+  }).toPass();
   await A.keyboard.press("End");
   await expect(picker(A), "…and coming back reopens it").toContainText(
     "Everyone in this channel",

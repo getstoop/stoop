@@ -137,6 +137,18 @@ sections, in this order:
 
   A longer timeout never fixes a failure here: focus never arrives.
 
+- **ProseMirror undoes a caret move to the document start made within
+  200 ms of focus.** It takes a collapsed selection at position 0 arriving
+  that soon after the editor gained focus for the browser's cursor-to-start
+  on focus and writes the old caret back (`DOMObserver.flush`, the
+  `lastFocus` branch), so a `Home` right after `pressSequentially()` into
+  an unfocused composer does not move the caret and the mention picker
+  stays open. Whether the composer was focused depends on which page a
+  click landed on last, so it shows up as a flake. The undo clears the
+  focus mark, so a second press lands: wrap the press and its assertion in
+  `expect(async () => { … }).toPass()`, as `mentions.spec.ts` does, rather
+  than sleeping past the window.
+
 - **A page's socket subscribes after its first queries land.** The
   channel list, the messages and the DM list are fetched as the page
   mounts, in parallel with the WebSocket handshake, and only the socket
