@@ -340,51 +340,27 @@ with web). `scripts/check-core.mjs` refuses any import from outside
 - `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
   through `useMyPermissions` in `api/queries.ts`) to decide which controls
   to show; it keeps no copy of the role table. The server still enforces.
-- `channelLog/` — the channel log's model ([State](#state-one-source-of-truth)).
+- `channelLog/` — the channel log's model ([State](#state-one-source-of-truth)),
+  which the mobile app's channel screen runs on too.
+- `channelHeader.ts` — the header a channel screen shows beside its
+  messages (the channel, its space, the member count, who is reading),
+  what a realtime event does to it (a rename, a member coming or going)
+  and which event means the channel is gone. The mobile app holds one;
+  web reads the same facts from its query cache.
+- `channelScreen.ts` — a channel screen's state over its log as a
+  reducer: the header, why the channel can't be shown (the sign-in ended,
+  the channel gone, the server unreachable), the session it opened with,
+  the "New" line's marker and whether an older page is out. An open's
+  answer lands under the view's generation it was asked for, so a stale
+  one is dropped, header and all. The mobile app's channel screen runs
+  it; web's screen is wired in `api/channelLog.ts` instead.
 - `author.ts` — who a message is shown as being from: the member as the
   members list has them now, over the row's embedded author.
-- `messageList.ts`, `channelTimeline.ts`, `timelineState.ts`,
-  `timelinePaging.ts`, `timelineEvents.ts` and `timelineItems.ts` — the
-  timeline reducer the web app ran before the channel log. **The web app
-  no longer imports them**; they stay, each headed with a note saying so,
-  because the mobile app's channel screen runs them until it re-points
-  at `core/channelLog` ([../proposals/channel-log.md](../proposals/channel-log.md)
-  → Open). What they are:
-- `messageList.ts` — what a new message, an edit, a deletion or a reaction
-  does to a list of messages.
-- `channelTimeline.ts` — a window of a channel's messages, or of one
-  thread's replies: what a realtime event does to it, and how a
-  reconnect's newest page joins the history already held.
-- `timelineState.ts` — a timeline as a reducer, which the app's channel
-  screen runs. It holds what is
-  shown (a window of messages, with an optional header beside it), the
-  requests out under ids the caller picks — an open (a new window: the
-  newest page, or one around a message), a catch-up after a reconnect, a
-  refresh, an older or a newer page — and the events each has kept
-  while out. Its rules: those events are replayed over that request's
-  answer alone; only the latest load counts, and a refresh gives way to
-  an open asked for since the last reconnect; an open drops every page
-  still out, and a reconnect drops one asked for before it; a failed load
-  keeps what is shown when it was for that window (a catch-up, a refresh,
-  or an open naming the same channel). A new message beyond a window that
-  stops short of the newest is counted (`pendingNewer`), not shown, and
-  the count clears once a load reaches the newest message. The caller does the fetching and
-  dispatches each start, answer and failure.
-- `timelinePaging.ts` — the pages either side of what is held: one at a
-  time, none while an open is out, a new message replayed over a newer
-  page only once it reaches the newest, and the cap that drops the far
-  end and sets that end's flag.
-- `timelineEvents.ts` — what a realtime event does to what a timeline
-  holds: its messages, and its header if it carries one (the channel,
-  its space, the member count, who is reading). A rename changes the
-  header; a member count changes live, never on a replay. A timeline that
-  gets its header elsewhere, or a thread's, carries none.
-- `timelineItems.ts` — a channel's rows, oldest first: the messages, the
-  day lines, the "New" line (sharing a day's line as "Today · New") and
-  which message continues the one before.
 - `grouping.ts` — where a day line goes, which message continues the one
-  before (same author, same minute), and the first message under the
-  "New messages" line.
+  before (same author, same minute), the first message under the
+  "New messages" line, and `groupedRows`, a channel's rows with those
+  lines in place (the mobile app's list; web's own form, with a thread's
+  rules, is `routes/Channel/MessageList/items.ts`).
 - `unreads.ts` (`badgeCount`, `isUnread`), `reactions.ts`
   (`toggledReactions`), `dates.ts`, `emojiText.ts`, `identity.ts`.
 

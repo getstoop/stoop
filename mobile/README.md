@@ -88,19 +88,31 @@ leaves another session in the keychain. Who is in each voice room is
 kept there (Ready, then VoiceStateChanged); a screen that needs other
 events listens with `useServerEvents`. A space's channels screen
 reloads, after a moment's quiet, whenever one touches that space, as
-when a channel is created, renamed, deleted or read. A channel applies
-messages created, edited and deleted to the list it holds, by the rules
-web's timeline ran before its channel log (`core/messageList.ts`), and
-after a reconnect it fetches everything held again and joins it to the
-history already loaded. Those rules, and what happens when an event or a
-reconnect lands while a load is out, are the timeline reducer
-(`core/timelineState.ts`, with the header's rules in
-`core/timelineEvents.ts`), which the web app has since replaced with
-`core/channelLog` (one log per channel, rows merged by the server's
-`seq`; `docs/proposals/channel-log.md`). The reducer stays in `core/`
-for this app until its channel screen re-points at the log; the screen
-(`src/screens/Channel/index.tsx`) fetches, marks read and draws the rows
-`core/timelineItems.ts` builds.
+when a channel is created, renamed, deleted or read. A channel runs on
+the channel log web's timeline runs on (`core/channelLog`,
+`docs/architecture/realtime.md` → The channel log on the client): one
+log for the channel, every row by id, merged by the `seq` the server
+stamps on each change, so a page, an event and a catch-up can arrive in
+any order and the higher seq wins. Messages created, edited and deleted
+reach it as events (a deletion as a tombstone, which hides the row, or
+leaves a placeholder for a root whose thread still has replies), an
+event whose seq is not the next one marks a gap, and after a gap or a
+reconnect the screen asks `ListChanges` from the position it holds,
+page after page while the server has more, instead of fetching what it
+holds again; rows below the server's retention floor go unless pinned.
+The log holds at most 2,000 rows, and paging older past that would drop
+the newest, the edge the screen keeps live, so the screen's history ends
+a page short of the cap and says so (web has a pill back to the newest
+edge; the screen has none yet).
+The header's rules (a rename, the member count, the events that mean the
+channel is gone) are `core/channelHeader.ts`, and the screen's state
+over both (the header, why the channel can't be shown, the "New" line's
+marker) is `core/channelScreen.ts`, a reducer with its tests beside it.
+The screen's own part is small: `src/screens/Channel/useChannelLog.ts`
+makes the requests and dispatches each answer and event to it; the
+screen (`src/screens/Channel/index.tsx`) marks read and draws the rows
+`core/grouping.ts` groups (day lines, the "New" line, which message
+continues the one before).
 
 ## Themes
 
@@ -253,12 +265,10 @@ source, not packages:
 - `@stoop/core/*` maps to `../web/src/core/*`, web's code that needs no
   browser. That covers the Markdown parser, mention tokens, permissions,
   dates, badge counts, which messages run together and where the "New"
-  line goes, and two models of a channel's messages: `core/channelLog`,
-  the channel log web's timeline runs on, and the older timeline reducer
-  (`core/timelineState.ts` with the other `core/timeline*.ts` modules,
-  `core/channelTimeline.ts` and `core/messageList.ts`), which this app's
-  channel screen still uses until it re-points at the log; those modules
-  go then. Its tests run with web's (`make test`).
+  line goes, the channel log web's timeline runs on (`core/channelLog`,
+  which this app's channel screen runs on too), a channel's header
+  beside it (`core/channelHeader.ts`) and the channel screen's state over
+  both (`core/channelScreen.ts`). Its tests run with web's (`make test`).
 
 Both mappings are in `tsconfig.json`; Metro reads them too, and
 `metro.config.js` watches both folders. `metro.config.js` also makes every

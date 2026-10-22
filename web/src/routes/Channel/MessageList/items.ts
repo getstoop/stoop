@@ -9,9 +9,9 @@ import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 // the first message of each day, the "New messages" line above the first
 // unread one, every message, and the foot (the newer edge). A divider is a
 // row beside the messages, never a wrapper round one: from a divider, the
-// message it introduces is the next sibling. The phone's channel draws
-// from core/timelineItems; this is the web's form, with a thread's rules
-// (no day lines, the root above the oldest reply).
+// message it introduces is the next sibling. The mobile app's channel
+// draws core/grouping's groupedRows; this is the web's form, with a
+// thread's rules (no day lines, the root above the oldest reply).
 
 export type ListItem =
   | { kind: "head"; key: "head"; rootId?: string }

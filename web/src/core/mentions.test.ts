@@ -1,7 +1,9 @@
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
+import { MessageSchema } from "../gen/stoop/chat/v1/message_pb";
 import {
   candidateMention,
   channelCandidates,
@@ -13,6 +15,7 @@ import {
   mentionGroups,
   mentionMembers,
   mentionQueryAt,
+  mentionsMe,
   mentionToken,
   mentionTokenAt,
   soleChannel,
@@ -319,5 +322,22 @@ describe("mentionCandidates", () => {
     expect(mentionCandidates([], [crew, captains], "gard")).toHaveLength(1);
     expect(mentionCandidates([], [crew, captains], "watch")).toHaveLength(1);
     expect(mentionCandidates([], [crew, captains], "garden c")).toHaveLength(1);
+  });
+});
+
+describe("mentionsMe", () => {
+  const message = (init: MessageInitShape<typeof MessageSchema>) =>
+    create(MessageSchema, { id: "01", channelId: "c1", ...init });
+
+  it("is a mention of the reader by someone else, or @here", () => {
+    expect(mentionsMe(message({ mentionUserIds: ["me"] }), "me")).toBe(true);
+    expect(mentionsMe(message({ mentionsHere: true }), "me")).toBe(true);
+    expect(
+      mentionsMe(
+        message({ mentionUserIds: ["me"], author: { id: "me" } }),
+        "me",
+      ),
+    ).toBe(false);
+    expect(mentionsMe(message({}), "me")).toBe(false);
   });
 });

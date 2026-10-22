@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
-import { sameDay } from "./dates";
+import { dayLabel, sameDay } from "./dates";
 
 // A day separator goes above the first message of each calendar day.
 export const startsDay = (m: Message, prev: Message | undefined) =>
@@ -53,4 +53,47 @@ export function sameMinute(a: Date, b: Date): boolean {
     a.getHours() === b.getHours() &&
     a.getMinutes() === b.getMinutes()
   );
+}
+
+// A channel's rows for a list, oldest first: each message, a day line
+// above the first of each day, and the "New" line above the first message
+// after the read marker as it was on opening (null for no "New" line). The
+// mobile app's channel screen draws these; web's list has a form of its
+// own with a thread's rules (routes/Channel/MessageList/items.ts).
+export type GroupedRow =
+  | { kind: "message"; key: string; message: Message; continued: boolean }
+  | { kind: "day" | "new"; key: string; label: string };
+
+export function groupedRows(
+  messages: Message[],
+  newAfter: string | null,
+  myUserId: string,
+  now: Date = new Date(),
+): GroupedRow[] {
+  const firstNew = firstNewMessageId(messages, newAfter, myUserId);
+  const rows: GroupedRow[] = [];
+  messages.forEach((message, index) => {
+    const previous = messages[index - 1];
+    const day =
+      message.createdAt && startsDay(message, previous)
+        ? dayLabel(timestampDate(message.createdAt), now)
+        : null;
+    if (message.id === firstNew) {
+      // On a day boundary the two share one line, in the "New" colour.
+      rows.push({
+        kind: "new",
+        key: `new-${message.id}`,
+        label: day ? `${day} · New` : "New",
+      });
+    } else if (day) {
+      rows.push({ kind: "day", key: `day-${message.id}`, label: day });
+    }
+    rows.push({
+      kind: "message",
+      key: message.id,
+      message,
+      continued: continues(message, previous, firstNew, false),
+    });
+  });
+  return rows;
 }
