@@ -30,6 +30,13 @@ func TestChannelSeqContractMigrationFillsRollbackRows(t *testing.T) {
 	if err := goose.DownToContext(ctx, sqlDB, "migrations", 68); err != nil {
 		t.Fatal(err)
 	}
+	var floorBefore int64
+	if err := pool.QueryRow(ctx, `SELECT min_migration FROM schema_floor`).Scan(&floorBefore); err != nil {
+		t.Fatal(err)
+	}
+	if floorBefore != 65 {
+		t.Fatalf("schema_floor after 00069's Down = %d, want 65 (the value 00065 set)", floorBefore)
+	}
 	var user string
 	if err := pool.QueryRow(ctx, `INSERT INTO users (id, username) VALUES (gen_random_uuid(), 'ada') RETURNING id`).Scan(&user); err != nil {
 		t.Fatal(err)
