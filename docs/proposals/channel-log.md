@@ -239,7 +239,7 @@ fetched again to bring it.
    `make dev-flood`, which writes rows straight into Postgres, now stamps
    them the same way the backfill does.
 
-9. **The mobile re-point** (this PR). The mobile app's channel screen
+9. **The mobile re-point** (#538). The mobile app's channel screen
    runs on `core/channelLog`: `mobile/src/screens/Channel/useChannelLog.ts`
    makes the requests and dispatches each answer and event to
    `core/channelScreen.ts`, a reducer (unit-tested beside the log's) that
