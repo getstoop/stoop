@@ -244,9 +244,19 @@ export function MessageList({
       edges.current = reached;
       // The anchor is noted only for a page that will be asked for, and
       // dropped if it brings nothing: one left over would put the view
-      // back at a stale position on the next change (an arrival).
+      // back at a stale position on the next change (an arrival). Not
+      // while one is pending: its page has landed before the layout
+      // effect puts the view back, and a row measured as it mounts
+      // reports in between, from where the view was — at the edge, which
+      // would ask for a further page from there and take the anchor.
       const held = readView(view);
-      if (!held || !hasOpened(held) || readStatus(view).loading) return;
+      if (
+        !held ||
+        !hasOpened(held) ||
+        readStatus(view).loading ||
+        anchor.current
+      )
+        return;
       const page = (
         edge: Anchor["edge"],
         id: string | undefined,
