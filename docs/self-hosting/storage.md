@@ -68,3 +68,15 @@ Pinned messages and their files are kept, and so are avatars, icons and
 link preview images. Both run hourly. Saving a shorter period first shows
 how many messages and files it would delete now. Deleted data can't be
 brought back except from a [backup](backups.md).
+
+## What a deleted message leaves behind
+
+When someone deletes a message, its text, reactions, files, mentions,
+pins and notifications go at once, and nothing in Stoop shows it to
+anyone again. The row itself stays in the database, blank, recording who
+posted it, in which channel, when, and when it was deleted. That is how
+an app that was offline learns the message is gone. The message
+retention sweep removes these rows along with everything else past the
+period; with **Delete messages after** blank they stay, and they are in
+your backups like every other row. If that matters to you, set a
+retention period.
