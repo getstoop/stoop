@@ -21,18 +21,18 @@ func TestSweptSeqDropMigration(t *testing.T) {
 	defer goose.SetBaseFS(nil)
 
 	hasColumn := func() bool {
-		var n int
-		if err := pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns WHERE table_name = 'channels' AND column_name = 'swept_seq'`).Scan(&n); err != nil {
+		var count int
+		if err := pool.QueryRow(ctx, `SELECT count(*) FROM information_schema.columns WHERE table_name = 'channels' AND column_name = 'swept_seq'`).Scan(&count); err != nil {
 			t.Fatal(err)
 		}
-		return n == 1
+		return count == 1
 	}
 	floor := func() int64 {
-		var f int64
-		if err := pool.QueryRow(ctx, `SELECT min_migration FROM schema_floor`).Scan(&f); err != nil {
+		var minMigration int64
+		if err := pool.QueryRow(ctx, `SELECT min_migration FROM schema_floor`).Scan(&minMigration); err != nil {
 			t.Fatal(err)
 		}
-		return f
+		return minMigration
 	}
 
 	if hasColumn() || floor() != 70 {
