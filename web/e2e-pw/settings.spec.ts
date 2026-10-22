@@ -78,15 +78,25 @@ test("space settings, roles and deletion", async ({ browser }) => {
   });
   // A drop only reorders once the row is over another one, which settles
   // after the row is seen to move; the drag's own announcement says when.
+  // The keyboard sensor finds the row above from the rows' measured
+  // positions, which dnd-kit collects on an animation frame after the
+  // pickup: an arrow pressed before that moves nothing and nothing
+  // moves later, so the press is repeated until the announcement comes.
   await grip.press(" ");
   await expect(channelRow("random"), "row picked up").toHaveClass(/dragging/);
-  await grip.press("ArrowUp");
-  await expect(
-    A.locator('[id^="DndLiveRegion"]').filter({
-      hasText: /Draggable item (\S+) was moved over droppable area (?!\1)\S+/,
-    }),
-    "row is over another row",
-  ).toBeAttached();
+  const overAnother = A.locator('[id^="DndLiveRegion"]').filter({
+    hasText: /Draggable item (\S+) was moved over droppable area (?!\1)\S+/,
+  });
+  await expect
+    .poll(
+      async () => {
+        if ((await overAnother.count()) > 0) return true;
+        await grip.press("ArrowUp");
+        return false;
+      },
+      { message: "row is over another row" },
+    )
+    .toBe(true);
   await grip.press(" ");
   await expect(channelNames(B), "B sees reordered channels").toHaveText([
     "random",
