@@ -139,6 +139,10 @@ service ChatService {
   rpc ListThreadMutes(ListThreadMutesRequest) returns (ListThreadMutesResponse) {}
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
+  // ListChanges catches a channel up from a log position: every row with
+  // a higher seq, tombstones and thread replies included. Same access as
+  // ListMessages. See docs/architecture/messaging.md → History.
+  rpc ListChanges(ListChangesRequest) returns (ListChangesResponse) {}
   // SearchMessages finds messages by their words within one space the
   // caller belongs to, newest first. See docs/architecture/messaging.md.
   rpc SearchMessages(SearchMessagesRequest) returns (SearchMessagesResponse) {}
@@ -743,6 +747,43 @@ message ListMessagesResponse {
   // after it has a higher seq and reaches the client as a change. A row
   // in the page with a higher seq is newer still and is kept.
   int64 channel_seq = 5;
+  // The message id below which the retention sweep removes top-level
+  // messages, as of this answer; empty when retention is off. The sweep
+  // keeps a pinned root and its thread, so a client drops a held row whose
+  // id is below it unless the row is pinned (Message.pinned), and a reply
+  // whose root's id is below it unless the root is pinned.
+  string retention_floor_id = 6;
+}
+
+message ListChangesRequest {
+  string channel_id = 1;
+  // Rows with a seq above this come back. 0 asks for the whole log.
+  int64 since_seq = 2;
+  // Max rows to return; server clamps to [1, 200]. 0 means default (100).
+  int32 limit = 3;
+}
+
+// A client holding a seq asks for everything after it, applies each row by
+// "higher seq wins", drops the held rows retention_floor_id says the sweep
+// has taken (an unpinned row below it, a reply whose root is below it and
+// not pinned), and repeats while has_more.
+message ListChangesResponse {
+  // Ordered by seq, ascending. A row is in the channel log once, at its
+  // latest position. A tombstone comes back as a Message with deleted set,
+  // no content and nothing attached; a thread reply has in_channel false
+  // and its thread_root_id.
+  repeated Message messages = 1;
+  // The channel's seq, read before the rows were: anything that commits
+  // after it has a higher seq and reaches the client as a change. It
+  // becomes the client's position only once has_more is false; while
+  // has_more is true the client asks again from the last row's seq and
+  // its position does not move.
+  int64 channel_seq = 2;
+  // True when the page was full: more of the log is stamped above the
+  // last row.
+  bool has_more = 3;
+  // As ListMessagesResponse.retention_floor_id.
+  string retention_floor_id = 4;
 }
 
 message SearchMessagesRequest {

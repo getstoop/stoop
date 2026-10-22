@@ -73,9 +73,10 @@ Grouped by what they touch rather than declaration order:
   `LookupInvite` (**public**)
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
   `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
-- **Messages** — `SendMessage`, `ListMessages`, `SearchMessages`,
-  `EditMessage`, `DeleteMessage`, `DismissLinkPreview`, `ToggleReaction`,
-  `SetMessagePinned`, `ListPinnedMessages`
+- **Messages** — `SendMessage`, `ListMessages`, `ListChanges` (the
+  channel log from a seq, for catching up; same gate as `ListMessages`),
+  `SearchMessages`, `EditMessage`, `DeleteMessage`, `DismissLinkPreview`,
+  `ToggleReaction`, `SetMessagePinned`, `ListPinnedMessages`
 - **Direct messages** — `OpenDirectMessage`, `ListDirectMessages`,
   `ListDirectMessageCandidates`, `SetDirectMessageClosed`
 - **Attention** — `MarkChannelRead`, `ListActivity`,

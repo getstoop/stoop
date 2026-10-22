@@ -1573,11 +1573,13 @@ func (x *ChannelsReordered) GetChannels() []*v1.Channel {
 // ReactionsChanged carries a message's full reaction list after a toggle;
 // clients swap it in without refetching.
 type ReactionsChanged struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SpaceId       string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
-	ChannelId     string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
-	MessageId     string                 `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	Reactions     []*v1.Reaction         `protobuf:"bytes,4,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SpaceId   string                 `protobuf:"bytes,1,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	ChannelId string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	MessageId string                 `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Reactions []*v1.Reaction         `protobuf:"bytes,4,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	// The row's log position after this change (Message.seq).
+	Seq           int64 `protobuf:"varint,5,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1640,13 +1642,22 @@ func (x *ReactionsChanged) GetReactions() []*v1.Reaction {
 	return nil
 }
 
+func (x *ReactionsChanged) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
 type MessageDeleted struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	ChannelId string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
 	SpaceId   string                 `protobuf:"bytes,3,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	// Set when the message was a reply in a thread.
-	ThreadRootId  string `protobuf:"bytes,4,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
+	ThreadRootId string `protobuf:"bytes,4,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
+	// The row's log position after this change: the tombstone's seq.
+	Seq           int64 `protobuf:"varint,5,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1709,6 +1720,13 @@ func (x *MessageDeleted) GetThreadRootId() string {
 	return ""
 }
 
+func (x *MessageDeleted) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
 // ThreadChanged carries a root's full thread summary after a reply is sent
 // or deleted, not a delta, so a missed event is put right by the next one.
 type ThreadChanged struct {
@@ -1717,6 +1735,8 @@ type ThreadChanged struct {
 	ChannelId     string                 `protobuf:"bytes,2,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
 	RootMessageId string                 `protobuf:"bytes,3,opt,name=root_message_id,json=rootMessageId,proto3" json:"root_message_id,omitempty"`
 	Thread        *v1.ThreadSummary      `protobuf:"bytes,4,opt,name=thread,proto3" json:"thread,omitempty"`
+	// The row's log position after this change: the root's new seq.
+	Seq           int64 `protobuf:"varint,5,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1779,6 +1799,13 @@ func (x *ThreadChanged) GetThread() *v1.ThreadSummary {
 	return nil
 }
 
+func (x *ThreadChanged) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
 // MessagePinned is broadcast to the space when a message is pinned or
 // unpinned. It carries the change, not the list: a channel's pins can be
 // fifty full messages, and a client that shows them asks for them.
@@ -1790,8 +1817,10 @@ type MessagePinned struct {
 	// False when unpinned.
 	Pinned bool `protobuf:"varint,4,opt,name=pinned,proto3" json:"pinned,omitempty"`
 	// Set when pinned.
-	PinnedBy      *v1.MessageAuthor      `protobuf:"bytes,5,opt,name=pinned_by,json=pinnedBy,proto3" json:"pinned_by,omitempty"`
-	PinnedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=pinned_at,json=pinnedAt,proto3" json:"pinned_at,omitempty"`
+	PinnedBy *v1.MessageAuthor      `protobuf:"bytes,5,opt,name=pinned_by,json=pinnedBy,proto3" json:"pinned_by,omitempty"`
+	PinnedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=pinned_at,json=pinnedAt,proto3" json:"pinned_at,omitempty"`
+	// The row's log position after this change (Message.seq).
+	Seq           int64 `protobuf:"varint,7,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1866,6 +1895,13 @@ func (x *MessagePinned) GetPinnedAt() *timestamppb.Timestamp {
 		return x.PinnedAt
 	}
 	return nil
+}
+
+func (x *MessagePinned) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
 }
 
 // SpaceJoined is delivered on the joining user's personal topic; the gateway
@@ -2825,27 +2861,30 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"channel_id\x18\x02 \x01(\tR\tchannelId\"b\n" +
 	"\x11ChannelsReordered\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x122\n" +
-	"\bchannels\x18\x02 \x03(\v2\x16.stoop.chat.v1.ChannelR\bchannels\"\xa2\x01\n" +
+	"\bchannels\x18\x02 \x03(\v2\x16.stoop.chat.v1.ChannelR\bchannels\"\xb4\x01\n" +
 	"\x10ReactionsChanged\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x02 \x01(\tR\tchannelId\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x03 \x01(\tR\tmessageId\x125\n" +
-	"\treactions\x18\x04 \x03(\v2\x17.stoop.chat.v1.ReactionR\treactions\"\x8f\x01\n" +
+	"\treactions\x18\x04 \x03(\v2\x17.stoop.chat.v1.ReactionR\treactions\x12\x10\n" +
+	"\x03seq\x18\x05 \x01(\x03R\x03seq\"\xa1\x01\n" +
 	"\x0eMessageDeleted\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x02 \x01(\tR\tchannelId\x12\x19\n" +
 	"\bspace_id\x18\x03 \x01(\tR\aspaceId\x12$\n" +
-	"\x0ethread_root_id\x18\x04 \x01(\tR\fthreadRootId\"\xa7\x01\n" +
+	"\x0ethread_root_id\x18\x04 \x01(\tR\fthreadRootId\x12\x10\n" +
+	"\x03seq\x18\x05 \x01(\x03R\x03seq\"\xb9\x01\n" +
 	"\rThreadChanged\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x02 \x01(\tR\tchannelId\x12&\n" +
 	"\x0froot_message_id\x18\x03 \x01(\tR\rrootMessageId\x124\n" +
-	"\x06thread\x18\x04 \x01(\v2\x1c.stoop.chat.v1.ThreadSummaryR\x06thread\"\xf4\x01\n" +
+	"\x06thread\x18\x04 \x01(\v2\x1c.stoop.chat.v1.ThreadSummaryR\x06thread\x12\x10\n" +
+	"\x03seq\x18\x05 \x01(\x03R\x03seq\"\x86\x02\n" +
 	"\rMessagePinned\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x1d\n" +
 	"\n" +
@@ -2854,7 +2893,8 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"message_id\x18\x03 \x01(\tR\tmessageId\x12\x16\n" +
 	"\x06pinned\x18\x04 \x01(\bR\x06pinned\x129\n" +
 	"\tpinned_by\x18\x05 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\bpinnedBy\x127\n" +
-	"\tpinned_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bpinnedAt\"9\n" +
+	"\tpinned_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bpinnedAt\x12\x10\n" +
+	"\x03seq\x18\a \x01(\x03R\x03seq\"9\n" +
 	"\vSpaceJoined\x12*\n" +
 	"\x05space\x18\x01 \x01(\v2\x14.stoop.chat.v1.SpaceR\x05space\"^\n" +
 	"\fChannelMuted\x12\x19\n" +

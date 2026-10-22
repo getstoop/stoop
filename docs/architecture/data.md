@@ -164,7 +164,11 @@ commit one at a time, so "next" is exact, and every transaction that
 writes message rows takes the channel row first (`internal/chat/seq.go`),
 the retention sweep included. `channels.swept_seq` is the highest seq the
 sweep has hard-deleted in the channel, raised with `GREATEST` so it never
-goes down; a client holding a position below it has a gap it cannot fill.
+goes down. It is informational — cheap to keep and there for an operator
+to read; nothing serves it. A client learns what the sweep took from the
+retention floor on `ListMessages` and `ListChanges`
+([messaging.md](messaging.md#catching-up-listchanges)), not from this
+column.
 `messages.seq` is nullable this release and `NOT NULL` the next;
 migration 00068 backfilled it as each row's rank by id in its channel.
 

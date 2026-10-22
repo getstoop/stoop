@@ -2,11 +2,14 @@
 -- Only internal/chat may use these queries.
 
 -- CreateActivityItems writes one item of a kind for each recipient of
--- a message, in one statement (see chat.notify).
+-- a message, in one statement (see chat.notify). Nothing is written for
+-- a message deleted since it was sent: activity is recorded after the
+-- send commits, and a tombstone's items go with it.
 -- name: CreateActivityItems :many
 INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
 SELECT unnest(sqlc.arg('ids')::uuid[]), unnest(sqlc.arg('user_ids')::uuid[]), sqlc.arg('kind')::text,
     sqlc.narg('space_id')::uuid, sqlc.arg('channel_id')::uuid, sqlc.arg('message_id')::uuid, sqlc.arg('actor_id')::uuid
+WHERE EXISTS (SELECT 1 FROM messages m WHERE m.id = sqlc.arg('message_id')::uuid AND m.deleted_at IS NULL)
 RETURNING *;
 
 -- ListActivity returns newest first with the message text for a
@@ -46,9 +49,13 @@ WHERE user_id = $1 AND read_at IS NULL;
 -- coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
 -- thread when thread_root_id is set: a recipient's newest unread item of
 -- the kind there is pointed at the new message and stamped now; a
--- recipient without one gets a new item.
+-- recipient without one gets a new item. Nothing is refreshed or written
+-- for a message deleted since it was sent, as CreateActivityItems writes
+-- nothing.
 -- name: UpsertUnreadActivityItems :many
-WITH recipient AS (
+WITH live AS (
+    SELECT 1 FROM messages m WHERE m.id = sqlc.arg('message_id')::uuid AND m.deleted_at IS NULL
+), recipient AS (
     SELECT unnest(sqlc.arg('ids')::uuid[]) AS id, unnest(sqlc.arg('user_ids')::uuid[]) AS user_id
 ), unread AS (
     SELECT DISTINCT ON (a.user_id) a.id, a.user_id
@@ -65,14 +72,14 @@ WITH recipient AS (
     UPDATE activity_items a
     SET message_id = sqlc.arg('message_id')::uuid, actor_id = sqlc.arg('actor_id')::uuid, created_at = now()
     FROM unread u
-    WHERE a.id = u.id
+    WHERE a.id = u.id AND EXISTS (SELECT 1 FROM live)
     RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
 ), created AS (
     INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
     SELECT r.id, r.user_id, sqlc.arg('kind')::text, sqlc.narg('space_id')::uuid,
         sqlc.arg('channel_id')::uuid, sqlc.arg('message_id')::uuid, sqlc.arg('actor_id')::uuid
     FROM recipient r
-    WHERE NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
+    WHERE EXISTS (SELECT 1 FROM live) AND NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
     RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
 )
 SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM refreshed

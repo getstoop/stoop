@@ -84,6 +84,10 @@ func TestPins(t *testing.T) {
 	if ev.PinnedBy == nil || ev.PinnedBy.Id != authctx.UserID(owner) {
 		t.Errorf("event pinned_by: %+v", ev.PinnedBy)
 	}
+	// The event carries the position the pin stamped the row with.
+	if stamped := messageSeq(t, pool, rules); ev.Seq != stamped || res.Pin.Message.Seq != stamped {
+		t.Errorf("MessagePinned seq %d, answer seq %d, want the row's %d", ev.Seq, res.Pin.Message.Seq, stamped)
+	}
 
 	// Pinning again is a no-op: the same pin back, and nothing broadcast.
 	again, err := setPinned(owner, rules, true)
@@ -141,6 +145,9 @@ func TestPins(t *testing.T) {
 	ev = (<-sub.Events()).GetMessagePinned()
 	if ev == nil || ev.MessageId != rules || ev.Pinned {
 		t.Fatalf("expected an unpin event, got %+v", ev)
+	}
+	if stamped := messageSeq(t, pool, rules); ev.Seq != stamped {
+		t.Errorf("unpin event seq %d, want the row's %d", ev.Seq, stamped)
 	}
 	if pins := list(owner); len(pins) != 1 || pins[0].Message.Id != address {
 		t.Errorf("after unpin: %v", pinIDs(pins))

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -142,6 +143,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 	var row messageRow
 	var linksToFetch []string
 	var thread dbgen.Thread
+	var rootSeq int64 // the root's position once its summary changed
 	var threadMarker string
 	var threadRootID *string
 	if threadRoot != nil {
@@ -153,6 +155,13 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		seq, err := qtx.NextChannelSeq(ctx, channel.ID)
 		if err != nil {
 			return fmt.Errorf("next channel seq: %w", err)
+		}
+		// threadRootFor read the root before the transaction; a delete
+		// that committed since would have the reply recreate its thread.
+		if threadRoot != nil {
+			if _, err := liveMessage(ctx, qtx, threadRoot.ID); err != nil {
+				return err
+			}
 		}
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: stored,
@@ -187,7 +196,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 				return fmt.Errorf("record thread reply: %w", err)
 			}
 			// The root's summary changed with it.
-			if _, err := stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
+			if rootSeq, err = stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
 				return err
 			}
 			if threadMarker, err = qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
@@ -255,7 +264,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: msg},
 	}))
 	if threadRoot != nil {
-		if ev := s.threadChanged(ctx, channel, threadRoot.ID, &thread); ev != nil {
+		if ev := s.threadChanged(ctx, channel, threadRoot.ID, &thread, rootSeq); ev != nil {
 			s.publishTo(channel, participants, ev)
 		}
 		s.publishThreadRead(userID, channel, threadRoot.ID, threadMarker)
@@ -358,7 +367,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	}
 	return connect.NewResponse(&chatv1.ListMessagesResponse{
 		Messages: messages, HasOlder: hasOlder, HasNewer: hasNewer, ThreadRootId: openThread,
-		ChannelSeq: channel.Seq,
+		ChannelSeq: channel.Seq, RetentionFloorId: s.retentionFloorID(ctx, time.Now()),
 	}), nil
 }
 

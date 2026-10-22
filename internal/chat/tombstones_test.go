@@ -3,6 +3,7 @@ package chat_test
 import (
 	"context"
 	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,6 +16,11 @@ import (
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/events"
 )
+
+// at is how eventKinds writes a seq.
+func at(seq int64) string {
+	return "@" + strconv.FormatInt(seq, 10)
+}
 
 // tombstone is what a deleted message's row looks like.
 type tombstone struct {
@@ -43,7 +49,8 @@ func readTombstone(t *testing.T, pool *pgxpool.Pool, messageID string) tombstone
 }
 
 // eventKinds drains what the subscription holds and names each event:
-// message_deleted carries the id and root it names.
+// message_deleted carries the id and root it names, and every message
+// event ends in @ and the seq it carries.
 func eventKinds(sub *events.Subscription) []string {
 	var kinds []string
 	for {
@@ -51,15 +58,15 @@ func eventKinds(sub *events.Subscription) []string {
 		case ev := <-sub.Events():
 			switch payload := ev.Payload.(type) {
 			case *realtimev1.ServerEvent_MessageDeleted:
-				kinds = append(kinds, "message_deleted:"+payload.MessageDeleted.MessageId+":"+payload.MessageDeleted.ThreadRootId)
+				kinds = append(kinds, "message_deleted:"+payload.MessageDeleted.MessageId+":"+payload.MessageDeleted.ThreadRootId+at(payload.MessageDeleted.Seq))
 			case *realtimev1.ServerEvent_MessageUpdated:
 				kind := "message_updated:" + payload.MessageUpdated.Id
 				if payload.MessageUpdated.Deleted {
 					kind += ":deleted"
 				}
-				kinds = append(kinds, kind)
+				kinds = append(kinds, kind+at(payload.MessageUpdated.Seq))
 			case *realtimev1.ServerEvent_ThreadChanged:
-				kinds = append(kinds, "thread_changed:"+payload.ThreadChanged.RootMessageId)
+				kinds = append(kinds, "thread_changed:"+payload.ThreadChanged.RootMessageId+at(payload.ThreadChanged.Seq))
 			default:
 				kinds = append(kinds, "other")
 			}
@@ -135,6 +142,11 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 		}
 		return *last
 	}
+	// stamp is the position a row holds now, as eventKinds writes it.
+	stamp := func(id string) string {
+		t.Helper()
+		return at(messageSeq(t, pool, id))
+	}
 	// expectTombstone checks the row's shape and that it took the seq
 	// right after before.
 	expectTombstone := func(what, id string, before int64) tombstone {
@@ -173,7 +185,7 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	if got := channelSeq(t, pool, channelID); got != before+1 {
 		t.Errorf("channel seq after the delete = %d, want %d", got, before+1)
 	}
-	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + full.Id + ":"}) {
+	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + full.Id + ":" + stamp(full.Id)}) {
 		t.Errorf("events after deleting a top-level message: %v", kinds)
 	}
 	if !slices.Contains(files.deleted, photo) {
@@ -227,7 +239,7 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	before = channelSeq(t, pool, channelID)
 	remove(bea, byBea.Id)
 	expectTombstone("reply", byBea.Id, before)
-	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + byBea.Id + ":" + root.Id, "thread_changed:" + root.Id}) {
+	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + byBea.Id + ":" + root.Id + stamp(byBea.Id), "thread_changed:" + root.Id + stamp(root.Id)}) {
 		t.Errorf("events after deleting a reply: %v", kinds)
 	}
 	thread, err := page(&chatv1.ListMessagesRequest{ThreadId: root.Id})
@@ -250,7 +262,7 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	before = channelSeq(t, pool, channelID)
 	remove(owner, root.Id)
 	expectTombstone("root with replies", root.Id, before)
-	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_updated:" + root.Id + ":deleted"}) {
+	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_updated:" + root.Id + ":deleted" + stamp(root.Id)}) {
 		t.Errorf("events after deleting a root with replies: %v", kinds)
 	}
 	listed, err = page(&chatv1.ListMessagesRequest{})
@@ -290,7 +302,7 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	if rootRow.seq == nil || *rootRow.seq <= *replyRow.seq {
 		t.Errorf("the vanishing placeholder was stamped %v, want above the reply's %d", rootRow.seq, *replyRow.seq)
 	}
-	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + byOwner.Id + ":" + root.Id, "message_deleted:" + root.Id + ":"}) {
+	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + byOwner.Id + ":" + root.Id + stamp(byOwner.Id), "message_deleted:" + root.Id + ":" + stamp(root.Id)}) {
 		t.Errorf("events after deleting the last reply under a placeholder: %v", kinds)
 	}
 	if listed, err := page(&chatv1.ListMessagesRequest{}); err != nil || find(listed.Messages, root.Id) != nil {
@@ -354,12 +366,16 @@ func TestDeleteThreadTombstonesEveryRow(t *testing.T) {
 	}
 	goneStamp := readTombstone(t, pool, gone.Id).seq
 	eventKinds(sub)
+	stamp := func(id string) string {
+		t.Helper()
+		return at(messageSeq(t, pool, id))
+	}
 
 	before := channelSeq(t, pool, channelID)
 	if _, err := svc.DeleteThread(owner, connect.NewRequest(&chatv1.DeleteThreadRequest{MessageId: root.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + root.Id + ":"}) {
+	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + root.Id + ":" + stamp(root.Id)}) {
 		t.Errorf("events after Delete thread: %v", kinds)
 	}
 	// Three live rows, three new positions, each row its own, the root

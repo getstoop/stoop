@@ -57,8 +57,15 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 
 func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
 	var row dbgen.ChannelPin
+	var seq int64
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+		var err error
+		if seq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+			return err
+		}
+		// The check above ran before the transaction; a delete that
+		// committed since would leave a tombstone pinned.
+		if _, err := liveMessage(ctx, qtx, msg.ID); err != nil {
 			return err
 		}
 		pinned, err := qtx.PinMessage(ctx, dbgen.PinMessageParams{
@@ -69,7 +76,7 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 		return err // no row rolls the stamp back: nothing changed
 	})
 	switch {
-	case errors.Is(err, errMessageGone):
+	case errors.Is(err, errMessageGone), errors.Is(err, errPlaceholder):
 		return nil, err
 	case errors.Is(err, pgx.ErrNoRows):
 		// The insert wrote nothing: either it is pinned already, or the
@@ -85,7 +92,7 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 	case err != nil:
 		return nil, fmt.Errorf("pin message: %w", err)
 	default:
-		s.publishPin(ctx, channel, row, true)
+		s.publishPin(ctx, channel, row, true, seq)
 	}
 
 	pin, err := s.pinProto(ctx, msg, channel, row)
@@ -96,8 +103,10 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 }
 
 func (s *Service) unpin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
+	var seq int64
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+		var err error
+		if seq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
 		}
 		removed, err := qtx.UnpinMessage(ctx, msg.ID)
@@ -115,7 +124,7 @@ func (s *Service) unpin(ctx context.Context, msg messageRow, channel dbgen.Chann
 	case err != nil:
 		return nil, err
 	default:
-		s.publishPin(ctx, channel, dbgen.ChannelPin{MessageID: msg.ID, ChannelID: channel.ID}, false)
+		s.publishPin(ctx, channel, dbgen.ChannelPin{MessageID: msg.ID, ChannelID: channel.ID}, false, seq)
 	}
 	return connect.NewResponse(&chatv1.SetMessagePinnedResponse{}), nil
 }
@@ -202,11 +211,12 @@ func (s *Service) pinProto(ctx context.Context, msg messageRow, channel dbgen.Ch
 }
 
 // publishPin broadcasts the change, not the list: a channel's pins can be
-// fifty full messages, and whoever shows them asks for them.
-func (s *Service) publishPin(ctx context.Context, channel dbgen.Channel, row dbgen.ChannelPin, pinned bool) {
+// fifty full messages, and whoever shows them asks for them. seq is the
+// position the change stamped the message with.
+func (s *Service) publishPin(ctx context.Context, channel dbgen.Channel, row dbgen.ChannelPin, pinned bool, seq int64) {
 	ev := &realtimev1.MessagePinned{
 		SpaceId: spaceOf(channel), ChannelId: channel.ID,
-		MessageId: row.MessageID, Pinned: pinned,
+		MessageId: row.MessageID, Pinned: pinned, Seq: seq,
 	}
 	if pinned {
 		pinners, err := s.resolveAuthors(ctx, []string{row.PinnedBy})

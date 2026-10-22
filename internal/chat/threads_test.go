@@ -74,6 +74,11 @@ func TestThreadReplies(t *testing.T) {
 	if authors := changed.Thread.RecentAuthors; len(authors) != 1 || authors[0].Username != "bea" {
 		t.Errorf("recent authors = %v, want [bea]", authors)
 	}
+	// The event carries the position the reply stamped its root with: the
+	// one after the reply's own.
+	if stamped := messageSeq(t, pool, root.Id); changed.Seq != stamped || stamped != first.Seq+1 {
+		t.Errorf("ThreadChanged seq %d, root stamped %d, reply %d", changed.Seq, stamped, first.Seq)
+	}
 	if lastMessage() != root.Id {
 		t.Error("a thread reply moved the channel's newest message")
 	}

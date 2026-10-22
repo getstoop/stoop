@@ -18,10 +18,16 @@ import (
 	"github.com/getstoop/stoop/internal/pbtime"
 )
 
+// errPlaceholder is a write aimed at a root kept as a placeholder.
+// placeholderError wraps it, a fresh connect error per call since one
+// carries mutable headers; a caller that needs to tell it apart matches
+// it with errors.Is.
+var errPlaceholder = errors.New("that message was deleted")
+
 // placeholderError refuses anything but reading on a root kept as a
 // placeholder.
 func placeholderError() error {
-	return connect.NewError(connect.CodeFailedPrecondition, errors.New("that message was deleted"))
+	return connect.NewError(connect.CodeFailedPrecondition, errPlaceholder)
 }
 
 // threadRootFor checks that rootID can take a reply sent in channel: a
@@ -84,10 +90,11 @@ func toProtoThread(count int32, lastReplyAt *time.Time, recentAuthorIDs []string
 }
 
 // threadChanged is the event carrying a root's summary after a reply lands
-// or goes; nil, logged, when the authors can't be resolved, since the
-// reply is already saved.
-func (s *Service) threadChanged(ctx context.Context, channel dbgen.Channel, rootID string, thread *dbgen.Thread) *realtimev1.ServerEvent {
-	changed := &realtimev1.ThreadChanged{SpaceId: spaceOf(channel), ChannelId: channel.ID, RootMessageId: rootID}
+// or goes, and rootSeq, the position that stamped the root for it; nil,
+// logged, when the authors can't be resolved, since the reply is already
+// saved.
+func (s *Service) threadChanged(ctx context.Context, channel dbgen.Channel, rootID string, thread *dbgen.Thread, rootSeq int64) *realtimev1.ServerEvent {
+	changed := &realtimev1.ThreadChanged{SpaceId: spaceOf(channel), ChannelId: channel.ID, RootMessageId: rootID, Seq: rootSeq}
 	if thread != nil {
 		authors, err := s.resolveAuthors(ctx, thread.RecentAuthorIds)
 		if err != nil {
@@ -101,10 +108,12 @@ func (s *Service) threadChanged(ctx context.Context, channel dbgen.Channel, root
 	})
 }
 
-func messageDeleted(messageID string, channel dbgen.Channel, threadRootID string) *realtimev1.ServerEvent {
+// messageDeleted tells the channel a row vanished; seq is the position the
+// delete stamped it with.
+func messageDeleted(messageID string, channel dbgen.Channel, threadRootID string, seq int64) *realtimev1.ServerEvent {
 	return events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_MessageDeleted{MessageDeleted: &realtimev1.MessageDeleted{
-			MessageId: messageID, ChannelId: channel.ID, SpaceId: spaceOf(channel), ThreadRootId: threadRootID,
+			MessageId: messageID, ChannelId: channel.ID, SpaceId: spaceOf(channel), ThreadRootId: threadRootID, Seq: seq,
 		}},
 	})
 }
@@ -137,14 +146,17 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 	if err != nil {
 		return nil, fmt.Errorf("list attachments: %w", err)
 	}
+	var rootSeq int64
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		return tombstoneThread(ctx, qtx, channel.ID, root)
+		var err error
+		rootSeq, err = tombstoneThread(ctx, qtx, channel.ID, root)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	s.deleteMessageFiles(ctx, fileIDs)
-	s.publishChannel(ctx, channel, messageDeleted(root.ID, channel, ""))
+	s.publishChannel(ctx, channel, messageDeleted(root.ID, channel, "", rootSeq))
 	return connect.NewResponse(&chatv1.DeleteThreadResponse{}), nil
 }
 

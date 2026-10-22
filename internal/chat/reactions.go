@@ -58,8 +58,10 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	}
 
 	params := dbgen.AddReactionParams{MessageID: msg.ID, UserID: userID, Emoji: req.Msg.Emoji}
+	var seq int64
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+		var err error
+		if seq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
 		}
 		added, err := qtx.AddReaction(ctx, params)
@@ -95,7 +97,7 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 		Payload: &realtimev1.ServerEvent_ReactionsChanged{
 			ReactionsChanged: &realtimev1.ReactionsChanged{
 				SpaceId: spaceOf(channel), ChannelId: channel.ID, MessageId: msg.ID,
-				Reactions: out.Reactions,
+				Reactions: out.Reactions, Seq: seq,
 			},
 		},
 	}))

@@ -297,6 +297,66 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 	return items, nil
 }
 
+const listMessageChanges = `-- name: ListMessageChanges :many
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
+WHERE m.channel_id = $1
+  AND m.seq > $2::bigint
+ORDER BY m.seq
+LIMIT $3
+`
+
+type ListMessageChangesParams struct {
+	ChannelID string
+	SinceSeq  int64
+	Limit     int32
+}
+
+// ListMessageChanges is the channel log from a position: every row stamped
+// above since_seq, in seq order, for ListChanges. Deliberately no shown
+// filter: a tombstone and a thread reply are changes the client applies
+// to what it holds, so every row comes back. A row with no seq (written by
+// an older binary during a rollback) is never above since_seq and is left
+// for the next full load.
+func (q *Queries) ListMessageChanges(ctx context.Context, arg ListMessageChangesParams) ([]MessageWithReply, error) {
+	rows, err := q.db.Query(ctx, listMessageChanges, arg.ChannelID, arg.SinceSeq, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MessageWithReply
+	for rows.Next() {
+		var i MessageWithReply
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChannelID,
+			&i.AuthorID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.MentionsEntireChannel,
+			&i.ReplyToMessageID,
+			&i.MentionsHere,
+			&i.EditedAt,
+			&i.ReplyAuthorID,
+			&i.ReplyContent,
+			&i.ReplyFirstFileID,
+			&i.ThreadRootID,
+			&i.InChannel,
+			&i.DeletedAt,
+			&i.ThreadReplyCount,
+			&i.ThreadLastReplyAt,
+			&i.ThreadRecentAuthorIds,
+			&i.Seq,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMessagesAfter = `-- name: ListMessagesAfter :many
 SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.channel_id = $1

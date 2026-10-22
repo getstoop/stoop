@@ -29,6 +29,7 @@ const createActivityItems = `-- name: CreateActivityItems :many
 INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
 SELECT unnest($1::uuid[]), unnest($2::uuid[]), $3::text,
     $4::uuid, $5::uuid, $6::uuid, $7::uuid
+WHERE EXISTS (SELECT 1 FROM messages m WHERE m.id = $6::uuid AND m.deleted_at IS NULL)
 RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
 `
 
@@ -45,7 +46,9 @@ type CreateActivityItemsParams struct {
 // Activity items. Owned by the chat module.
 // Only internal/chat may use these queries.
 // CreateActivityItems writes one item of a kind for each recipient of
-// a message, in one statement (see chat.notify).
+// a message, in one statement (see chat.notify). Nothing is written for
+// a message deleted since it was sent: activity is recorded after the
+// send commits, and a tombstone's items go with it.
 func (q *Queries) CreateActivityItems(ctx context.Context, arg CreateActivityItemsParams) ([]ActivityItem, error) {
 	rows, err := q.db.Query(ctx, createActivityItems,
 		arg.Ids,
@@ -255,31 +258,33 @@ func (q *Queries) MarkAllActivityRead(ctx context.Context, userID string) error 
 }
 
 const upsertUnreadActivityItems = `-- name: UpsertUnreadActivityItems :many
-WITH recipient AS (
-    SELECT unnest($1::uuid[]) AS id, unnest($2::uuid[]) AS user_id
+WITH live AS (
+    SELECT 1 FROM messages m WHERE m.id = $1::uuid AND m.deleted_at IS NULL
+), recipient AS (
+    SELECT unnest($2::uuid[]) AS id, unnest($3::uuid[]) AS user_id
 ), unread AS (
     SELECT DISTINCT ON (a.user_id) a.id, a.user_id
     FROM activity_items a
-    WHERE a.user_id = ANY($2::uuid[])
-      AND a.channel_id = $3::uuid
-      AND a.kind = $4::text
+    WHERE a.user_id = ANY($3::uuid[])
+      AND a.channel_id = $4::uuid
+      AND a.kind = $5::text
       AND a.read_at IS NULL
-      AND ($5::uuid IS NULL
+      AND ($6::uuid IS NULL
            OR EXISTS (SELECT 1 FROM messages m
-                      WHERE m.id = a.message_id AND m.thread_root_id = $5::uuid))
+                      WHERE m.id = a.message_id AND m.thread_root_id = $6::uuid))
     ORDER BY a.user_id, a.id DESC
 ), refreshed AS (
     UPDATE activity_items a
-    SET message_id = $6::uuid, actor_id = $7::uuid, created_at = now()
+    SET message_id = $1::uuid, actor_id = $7::uuid, created_at = now()
     FROM unread u
-    WHERE a.id = u.id
+    WHERE a.id = u.id AND EXISTS (SELECT 1 FROM live)
     RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
 ), created AS (
     INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
-    SELECT r.id, r.user_id, $4::text, $8::uuid,
-        $3::uuid, $6::uuid, $7::uuid
+    SELECT r.id, r.user_id, $5::text, $8::uuid,
+        $4::uuid, $1::uuid, $7::uuid
     FROM recipient r
-    WHERE NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
+    WHERE EXISTS (SELECT 1 FROM live) AND NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
     RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
 )
 SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM refreshed
@@ -288,12 +293,12 @@ SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at
 `
 
 type UpsertUnreadActivityItemsParams struct {
+	MessageID    string
 	Ids          []string
 	UserIds      []string
 	ChannelID    string
 	Kind         string
 	ThreadRootID *string
-	MessageID    string
 	ActorID      string
 	SpaceID      *string
 }
@@ -314,15 +319,17 @@ type UpsertUnreadActivityItemsRow struct {
 // coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
 // thread when thread_root_id is set: a recipient's newest unread item of
 // the kind there is pointed at the new message and stamped now; a
-// recipient without one gets a new item.
+// recipient without one gets a new item. Nothing is refreshed or written
+// for a message deleted since it was sent, as CreateActivityItems writes
+// nothing.
 func (q *Queries) UpsertUnreadActivityItems(ctx context.Context, arg UpsertUnreadActivityItemsParams) ([]UpsertUnreadActivityItemsRow, error) {
 	rows, err := q.db.Query(ctx, upsertUnreadActivityItems,
+		arg.MessageID,
 		arg.Ids,
 		arg.UserIds,
 		arg.ChannelID,
 		arg.Kind,
 		arg.ThreadRootID,
-		arg.MessageID,
 		arg.ActorID,
 		arg.SpaceID,
 	)
