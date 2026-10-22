@@ -449,7 +449,11 @@ top-to-bottom scroll container that starts at the bottom.
   (`styles/virtual-list.css`), since a row's measured height is its border
   box. Rows are keyed by message id, so a page prepended keeps every
   measured height; a row that grows later (an image arriving, a link
-  preview) is re-measured by the virtualiser's `ResizeObserver`.
+  preview) is re-measured by the virtualiser's `ResizeObserver`. The row
+  being edited stays mounted wherever the view is — a `rangeExtractor`
+  adds its index (the head's, when a thread's root is edited there) to the
+  virtualiser's range, since the editor holds the draft — and starting an
+  edit brings the row on screen.
 - **The view does not move when the window changes at an edge.** Before
   a page is asked for, the list notes where the edge's message sits on
   screen; once the window has changed (a page prepended or appended, the

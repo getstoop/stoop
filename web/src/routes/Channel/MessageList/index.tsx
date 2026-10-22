@@ -1,6 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  defaultRangeExtractor,
+  type Range,
+  useVirtualizer,
+} from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
 import {
   useCallback,
@@ -168,6 +172,9 @@ export function MessageList({
   // For the handlers rows keep across renders.
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // The row being edited: the head's index when a thread's root is edited
+  // there, -1 when nothing is or the window doesn't hold it.
+  const editingIndex = editingId ? indexOfMessage(items, editingId) : -1;
 
   // The virtualiser. Rows are keyed by message, so a page prepended keeps
   // every measured height. Edge loading asks for the next page when the
@@ -193,6 +200,16 @@ export function MessageList({
     ),
     getItemKey: useCallback((index: number) => items[index].key, [items]),
     overscan: OVERSCAN,
+    // The edited row stays mounted wherever the view is: the editor holds
+    // the draft, which unmounting beyond the overscan would lose.
+    rangeExtractor: useCallback(
+      (range: Range) => {
+        const indexes = defaultRangeExtractor(range);
+        if (editingIndex < 0 || indexes.includes(editingIndex)) return indexes;
+        return [...indexes, editingIndex].sort((left, right) => left - right);
+      },
+      [editingIndex],
+    ),
     onChange: (instance) => {
       const list = listRef.current;
       if (!landedOnce.current || !list) return;
@@ -335,6 +352,14 @@ export function MessageList({
     list.scrollTop = list.getBoundingClientRect().top + start - pinned.top;
   }, [items]);
 
+  // An edit beginning brings its row on screen: the composer's ArrowUp
+  // picks the reader's last message wherever the view is.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: on the start of an edit, not on the window changing
+  useEffect(() => {
+    if (editingIndex < 0) return;
+    virtualizer.scrollToIndex(editingIndex, { align: "auto" });
+  }, [editingId]);
+
   // Jump to a message and flash it. If it isn't in the window, one round
   // trip replaces the window with a page centred on it.
   const jumpTo = useCallback(
@@ -447,8 +472,13 @@ export function MessageList({
   const newestMine = messages[messages.length - 1]?.author?.id === me?.id;
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
   useLayoutEffect(() => {
-    // Nothing to land on yet: the first window is still the first.
-    if (messages.length === 0) return;
+    // Nothing to land on yet, or nothing left (the last message deleted):
+    // the next window is the first again, so its message lands at the
+    // bottom rather than counting as a replaced window.
+    if (messages.length === 0) {
+      seenNewest.current = undefined;
+      return;
+    }
     const change = newestChange(seenNewest.current, messages);
     seenNewest.current = newestId;
     if (change !== "first" && change !== "arrival") return;

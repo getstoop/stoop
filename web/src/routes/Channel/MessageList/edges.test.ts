@@ -103,4 +103,10 @@ describe("newestChange", () => {
     expect(newestChange("a", [])).toBe("replaced");
     expect(newestChange("a", [a, b, c])).toBe("replaced");
   });
+
+  it("after the window emptied, the list forgets the newest: the next is first", () => {
+    // Remembering the deleted id would make the next message "replaced".
+    expect(newestChange("a", [b])).toBe("replaced");
+    expect(newestChange(undefined, [b])).toBe("first");
+  });
 });
