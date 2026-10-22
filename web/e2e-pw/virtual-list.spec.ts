@@ -18,6 +18,35 @@ const VIEWPORT = { width: 1100, height: 700 };
 // the window holds a hundred and more by the time this is checked.
 const DOM_BOUND = 60;
 
+// Seed `count` messages over RPC from Node (window.spec.ts says why),
+// keeping the ids; the authors take turns, and the last message quotes
+// the `quoted`-th when given.
+async function seedMessages(
+  tokens: string[],
+  channelId: string,
+  count: number,
+  quoted?: number,
+): Promise<string[]> {
+  const ids: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    const res = await fetch(`${BASE}/stoop.chat.v1.ChatService/SendMessage`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${tokens[(i - 1) % tokens.length]}`,
+      },
+      body: JSON.stringify({
+        channelId,
+        content: `message ${i}`,
+        replyToMessageId: quoted && i === count ? ids[quoted - 1] : "",
+      }),
+    });
+    if (!res.ok) throw new Error(`seeding message ${i}: HTTP ${res.status}`);
+    ids.push((await res.json()).message.id);
+  }
+  return ids;
+}
+
 test("the list renders only the rows near the viewport", async ({
   browser,
 }) => {
@@ -25,25 +54,8 @@ test("the list renders only the rows near the viewport", async ({
   const { tokens, channels } = await seed({ channels: ["general"] });
   const channelId = channels.general;
 
-  // Seed over RPC from Node (window.spec.ts says why), keeping the ids;
-  // the last message quotes QUOTED.
-  const ids: string[] = [];
-  for (let i = 1; i <= SEED; i++) {
-    const res = await fetch(`${BASE}/stoop.chat.v1.ChatService/SendMessage`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${tokens.ada}`,
-      },
-      body: JSON.stringify({
-        channelId,
-        content: `message ${i}`,
-        replyToMessageId: i === SEED ? ids[QUOTED - 1] : "",
-      }),
-    });
-    if (!res.ok) throw new Error(`seeding message ${i}: HTTP ${res.status}`);
-    ids.push((await res.json()).message.id);
-  }
+  // The last message quotes QUOTED.
+  const ids = await seedMessages([tokens.ada], channelId, SEED, QUOTED);
 
   const A = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
   const messages = A.locator(".message");
@@ -227,4 +239,112 @@ test("the list renders only the rows near the viewport", async ({
     Math.abs((await scrollTop()) - topBefore),
     "…and doesn't move the view",
   ).toBeLessThan(3);
+});
+
+// A reader with the whole newest page unread lands on the "New messages"
+// line, the window's first row, which leaves the view at the top the list
+// rendered at: no scroll event, so the edges are read from the landing
+// itself, and the older page arrives without the reader scrolling, the
+// viewed row staying put. From the top, the pill offers the way back.
+test("landing at the top on the unread line pages back without a scroll", async ({
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const { tokens, channels } = await seed({
+    users: ["ada", "bea", "cy"],
+    channels: ["general"],
+  });
+  // Ada and Cy take turns, so no row continues the one before: with every
+  // message new, the unread line sits above the window's oldest message
+  // and moves up with the page (core/grouping's firstNewMessageId), and a
+  // row it left would otherwise be drawn as a continuation, without its
+  // author line, and move for that reason rather than the page's.
+  const ids = await seedMessages(
+    [tokens.ada, tokens.cy],
+    channels.general,
+    SEED,
+  );
+  // The window's first message, under the divider; its row is the one
+  // that must not move when the older page lands above it.
+  const firstId = `msg-${ids[SEED - 50]}`;
+
+  const B = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
+  const list = B.locator(".message-list");
+  const pill = B.locator(".jump-latest");
+  const scrollTop = () => list.evaluate((e) => e.scrollTop);
+  const atBottom = () =>
+    list.evaluate((e) => e.scrollHeight - e.scrollTop - e.clientHeight < 40);
+  const topOf = (id: string) =>
+    B.evaluate(
+      (id) => document.getElementById(id)?.getBoundingClientRect().top ?? -1,
+      id,
+    );
+
+  // The older page's request (the one carrying beforeId; the window's own
+  // load passes) is held until the viewed row's position has been read.
+  let open = () => {};
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  const isOlderPage = (body: unknown) =>
+    !!(body as { beforeId?: string } | null)?.beforeId;
+  await B.route("**/stoop.chat.v1.ChatService/ListMessages", async (route) => {
+    if (isOlderPage(route.request().postDataJSON())) await gate;
+    await route.continue();
+  });
+  const olderPageRequest = B.waitForRequest(
+    (request) =>
+      /ChatService\/ListMessages/.test(request.url()) &&
+      isOlderPage(request.postDataJSON()),
+  );
+
+  // Bea has never opened the channel: every message is new to her.
+  await signIn(B, tokens.bea);
+  await expect(list, "opens on the latest page").toHaveAttribute(
+    "data-rows",
+    "50",
+  );
+  await expect(
+    B.locator(".new-divider"),
+    "the unread line is the window's first row, on the day's line",
+  ).toHaveText("Today · New messages");
+  await expect(
+    B.locator(".new-divider + *"),
+    "…above the window's first message",
+  ).toHaveAttribute("id", firstId);
+  expect(await scrollTop(), "the view is at the top").toBe(0);
+  const before = await anchoredTop(B, firstId);
+
+  // No scroll, yet the older page is asked for from the landing.
+  await olderPageRequest;
+  open();
+  await expect(list, "the older page arrives").toHaveAttribute(
+    "data-rows",
+    "100",
+  );
+  await expect
+    .poll(async () => Math.abs((await topOf(firstId)) - before), {
+      message: "…with the viewed row where it was",
+    })
+    .toBeLessThan(3);
+  await expect
+    .poll(scrollTop, {
+      message: "…and the view no longer at the top, so a further page waits",
+    })
+    .toBeGreaterThan(0);
+  await expect(list, "…for a scroll").toHaveAttribute("data-rows", "100");
+  await expect(pill, "far from the bottom, the pill is offered").toHaveText(
+    "Jump to latest ↓",
+  );
+
+  // Jump to latest lands at the bottom.
+  await pill.click();
+  await expect(pill, "Jump to latest hides the pill").toHaveCount(0);
+  await expect
+    .poll(atBottom, { message: "…and lands at the bottom" })
+    .toBe(true);
+  await expect(
+    B.locator(`#msg-${ids[SEED - 1]}`),
+    "…with the newest message on screen",
+  ).toBeVisible();
 });
