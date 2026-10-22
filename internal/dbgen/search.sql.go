@@ -11,7 +11,7 @@ import (
 )
 
 const getChannelInSpaceByName = `-- name: GetChannelInSpaceByName :one
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, c.swept_seq FROM channels c
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq FROM channels c
 WHERE c.space_id = $1::uuid AND lower(c.name) = lower($2)
   AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $3::uuid)
 ORDER BY (c.name = $2) DESC, c.position, c.created_at
@@ -44,7 +44,6 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 		&i.PostPolicy,
 		&i.Private,
 		&i.Seq,
-		&i.SweptSeq,
 	)
 	return i, err
 }

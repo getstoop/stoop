@@ -87,10 +87,8 @@ not a space power.
 **`channels`** — `name`, `kind` (1 text, 2 voice, 3 DM), `position`,
 `topic`, `last_message_id`, `post_policy` (who may post; see
 [messaging.md](messaging.md#announcement-channels)), `seq` (the channel
-log, under `messages` below), `swept_seq` (written and read by nothing
-since 0.15.0; dropped in the release after it, once no shipped binary
-writes it), and the two columns that make
-direct messages work:
+log, under `messages` below), and the two columns that make direct
+messages work:
 
 ```sql
 ALTER TABLE channels ALTER COLUMN space_id DROP NOT NULL;
@@ -167,9 +165,9 @@ writes message rows takes the channel row first (`internal/chat/seq.go`),
 the retention sweep included. A client learns what the sweep took from
 the retention floor on `ListMessages` and `ListChanges`
 ([messaging.md](messaging.md#catching-up-listchanges)).
-`channels.swept_seq` was where 0.14.0's sweep recorded the highest seq it
-had hard-deleted; nothing read it, 0.15.0 stopped writing it, and the
-release after drops the column, once no shipped binary writes it.
+(`channels.swept_seq`, where 0.14.0's sweep recorded the highest seq it
+had hard-deleted, was read by nothing; 0.15.0 stopped writing it and
+00070 dropped it.)
 `messages.seq` is `NOT NULL`: migration 00068 added it nullable and
 backfilled it as each row's rank by id in its channel, and 00069 (the
 contract half, one release later) gave any row still without one — written
@@ -437,9 +435,10 @@ release after 00068 added it nullable: the floor goes to 68, the last
 migration of 0.14.0, whose code always writes the column and so still
 runs against the result, while 0.13.0 (newest 67) never wrote it and is
 refused. 00065 set the floor to its own number because the release before
-it could not run against a renamed column at all; a contract migration
-the previous release *can* live with points at that release, not at
-itself.
+it could not run against a renamed column at all, and 00070, which drops
+`channels.swept_seq`, does the same because 0.15.0's generated queries
+name the column in every read of a channel row; a contract migration the
+previous release *can* live with points at that release, not at itself.
 
 A contract migration raises the constant `db.Floor` in the same PR.
 `TestFloorMatchesSchema` migrates a fresh database and checks

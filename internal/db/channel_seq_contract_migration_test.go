@@ -85,7 +85,9 @@ func TestChannelSeqContractMigrationFillsRollbackRows(t *testing.T) {
 		}
 	}
 
-	if err := goose.UpContext(ctx, sqlDB, "migrations"); err != nil {
+	// Up to 00069 alone: 00070 raises the floor again, and this test is about
+	// what 00069 leaves.
+	if err := goose.UpToContext(ctx, sqlDB, "migrations", 69); err != nil {
 		t.Fatal(err)
 	}
 

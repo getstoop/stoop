@@ -96,20 +96,26 @@ func TestInspectContractFromPreviousRelease(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	if err := db.MigrateTo(ctx, pool, 68); err != nil {
+	// A 0.15.0 database: 00069 applied, floor 68.
+	if err := db.MigrateTo(ctx, pool, 69); err != nil {
 		t.Fatal(err)
 	}
 	plan, err := db.Inspect(ctx, pool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Applied != 68 || plan.Floor != 65 || plan.FloorAfter != 68 || !plan.Contract() || plan.Refused() != nil {
-		t.Errorf("database at 68: %+v", plan)
+	if plan.Applied != 69 || plan.Floor != 68 || plan.FloorAfter != 70 || !plan.Contract() || plan.Refused() != nil {
+		t.Errorf("database at 69: %+v", plan)
 	}
-	if len(plan.Pending) == 0 || plan.Pending[0].Version != 69 || plan.Pending[0].Name != "channel_seq_contract" {
-		t.Errorf("pending should start at 00069_channel_seq_contract: %+v", plan.Pending)
+	if len(plan.Pending) == 0 || plan.Pending[0].Version != 70 || plan.Pending[0].Name != "drop_swept_seq" {
+		t.Errorf("pending should start at 00070_drop_swept_seq: %+v", plan.Pending)
 	}
-	if release, ok := db.OldestStartable(plan.FloorAfter); !ok || release.Version != "0.14.0" {
-		t.Errorf("oldest release starting against floor %d = %+v %v, want 0.14.0", plan.FloorAfter, release, ok)
+	// 00070 refuses the release before it, so until the release that ships
+	// it is tagged no release can start against the result.
+	if release, ok := db.OldestStartable(plan.FloorAfter); ok {
+		t.Errorf("oldest release starting against floor %d = %+v, want none yet", plan.FloorAfter, release)
+	}
+	if release, ok := db.OldestStartable(plan.Floor); !ok || release.Version != "0.14.0" {
+		t.Errorf("oldest release starting against floor %d = %+v %v, want 0.14.0", plan.Floor, release, ok)
 	}
 }

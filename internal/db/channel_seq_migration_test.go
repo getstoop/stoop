@@ -74,12 +74,12 @@ func TestChannelSeqMigrationBackfillsTheLog(t *testing.T) {
 		if !slices.Equal(seqs, want) {
 			t.Errorf("%s: message seqs in id order = %v, want %v", name, seqs, want)
 		}
-		var channelSeq, sweptSeq int64
-		if err := pool.QueryRow(ctx, `SELECT seq, swept_seq FROM channels WHERE id = $1`, channels[name]).Scan(&channelSeq, &sweptSeq); err != nil {
+		var channelSeq int64
+		if err := pool.QueryRow(ctx, `SELECT seq FROM channels WHERE id = $1`, channels[name]).Scan(&channelSeq); err != nil {
 			t.Fatal(err)
 		}
-		if channelSeq != count || sweptSeq != 0 {
-			t.Errorf("%s: channel seq %d swept_seq %d, want %d and 0", name, channelSeq, sweptSeq, count)
+		if channelSeq != count {
+			t.Errorf("%s: channel seq %d, want %d", name, channelSeq, count)
 		}
 	}
 }

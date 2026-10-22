@@ -33,7 +33,6 @@ type Channel struct {
 	PostPolicy    string
 	Private       bool
 	Seq           int64
-	SweptSeq      int64
 }
 
 type ChannelMember struct {
