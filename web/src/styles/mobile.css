@@ -172,7 +172,15 @@
   }
 
   .message-list {
-    padding: 12px 8px;
+    padding: 0 8px;
+  }
+
+  .message-list-head {
+    padding-top: 12px;
+  }
+
+  .message-list-foot {
+    padding-bottom: 12px;
   }
 
   .message {

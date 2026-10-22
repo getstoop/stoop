@@ -9,9 +9,11 @@ declare global {
 
 // Windowed history (STOOP-57): jumping to a message that isn't loaded
 // replaces the timeline with one page around it; scrolling down pages
-// forward until the window is live again; the DOM never holds more than
+// forward until the window is live again; the window never holds more than
 // WINDOW_CAP rows; arrivals while windowed count on the pill; ?m= deep
-// links open around a message.
+// links open around a message. The list is virtualised, so the window is
+// read from the list's data-rows; the DOM holds only the rows near the
+// viewport (virtual-list.spec.ts), far fewer than the cap.
 // Ported from web/e2e/window.mjs (STOOP-238). The viewport the puppeteer
 // harness launched with is set on the contexts here.
 // Enough to prove the cap, with one page of margin and no more. The
@@ -74,6 +76,8 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   const lastLine = lines.last();
   const start = A.locator(".history-start");
   const scrollTop = () => list.evaluate((e) => e.scrollTop);
+  // How many messages the window holds, whatever the DOM shows of them.
+  const rows = () => list.getAttribute("data-rows").then(Number);
   const scrollToBottom = () =>
     list.evaluate((e) => {
       e.scrollTop = e.scrollHeight;
@@ -96,7 +100,10 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
 
   await signIn(A, tokens.ada, channelPath);
   await pastGate(A);
-  await expect(messages, "opens on the latest page").toHaveCount(50);
+  await expect(list, "opens on the latest page").toHaveAttribute(
+    "data-rows",
+    "50",
+  );
   // Was a flat 1200 ms. What it waited for is the opening scroll landing,
   // so that it can't clobber the jump below — not that it landed at the
   // bottom specifically (a "New messages" line would take it elsewhere).
@@ -112,7 +119,7 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   ).toHaveCount(1);
   // Proving nothing *else* loaded needs time to pass, so this one stays.
   await A.waitForTimeout(300);
-  const n1 = await messages.count();
+  const n1 = await rows();
   expect(
     n1,
     `…as a window around it, not the whole history (${n1} rows)`,
@@ -136,6 +143,7 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   // way the DOM stays capped and the beginning marker goes away as the
   // oldest rows are pruned.
   let maxRows = 0;
+  let maxDom = 0;
   let lastText = await lastLine.innerText();
   for (let i = 0; i < 20 && lastText !== `message ${SEED}`; i++) {
     await scrollToBottom();
@@ -148,7 +156,8 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
       await A.waitForTimeout(100);
       lastText = await lastLine.innerText();
     }
-    maxRows = Math.max(maxRows, await messages.count());
+    maxRows = Math.max(maxRows, await rows());
+    maxDom = Math.max(maxDom, await messages.count());
   }
   expect(
     lastText,
@@ -159,10 +168,18 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
     `the timeline never held more than ${CAP} rows (max ${maxRows})`,
   ).toBeLessThanOrEqual(CAP);
   expect(maxRows, `…and did reach the cap (${maxRows})`).toBe(CAP);
+  expect(
+    maxDom,
+    `the DOM held only the rows near the viewport (max ${maxDom})`,
+  ).toBeLessThan(CAP / 3);
   await expect(
     start,
     "the beginning marker is gone once the oldest rows were pruned",
   ).toHaveCount(0);
+  await expect(list, "…as is message 1").not.toHaveAttribute(
+    "data-oldest",
+    ids[0],
+  );
   // The last page is appended below the anchored view, so the pill still
   // offers the way down; scrolling there dismisses it.
   await scrollToBottom();
@@ -183,13 +200,14 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
   await signIn(B, tokens.bea);
   await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
   const topBefore = await scrollTop();
-  const rowsBefore = await messages.count();
+  const rowsBefore = await rows();
   await say(B, "hello from bea");
   await expect(pill, "someone else's message counts on the pill").toHaveText(
     "1 new message ↓",
   );
-  await expect(messages, "…is not spliced into the window").toHaveCount(
-    rowsBefore,
+  await expect(list, "…is not spliced into the window").toHaveAttribute(
+    "data-rows",
+    String(rowsBefore),
   );
   expect(
     Math.abs((await scrollTop()) - topBefore),
@@ -201,7 +219,7 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
     "hello from bea",
   );
   await A.waitForTimeout(300);
-  const n2 = await messages.count();
+  const n2 = await rows();
   expect(n2, `…as one page (${n2} rows)`).toBeLessThanOrEqual(51);
   await expect
     .poll(atBottom, { message: "…scrolled to the bottom" })
@@ -284,7 +302,7 @@ test("windowed history, jumps, the cap and ?m= deep links", async ({
     .poll(() => centred(ids[MID]), { message: "…on screen" })
     .toBe(true);
   await A.waitForTimeout(400);
-  const n3 = await messages.count();
+  const n3 = await rows();
   expect(n3, `…in one window (${n3} rows)`).toBeLessThanOrEqual(50);
   await expect
     .poll(() => new URL(A.url()).searchParams.has("m"), {

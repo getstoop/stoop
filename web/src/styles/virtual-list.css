@@ -1,0 +1,43 @@
+/* ---- The virtualised message list (routes/Channel/MessageList). Only the
+   rows near the viewport are in the DOM, each placed by the virtualiser at
+   its measured offset inside a body the height of the whole window. A
+   row's measured height is its border box, so nothing here carries a
+   vertical margin: a divider's spacing is padding in this list. ---- */
+
+.message-list-body {
+  position: relative;
+  flex: none;
+  width: 100%;
+}
+
+.message-list-body > * {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+/* The first and last rows carry the list's top and bottom padding. */
+.message-list-head {
+  padding-top: 16px;
+}
+
+.message-list-foot {
+  padding-bottom: 16px;
+}
+
+.message-list-body > .day-divider {
+  margin: 0;
+  /* off-scale: the divider's margins elsewhere (channel-sidebar.css), as padding */
+  padding: 14px 0 8px;
+}
+
+.message-list-body > .new-divider {
+  margin: 0;
+  /* off-scale: the divider's margins elsewhere (channel-sidebar.css), as padding */
+  padding: 2px 0 10px;
+}
+
+.message-list-body > .new-divider.starts-day {
+  /* off-scale: the day divider's top margin, as padding */
+  padding-top: 14px;
+}

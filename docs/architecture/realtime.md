@@ -447,8 +447,10 @@ Message windows do not refetch on tab focus: the socket keeps them current.
 direction prunes the far end, and the pruning sets the opposite edge flag:
 dropping the newest rows to prepend older ones means the window no longer
 ends at the newest message, so `hasNewer` becomes true and the timeline
-stops being live. That is what keeps the DOM bounded without
-virtualization, and the flag bookkeeping is what keeps it *correct* while
+stops being live. The cap bounds what is held and fetched; the DOM is
+bounded on its own by the virtualised list
+([web.md](web.md#the-message-list)), which renders only the rows near the
+viewport. The flag bookkeeping is what keeps the window *correct* while
 bounded.
 
 Following behaviour is deliberately narrow: the view follows an arrival

@@ -30,6 +30,9 @@ import { ThreadSummary } from "./ThreadSummary";
 export const MessageRow = memo(function MessageRow({
   message,
   continued,
+  index,
+  top,
+  measure,
   spaceId,
   link,
   mine,
@@ -60,6 +63,12 @@ export const MessageRow = memo(function MessageRow({
   message: Message;
   // Same author within the minute: no avatar or author line.
   continued: boolean;
+  // Its place in the virtualised list: the item index the virtualiser
+  // measures it under, and its offset in the list's body. Absent on a row
+  // drawn outside the list's body (a thread's root on the head).
+  index?: number;
+  top?: number;
+  measure?: (element: HTMLDivElement | null) => void;
   spaceId: string;
   link: string;
   mine: boolean;
@@ -129,12 +138,19 @@ export const MessageRow = memo(function MessageRow({
     .filter(Boolean)
     .join(" ");
 
+  // The virtualiser's attributes, only where it placed the row.
+  const placement =
+    top === undefined
+      ? {}
+      : { "data-index": index, ref: measure, style: { top } };
+
   if (message.deleted) {
     return (
       <div
         id={`${rowIdPrefix}${message.id}`}
         tabIndex={-1}
         className={`${rowClass} deleted-root`}
+        {...placement}
       >
         <span className="message-avatar" aria-hidden="true">
           <span className="avatar medium placeholder-avatar" />
@@ -154,6 +170,7 @@ export const MessageRow = memo(function MessageRow({
       // screens, where there is no hover.
       tabIndex={-1}
       className={rowClass}
+      {...placement}
     >
       {message.pinned && (
         <div className="pinned-marker eyebrow">
