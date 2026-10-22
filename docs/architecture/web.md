@@ -492,7 +492,14 @@ top-to-bottom scroll container that starts at the bottom.
   virtualiser's range because a row measured as it mounts reports before
   a landing scroll, from wherever the view was. It is armed by the first
   landing (a list renders at its top before it lands at the bottom) and
-  paused while a replaced window has yet to land.
+  paused while a replaced window has yet to land. The same check, and
+  the pill's reading of the bottom, run once right after a landing's
+  scroll command, from the position it set: a landing that leaves
+  `scrollTop` where it was — a reader with the whole newest page unread
+  lands on the "New messages" line, the window's first row, at the top
+  the list rendered at — raises no scroll event, the rows were measured
+  before it, and no scroll up from the top raises one either, so nothing
+  else would ask for the older page or offer the pill.
 - **Following is unchanged:** an arrival (the window extended by one at
   its end, `newestChange`) moves the view only when it is already within
   `NEAR_BOTTOM` of the bottom or the message is the reader's own; otherwise

@@ -4,6 +4,7 @@ import {
   defaultRangeExtractor,
   type Range,
   useVirtualizer,
+  type Virtualizer,
 } from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
 import {
@@ -169,48 +170,55 @@ export function MessageList({
       }),
     [messages, firstNewId, threadRootId, rootShown],
   );
-  // For the handlers rows keep across renders.
+  // For the handlers rows keep across renders, and the edge check.
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   // The row being edited: the head's index when a thread's root is edited
   // there, -1 when nothing is or the window doesn't hold it.
   const editingIndex = editingId ? indexOfMessage(items, editingId) : -1;
 
-  // The virtualiser. Rows are keyed by message, so a page prepended keeps
-  // every measured height. Edge loading asks for the next page when the
-  // rows on screen come within EDGE_LEAD of the window's end; it waits for
-  // the first landing, or opening a channel (rendered at its top before it
-  // lands at the bottom) would page straight back. Before a page is asked
-  // for we note where the edge's message sits on screen; once the window
-  // has changed we put it back there, so neither prepends nor pruning move
-  // the view. Whether the view is at the bottom is tracked below.
   const listRef = useRef<HTMLDivElement>(null);
   const landedOnce = useRef(false);
   const edges = useRef<Edges>({ older: false, newer: false });
   const anchor = useRef<Anchor | null>(null);
-  const atBottomRef = useRef(true);
   const liveRef = useRef(live);
   liveRef.current = live;
-  const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
-    count: items.length,
-    getScrollElement: () => listRef.current,
-    estimateSize: useCallback(
-      (index: number) => estimateSize(items[index]),
-      [items],
-    ),
-    getItemKey: useCallback((index: number) => items[index].key, [items]),
-    overscan: OVERSCAN,
-    // The edited row stays mounted wherever the view is: the editor holds
-    // the draft, which unmounting beyond the overscan would lose.
-    rangeExtractor: useCallback(
-      (range: Range) => {
-        const indexes = defaultRangeExtractor(range);
-        if (editingIndex < 0 || indexes.includes(editingIndex)) return indexes;
-        return [...indexes, editingIndex].sort((left, right) => left - right);
-      },
-      [editingIndex],
-    ),
-    onChange: (instance) => {
+
+  // Whether the view is at (or within a screen of) the window's end.
+  // While it isn't — or the window isn't live — arrivals don't move the
+  // view; they count up on the "Jump to latest" pill instead. Read on
+  // every scroll, and once a landing has put the view somewhere.
+  const [atBottom, setAtBottom] = useState(true);
+  const [unseen, setUnseen] = useState(0);
+  const atBottomRef = useRef(true);
+  const noteBottom = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const near =
+      list.scrollHeight - list.scrollTop - list.clientHeight < NEAR_BOTTOM;
+    atBottomRef.current = near;
+    setAtBottom(near);
+    if (near) setUnseen(0);
+  }, []);
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    list.addEventListener("scroll", noteBottom, { passive: true });
+    return () => list.removeEventListener("scroll", noteBottom);
+  }, [noteBottom]);
+
+  // Edge loading: the next page is asked for when the rows on screen come
+  // within EDGE_LEAD of the window's end. The one rule, run on each of the
+  // virtualiser's changes and once a landing has put the view somewhere.
+  // It waits for the first landing, or opening a channel (rendered at its
+  // top before it lands at the bottom) would page straight back. Before a
+  // page is asked for we note where the edge's message sits on screen;
+  // once the window has changed we put it back there, so neither prepends
+  // nor pruning move the view.
+  const checkEdges = useCallback(
+    (instance: Virtualizer<HTMLDivElement, HTMLDivElement>) => {
       const list = listRef.current;
       if (!landedOnce.current || !list) return;
       // Not while a replaced window has yet to land: a row measured as it
@@ -255,12 +263,38 @@ export function MessageList({
           if (brought === 0) anchor.current = null;
         });
       };
+      const held = messagesRef.current;
       if (reached.older && !before.older && state.hasOlder) {
-        page("older", messages[0]?.id, loadOlder);
+        page("older", held[0]?.id, loadOlder);
       } else if (reached.newer && !before.newer && state.hasNewer) {
-        page("newer", messages[messages.length - 1]?.id, loadNewer);
+        page("newer", held[held.length - 1]?.id, loadNewer);
       }
     },
+    [timeline, rowIdPrefix, queryClient],
+  );
+
+  // The virtualiser. Rows are keyed by message, so a page prepended keeps
+  // every measured height.
+  const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
+    count: items.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: useCallback(
+      (index: number) => estimateSize(items[index]),
+      [items],
+    ),
+    getItemKey: useCallback((index: number) => items[index].key, [items]),
+    overscan: OVERSCAN,
+    // The edited row stays mounted wherever the view is: the editor holds
+    // the draft, which unmounting beyond the overscan would lose.
+    rangeExtractor: useCallback(
+      (range: Range) => {
+        const indexes = defaultRangeExtractor(range);
+        if (editingIndex < 0 || indexes.includes(editingIndex)) return indexes;
+        return [...indexes, editingIndex].sort((left, right) => left - right);
+      },
+      [editingIndex],
+    ),
+    onChange: checkEdges,
   });
   // A row measured again, taller or shorter than it was (an image arriving,
   // a preview): the view keeps its place when the row is above it, and
@@ -282,16 +316,28 @@ export function MessageList({
       (item.index === 0 || instance.scrollDirection !== "backward")
     );
   };
+  // After a landing's scroll command, which sets the element's position at
+  // once: the bottom and the edges are read from where it put the view.
+  // Nothing else would read them when it left scrollTop where it was — a
+  // reader with the whole newest page unread lands on the "New messages"
+  // line, the window's first row, at the top the list rendered at: no
+  // scroll event, and the rows were measured before the landing — and no
+  // scroll up from the top raises one either.
+  const landedAt = useCallback(() => {
+    landedOnce.current = true;
+    noteBottom();
+    checkEdges(virtualizer);
+  }, [virtualizer, noteBottom, checkEdges]);
   const scrollToBottom = useCallback(() => {
     virtualizer.scrollToEnd();
-    landedOnce.current = true;
-  }, [virtualizer]);
+    landedAt();
+  }, [virtualizer, landedAt]);
   const scrollToItem = useCallback(
     (index: number) => {
       virtualizer.scrollToIndex(index, { align: "center" });
-      landedOnce.current = true;
+      landedAt();
     },
-    [virtualizer],
+    [virtualizer, landedAt],
   );
 
   // The row a jump landed on flashes once it is rendered: at once when it
@@ -441,24 +487,6 @@ export function MessageList({
     }
   }, [jumpTarget, jumpVisit, messages.length > 0]);
 
-  // Whether the view is at (or within a screen of) the window's end.
-  // While it isn't — or the window isn't live — arrivals don't move the
-  // view; they count up on the "Jump to latest" pill instead.
-  const [atBottom, setAtBottom] = useState(true);
-  const [unseen, setUnseen] = useState(0);
-  useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const onScroll = () => {
-      const near =
-        list.scrollHeight - list.scrollTop - list.clientHeight < NEAR_BOTTOM;
-      atBottomRef.current = near;
-      setAtBottom(near);
-      if (near) setUnseen(0);
-    };
-    list.addEventListener("scroll", onScroll, { passive: true });
-    return () => list.removeEventListener("scroll", onScroll);
-  }, []);
   const pendingNewer = history?.pendingNewer ?? 0;
   const newCount = unseen + pendingNewer;
   const jumpToLatest = async () => {
