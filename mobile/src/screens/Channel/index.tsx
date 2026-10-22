@@ -11,7 +11,7 @@ import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
 import Divider from "./Divider";
 import MessageRow from "./MessageRow";
-import { useChannelLog } from "./useChannelLog";
+import { olderFits, useChannelLog } from "./useChannelLog";
 
 // A channel, pushed over its space: its messages newest at the bottom,
 // older pages loading as the reader scrolls up, and the realtime socket
@@ -173,6 +173,8 @@ export default function Channel({
             <Text style={styles.beginning}>
               {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
             </Text>
+          ) : !olderFits(log) ? (
+            <Text style={styles.beginning}>Showing the latest {messages.length.toLocaleString()} messages.</Text>
           ) : undefined
         }
       />

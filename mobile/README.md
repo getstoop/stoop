@@ -100,6 +100,10 @@ event whose seq is not the next one marks a gap, and after a gap or a
 reconnect the screen asks `ListChanges` from the position it holds,
 page after page while the server has more, instead of fetching what it
 holds again; rows below the server's retention floor go unless pinned.
+The log holds at most 2,000 rows, and paging older past that would drop
+the newest, the edge the screen keeps live, so the screen's history ends
+a page short of the cap and says so (web has a pill back to the newest
+edge; the screen has none yet).
 The header's rules (a rename, the member count, the events that mean the
 channel is gone) are `core/channelHeader.ts`, and the screen's state
 over both (the header, why the channel can't be shown, the "New" line's

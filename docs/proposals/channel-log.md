@@ -246,7 +246,12 @@ fetched again to bring it.
    keeps the screen's header and outcome over the log through the same
    `opened`, `paged`, `withEvent`, `caughtUp` and `reconnected` web uses;
    an open's answer lands under the view's generation it was asked for,
-   so one from before a reconnect's re-open is dropped. After a reconnect it asks
+   so one from before a reconnect's re-open is dropped, and the hook
+   itself drops every answer but the latest open's, whichever lands
+   first, and every answer from a channel the screen has left. The
+   screen pages older only while a page fits under the log's cap, since
+   past it the log prunes the newest edge and the screen has no way back
+   to it yet. After a reconnect it asks
    `ListChanges` from the position it holds (paging while `has_more`, the
    position moving on the last page) in place of fetching everything held
    again, and the header is fetched again for a rename or a member count
@@ -320,13 +325,19 @@ as a bug:
   (`attachments`, `edits`, `media-preview`, `pins`, `unfurl`, `usercard`,
   `reachability`, `search`, `shortcodes`), safe while each addresses the
   first or last of a handful of on-screen rows.
+- The mobile screen's header events (a rename, a member joining) seen
+  while its open or header refresh is out are applied to the header it
+  holds, if any, and the answer then installs the server's copy as read:
+  one read before the change shows the old fact until the next event or
+  reconnect. The server checks access on every request, so an open that
+  lands after the reader lost the channel is followed by the next
+  request's refusal.
 - `closedThread` (step 7) can drop a row that `stretched` would have
   needed: a thread closes while the channel's first page is still out and
   an also-sent reply arrived by event in between. The row is missing
   until the next event about the channel brings a gap and a catch-up.
 
 ## Open
-
 
 Nothing at present. What the steps left behind on purpose is under
 "Known and left as is".

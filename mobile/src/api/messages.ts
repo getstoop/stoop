@@ -10,7 +10,7 @@ import { authClient, chatClient } from "./clients";
 // reconnect or a gap in the events.
 
 const TIMEOUT_MS = 10000;
-const PAGE = 50;
+export const PAGE = 50;
 // The server's largest ListChanges page.
 const CHANGES_PAGE = 200;
 
