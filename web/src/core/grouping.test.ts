@@ -10,6 +10,7 @@ import {
 import {
   continues,
   firstNewMessageId,
+  groupedRows,
   sameMinute,
   startsDay,
 } from "./grouping";
@@ -130,5 +131,71 @@ describe("firstNewMessageId", () => {
   it("is none when nothing is new, or no marker was taken", () => {
     expect(firstNewMessageId(list, "03", "me")).toBeUndefined();
     expect(firstNewMessageId(list, null, "me")).toBeUndefined();
+  });
+});
+
+describe("groupedRows", () => {
+  const now = new Date(2026, 9, 21, 12, 0);
+  const dated = (id: string, when: Date, authorId = "dee"): Message =>
+    create(MessageSchema, {
+      id,
+      channelId: "c1",
+      author: { id: authorId },
+      createdAt: timestampFromDate(when),
+    });
+  const drawn = (rows: ReturnType<typeof groupedRows>) =>
+    rows.map((row) =>
+      row.kind === "message"
+        ? `${row.key}${row.continued ? " +" : ""}`
+        : `[${row.label}]`,
+    );
+
+  it("puts a day line above each day and runs a minute's messages on", () => {
+    const messages = [
+      dated("01", new Date(2026, 9, 20, 9, 0)),
+      dated("02", new Date(2026, 9, 21, 9, 0)),
+      dated("03", new Date(2026, 9, 21, 9, 0, 30)),
+    ];
+    expect(drawn(groupedRows(messages, null, "me", now))).toEqual([
+      "[Yesterday]",
+      "01",
+      "[Today]",
+      "02",
+      "03 +",
+    ]);
+  });
+
+  it("draws the New line above the first new message, sharing a day's", () => {
+    const messages = [
+      dated("01", new Date(2026, 9, 21, 9, 0)),
+      dated("02", new Date(2026, 9, 21, 9, 0, 10)),
+      dated("03", new Date(2026, 9, 21, 9, 0, 20)),
+    ];
+    expect(drawn(groupedRows(messages, "01", "me", now))).toEqual([
+      "[Today]",
+      "01",
+      "[New]",
+      "02",
+      "03 +",
+    ]);
+    expect(drawn(groupedRows(messages, "", "me", now))).toEqual([
+      "[Today · New]",
+      "01",
+      "02 +",
+      "03 +",
+    ]);
+  });
+
+  it("skips the reader's own messages for the New line", () => {
+    const messages = [
+      dated("01", new Date(2026, 9, 21, 9, 0), "me"),
+      dated("02", new Date(2026, 9, 21, 9, 5)),
+    ];
+    expect(drawn(groupedRows(messages, "", "me", now))).toEqual([
+      "[Today]",
+      "01",
+      "[New]",
+      "02",
+    ]);
   });
 });

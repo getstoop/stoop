@@ -1,6 +1,7 @@
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
+import type { Message } from "../gen/stoop/chat/v1/message_pb";
 
 // Only a token mentions anyone: <@u:ID:handle> a person, <@g:ID:handle> a
 // group, the handle being the one current when it was saved. @channel and
@@ -318,4 +319,12 @@ export function candidateMention(
   const { userId, username } = candidate.member;
   if (isChannelOrHere(userId)) return null;
   return { kind: "person", id: userId, handle: username.toLowerCase() };
+}
+
+// Whether a message mentions the reader, so its row is tinted: by name, in
+// a group they are in, with @channel (all resolved by the server into
+// mention_user_ids), or with @here, which reaches whoever is online.
+export function mentionsMe(message: Message, myUserId: string): boolean {
+  if (message.author?.id === myUserId) return false;
+  return message.mentionsHere || message.mentionUserIds.includes(myUserId);
 }

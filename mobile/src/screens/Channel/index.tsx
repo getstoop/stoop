@@ -1,37 +1,26 @@
-import { Code, ConnectError } from "@connectrpc/connect";
-import type { ChannelHeader } from "@stoop/core/timelineEvents";
-import { type TimelineItem, timelineItems } from "@stoop/core/timelineItems";
-import { heldBack, initialTimeline, olderBefore, reconnectLoad, timelineReducer } from "@stoop/core/timelineState";
+import { channelItems } from "@stoop/core/channelLog";
+import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { Stack, useIsFocused, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChannelGone, loadChannel, loadOlder, markRead } from "../../api/messages";
+import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
-import { sessionToken } from "../../api/servers";
-import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
 import Divider from "./Divider";
 import MessageRow from "./MessageRow";
+import { useChannelLog } from "./useChannelLog";
 
 // A channel, pushed over its space: its messages newest at the bottom,
 // older pages loading as the reader scrolls up, and the realtime socket
 // adding, changing and removing messages as they happen. It opens at the
 // "New" line when there is one, and keeps the reader's marker at the
 // newest message while it is on screen. Reading only: writing is the
-// next step. What each answer and event does to what is shown is the
-// shared timeline's (core/timelineState, core/timelineEvents); this
-// screen fetches, marks read and draws.
-
-// Why a load failed, as the timeline shows it.
-function outcomeOf(err: unknown): "ended" | "gone" | "failed" {
-  if (err instanceof ChannelGone) return "gone";
-  if (err instanceof ConnectError && err.code === Code.Unauthenticated) return "ended";
-  if (err instanceof ConnectError && (err.code === Code.NotFound || err.code === Code.PermissionDenied)) return "gone";
-  return "failed";
-}
+// next step. What is held and what each answer and event does to it is
+// the channel log's (core/channelLog, through useChannelLog); this screen
+// marks read and draws.
 
 export default function Channel({
   server,
@@ -47,82 +36,38 @@ export default function Channel({
   const router = useRouter();
   const focused = useIsFocused();
   const insets = useSafeAreaInsets();
-  const [timeline, dispatch] = useReducer(timelineReducer<ChannelHeader>, initialTimeline);
-  const view = timeline.shown;
-  const [token, setToken] = useState("");
+  const { state, older, retry } = useChannelLog(server, spaceId, channelId);
+  const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
-  const list = useRef<FlatList<TimelineItem>>(null);
-  const requests = useRef(0);
-
-  // Opens the channel, or after a reconnect loads it again down to back,
-  // the oldest message held.
-  const load = useCallback(
-    async (kind: "open" | "catchUp", back = "") => {
-      const id = ++requests.current;
-      dispatch({ type: "started", id, kind });
-      const signedIn = await sessionToken(server.id).catch(() => null);
-      if (!signedIn) {
-        dispatch({ type: "failed", id, outcome: "ended" });
-        return;
-      }
-      try {
-        const { header, page } = await loadChannel(server.origin, signedIn, spaceId, channelId, back);
-        setToken(signedIn);
-        dispatch({ type: "loaded", id, channelId, page, header, newAfter: header.channel.lastReadMessageId });
-      } catch (err) {
-        dispatch({ type: "failed", id, outcome: outcomeOf(err) });
-      }
-    },
-    [server, spaceId, channelId],
-  );
+  const list = useRef<FlatList<GroupedRow>>(null);
 
   useEffect(() => {
-    load("open");
-    const sub = AppState.addEventListener("change", (state) => setActive(state === "active"));
+    const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
     return () => sub.remove();
-  }, [load]);
+  }, []);
 
-  useServerEvents(server.id, (event) => {
-    if (event.payload.case !== "ready") {
-      dispatch({ type: "event", event });
-      return;
-    }
-    const kind = reconnectLoad(timeline);
-    if (kind) load(kind, heldBack(timeline));
-  });
-
-  // The page above the oldest message held, once at a time.
-  const older = useCallback(async () => {
-    const before = olderBefore(timeline);
-    if (!before) return;
-    const id = ++requests.current;
-    dispatch({ type: "started", id, kind: "older" });
-    try {
-      dispatch({ type: "paged", id, page: await loadOlder(server.origin, token, channelId, before) });
-    } catch {
-      dispatch({ type: "failed", id, outcome: "failed" });
-    }
-  }, [timeline, token, server.origin, channelId]);
+  // The channel's shown rows, oldest first; the same array while nothing
+  // shown changed.
+  const messages = channelItems(log);
 
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.
-  const newestId = view.state === "ready" ? (view.page.messages.at(-1)?.id ?? "") : "";
+  const newestId = messages.at(-1)?.id ?? "";
   const marked = useRef("");
   useEffect(() => {
-    if (!newestId || !token || !focused || !active) return;
-    const readTo = view.state === "ready" ? view.header.channel.lastReadMessageId : "";
+    if (!newestId || !token || !focused || !active || !header) return;
+    const readTo = header.channel.lastReadMessageId;
     if (newestId <= readTo || newestId <= marked.current) return;
     marked.current = newestId;
     markRead(server.origin, token, channelId, newestId).catch(() => {
       if (marked.current === newestId) marked.current = "";
     });
-  }, [newestId, token, focused, active, server.origin, channelId, view]);
+  }, [newestId, token, focused, active, server.origin, channelId, header]);
 
   // Newest first, for a list drawn from the bottom up.
   const items = useMemo(
-    () =>
-      view.state === "ready" ? timelineItems(view.page.messages, view.newAfter, view.header.myUserId).reverse() : [],
-    [view],
+    () => (header ? groupedRows(messages, newAfter, header.myUserId).reverse() : []),
+    [messages, newAfter, header],
   );
 
   // Opening lands on the "New" line, once.
@@ -134,23 +79,11 @@ export default function Channel({
     if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
   }, [items.length, newIndex]);
 
-  const retry = () => {
-    dispatch({ type: "retried" });
-    load("open");
-  };
-
-  if (view.state === "loading") {
-    return (
-      <View style={styles.screen}>
-        <ActivityIndicator style={styles.center} color={theme.textMuted} />
-      </View>
-    );
-  }
-  if (view.state !== "ready") {
+  if (outcome) {
     return (
       <View style={styles.screen}>
         <View style={styles.notice} accessibilityRole="alert">
-          {view.state === "ended" && (
+          {outcome === "ended" && (
             <>
               <Text style={styles.body}>Your sign-in to {server.name} has ended. Sign in again to carry on.</Text>
               <Pressable
@@ -162,8 +95,8 @@ export default function Channel({
               </Pressable>
             </>
           )}
-          {view.state === "gone" && <Text style={styles.body}>This channel isn't available any more.</Text>}
-          {view.state === "failed" && (
+          {outcome === "gone" && <Text style={styles.body}>This channel isn't available any more.</Text>}
+          {outcome === "failed" && (
             <>
               <Text style={styles.body}>Couldn't reach {hostOf(server.origin)}.</Text>
               <Pressable
@@ -179,9 +112,16 @@ export default function Channel({
       </View>
     );
   }
+  if (!header) {
+    return (
+      <View style={styles.screen}>
+        <ActivityIndicator style={styles.center} color={theme.textMuted} />
+      </View>
+    );
+  }
 
-  const { space, channel, memberCount, myUserId } = view.header;
-  const { hasOlder } = view.page;
+  const { space, channel, memberCount, myUserId } = header;
+  const { hasOlder } = log.channel;
 
   return (
     <View style={styles.screen}>
@@ -219,11 +159,11 @@ export default function Channel({
         // the home indicator until the composer sits there.
         contentContainerStyle={[styles.content, { paddingTop: 12 + insets.bottom }]}
         ListFooterComponent={
-          view.loadingOlder ? (
+          loadingOlder ? (
             <ActivityIndicator style={styles.edge} color={theme.textMuted} />
           ) : !hasOlder ? (
             <Text style={styles.beginning}>
-              {view.page.messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
+              {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
             </Text>
           ) : undefined
         }

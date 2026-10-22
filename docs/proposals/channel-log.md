@@ -198,7 +198,7 @@ fetched again to bring it.
    `jumpToLatest` opens a view not yet held, so a thread opened on a reply
    since deleted shows its remaining replies.
    Deviation: the old timeline reducer modules under `core/` were not
-   deleted, since the mobile app imports them (see Open).
+   deleted, since the mobile app imported them (step 9).
 7. **Cleanup** ([#529](https://github.com/getstoop/stoop/pull/529)). The docs no longer describe the
    cache-era client; `closeThread` drops a thread's view from its
    channel's log when the panel closes, with the rows only that view kept
@@ -209,9 +209,9 @@ fetched again to bring it.
    virtualised list's bound. Nothing was found dead on the server: every
    chat query has a caller, and the helpers steps 2 to 4 replaced went in
    those steps. Deviation: the plan had this step re-point the mobile
-   app and delete the reducer modules; that is left open, below, since
-   the mobile channel screen is built one screen per pull request on its
-   own track.
+   app and delete the reducer modules; that went to a pull request of its
+   own (step 9), since the mobile channel screen is built one screen per
+   pull request on its own track.
 8. **The contract, one release later** (#534; ships in 0.15.0, after
    0.14.0 carried steps 1 to 7). Migration 00069 makes `messages.seq`
    `NOT NULL` and raises the schema floor to 68, so 0.14.0, whose code
@@ -238,6 +238,27 @@ fetched again to bring it.
    number, as 00065 did.
    `make dev-flood`, which writes rows straight into Postgres, now stamps
    them the same way the backfill does.
+
+9. **The mobile re-point** (this PR). The mobile app's channel screen
+   runs on `core/channelLog`: `mobile/src/screens/Channel/useChannelLog.ts`
+   makes the requests and `state.ts` beside it dispatches each answer and
+   event to the log, through the same `opened`, `paged`, `withEvent`,
+   `caughtUp` and `reconnected` web uses. After a reconnect it asks
+   `ListChanges` from the position it holds (paging while `has_more`, the
+   position moving on the last page) in place of fetching everything held
+   again, and the header is fetched again for a rename or a member count
+   the socket missed; a deletion arrives as a tombstone; rows below the
+   retention floor go unless pinned. What the old modules provided that
+   the screen still needs moved: `mentionsMe` to `core/mentions.ts`, the
+   `ChannelHeader` type with `losesChannel` and the header's event rules
+   to `core/channelHeader.ts` (live events only, the replay case having
+   gone with the reducer), and the day and "New" lines to `core/grouping.ts`
+   as `groupedRows`. Then `core/timelineState.ts`, `timelinePaging.ts`,
+   `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,
+   `messageList.ts` and `timelineTesting.ts` went with their tests. Not
+   done, since the screen shows no thread summaries yet: web's refresh of
+   each view's newest page after a reconnect's catch-up, which brings the
+   reader's half of a summary (reads, mutes) that no seq carries.
 
 ## Known and left as is
 
@@ -303,11 +324,6 @@ as a bug:
 
 ## Open
 
-- **The mobile re-point.** The mobile app's channel screen still runs the
-  timeline reducer (`core/timelineState.ts`, `timelinePaging.ts`,
-  `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,
-  `messageList.ts`, each headed with a note saying the web app no longer
-  uses it, and `timelineTesting.ts`, their tests' fixtures). When that
-  screen is next touched it re-points at
-  `core/channelLog` and those modules go with their tests
-  (`mobile/README.md` → Code shared with web).
+
+Nothing at present. What the steps left behind on purpose is under
+"Known and left as is".
