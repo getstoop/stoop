@@ -241,9 +241,12 @@ fetched again to bring it.
 
 9. **The mobile re-point** (this PR). The mobile app's channel screen
    runs on `core/channelLog`: `mobile/src/screens/Channel/useChannelLog.ts`
-   makes the requests and `state.ts` beside it dispatches each answer and
-   event to the log, through the same `opened`, `paged`, `withEvent`,
-   `caughtUp` and `reconnected` web uses. After a reconnect it asks
+   makes the requests and dispatches each answer and event to
+   `core/channelScreen.ts`, a reducer (unit-tested beside the log's) that
+   keeps the screen's header and outcome over the log through the same
+   `opened`, `paged`, `withEvent`, `caughtUp` and `reconnected` web uses;
+   an open's answer lands under the view's generation it was asked for,
+   so one from before a reconnect's re-open is dropped. After a reconnect it asks
    `ListChanges` from the position it holds (paging while `has_more`, the
    position moving on the last page) in place of fetching everything held
    again, and the header is fetched again for a rename or a member count

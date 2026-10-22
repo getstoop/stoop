@@ -347,6 +347,13 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   what a realtime event does to it (a rename, a member coming or going)
   and which event means the channel is gone. The mobile app holds one;
   web reads the same facts from its query cache.
+- `channelScreen.ts` — a channel screen's state over its log as a
+  reducer: the header, why the channel can't be shown (the sign-in ended,
+  the channel gone, the server unreachable), the session it opened with,
+  the "New" line's marker and whether an older page is out. An open's
+  answer lands under the view's generation it was asked for, so a stale
+  one is dropped, header and all. The mobile app's channel screen runs
+  it; web's screen is wired in `api/channelLog.ts` instead.
 - `author.ts` — who a message is shown as being from: the member as the
   members list has them now, over the row's embedded author.
 - `grouping.ts` — where a day line goes, which message continues the one

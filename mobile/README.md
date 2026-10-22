@@ -101,9 +101,11 @@ reconnect the screen asks `ListChanges` from the position it holds,
 page after page while the server has more, instead of fetching what it
 holds again; rows below the server's retention floor go unless pinned.
 The header's rules (a rename, the member count, the events that mean the
-channel is gone) are `core/channelHeader.ts`. The screen's own part is
-small: `src/screens/Channel/useChannelLog.ts` makes the requests and
-`state.ts` beside it dispatches each answer and event to the log; the
+channel is gone) are `core/channelHeader.ts`, and the screen's state
+over both (the header, why the channel can't be shown, the "New" line's
+marker) is `core/channelScreen.ts`, a reducer with its tests beside it.
+The screen's own part is small: `src/screens/Channel/useChannelLog.ts`
+makes the requests and dispatches each answer and event to it; the
 screen (`src/screens/Channel/index.tsx`) marks read and draws the rows
 `core/grouping.ts` groups (day lines, the "New" line, which message
 continues the one before).
@@ -260,9 +262,9 @@ source, not packages:
   browser. That covers the Markdown parser, mention tokens, permissions,
   dates, badge counts, which messages run together and where the "New"
   line goes, the channel log web's timeline runs on (`core/channelLog`,
-  which this app's channel screen runs on too), and a channel's header
-  beside it (`core/channelHeader.ts`). Its tests run with web's
-  (`make test`).
+  which this app's channel screen runs on too), a channel's header
+  beside it (`core/channelHeader.ts`) and the channel screen's state over
+  both (`core/channelScreen.ts`). Its tests run with web's (`make test`).
 
 Both mappings are in `tsconfig.json`; Metro reads them too, and
 `metro.config.js` watches both folders. `metro.config.js` also makes every

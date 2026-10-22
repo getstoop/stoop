@@ -19,8 +19,8 @@ import { useChannelLog } from "./useChannelLog";
 // "New" line when there is one, and keeps the reader's marker at the
 // newest message while it is on screen. Reading only: writing is the
 // next step. What is held and what each answer and event does to it is
-// the channel log's (core/channelLog, through useChannelLog); this screen
-// marks read and draws.
+// the channel log's (core/channelLog, under core/channelScreen, through
+// useChannelLog); this screen marks read and draws.
 
 export default function Channel({
   server,
@@ -40,6 +40,16 @@ export default function Channel({
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
   const list = useRef<FlatList<GroupedRow>>(null);
+  // What this screen remembers about the channel shown: the marker it
+  // moved and whether it has landed. Another channel starts afresh.
+  const marked = useRef("");
+  const landed = useRef(false);
+  const shownChannel = useRef(channelId);
+  if (shownChannel.current !== channelId) {
+    shownChannel.current = channelId;
+    marked.current = "";
+    landed.current = false;
+  }
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
@@ -53,7 +63,6 @@ export default function Channel({
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.
   const newestId = messages.at(-1)?.id ?? "";
-  const marked = useRef("");
   useEffect(() => {
     if (!newestId || !token || !focused || !active || !header) return;
     const readTo = header.channel.lastReadMessageId;
@@ -71,7 +80,6 @@ export default function Channel({
   );
 
   // Opening lands on the "New" line, once.
-  const landed = useRef(false);
   const newIndex = items.findIndex((item) => item.kind === "new");
   useEffect(() => {
     if (landed.current || items.length === 0) return;

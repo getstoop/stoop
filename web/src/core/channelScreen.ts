@@ -1,17 +1,32 @@
-import { type ChannelHeader, losesChannel, withHeaderEvent } from "@stoop/core/channelHeader";
-import { type ChannelLog, caughtUp, emptyLog, opened, paged, reconnected, withEvent } from "@stoop/core/channelLog";
-import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
-import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
+import type {
+  ListChangesResponse,
+  ListMessagesResponse,
+} from "../gen/stoop/chat/v1/chat_pb";
+import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
+import {
+  type ChannelHeader,
+  losesChannel,
+  withHeaderEvent,
+} from "./channelHeader";
+import {
+  type ChannelLog,
+  caughtUp,
+  emptyLog,
+  opened,
+  paged,
+  reconnected,
+  withEvent,
+} from "./channelLog";
 
-// What the channel screen holds: the channel's log (core/channelLog, which
-// owns every rule about the rows), the header beside it
-// (core/channelHeader), and the screen's own facts. Each answer and event
-// is one action; useChannelLog.ts makes the requests.
+// A channel screen's state over its log: the log itself (channelLog owns
+// every rule about the rows), the header beside it (channelHeader), and
+// the screen's own facts. Each answer and event is one action; the mobile
+// app's useChannelLog makes the requests and dispatches them here.
 
 // Why the channel can't be shown.
 export type Outcome = "ended" | "gone" | "failed";
 
-export type ChannelState = {
+export type ChannelScreen = {
   log: ChannelLog;
   // Set once the channel has opened; the screen is ready while it is.
   header: ChannelHeader | null;
@@ -24,11 +39,18 @@ export type ChannelState = {
   loadingOlder: boolean;
 };
 
-export type ChannelAction =
+export type ScreenAction =
   // The newest page with the header: opening, or opening again after a
-  // failure or a reconnect that found the screen still loading. The latest
-  // answer is the fresher, so each lands over the view as it is.
-  | { type: "opened"; header: ChannelHeader; res: ListMessagesResponse; token: string }
+  // failure or a reconnect that found the screen still loading. Under the
+  // channel view's generation when it was asked for: an answer from
+  // before a later open replaced the range is dropped, header and all.
+  | {
+      type: "opened";
+      header: ChannelHeader;
+      res: ListMessagesResponse;
+      token: string;
+      generation: number;
+    }
   // The header fetched again after a reconnect.
   | { type: "header"; header: ChannelHeader }
   | { type: "failed"; outcome: Outcome }
@@ -42,7 +64,7 @@ export type ChannelAction =
   | { type: "caughtUp"; res: ListChangesResponse }
   | { type: "reconnected" };
 
-export const initialState = (channelId: string): ChannelState => ({
+export const emptyScreen = (channelId: string): ChannelScreen => ({
   log: emptyLog(channelId),
   header: null,
   outcome: null,
@@ -51,18 +73,28 @@ export const initialState = (channelId: string): ChannelState => ({
   loadingOlder: false,
 });
 
-export function channelReducer(state: ChannelState, action: ChannelAction): ChannelState {
+export function screenReducer(
+  state: ChannelScreen,
+  action: ScreenAction,
+): ChannelScreen {
   switch (action.type) {
     case "opened":
-      // Nothing a load still out brings back undoes the channel's loss.
+      // Nothing a load still out brings back undoes the channel's loss,
+      // and a stale open's answer is nobody's.
       if (state.outcome === "gone" || state.outcome === "ended") return state;
+      if (action.generation !== state.log.channel.generation) return state;
       return {
         ...state,
-        log: opened(state.log, { generation: state.log.channel.generation, res: action.res }),
+        log: opened(state.log, {
+          generation: action.generation,
+          res: action.res,
+        }),
         header: action.header,
         outcome: null,
         token: action.token,
-        newAfter: state.header ? state.newAfter : action.header.channel.lastReadMessageId,
+        newAfter: state.header
+          ? state.newAfter
+          : action.header.channel.lastReadMessageId,
       };
     case "header":
       return state.header ? { ...state, header: action.header } : state;
@@ -77,16 +109,17 @@ export function channelReducer(state: ChannelState, action: ChannelAction): Chan
     case "paged":
       return {
         ...state,
-        log: paged(state.log, "older", { generation: action.generation, res: action.res }),
+        log: paged(state.log, "older", {
+          generation: action.generation,
+          res: action.res,
+        }),
         loadingOlder: false,
       };
     case "pageFailed":
       return { ...state, loadingOlder: false };
     case "event": {
+      if (loses(state, action.event)) return { ...state, outcome: "gone" };
       const { header } = state;
-      if (header && losesChannel(action.event, header.space.id, header.channel.id, header.myUserId)) {
-        return { ...state, outcome: "gone" };
-      }
       const log = withEvent(state.log, action.event);
       const next = header ? withHeaderEvent(header, action.event) : header;
       if (log === state.log && next === header) return state;
@@ -97,4 +130,23 @@ export function channelReducer(state: ChannelState, action: ChannelAction): Chan
     case "reconnected":
       return { ...state, log: reconnected(state.log) };
   }
+}
+
+// Whether the event means the reader can no longer see the channel. With
+// no header yet (the first page still out) only the channel's own
+// deletion can say so.
+function loses(state: ChannelScreen, event: ServerEvent): boolean {
+  const { header } = state;
+  if (header)
+    return losesChannel(
+      event,
+      header.space.id,
+      header.channel.id,
+      header.myUserId,
+    );
+  const payload = event.payload;
+  return (
+    payload.case === "channelDeleted" &&
+    payload.value.channelId === state.log.channelId
+  );
 }
