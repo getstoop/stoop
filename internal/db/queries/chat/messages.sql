@@ -50,9 +50,7 @@ LIMIT $2;
 -- ListMessageChanges is the channel log from a position: every row stamped
 -- above since_seq, in seq order, for ListChanges. Deliberately no shown
 -- filter: a tombstone and a thread reply are changes the client applies
--- to what it holds, so every row comes back. A row with no seq (written by
--- an older binary during a rollback) is never above since_seq and is left
--- for the next full load.
+-- to what it holds, so every row comes back.
 -- name: ListMessageChanges :many
 SELECT * FROM message_with_reply m
 WHERE m.channel_id = $1
@@ -148,12 +146,7 @@ SELECT ((SELECT count(*) FROM expired)
 
 -- DeleteExpiredMessages hard-deletes these roots and every reply under
 -- them, in one channel whose row the caller holds, and reports how many
--- rows went and the highest seq among them (0 when none was stamped),
--- for channels.swept_seq.
--- name: DeleteExpiredMessages :one
-WITH removed AS (
-    DELETE FROM messages
-    WHERE id = ANY(sqlc.arg(ids)::uuid[]) OR thread_root_id = ANY(sqlc.arg(ids)::uuid[])
-    RETURNING seq
-)
-SELECT count(*)::bigint AS removed, COALESCE(max(seq), 0)::bigint AS max_seq FROM removed;
+-- rows went.
+-- name: DeleteExpiredMessages :execrows
+DELETE FROM messages
+WHERE id = ANY(sqlc.arg(ids)::uuid[]) OR thread_root_id = ANY(sqlc.arg(ids)::uuid[]);

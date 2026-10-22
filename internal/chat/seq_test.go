@@ -42,14 +42,11 @@ func channelSeq(t *testing.T, pool *pgxpool.Pool, channelID string) int64 {
 // messageSeq reads the position a row was last stamped with.
 func messageSeq(t *testing.T, pool *pgxpool.Pool, messageID string) int64 {
 	t.Helper()
-	var seq *int64
+	var seq int64
 	if err := pool.QueryRow(context.Background(), `SELECT seq FROM messages WHERE id = $1`, messageID).Scan(&seq); err != nil {
 		t.Fatal(err)
 	}
-	if seq == nil {
-		t.Fatalf("message %s has no seq", messageID)
-	}
-	return *seq
+	return seq
 }
 
 // Every write that changes how a message renders takes the channel's next

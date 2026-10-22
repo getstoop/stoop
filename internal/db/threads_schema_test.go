@@ -29,8 +29,8 @@ func TestThreadsSchema(t *testing.T) {
 	insert := func(threadRoot any, inChannel bool) (string, error) {
 		var id string
 		err := pool.QueryRow(ctx,
-			`INSERT INTO messages (id, channel_id, author_id, content, thread_root_id, in_channel)
-			 VALUES (gen_random_uuid(), $1, $2, 'hi', $3, $4) RETURNING id`,
+			`INSERT INTO messages (id, channel_id, author_id, content, thread_root_id, in_channel, seq)
+			 VALUES (gen_random_uuid(), $1, $2, 'hi', $3, $4, 1) RETURNING id`,
 			channel, user, threadRoot, inChannel).Scan(&id)
 		return id, err
 	}
@@ -86,7 +86,7 @@ func TestThreadMutesAndReadsGoWithTheRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO messages (id, channel_id, author_id, content) VALUES (gen_random_uuid(), $1, $2, 'hi') RETURNING id`,
+		`INSERT INTO messages (id, channel_id, author_id, content, seq) VALUES (gen_random_uuid(), $1, $2, 'hi', 1) RETURNING id`,
 		channel, user).Scan(&root); err != nil {
 		t.Fatal(err)
 	}

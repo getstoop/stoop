@@ -530,10 +530,6 @@ about what lies between its last row and the counter, so while `has_more`
 is true the client asks again from the last row's seq and its position
 does not move.
 
-A row with no `seq` — written by an older binary during a rollback — is
-never above `since_seq` and is left for the next full load; that is
-accepted.
-
 The client rule is one comparison: a held row is replaced by one that
 arrives with a higher seq. A live event whose seq is exactly the next is
 applied; any other gap, and every reconnect, is one `ListChanges` from the
@@ -549,8 +545,7 @@ whose id is below the floor unless it is pinned (`Message.pinned` is on
 the row), and drop a reply whose root's id is below the floor unless the
 root is pinned (the root row carries the flag). That is how the sweep's
 hard deletes, which publish nothing and leave no tombstone, reach a
-client that holds the rows; `channels.swept_seq` plays no part in it. The
-floor is advisory: a setting that cannot be read is logged and the answer
+client that holds the rows. The floor is advisory: a setting that cannot be read is logged and the answer
 carries none, and the next successful answer carries it.
 
 The client's side of this — one log per channel merged by seq, views as
@@ -574,9 +569,8 @@ replies, then takes the channels touched one at a time, in id order: one
 transaction per channel that locks the channel row first (the rule every
 message write follows, [data.md](data.md#chat)), hard-deletes the
 batch's roots there and the replies under them — tombstones included,
-since a deleted row past the cutoff is just a row — raises
-`channels.swept_seq` to the highest `seq` among the rows removed, and
-recomputes `last_message_id`. The files go through the port once the
+since a deleted row past the cutoff is just a row — and recomputes
+`last_message_id`. The files go through the port once the
 batch is done. Foreign keys do the rest: a reply's
 `reply_to_message_id` goes `NULL`, and the thread summary, mutes and
 read markers cascade. Read markers have no foreign key and compare by

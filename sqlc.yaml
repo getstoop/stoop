@@ -42,3 +42,10 @@ sql:
             go_type:
               type: "time.Time"
               pointer: true
+          # sqlc resolves a view's columns when it meets CREATE VIEW and a
+          # later ALTER TABLE on the base table does not reach them:
+          # 00069 made messages.seq NOT NULL without recreating
+          # message_with_reply, so the view's seq is told here. Redundant,
+          # and removable, once a later migration recreates the view.
+          - column: "message_with_reply.seq"
+            go_type: "int64"

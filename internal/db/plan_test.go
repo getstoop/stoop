@@ -84,3 +84,32 @@ func TestInspectAheadAndRefused(t *testing.T) {
 		t.Errorf("floor above the binary should be refused: %+v", p)
 	}
 }
+
+// A database 0.14.0 made (newest 68) upgrading to this binary meets the
+// contract migration 00069: the floor goes from 65 to 68, so the plan
+// says the release that made the database can still start, and the one
+// before it cannot.
+func TestInspectContractFromPreviousRelease(t *testing.T) {
+	ctx := context.Background()
+	pool, err := db.Connect(ctx, dbtest.NewURL(t), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if err := db.MigrateTo(ctx, pool, 68); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := db.Inspect(ctx, pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Applied != 68 || plan.Floor != 65 || plan.FloorAfter != 68 || !plan.Contract() || plan.Refused() != nil {
+		t.Errorf("database at 68: %+v", plan)
+	}
+	if len(plan.Pending) == 0 || plan.Pending[0].Version != 69 || plan.Pending[0].Name != "channel_seq_contract" {
+		t.Errorf("pending should start at 00069_channel_seq_contract: %+v", plan.Pending)
+	}
+	if release, ok := db.OldestStartable(plan.FloorAfter); !ok || release.Version != "0.14.0" {
+		t.Errorf("oldest release starting against floor %d = %+v %v, want 0.14.0", plan.FloorAfter, release, ok)
+	}
+}

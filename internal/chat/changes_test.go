@@ -25,14 +25,11 @@ func channelStamps(t *testing.T, pool *pgxpool.Pool, channelID string) map[strin
 	stamps := map[string]int64{}
 	for rows.Next() {
 		var id string
-		var seq *int64
+		var seq int64
 		if err := rows.Scan(&id, &seq); err != nil {
 			t.Fatal(err)
 		}
-		if seq == nil {
-			t.Fatalf("row %s has no seq", id)
-		}
-		stamps[id] = *seq
+		stamps[id] = seq
 	}
 	return stamps
 }

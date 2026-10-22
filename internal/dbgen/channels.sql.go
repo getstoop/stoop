@@ -311,23 +311,6 @@ func (q *Queries) NextChannelSeq(ctx context.Context, id string) (int64, error) 
 	return seq, err
 }
 
-const raiseChannelSweptSeq = `-- name: RaiseChannelSweptSeq :exec
-UPDATE channels SET swept_seq = GREATEST(swept_seq, $2::bigint) WHERE id = $1
-`
-
-type RaiseChannelSweptSeqParams struct {
-	ID  string
-	Seq int64
-}
-
-// RaiseChannelSweptSeq records that the retention sweep hard-deleted rows
-// stamped up to seq; it never goes down, so 0 (no row removed was
-// stamped) leaves it alone.
-func (q *Queries) RaiseChannelSweptSeq(ctx context.Context, arg RaiseChannelSweptSeqParams) error {
-	_, err := q.db.Exec(ctx, raiseChannelSweptSeq, arg.ID, arg.Seq)
-	return err
-}
-
 const setChannelLastMessage = `-- name: SetChannelLastMessage :exec
 UPDATE channels SET last_message_id = $2 WHERE id = $1
 `

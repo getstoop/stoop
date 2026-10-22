@@ -1,6 +1,7 @@
 # Proposal: the channel log
 
-Approved 2026-10-21; built in seven pull requests the same week. Replaces
+Approved 2026-10-21; built in seven pull requests the same week, with the
+contract half of its migration one release later. Replaces
 the client's request bookkeeping with a per-channel sequence, makes
 deletes tombstones, moves messages out of the query cache into their own
 store, and virtualises the message list. This document is the record:
@@ -26,8 +27,9 @@ handed out.
 ```sql
 ALTER TABLE channels ADD COLUMN seq bigint NOT NULL DEFAULT 0;
 ALTER TABLE channels ADD COLUMN swept_seq bigint NOT NULL DEFAULT 0;
-ALTER TABLE messages ADD COLUMN seq bigint;            -- NOT NULL one release later
+ALTER TABLE messages ADD COLUMN seq bigint;            -- 00068, 0.14.0
 CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
+ALTER TABLE messages ALTER COLUMN seq SET NOT NULL;    -- 00069, 0.15.0
 ```
 
 - **Every render-affecting write stamps the row** in its own transaction:
@@ -50,7 +52,8 @@ CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
 - **The retention floor instead of `too_old`.** The plan had `ListChanges`
   answer `too_old` when `since_seq` fell below `channels.swept_seq`, the
   highest seq the sweep had hard-deleted. As built nothing reads
-  `swept_seq` (the sweep still raises it, informationally). Instead
+  `swept_seq` (the sweep raised it through 0.14.0; step 8 stopped that,
+  and the column goes a release later). Instead
   `ListChanges` and `ListMessages` both carry `retention_floor_id`, the
   sweep's own cutoff from one helper so the two never disagree (empty with
   retention off), and the client drops a held row below it unless it is
@@ -195,7 +198,7 @@ fetched again to bring it.
    since deleted shows its remaining replies.
    Deviation: the old timeline reducer modules under `core/` were not
    deleted, since the mobile app imports them (see Open).
-7. **Cleanup** (this pull request). The docs no longer describe the
+7. **Cleanup** ([#529](https://github.com/getstoop/stoop/pull/529)). The docs no longer describe the
    cache-era client; `closeThread` drops a thread's view from its
    channel's log when the panel closes, with the rows only that view kept
    (the core's `referenced` rule, as pruning uses), and a page still out
@@ -208,6 +211,27 @@ fetched again to bring it.
    app and delete the reducer modules; that is left open, below, since
    the mobile channel screen is built one screen per pull request on its
    own track.
+8. **The contract, one release later** (#534; ships in 0.15.0, after
+   0.14.0 carried steps 1 to 7). Migration 00069 makes `messages.seq`
+   `NOT NULL` and raises the schema floor to 68, so 0.14.0, whose code
+   always stamps the column, still starts against the result and 0.13.0
+   is refused. Before tightening, it fills any row still without a seq:
+   those are rows a 0.13.0 binary wrote during a rollback from 0.14.0,
+   and they take positions *above* the channel's counter, in id order,
+   with the counter moved past them, rather than 00068's rank by id. The
+   reason is the client rule: a client holding the channel at its old
+   position sees them in its next `ListChanges` only if their seq is
+   higher than what it holds. The view `message_with_reply` is not
+   recreated (a constraint is not a change to its definition), so sqlc
+   is told the view's `seq` is not null in `sqlc.yaml`; the generated
+   `Seq` fields went from `*int64` to `int64` and the nil branches with
+   them. Decided here: `channels.swept_seq` goes. Nothing read it, and
+   the two cases it would have served (below) cost one stale row until
+   reload. The sweep's `UPDATE` of it, its query and its test went in
+   this step; the column stays one more release because 0.14.0's sweep
+   still writes it, and dropping it now would break a rollback there.
+   `make dev-flood`, which writes rows straight into Postgres, now stamps
+   them the same way the backfill does.
 
 ## Known and left as is
 
@@ -229,11 +253,6 @@ as a bug:
   swept root whose panel already says it is not available.
 - A refused reaction is reverted to the list as it was at the click, not
   the latest held (as before the switch).
-- A row with no `seq`, written by an older binary during a rollback, is
-  never above `since_seq` and is left for the next full load, until step
-  8 makes the column `NOT NULL`.
-- `channels.swept_seq` is written and never read (see Open for what it
-  would serve).
 - A page that answers between the reader's own reaction and its event
   shows the row without it for that moment, since the server's copy at
   the same seq wins.
@@ -278,18 +297,15 @@ as a bug:
 
 ## Open
 
-- **Step 8, next release:** backfill any `NULL` `messages.seq`, set
-  `NOT NULL`, and raise the floor (the migration's rank-by-id backfill
-  stands in for rows written before 00068; a release's worth of writes
-  later every live row carries a stamped seq). Decide then whether
-  `channels.swept_seq` stays: nothing reads it, and dropping it is a
-  migration and the sweep's one `UPDATE`; keeping it costs one column. It
-  is what would serve the two cases the floor cannot: a client offline
-  while the retention policy is lengthened or turned off keeps a row the
-  old policy swept, and one offline while a pinned root is unpinned,
-  deleted and swept keeps that root; a position below `swept_seq` would
-  tell the client to reopen. Both are rare and cost a stale row until
-  reload.
+- **Drop `channels.swept_seq`, the release after 0.15.0.** Step 8
+  stopped writing it; 0.14.0's sweep still does, so the column stays
+  until no shipped binary writes it, then one migration drops it. For the
+  record, what it would have served, and why it was not kept: two cases
+  the retention floor cannot reach — a client offline while the retention
+  policy is lengthened or turned off keeps a row the old policy swept,
+  and one offline while a pinned root is unpinned, deleted and swept
+  keeps that root; a position below `swept_seq` would have told the
+  client to reopen. Both are rare and cost one stale row until reload.
 - **The mobile re-point.** The mobile app's channel screen still runs the
   timeline reducer (`core/timelineState.ts`, `timelinePaging.ts`,
   `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,
