@@ -263,7 +263,10 @@ twice. A row's author is drawn through `core/author.ts`, which overlays
 the member from the members list the sidebar already holds on the row's
 embedded author, so `member_updated` and `groups_changed` refetch the
 members and groups and never the messages; someone no longer a member
-is shown as embedded.
+is shown from their profile (`GetUserProfile`, `api/authors.ts`, one
+request per departed author held for the session and asked again on
+`member_updated` and `member_removed`), which is what carries the mark
+that the account was deleted.
 
 ## The api/ layer
 

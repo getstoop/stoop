@@ -214,17 +214,23 @@ export function useInvites(spaceId: string, enabled = true) {
   });
 }
 
-// One person's public face, for their profile card. Fetched per card so a
-// renamed user shows their current name on an old message; the same query
-// serves a space and a DM, which is why the card needs no fallback.
-export function useUserProfile(userId: string) {
-  return useQuery({
-    queryKey: ["user-profile", userId],
+// One person's public face: their profile card, and the author of a
+// message by someone no longer a member (api/authors.ts). The same query
+// serves a space and a DM, which is why neither needs a fallback.
+export const userProfileKey = (userId: string) => ["user-profile", userId];
+
+export function userProfileQuery(userId: string) {
+  return queryOptions({
+    queryKey: userProfileKey(userId),
     queryFn: async () =>
       (await authClient.getUserProfile({ userId })).profile ?? null,
     enabled: userId !== "",
-    staleTime: 30_000,
   });
+}
+
+// Fetched per card, so a renamed user shows their current name.
+export function useUserProfile(userId: string) {
+  return useQuery({ ...userProfileQuery(userId), staleTime: 30_000 });
 }
 
 export function useMember(spaceId: string, userId: string) {

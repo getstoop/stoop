@@ -473,9 +473,12 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.invalidateQueries({
         queryKey: groupsKey(payload.value.spaceId),
       });
-      // Their messages stay, shown as embedded once they are off the
-      // members list: an account deleting itself leaves every space this
-      // way.
+      // Their messages stay, their author read from the profile once they
+      // are off the members list; an account deleting itself leaves every
+      // space this way, and the profile is what carries the deleted mark.
+      queryClient.invalidateQueries({
+        queryKey: ["user-profile", payload.value.userId],
+      });
       // If it was us, the spaces list shrinks and SpaceLayout bounces home.
       if (payload.value.userId === useConnectionStore.getState().userId) {
         queryClient.invalidateQueries({ queryKey: ["spaces"] });

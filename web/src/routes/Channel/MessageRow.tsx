@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { memo, type ReactNode, useMemo } from "react";
+import { useAuthorShown } from "../../api/authors";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -27,8 +28,8 @@ import { ThreadSummary } from "./ThreadSummary";
 // on a root the line that opens its thread. A root deleted while its
 // thread has replies is a placeholder that only opens the thread. The
 // author, and the authors the quotes name, are shown as the members list
-// has them now (core/author.ts), the embedded copy standing in for
-// anyone not on it. Memoised, so the list's own state (a picker, a card,
+// has them now, or from their profile once they are off it
+// (api/authors.ts). Memoised, so the list's own state (a picker, a card,
 // scrolling) doesn't re-render rows; the handlers take the message so
 // they can be shared.
 export const MessageRow = memo(function MessageRow({
@@ -125,8 +126,8 @@ export const MessageRow = memo(function MessageRow({
       ? dayAndTime(created)
       : created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fullTime = created ? fullDateTime(created) : undefined;
-  const author = authorShown(message.author, members);
-  const quoted = authorShown(message.replyTo?.author, members);
+  const author = useAuthorShown(message.author, members);
+  const quoted = useAuthorShown(message.replyTo?.author, members);
   const origin = authorShown(message.threadRoot?.author, members);
   const authorName = author?.displayName || author?.username || "?";
   const summary = message.thread && onThread && (

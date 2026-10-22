@@ -125,6 +125,24 @@ describe("member_updated", () => {
   });
 });
 
+describe("member_removed", () => {
+  it("asks for the profile their rows now read the author from", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["user-profile", "bea"], null);
+    queryClient.setQueryData(["user-profile", "ada"], null);
+    receive(queryClient, {
+      case: "memberRemoved",
+      value: { spaceId: "s1", userId: "bea" },
+    });
+    expect(
+      queryClient.getQueryState(["user-profile", "bea"])?.isInvalidated,
+    ).toBe(true);
+    expect(
+      queryClient.getQueryState(["user-profile", "ada"])?.isInvalidated,
+    ).toBe(false);
+  });
+});
+
 describe("Ready", () => {
   it("asks every held log for the changes since its seq", async () => {
     const queryClient = new QueryClient();
