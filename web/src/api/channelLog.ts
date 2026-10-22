@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   channelOfEvent,
+  FROM_ANSWER,
   forgetItems,
   inRange,
   isShown,
@@ -8,6 +9,7 @@ import {
   opened,
   paged,
   reconnected as reconnectedLog,
+  refreshed,
   showsInChannel,
   type ThreadOverlay,
   viewOf,
@@ -15,7 +17,10 @@ import {
   withEvent,
   withThreadOverlay,
 } from "../core/channelLog";
-import type { ListMessagesResponse } from "../gen/stoop/chat/v1/chat_pb";
+import type {
+  ListMessagesRequest,
+  ListMessagesResponse,
+} from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import { catchUp, forgetCatchUp } from "./channelLogCatchUp";
@@ -26,6 +31,7 @@ import {
   epochOf,
   forgetLog,
   generationOf,
+  hasOpened,
   logOf,
   readView,
   setLanding,
@@ -233,12 +239,15 @@ export async function jumpTo(
 }
 
 // Replaces a view that stops short of the newest row with the newest page
-// (the "Jump to latest" pill, a send from history).
+// (the "Jump to latest" pill, a send from history). A view not held yet
+// (a thread opened on a reply since deleted: the landing's jump failed and
+// no page was asked for) takes the newest page as its first.
 export async function jumpToLatest(view: ViewRef): Promise<void> {
   const log = logOf(view.channelId);
-  const held = log && viewOf(log, view.rootId);
-  if (!held?.hasNewer) return;
-  const generation = held.generation;
+  if (!log) return;
+  const held = viewOf(log, view.rootId);
+  if (held && !held.hasNewer) return;
+  const generation = held?.generation ?? 0;
   const res = await request(view, () =>
     chatClient.listMessages({ ...scope(view), limit: HISTORY_PAGE }),
   );
@@ -262,11 +271,12 @@ export function applyEvent(event: ServerEvent) {
 
 // A row the app has in hand before, or instead of, its event: the answer
 // to the reader's send or edit, a thread's root fetched for the panel.
-// Merged by seq exactly as an event's row is, with the reader's half of a
-// thread summary kept from the held copy; the position does not move,
-// since the row says nothing about the changes before it.
+// Merged by seq as an event's row is, except that the server's whole row
+// wins a tie, with the reader's half of a thread summary kept from the
+// held copy; the position does not move, since the row says nothing about
+// the changes before it.
 export function holdRow(channelId: string, row: Message) {
-  updateLog(channelId, (log) => withArrivals(log, [row], true));
+  updateLog(channelId, (log) => withArrivals(log, [row], FROM_ANSWER));
 }
 
 // A change the reader made before the server answers (a reaction, a pin,
@@ -299,11 +309,59 @@ export function patchThread(
   updateLog(channelId, (log) => withThreadOverlay(log, rootId, patch));
 }
 
-// The socket is back: every log owes a catch-up from where it stands.
+// The socket is back: every log owes a catch-up from where it stands, and
+// after it the newest page of each view that has one is asked for again,
+// with an open thread's root. A thread's reads and mutes changed elsewhere
+// while the socket was down bump no seq, so the catch-up brings nothing
+// for them; the pages do, for the rows the reader is most likely looking
+// at, and older rows are put right when paged again.
 export function reconnected() {
   for (const channelId of Object.keys(useChannelLogStore.getState().logs)) {
     updateLog(channelId, reconnectedLog);
-    void catchUp(channelId);
+    const epoch = epochOf(channelId);
+    void catchUp(channelId).then(() => {
+      // Forgotten meanwhile: a log re-created since has its own reconnect.
+      if (epochOf(channelId) === epoch) return refreshViews(channelId);
+    });
+  }
+}
+
+async function refreshViews(channelId: string) {
+  const log = logOf(channelId);
+  if (!log) return;
+  const pages: Promise<void>[] = [];
+  if (hasOpened(log.channel)) pages.push(refreshPage({ channelId }));
+  for (const [rootId, view] of Object.entries(log.threads)) {
+    if (!hasOpened(view)) continue;
+    // The replies, and the root, which a thread's page never lists and
+    // which carries the summary the panel shows (as useThreadRoot asks).
+    pages.push(
+      refreshPage({ channelId, rootId }),
+      refreshPage({ channelId }, { aroundId: rootId, limit: 1 }),
+    );
+  }
+  await Promise.all(pages);
+}
+
+// A page for the view again (its newest, unless the paging says where),
+// merged with the range and the position left alone. Not counted as
+// loading: the list has its rows, and nothing waits on this. A failure is
+// left to the next reconnect.
+async function refreshPage(
+  view: ViewRef,
+  paging: Partial<Pick<ListMessagesRequest, "aroundId" | "limit">> = {},
+) {
+  const epoch = epochOf(view.channelId);
+  try {
+    const res = await chatClient.listMessages({
+      ...scope(view),
+      limit: HISTORY_PAGE,
+      ...paging,
+    });
+    if (epochOf(view.channelId) !== epoch) return;
+    updateLog(view.channelId, (log) => refreshed(log, res));
+  } catch {
+    // The next reconnect asks again.
   }
 }
 

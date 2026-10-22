@@ -175,22 +175,36 @@ open thread of it are ranges over the same rows, so an edit reaches the
 root in the channel and the same root above its replies in one write.
 
 `core/channelLog/` is the pure model. A `ChannelLog` holds `seq`, the log
-position through which every change is known; `rows`, every row known by
-id, tombstones included; a `View` for the channel and one per open thread
-(a range of two ids with `hasOlder` and `hasNewer`, a `pendingNewer` count
-for the pill, and a `generation`); the retention `floor`; and
-`needsCatchUp`. Its rules, one file each, all pure:
+position through which every change is known; `seenSeq`, the highest seq
+any event has carried; `rows`, every row known by id, tombstones
+included; a `View` for the channel and one per open thread (a range of
+two ids with `hasOlder` and `hasNewer`, a `pendingNewer` count for the
+pill, and a `generation`); the retention `floor`; and `needsCatchUp`. Its
+rules, one file each, all pure:
 
-- **Merge by seq** (`rows.ts`): a copy replaces the held row only with a
-  higher seq. A tombstone is a row with `deleted` set: it stays in the map,
-  hidden, so a stale copy cannot bring it back, and shows only as the
-  placeholder root of a thread that still has replies.
+- **Merge by seq** (`rows.ts`): a copy replaces the held row with a
+  higher seq; the server's copy (a page, a `ListChanges` page, an RPC's
+  answer) also wins a tie, because it is the whole row while an event may
+  have patched the held one partially and stamped it with that seq (a
+  reaction on top of an edit the socket missed). An event's copy at an
+  equal seq is ignored. A tombstone is a row with `deleted` set: it stays
+  in the map, hidden, so a stale copy cannot bring it back, and shows only
+  as the placeholder root of a thread that still has replies.
 - **Events** (`events.ts`): each of the five message events yields a row at
-  the event's seq. The next seq advances the position; one further on is
-  applied too (higher wins) but marks a gap; one at or below is ignored.
-  Before the first page rows are kept and the page decides; `hasPage`
-  (`pages.ts`) is what says a page has been taken, since a channel with
-  no messages yet is at 0 after its page as before it.
+  the event's seq, and every one moves `seenSeq`. The next seq advances
+  the position; one further on is applied too (higher wins) but marks a
+  gap; one at or below is ignored. A partial event (a reaction, a pin, a
+  thread summary) about a row that isn't held covers nothing of its seq,
+  so it marks a gap too and the catch-up brings the whole row. Before the
+  first page rows are kept and the page decides; `hasPage` (`pages.ts`)
+  is what says a page has been taken, since a channel with no messages
+  yet is at 0 after its page as before it.
+- **Position** (`position.ts`): a load that sets the position (the first
+  page, a catch-up's last page) covers the changes through the seq the
+  server read before its rows, so an event seen above it was not covered
+  and leaves `needsCatchUp` set, rather than the load clearing it; the
+  loader then runs another pass. That is how a message missed while the
+  first page or a catch-up was out is still fetched.
 - **Pages** (`pages.ts`): `opened` and `jumped` replace a view's range and
   move its generation, so a page out for the old range is dropped when it
   answers; `paged` grows the range. The first page a log sees sets its seq;
@@ -203,7 +217,11 @@ for the pill, and a `generation`); the retention `floor`; and
   every row, places a row new to the log as an event would, and drops what
   is below the retention floor, sparing pinned roots and their threads as
   the sweep does. The position moves only on the last page, to the
-  channel's seq or the highest row's.
+  channel's seq or the highest row's. Every answer's rows are judged
+  against the floor held or the answer's, whichever is higher, so a page
+  asked for before a sweep cannot bring back a row a catch-up since
+  dropped. `refreshed` merges a view's newest page asked for again after
+  a reconnect, moving neither the range nor the position.
 - **Overlay** (`overlay.ts`): the reader's half of a root's thread summary
   (`participating`, `muted`, `unreadCount`) is not a row fact and has no
   seq; `withThreadOverlay` patches it on the held copy, for the app's own
@@ -222,9 +240,19 @@ an event's.
 hooks `useChannelItems`, `useThreadItems`, `useRow`, `useView`,
 `useViewStatus`), and `openChannel`, `openThread`, `loadOlder` and
 `loadNewer` (one request per view per direction), `jumpTo`,
-`jumpToLatest`, `applyEvent`, `patchThread`, `reconnected` and `forget`
-(which also ends the epoch a page still out was asked in, so its answer
-is dropped). Two more are for what the app has in hand before the
+`jumpToLatest` (which opens a view not yet held on its newest page: the
+fallback when a landing's message is gone), `applyEvent`, `patchThread`,
+`reconnected` and `forget` (which also ends the epoch a page still out
+was asked in, so its answer is dropped). `reconnected` owes every held
+log a catch-up and, once it is done, asks for the newest page of each
+view that has one again (the channel's, each open thread's, and an open
+thread's root, which a thread's page never lists), merged with the server
+winning a tie: a thread's reads and mutes changed on another device while
+the socket was down are per-viewer facts that bump no seq, so
+`ListChanges` carries nothing for them, and the pages refresh them on the
+rows the reader is most likely looking at. The limit is deliberate: a row
+outside those pages keeps its old reader's half until it is paged in
+again. Two more are for what the app has in hand before the
 server's event: `holdRow` merges a row by seq exactly as an event's (the
 answer to a send or an edit, a thread's root fetched for the panel), and
 `patchRow` changes a held row at its own seq (a reaction or a pin before
@@ -233,8 +261,10 @@ that follows, at a higher seq, replaces it, and a refusal is reverted
 with another patch.
 `api/channelLogCatchUp.ts` runs one `ListChanges` loop per channel, shared
 by concurrent callers, retried with backoff capped at 15 s while the
-socket is open; a refusal that won't change (no access, not found, signed
-out, a bad request) ends it with `needsCatchUp` still set.
+socket is open, and run again while a pass leaves the log owing (an event
+seen above where the pass settled); a refusal that won't change (no
+access, not found, signed out, a bad request) ends it with `needsCatchUp`
+still set.
 
 **Who holds a log.** `useOpenView(view, landing?)` in `api/channelLog.ts`
 is how a page or a panel takes a channel: it holds the log while mounted

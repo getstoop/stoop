@@ -74,9 +74,11 @@ not dense.
 
 One store per channel: a seq, a map of rows by id, a sorted order. The
 merge rule is one comparison: a row that arrives replaces the held copy
-when its seq is higher. A live event whose seq is exactly next is applied;
-any other gap triggers one `ListChanges` from the held seq. Reconnect is
-that call for every channel with a store.
+when its seq is higher (as built, the server's whole row also wins a tie
+with a copy an event patched partially). A live event whose seq is exactly
+next is applied; any other gap triggers one `ListChanges` from the held
+seq. Reconnect is that call for every channel with a store, followed by
+each view's newest page for the per-viewer fields no seq carries.
 
 Views are ranges over the store. The channel view tracks a contiguous
 range of top-level rows with `hasOlder`/`hasNewer`; a thread view tracks
@@ -164,14 +166,40 @@ query with the embedded author as fallback.
    scroll now. An author off the members list (left, or deleted their
    account) is shown from their profile, fetched once per departed author
    and asked for again on `member_removed`, since the deleted mark lives
-   there and no page is fetched again to bring it. Known and left as
-   is: `hasPage` can flip
+   there and no page is fetched again to bring it. Review of the switch
+   added three things to the model: `seenSeq`, the highest seq any event
+   carried, so a load that sets the position below it (the first page, a
+   catch-up's last page, each read at a seq the server took before the
+   rows) leaves the catch-up owed and the loader runs another pass, where
+   before a message missed while the load was out was lost; the server's
+   whole row wins a tie with a held copy, since a partial event (a
+   reaction) can stamp a row with the seq under which the full row, with
+   an edit the socket missed, then arrives, and a partial event about a
+   row not held marks a gap rather than advancing past it; and
+   `reconnected` follows the catch-up with each view's newest page and an
+   open thread's root, since a thread's reads and mutes changed elsewhere
+   bump no seq and `ListChanges` carries nothing for them (rows outside
+   those pages keep the old reader's half until paged in again). A page's
+   rows are judged against the floor held or the answer's, whichever is
+   higher, so a page asked for before a sweep cannot bring back a row a
+   catch-up dropped, and `jumpToLatest` opens a view not yet held, so a
+   thread opened on a reply since deleted shows its remaining replies
+   instead of nothing.
+   Known and left as is: `hasPage` can flip
    back to false when a swept root's thread view was the only view with
    a page (`floor.ts` drops the view), reachable only with a swept root
    whose panel already says it is not available; a refused reaction is
    reverted to the list as it was at the click, not the latest held
-   (as before the switch). The timeline reducer modules under `core/`
-   were not deleted: see step 7.
+   (as before the switch); a page requested from an edge that pruning
+   moved meanwhile can leave an interior hole when the view is at its
+   2,000-row cap; two jumps in flight land on the first to answer rather
+   than the latest; a deletion above the viewport shifts the view by the
+   row's height, because browser scroll anchoring is off in the list; an
+   audio attachment restarts when its row leaves the rendered range and
+   returns; and a page that answers between the reader's own reaction and
+   its event shows the row without it for that moment, since the server's
+   copy at the same seq now wins. The timeline reducer modules under
+   `core/` were not deleted: see step 7.
 7. Cleanup: the mobile app's channel screen still runs the timeline
    reducer (`core/timelineState.ts`, `timelinePaging.ts`,
    `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,

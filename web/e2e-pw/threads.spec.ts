@@ -13,7 +13,8 @@ import {
 // Threads (STOOP-431): starting one from a message, replies that stay out
 // of the channel, the summary under the root following live for someone
 // else, the side panel staying open across a channel change, a ?t=&m=
-// link, and a root deleted while it has replies.
+// link (to a reply since deleted too), and a root deleted while it has
+// replies.
 test("threads", async ({ browser }) => {
   const { space, channels, tokens } = await seed({
     channels: ["general", "random"],
@@ -142,6 +143,28 @@ test("threads", async ({ browser }) => {
       message: "and the params are dropped from the URL",
     })
     .toBe("");
+
+  // A link to a reply that has since been deleted still opens the thread,
+  // on the replies that remain.
+  await sayIn(A, ".side-panel", "see you at nine");
+  const gone = panelRows(A).filter({ hasText: "see you at nine" });
+  const goneId = (await gone.getAttribute("id"))?.replace("thread-msg-", "");
+  expect(goneId, "the reply's row carries its id").toBeTruthy();
+  await act(gone, "Delete");
+  await acceptDialog(A);
+  await expect(gone, "A deleted it").toHaveCount(0);
+  await gotoShared(
+    B,
+    `/s/${space.id}/c/${channels.general}?t=${rootId}&m=${goneId}`,
+  );
+  await live(B);
+  await expect(panel(B), "its link still opens the thread").toBeVisible();
+  await expect(
+    panelRows(B).filter({ hasText: "the cooler" }),
+    "on the replies that remain",
+  ).toHaveCount(1);
+  await expect(panelRows(B).filter({ hasText: "four folding" })).toHaveCount(1);
+  await expect(summary(B), "two of them").toContainText("2 replies");
 
   // A deletes the message while it has replies: it stays as a placeholder
   // that still opens the thread, and the thread takes no new replies.

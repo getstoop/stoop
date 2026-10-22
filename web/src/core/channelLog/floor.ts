@@ -8,16 +8,21 @@ import { withoutView } from "./views";
 // The sweep spares pinned roots and their whole threads, so a row below
 // the floor is dropped only when it is not pinned, and a reply only when
 // its root is held and not pinned: a reply whose root isn't held is kept,
-// since had the root been swept the reply would not have come.
+// since had the root been swept the reply would not have come. The floor
+// never moves back, and the rows are judged against it whichever answer
+// brought them: a page asked for before a sweep answers with rows a
+// catch-up since has dropped, and they go again.
 export function withFloor(log: ChannelLog, floorId: string): ChannelLog {
-  if (!floorId || floorId <= log.floor) return log;
+  const floor = floorId > log.floor ? floorId : log.floor;
+  if (!floor) return log;
   const gone = new Set<string>();
   for (const row of log.rows.values()) {
-    if (belowFloor(log.rows, row, floorId)) gone.add(row.id);
+    if (belowFloor(log.rows, row, floor)) gone.add(row.id);
   }
+  if (floor === log.floor && gone.size === 0) return log;
   let next: ChannelLog = {
     ...log,
-    floor: floorId,
+    floor,
     rows: withoutRows(log.rows, gone),
   };
   for (const rootId of Object.keys(log.threads)) {

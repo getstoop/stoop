@@ -405,11 +405,14 @@ above its replies in one write.
 
 **Merge by seq.** Every row that arrives — a page's, an event's, a
 catch-up's, the answer to the reader's own send or edit — replaces the
-held copy only when its `seq` is higher. That one comparison replaces the
-old client's request bookkeeping: a page that was out while an edit
-landed cannot put the old text back, because the page's copy carries a
-lower seq. A deletion is a row too, a tombstone, so a stale copy cannot
-bring a deleted message back. The reader's own changes before the server
+held copy when its `seq` is higher, and the server's whole row (a page, a
+catch-up, an answer) also wins a tie, since an event may have patched the
+held copy partially under that seq (a reaction on top of an edit the
+socket missed). That one comparison replaces the old client's request
+bookkeeping: a page that was out while an edit landed cannot put the old
+text back, because the page's copy carries a lower seq. A deletion is a
+row too, a tombstone, so a stale copy cannot bring a deleted message
+back. The reader's own changes before the server
 answers (a reaction, a pin, their own delete hidden at once) are written
 at the row's *own* seq (`patchRow`), so the event that follows, at a
 higher seq, replaces them and a refusal is reverted the same way.
@@ -417,11 +420,17 @@ higher seq, replaces them and a refusal is reverted the same way.
 **Events by position.** An event whose seq is exactly the next one is
 applied and the position moves. One further on is applied too (higher
 wins) but marks a gap: a `ListChanges` from the held seq is owed. One at
-or below the position is ignored. Before the first page the position is
-0 and events are kept without judgement; the page's `channel_seq`, read
-by the server before the page query, sets it (to 0 again for a channel
-with no messages yet, so whether a page has been taken is kept apart
-from the position, `hasPage`).
+or below the position is ignored; one about a row that isn't held, when
+it carries only part of the row (a reaction, a pin, a summary), marks a
+gap too, so the catch-up brings the whole row. Before the first page the
+position is 0 and events are kept without judgement; the page's
+`channel_seq`, read by the server before the page query, sets it (to 0
+again for a channel with no messages yet, so whether a page has been
+taken is kept apart from the position, `hasPage`). The log also keeps
+`seenSeq`, the highest seq any event carried: a load that sets the
+position below it (the server read its seq before the rows) leaves the
+catch-up owed, so an event missed while the first page or a catch-up was
+out is still fetched.
 
 **Catch-up, not refetch.** A gap, and every reconnect (the gateway's
 Ready, which `api/ws.ts` turns into `reconnected()` for every held log),
@@ -435,7 +444,12 @@ message posted while this page's socket was down appears when the socket
 is back, without a reload, and nothing the reader had paged in is
 dropped. The loop is shared by concurrent callers, retried with backoff
 capped at 15 s while the socket is open, and ended by a refusal that
-won't change (no access, not found, signed out).
+won't change (no access, not found, signed out). A reconnect's catch-up
+is followed by one more `ListMessages` per view with a page (the channel's
+newest page, each open thread's, and an open thread's root), because a
+thread's reads and mutes changed on another device meanwhile bump no seq
+and come with no change; the pages refresh the rows on screen, and older
+rows are put right when paged in again.
 
 **The floor.** Retention hard-deletes rows with no tombstone and no
 event, so `ListMessages` and `ListChanges` both carry the sweep's

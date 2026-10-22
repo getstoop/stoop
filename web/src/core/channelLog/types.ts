@@ -30,6 +30,12 @@ export type ChannelLog = {
   // in pages.ts tells the two apart). A bigint on the wire, a number here
   // (safe below 2^53).
   seq: number;
+  // The highest seq any event about the channel has carried, whether or
+  // not it was applied. A load that sets the position (the first page, a
+  // catch-up's last page) covers the changes through the seq the server
+  // read before its rows, so an event seen above that was not covered and
+  // keeps the catch-up owed (position.ts).
+  seenSeq: number;
   // Every row known, by id, tombstones (deleted) included. Replaced, never
   // mutated, so a list can tell at a glance whether anything changed.
   rows: ReadonlyMap<string, Message>;
@@ -58,6 +64,7 @@ export function emptyLog(channelId: string): ChannelLog {
   return {
     channelId,
     seq: 0,
+    seenSeq: 0,
     rows: new Map(),
     channel: emptyView,
     threads: {},

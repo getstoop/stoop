@@ -58,6 +58,32 @@ describe("opened", () => {
     });
     expect(log.channel.newestId).toBe(id(150));
     expect(ids(channelItems(log))).toContain(id(150));
+    expect(log.seq).toBe(150);
+    // The event lies above the seq the page was read at, and seenSeq can't
+    // tell the next seq from a gap: the catch-up owed confirms it.
+    expect(log.needsCatchUp).toBe(true);
+  });
+
+  it("owes a catch-up when an event seen before the page lies above its seq", () => {
+    // 151 was missed before the page; 152 arrived; the page was read at
+    // 150, so 151 is nowhere until a catch-up brings it.
+    const early = withEvent(
+      emptyLog(CHANNEL),
+      event({ case: "messageCreated", value: message(id(151), { seq: 152n }) }),
+    );
+    const log = opened(early, {
+      generation: 0,
+      res: page(rows(100, 150), { channelSeq: 150 }),
+    });
+    expect(log.seq).toBe(150);
+    expect(log.seenSeq).toBe(152);
+    expect(log.needsCatchUp).toBe(true);
+    // Nothing owed by a page's seq alone, whatever a reconnect said.
+    const owed = opened(
+      { ...emptyLog(CHANNEL), needsCatchUp: true },
+      { generation: 0, res: page(rows(100, 150), { channelSeq: 150 }) },
+    );
+    expect(owed.needsCatchUp).toBe(false);
   });
 
   it("opens a thread as its own range beside the channel's", () => {

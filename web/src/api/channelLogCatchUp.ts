@@ -12,7 +12,9 @@ import { chatClient } from "./clients";
 // reconnected() asks again; a refusal that won't change (no access, no
 // such channel, signed out, a bad request) ends the loop. A run asked
 // for a log since forgotten (its epoch moved) answers to nobody: a log
-// re-created meanwhile holds a newer position of its own.
+// re-created meanwhile holds a newer position of its own. A pass whose
+// last page settles the position below an event seen meanwhile leaves the
+// flag set (core/channelLog position.ts), and the next pass follows.
 
 // The server's largest page.
 const CATCH_UP_PAGE = 200;
@@ -53,7 +55,6 @@ async function catchUpUntilDone(channelId: string) {
     if (epochOf(channelId) !== epoch) return;
     try {
       await catchUpPages(channelId, log.seq, epoch);
-      return;
     } catch (err) {
       if (!retryable(err)) return;
       if (useConnectionStore.getState().status !== "connected") return;

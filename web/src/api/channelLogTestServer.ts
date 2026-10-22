@@ -11,6 +11,7 @@ import {
   type Message,
   MessageAuthorSchema,
   MessageSchema,
+  type ThreadSummary,
   ThreadSummarySchema,
 } from "../gen/stoop/chat/v1/message_pb";
 import { ServerEventSchema } from "../gen/stoop/realtime/v1/realtime_pb";
@@ -70,7 +71,7 @@ export function read(req: PageReq) {
     end = Math.min(rows.length, start + limit);
   } else if (req.aroundId) {
     const at = rows.findIndex((row) => row.id === req.aroundId);
-    start = Math.max(0, at - limit / 2);
+    start = Math.max(0, at - Math.floor(limit / 2));
     end = Math.min(rows.length, start + limit);
   } else {
     end = rows.length;
@@ -214,6 +215,19 @@ export function pinOnServer(messageId: string, announce = true) {
         value: { channelId: CHANNEL, messageId, pinned: true, seq: row.seq },
       }),
     );
+}
+
+// The reader's half of a root's thread summary changed on another device
+// (a read, a mute): the server's copy says so, and no seq moves.
+export function markThreadOnServer(
+  rootId: string,
+  viewer: Partial<Pick<ThreadSummary, "muted" | "unreadCount">>,
+) {
+  server.rows = server.rows.map((row) =>
+    row.id === rootId && row.thread
+      ? { ...row, thread: { ...row.thread, ...viewer } }
+      : row,
+  );
 }
 
 // The retention sweep: rows below the floor go, pinned roots and their

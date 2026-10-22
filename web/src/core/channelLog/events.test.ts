@@ -45,6 +45,29 @@ describe("the position", () => {
     expect(ids(channelItems(log))).toContain(id(10));
     expect(log.seq).toBe(10);
     expect(log.needsCatchUp).toBe(true);
+    expect(log.seenSeq).toBe(13);
+  });
+
+  it("remembers the highest seq seen, whatever the event did", () => {
+    const next = withEvent(live(), created(id(10), 11));
+    expect(next.seenSeq).toBe(11);
+    // A reaction on a row it never held: nothing to patch, the seq seen.
+    const unheld = withEvent(
+      next,
+      event({
+        case: "reactionsChanged",
+        value: {
+          channelId: CHANNEL,
+          messageId: "never",
+          reactions: [],
+          seq: 14n,
+        },
+      }),
+    );
+    expect(unheld.rows.has("never")).toBe(false);
+    expect(unheld.seenSeq).toBe(14);
+    // An older one moves nothing.
+    expect(withEvent(unheld, created(id(11), 12)).seenSeq).toBe(14);
   });
 
   it("ignores a seq at or below what is known", () => {
@@ -60,6 +83,7 @@ describe("the position", () => {
     const log = withEvent(emptyLog(CHANNEL), created(id(0), 40));
     expect(log.seq).toBe(0);
     expect(log.needsCatchUp).toBe(false);
+    expect(log.seenSeq).toBe(40);
     expect(log.rows.has(id(0))).toBe(true);
   });
 
@@ -98,6 +122,54 @@ describe("each kind", () => {
     expect(row?.reactions.map((reaction) => reaction.emoji)).toEqual(["👍"]);
     expect(row?.seq).toBe(11n);
     expect(log.seq).toBe(11);
+  });
+
+  it("owes a catch-up for a partial event about a row it doesn't hold", () => {
+    // The next seq, but the row isn't held: the reaction covers nothing of
+    // it, so the position stays and the catch-up brings the whole row.
+    const log = withEvent(
+      live(),
+      event({
+        case: "reactionsChanged",
+        value: {
+          channelId: CHANNEL,
+          messageId: "never",
+          reactions: [],
+          seq: 11n,
+        },
+      }),
+    );
+    expect(log.seq).toBe(10);
+    expect(log.needsCatchUp).toBe(true);
+    expect(log.rows.has("never")).toBe(false);
+    const summary = withEvent(
+      live(),
+      event({
+        case: "threadChanged",
+        value: {
+          channelId: CHANNEL,
+          rootMessageId: "never",
+          thread: { replyCount: 1 },
+          seq: 11n,
+        },
+      }),
+    );
+    expect(summary.needsCatchUp).toBe(true);
+    // Before the first page nothing is owed yet: the page's seq decides.
+    const early = withEvent(
+      emptyLog(CHANNEL),
+      event({
+        case: "messagePinned",
+        value: {
+          channelId: CHANNEL,
+          messageId: "never",
+          pinned: true,
+          seq: 11n,
+        },
+      }),
+    );
+    expect(early.needsCatchUp).toBe(false);
+    expect(early.seenSeq).toBe(11);
   });
 
   it("sets pinned", () => {
