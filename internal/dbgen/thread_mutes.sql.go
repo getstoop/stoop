@@ -28,6 +28,7 @@ FROM thread_mutes tm
 JOIN message_with_reply m ON m.id = tm.root_message_id
 JOIN channels c ON c.id = m.channel_id
 WHERE tm.user_id = $1
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
   AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $1)
 ORDER BY tm.created_at DESC
 LIMIT 200
@@ -40,7 +41,8 @@ type ListThreadMutesRow struct {
 
 // ListThreadMutes is Profile → Muted's threads, newest mute first, in
 // channels the person can still read; the caller drops hidden voice
-// channels, as accessChannel does.
+// channels, as accessChannel does. A root nobody is shown (a tombstone
+// with no live reply) is left out, as GetMessage leaves it out.
 func (q *Queries) ListThreadMutes(ctx context.Context, userID string) ([]ListThreadMutesRow, error) {
 	rows, err := q.db.Query(ctx, listThreadMutes, userID)
 	if err != nil {
@@ -120,7 +122,10 @@ func (q *Queries) MarkThreadRead(ctx context.Context, arg MarkThreadReadParams) 
 
 const muteThread = `-- name: MuteThread :exec
 
-INSERT INTO thread_mutes (user_id, root_message_id) VALUES ($1, $2)
+INSERT INTO thread_mutes (user_id, root_message_id)
+SELECT $1::uuid, m.id FROM messages m
+WHERE m.id = $2::uuid
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
 ON CONFLICT DO NOTHING
 `
 
@@ -131,6 +136,9 @@ type MuteThreadParams struct {
 
 // Thread mutes and read markers (STOOP-433). Owned by the chat module.
 // Only internal/chat may use these queries. docs/architecture/messaging.md.
+// MuteThread mutes a thread whose root is still shown: live, or a
+// placeholder with live replies. The handler checked the root before
+// this write, and a delete can commit in between.
 func (q *Queries) MuteThread(ctx context.Context, arg MuteThreadParams) error {
 	_, err := q.db.Exec(ctx, muteThread, arg.UserID, arg.RootMessageID)
 	return err

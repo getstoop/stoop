@@ -786,7 +786,15 @@ in the root's thread and not in the channel's timeline
   mentions, pin or activity) stays in the channel with its summary, and
   its thread still opens. Clients get `MessageUpdated` with `deleted`
   set. Edits, reactions, pins, quotes and new replies on it are refused;
-  a quote of it reads like a quote of a deleted message. When its last
+  a quote of it reads like a quote of a deleted message. Each handler
+  checks that before its transaction, and a delete can commit in
+  between, which no foreign key stops now that a delete is a tombstone:
+  so a reply's send and a pin read the row again once they hold the
+  channel row (`liveMessage` in `chat/tombstones.go`) and refuse the
+  same way, spending no seq; a thread mute is written only for a root
+  still shown and `ListThreadMutes` lists only those; and the activity
+  inserts write nothing for a message that is a tombstone by the time
+  the send records them. When its last
   live reply goes the summary row is dropped and the placeholder is
   hidden with it — stamped again, its thread mutes and read markers
   deleted, `MessageDeleted` published for the reply and then for the

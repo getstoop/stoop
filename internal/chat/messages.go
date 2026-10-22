@@ -156,6 +156,13 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		if err != nil {
 			return fmt.Errorf("next channel seq: %w", err)
 		}
+		// threadRootFor read the root before the transaction; a delete
+		// that committed since would have the reply recreate its thread.
+		if threadRoot != nil {
+			if _, err := liveMessage(ctx, qtx, threadRoot.ID); err != nil {
+				return err
+			}
+		}
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: stored,
 			MentionsEntireChannel: res.entireChannel, MentionsHere: res.here, ReplyToMessageID: replyTo,

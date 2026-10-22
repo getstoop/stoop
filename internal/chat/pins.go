@@ -63,6 +63,11 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 		if seq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
 		}
+		// The check above ran before the transaction; a delete that
+		// committed since would leave a tombstone pinned.
+		if _, err := liveMessage(ctx, qtx, msg.ID); err != nil {
+			return err
+		}
 		pinned, err := qtx.PinMessage(ctx, dbgen.PinMessageParams{
 			MessageID: msg.ID, ChannelID: channel.ID,
 			PinnedBy: authctx.UserID(ctx), Cap: maxChannelPins,
@@ -71,7 +76,7 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 		return err // no row rolls the stamp back: nothing changed
 	})
 	switch {
-	case errors.Is(err, errMessageGone):
+	case errors.Is(err, errMessageGone), errors.Is(err, errPlaceholder):
 		return nil, err
 	case errors.Is(err, pgx.ErrNoRows):
 		// The insert wrote nothing: either it is pinned already, or the

@@ -125,3 +125,12 @@ query with the embedded author as fallback.
 The mobile app's shared reducer import breaks at step 6; its contract is
 still open and it re-points at the new store when its channel screen is
 next touched.
+
+## Known and left as is
+
+- A thread read marker (`MarkThreadRead`) can land on a root deleted
+  between the handler's check and its insert. The insert is not made
+  conditional: it returns the marker, so a condition would change what
+  the RPC and the send's transaction read back. A stray `thread_reads`
+  row is shown to nobody (`ThreadViewerStates` runs only over roots a
+  page holds) and goes with the root when the sweep hard-deletes it.

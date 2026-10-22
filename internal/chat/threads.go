@@ -18,10 +18,16 @@ import (
 	"github.com/getstoop/stoop/internal/pbtime"
 )
 
+// errPlaceholder is a write aimed at a root kept as a placeholder.
+// placeholderError wraps it, a fresh connect error per call since one
+// carries mutable headers; a caller that needs to tell it apart matches
+// it with errors.Is.
+var errPlaceholder = errors.New("that message was deleted")
+
 // placeholderError refuses anything but reading on a root kept as a
 // placeholder.
 func placeholderError() error {
-	return connect.NewError(connect.CodeFailedPrecondition, errors.New("that message was deleted"))
+	return connect.NewError(connect.CodeFailedPrecondition, errPlaceholder)
 }
 
 // threadRootFor checks that rootID can take a reply sent in channel: a

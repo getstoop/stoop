@@ -21,6 +21,26 @@ import (
 // nobody, except a root whose thread still has live replies, which the
 // channel shows as a placeholder. docs/architecture/messaging.md → Threads.
 
+// liveMessage reads a write's target again inside the transaction, once
+// the channel row is held: the handler checked it before the transaction
+// began, and a delete can commit in between, which no foreign key stops
+// now that a delete is a tombstone. It answers as the handler's own check
+// does: a hidden tombstone is NotFound, a placeholder is refused. Either
+// rolls the transaction back, so a position taken is not spent.
+func liveMessage(ctx context.Context, qtx *dbgen.Queries, messageID string) (messageRow, error) {
+	row, err := qtx.GetMessage(ctx, messageID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return messageRow{}, connect.NewError(connect.CodeNotFound, errMessageGone)
+	}
+	if err != nil {
+		return messageRow{}, fmt.Errorf("read message: %w", err)
+	}
+	if row.DeletedAt != nil {
+		return messageRow{}, placeholderError()
+	}
+	return row, nil
+}
+
 // tombstoneRow is the one delete path for a message row, inside a
 // transaction that already holds the channel row: it blanks the row,
 // drops what a hard delete used to cascade, and stamps it. A row that is

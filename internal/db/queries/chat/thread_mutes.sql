@@ -1,8 +1,14 @@
 -- Thread mutes and read markers (STOOP-433). Owned by the chat module.
 -- Only internal/chat may use these queries. docs/architecture/messaging.md.
 
+-- MuteThread mutes a thread whose root is still shown: live, or a
+-- placeholder with live replies. The handler checked the root before
+-- this write, and a delete can commit in between.
 -- name: MuteThread :exec
-INSERT INTO thread_mutes (user_id, root_message_id) VALUES ($1, $2)
+INSERT INTO thread_mutes (user_id, root_message_id)
+SELECT sqlc.arg(user_id)::uuid, m.id FROM messages m
+WHERE m.id = sqlc.arg(root_message_id)::uuid
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
 ON CONFLICT DO NOTHING;
 
 -- name: UnmuteThread :exec
@@ -17,13 +23,15 @@ DELETE FROM thread_reads WHERE root_message_id = sqlc.arg(root_id)::uuid;
 
 -- ListThreadMutes is Profile → Muted's threads, newest mute first, in
 -- channels the person can still read; the caller drops hidden voice
--- channels, as accessChannel does.
+-- channels, as accessChannel does. A root nobody is shown (a tombstone
+-- with no live reply) is left out, as GetMessage leaves it out.
 -- name: ListThreadMutes :many
 SELECT sqlc.embed(m), sqlc.embed(c)
 FROM thread_mutes tm
 JOIN message_with_reply m ON m.id = tm.root_message_id
 JOIN channels c ON c.id = m.channel_id
 WHERE tm.user_id = $1
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
   AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $1)
 ORDER BY tm.created_at DESC
 LIMIT 200;
