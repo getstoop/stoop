@@ -107,8 +107,9 @@ func (lock *migrationLock) release() {
 // checkSchemaFloor refuses to run a binary that is too old for the database.
 // Additive migrations from a newer release are fine (that is what makes a
 // one-step rollback work); a contract migration raises schema_floor to the
-// last migration the previous release shipped, and a binary that does not
-// know that migration stops here instead of failing at some later query.
+// last migration of the oldest release that still works against the
+// result, and a binary that does not know that migration stops here
+// instead of failing at some later query.
 func checkSchemaFloor(ctx context.Context, pool *pgxpool.Pool) error {
 	floor, err := readFloor(ctx, pool)
 	if err != nil {

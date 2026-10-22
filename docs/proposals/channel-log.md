@@ -30,6 +30,7 @@ ALTER TABLE channels ADD COLUMN swept_seq bigint NOT NULL DEFAULT 0;
 ALTER TABLE messages ADD COLUMN seq bigint;            -- 00068, 0.14.0
 CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
 ALTER TABLE messages ALTER COLUMN seq SET NOT NULL;    -- 00069, 0.15.0
+ALTER TABLE channels DROP COLUMN swept_seq;            -- 00070, 0.16.0
 ```
 
 - **Every render-affecting write stamps the row** in its own transaction:
@@ -53,7 +54,7 @@ ALTER TABLE messages ALTER COLUMN seq SET NOT NULL;    -- 00069, 0.15.0
   answer `too_old` when `since_seq` fell below `channels.swept_seq`, the
   highest seq the sweep had hard-deleted. As built nothing reads
   `swept_seq` (the sweep raised it through 0.14.0; step 8 stopped that,
-  and the column goes a release later). Instead
+  and 00070 dropped the column). Instead
   `ListChanges` and `ListMessages` both carry `retention_floor_id`, the
   sweep's own cutoff from one helper so the two never disagree (empty with
   retention off), and the client drops a held row below it unless it is
@@ -228,8 +229,13 @@ fetched again to bring it.
    them. Decided here: `channels.swept_seq` goes. Nothing read it, and
    the two cases it would have served (below) cost one stale row until
    reload. The sweep's `UPDATE` of it, its query and its test went in
-   this step; the column stays one more release because 0.14.0's sweep
-   still writes it, and dropping it now would break a rollback there.
+   this step; the column stayed one more release because 0.14.0's sweep
+   still wrote it, and 00070 dropped it after 0.15.0 shipped (this PR).
+   That drop is a contract against 0.15.0 itself, not only 0.14.0: sqlc
+   expands `channels.*` and `RETURNING *` into column lists, so 0.15.0's
+   generated queries name `swept_seq` in every read of a channel row and
+   would fail against the result; the floor is 70, the migration's own
+   number, as 00065 did.
    `make dev-flood`, which writes rows straight into Postgres, now stamps
    them the same way the backfill does.
 
@@ -297,15 +303,6 @@ as a bug:
 
 ## Open
 
-- **Drop `channels.swept_seq`, the release after 0.15.0.** Step 8
-  stopped writing it; 0.14.0's sweep still does, so the column stays
-  until no shipped binary writes it, then one migration drops it. For the
-  record, what it would have served, and why it was not kept: two cases
-  the retention floor cannot reach — a client offline while the retention
-  policy is lengthened or turned off keeps a row the old policy swept,
-  and one offline while a pinned root is unpinned, deleted and swept
-  keeps that root; a position below `swept_seq` would have told the
-  client to reopen. Both are rare and cost one stale row until reload.
 - **The mobile re-point.** The mobile app's channel screen still runs the
   timeline reducer (`core/timelineState.ts`, `timelinePaging.ts`,
   `timelineEvents.ts`, `channelTimeline.ts`, `timelineItems.ts`,

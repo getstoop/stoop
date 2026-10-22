@@ -85,10 +85,11 @@ func TestInspectAheadAndRefused(t *testing.T) {
 	}
 }
 
-// A database 0.14.0 made (newest 68) upgrading to this binary meets the
-// contract migration 00069: the floor goes from 65 to 68, so the plan
-// says the release that made the database can still start, and the one
-// before it cannot.
+// A database 0.15.0 made (newest 69) upgrading to this binary meets the
+// contract migration 00070, which drops a column 0.15.0's generated
+// queries name (sqlc expands channels.* into column lists): the floor
+// goes from 68 to 70, so the plan says the release that made the database
+// cannot start against the result, only the one that ships 00070.
 func TestInspectContractFromPreviousRelease(t *testing.T) {
 	ctx := context.Background()
 	pool, err := db.Connect(ctx, dbtest.NewURL(t), 0)
@@ -96,20 +97,30 @@ func TestInspectContractFromPreviousRelease(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	if err := db.MigrateTo(ctx, pool, 68); err != nil {
+	// A 0.15.0 database: 00069 applied, floor 68.
+	if err := db.MigrateTo(ctx, pool, 69); err != nil {
 		t.Fatal(err)
 	}
 	plan, err := db.Inspect(ctx, pool)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Applied != 68 || plan.Floor != 65 || plan.FloorAfter != 68 || !plan.Contract() || plan.Refused() != nil {
-		t.Errorf("database at 68: %+v", plan)
+	if plan.Applied != 69 || plan.Floor != 68 || plan.FloorAfter != 70 || !plan.Contract() || plan.Refused() != nil {
+		t.Errorf("database at 69: %+v", plan)
 	}
-	if len(plan.Pending) == 0 || plan.Pending[0].Version != 69 || plan.Pending[0].Name != "channel_seq_contract" {
-		t.Errorf("pending should start at 00069_channel_seq_contract: %+v", plan.Pending)
+	if len(plan.Pending) == 0 || plan.Pending[0].Version != 70 || plan.Pending[0].Name != "drop_swept_seq" {
+		t.Errorf("pending should start at 00070_drop_swept_seq: %+v", plan.Pending)
 	}
-	if release, ok := db.OldestStartable(plan.FloorAfter); !ok || release.Version != "0.14.0" {
-		t.Errorf("oldest release starting against floor %d = %+v %v, want 0.14.0", plan.FloorAfter, release, ok)
+	// 00070 refuses the release before it: 0.15.0's newest migration is
+	// below the new floor. (Whether a release can start against it depends
+	// on whether the release that ships 00070 has a row yet, which the
+	// release-candidate workflow adds, so that is not asserted.)
+	for _, release := range db.Releases {
+		if release.Version == "0.15.0" && release.Migration >= plan.FloorAfter {
+			t.Errorf("0.15.0 (migration %d) should be refused by floor %d", release.Migration, plan.FloorAfter)
+		}
+	}
+	if release, ok := db.OldestStartable(plan.Floor); !ok || release.Version != "0.14.0" {
+		t.Errorf("oldest release starting against floor %d = %+v %v, want 0.14.0", plan.Floor, release, ok)
 	}
 }
