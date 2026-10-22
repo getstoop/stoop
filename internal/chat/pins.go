@@ -51,11 +51,21 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 }
 
 func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
-	row, err := s.q.PinMessage(ctx, dbgen.PinMessageParams{
-		MessageID: msg.ID, ChannelID: channel.ID,
-		PinnedBy: authctx.UserID(ctx), Cap: maxChannelPins,
+	var row dbgen.ChannelPin
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+			return err
+		}
+		pinned, err := qtx.PinMessage(ctx, dbgen.PinMessageParams{
+			MessageID: msg.ID, ChannelID: channel.ID,
+			PinnedBy: authctx.UserID(ctx), Cap: maxChannelPins,
+		})
+		row = pinned
+		return err // no row rolls the stamp back: nothing changed
 	})
 	switch {
+	case errors.Is(err, errMessageGone):
+		return nil, err
 	case errors.Is(err, pgx.ErrNoRows):
 		// The insert wrote nothing: either it is pinned already, or the
 		// channel is full. One read tells them apart.
@@ -81,11 +91,25 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 }
 
 func (s *Service) unpin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
-	removed, err := s.q.UnpinMessage(ctx, msg.ID)
-	if err != nil {
-		return nil, fmt.Errorf("unpin message: %w", err)
-	}
-	if removed > 0 {
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+			return err
+		}
+		removed, err := qtx.UnpinMessage(ctx, msg.ID)
+		if err != nil {
+			return fmt.Errorf("unpin message: %w", err)
+		}
+		if removed == 0 {
+			return errUnchanged
+		}
+		return nil
+	})
+	switch {
+	case errors.Is(err, errUnchanged), errors.Is(err, errMessageGone):
+		// Not pinned, or gone with its pin: nothing changed.
+	case err != nil:
+		return nil, err
+	default:
 		s.publishPin(ctx, channel, dbgen.ChannelPin{MessageID: msg.ID, ChannelID: channel.ID}, false)
 	}
 	return connect.NewResponse(&chatv1.SetMessagePinnedResponse{}), nil

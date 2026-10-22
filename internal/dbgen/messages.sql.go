@@ -46,9 +46,9 @@ func (q *Queries) CountRepliesUnder(ctx context.Context, ids []string) (int64, e
 const createMessage = `-- name: CreateMessage :one
 
 INSERT INTO messages (id, channel_id, author_id, content, mentions_entire_channel, mentions_here, reply_to_message_id,
-    thread_root_id, in_channel)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+    thread_root_id, in_channel, seq)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::bigint)
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
 `
 
 type CreateMessageParams struct {
@@ -61,6 +61,7 @@ type CreateMessageParams struct {
 	ReplyToMessageID      *string
 	ThreadRootID          *string
 	InChannel             bool
+	Seq                   int64
 }
 
 type CreateMessageRow struct {
@@ -76,6 +77,7 @@ type CreateMessageRow struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
+	Seq                   *int64
 }
 
 // Messages. Owned by the chat module.
@@ -96,6 +98,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		arg.ReplyToMessageID,
 		arg.ThreadRootID,
 		arg.InChannel,
+		arg.Seq,
 	)
 	var i CreateMessageRow
 	err := row.Scan(
@@ -111,6 +114,7 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		&i.ThreadRootID,
 		&i.InChannel,
 		&i.DeletedAt,
+		&i.Seq,
 	)
 	return i, err
 }
@@ -134,7 +138,7 @@ func (q *Queries) DeleteMessagesByIDs(ctx context.Context, ids []string) error {
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
 FROM messages WHERE id = $1
 `
 
@@ -151,6 +155,7 @@ type GetMessageRow struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
+	Seq                   *int64
 }
 
 func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, error) {
@@ -169,12 +174,13 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 		&i.ThreadRootID,
 		&i.InChannel,
 		&i.DeletedAt,
+		&i.Seq,
 	)
 	return i, err
 }
 
 const getMessageWithReply = `-- name: GetMessageWithReply :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.id = $1
 `
 
@@ -202,6 +208,7 @@ func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (MessageWi
 		&i.ThreadReplyCount,
 		&i.ThreadLastReplyAt,
 		&i.ThreadRecentAuthorIds,
+		&i.Seq,
 	)
 	return i, err
 }
@@ -291,7 +298,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
   AND (m.id > $3::uuid OR ($4::bool AND m.id = $3::uuid))
@@ -341,6 +348,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 			&i.ThreadReplyCount,
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
+			&i.Seq,
 		); err != nil {
 			return nil, err
 		}
@@ -353,7 +361,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
   AND ($3::uuid IS NULL OR m.id < $3::uuid)
@@ -398,6 +406,7 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 			&i.ThreadReplyCount,
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
+			&i.Seq,
 		); err != nil {
 			return nil, err
 		}
@@ -422,9 +431,28 @@ func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) er
 	return err
 }
 
+const stampMessageSeq = `-- name: StampMessageSeq :execrows
+UPDATE messages SET seq = $1::bigint WHERE id = $2
+`
+
+type StampMessageSeqParams struct {
+	Seq int64
+	ID  string
+}
+
+// StampMessageSeq records the channel log position a row last changed at
+// (NextChannelSeq in channels.sql); no row means the message is gone.
+func (q *Queries) StampMessageSeq(ctx context.Context, arg StampMessageSeqParams) (int64, error) {
+	result, err := q.db.Exec(ctx, stampMessageSeq, arg.Seq, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateMessageContent = `-- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
 `
 
 type UpdateMessageContentParams struct {
@@ -445,6 +473,7 @@ type UpdateMessageContentRow struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
+	Seq                   *int64
 }
 
 // UpdateMessageContent never writes onto a root kept as a placeholder: no
@@ -466,6 +495,7 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.ThreadRootID,
 		&i.InChannel,
 		&i.DeletedAt,
+		&i.Seq,
 	)
 	return i, err
 }

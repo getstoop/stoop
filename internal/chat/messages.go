@@ -148,10 +148,16 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 		threadRootID = &threadRoot.ID
 	}
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// The channel's next log position, and with it the channel row,
+		// before anything else (seq.go).
+		seq, err := qtx.NextChannelSeq(ctx, channel.ID)
+		if err != nil {
+			return fmt.Errorf("next channel seq: %w", err)
+		}
 		created, err := qtx.CreateMessage(ctx, dbgen.CreateMessageParams{
 			ID: rowid.New(), ChannelID: channel.ID, AuthorID: userID, Content: stored,
 			MentionsEntireChannel: res.entireChannel, MentionsHere: res.here, ReplyToMessageID: replyTo,
-			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend,
+			ThreadRootID: threadRootID, InChannel: threadRoot == nil || alsoSend, Seq: seq,
 		})
 		if err != nil {
 			return fmt.Errorf("create message: %w", err)
@@ -179,6 +185,10 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 				RootID: threadRoot.ID, ReplyID: &row.ID, ReplyAt: &row.CreatedAt, AuthorID: userID,
 			}); err != nil {
 				return fmt.Errorf("record thread reply: %w", err)
+			}
+			// The root's summary changed with it.
+			if _, err := stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
+				return err
 			}
 			if threadMarker, err = qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
 				UserID: userID, RootMessageID: threadRoot.ID, LastReadMessageID: row.ID,
@@ -348,6 +358,7 @@ func (s *Service) ListMessages(ctx context.Context, req *connect.Request[chatv1.
 	}
 	return connect.NewResponse(&chatv1.ListMessagesResponse{
 		Messages: messages, HasOlder: hasOlder, HasNewer: hasNewer, ThreadRootId: openThread,
+		ChannelSeq: channel.Seq,
 	}), nil
 }
 
@@ -399,7 +410,7 @@ func listedMessage(row dbgen.MessageWithReply) messageRow {
 		ID: row.ID, ChannelID: row.ChannelID, AuthorID: row.AuthorID, Content: row.Content,
 		CreatedAt: row.CreatedAt, MentionsEntireChannel: row.MentionsEntireChannel,
 		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
-		ThreadRootID: row.ThreadRootID, InChannel: row.InChannel, DeletedAt: row.DeletedAt,
+		ThreadRootID: row.ThreadRootID, InChannel: row.InChannel, DeletedAt: row.DeletedAt, Seq: row.Seq,
 	}
 }
 
@@ -582,6 +593,9 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	}
 	var linksToFetch []string
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+			return err
+		}
 		if _, err := qtx.UpdateMessageContent(ctx, dbgen.UpdateMessageContentParams{ID: msg.ID, Content: stored}); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return placeholderError()
@@ -688,6 +702,9 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 	}
 	if row.ThreadRootID != nil {
 		out.ThreadRootId = *row.ThreadRootID
+	}
+	if row.Seq != nil {
+		out.Seq = *row.Seq
 	}
 	out.EditedAt = pbtime.OrNil(row.EditedAt)
 	return out

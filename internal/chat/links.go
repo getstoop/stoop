@@ -191,22 +191,27 @@ func (s *Service) DismissLinkPreview(ctx context.Context, req *connect.Request[c
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
 		return nil, err
 	}
-	// Under the message's lock: an edit reads the dismissed links and
-	// rebuilds the rows while holding it, and would otherwise put back a
-	// card dismissed in between.
-	var dismissed int64
+	// The stamp holds the message row: an edit reads the dismissed links
+	// and rebuilds the rows while holding it, and would otherwise put back
+	// a card dismissed in between.
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		if _, err := qtx.LockMessageForLinks(ctx, msg.ID); err != nil {
+		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
 		}
-		dismissed, err = qtx.DismissMessageLink(ctx, dbgen.DismissMessageLinkParams{MessageID: msg.ID, Url: req.Msg.Url})
-		return err
+		dismissed, err := qtx.DismissMessageLink(ctx, dbgen.DismissMessageLinkParams{MessageID: msg.ID, Url: req.Msg.Url})
+		if err != nil {
+			return err
+		}
+		if dismissed == 0 {
+			return errUnchanged
+		}
+		return nil
 	})
-	if err != nil {
-		return nil, apierr.NotFoundOr(err, "message")
-	}
-	if dismissed == 0 {
+	if errors.Is(err, errUnchanged) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("the message has no preview for that link"))
+	}
+	if err != nil {
+		return nil, err
 	}
 	s.republish(ctx, msg.ID, channel.ID)
 	return connect.NewResponse(&chatv1.DismissLinkPreviewResponse{}), nil
@@ -224,6 +229,12 @@ func (s *Service) unfurlLater(messageID, ownerID, channelID string, urls []strin
 		defer cancel()
 		for _, u := range urls {
 			s.fetchPreview(ctx, u, ownerID)
+		}
+		if err := s.stampPreviewed(ctx, channelID, messageID); err != nil {
+			if !errors.Is(err, errMessageGone) {
+				slog.Default().Warn("could not stamp message after previews", "message_id", messageID, "err", err)
+			}
+			return
 		}
 		s.republish(ctx, messageID, channelID)
 	}
@@ -261,6 +272,15 @@ func (s *Service) fetchPreview(ctx context.Context, url, ownerID string) {
 	if err := s.q.SetLinkPreview(ctx, params); err != nil {
 		log.Warn("could not save link preview", "err", err)
 	}
+}
+
+// stampPreviewed takes the message's next log position once its previews
+// are in: the cards are part of the row as a client sees it.
+func (s *Service) stampPreviewed(ctx context.Context, channelID, messageID string) error {
+	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		_, err := stampMessage(ctx, qtx, channelID, messageID)
+		return err
+	})
 }
 
 // republish sends the message, now with previews, as MessageUpdated.

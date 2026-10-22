@@ -5196,7 +5196,11 @@ type ListMessagesResponse struct {
 	HasNewer bool `protobuf:"varint,3,opt,name=has_newer,json=hasNewer,proto3" json:"has_newer,omitempty"`
 	// Set when around_id was a reply that shows only in its thread: the
 	// thread to open on it.
-	ThreadRootId  string `protobuf:"bytes,4,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
+	ThreadRootId string `protobuf:"bytes,4,opt,name=thread_root_id,json=threadRootId,proto3" json:"thread_root_id,omitempty"`
+	// The channel's seq, read before the page was: anything that commits
+	// after it has a higher seq and reaches the client as a change. A row
+	// in the page with a higher seq is newer still and is kept.
+	ChannelSeq    int64 `protobuf:"varint,5,opt,name=channel_seq,json=channelSeq,proto3" json:"channel_seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5257,6 +5261,13 @@ func (x *ListMessagesResponse) GetThreadRootId() string {
 		return x.ThreadRootId
 	}
 	return ""
+}
+
+func (x *ListMessagesResponse) GetChannelSeq() int64 {
+	if x != nil {
+		return x.ChannelSeq
+	}
+	return 0
 }
 
 type SearchMessagesRequest struct {
@@ -6311,12 +6322,14 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x19\n" +
 	"\bafter_id\x18\x04 \x01(\tR\aafterId\x12\x1b\n" +
 	"\taround_id\x18\x05 \x01(\tR\baroundId\x12\x1b\n" +
-	"\tthread_id\x18\x06 \x01(\tR\bthreadId\"\xaa\x01\n" +
+	"\tthread_id\x18\x06 \x01(\tR\bthreadId\"\xcb\x01\n" +
 	"\x14ListMessagesResponse\x122\n" +
 	"\bmessages\x18\x01 \x03(\v2\x16.stoop.chat.v1.MessageR\bmessages\x12\x1b\n" +
 	"\thas_older\x18\x02 \x01(\bR\bhasOlder\x12\x1b\n" +
 	"\thas_newer\x18\x03 \x01(\bR\bhasNewer\x12$\n" +
-	"\x0ethread_root_id\x18\x04 \x01(\tR\fthreadRootId\"\x86\x01\n" +
+	"\x0ethread_root_id\x18\x04 \x01(\tR\fthreadRootId\x12\x1f\n" +
+	"\vchannel_seq\x18\x05 \x01(\x03R\n" +
+	"channelSeq\"\x86\x01\n" +
 	"\x15SearchMessagesRequest\x12\x1b\n" +
 	"\bspace_id\x18\x01 \x01(\tH\x00R\aspaceId\x12\x14\n" +
 	"\x05query\x18\x03 \x01(\tR\x05query\x12\x1b\n" +

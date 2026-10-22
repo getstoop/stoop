@@ -28,6 +28,14 @@ ORDER BY c.position, c.created_at;
 -- name: SetChannelLastMessage :exec
 UPDATE channels SET last_message_id = $2 WHERE id = $1;
 
+-- NextChannelSeq takes the next position in the channel log, and with it
+-- the channel row until the transaction ends: message writes in one
+-- channel commit one at a time, so "next" is exact. A transaction that
+-- writes message rows takes this (or LockChannel) before anything else
+-- (internal/chat/seq.go).
+-- name: NextChannelSeq :one
+UPDATE channels SET seq = seq + 1 WHERE id = $1 RETURNING seq;
+
 -- UpsertChannelRead moves a user's marker forward; it never goes backwards
 -- (UUIDv7 IDs are time-ordered, so GREATEST is "newest").
 -- name: UpsertChannelRead :exec

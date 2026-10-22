@@ -739,6 +739,10 @@ message ListMessagesResponse {
   // Set when around_id was a reply that shows only in its thread: the
   // thread to open on it.
   string thread_root_id = 4;
+  // The channel's seq, read before the page was: anything that commits
+  // after it has a higher seq and reaches the client as a change. A row
+  // in the page with a higher seq is newer still and is kept.
+  int64 channel_seq = 5;
 }
 
 message SearchMessagesRequest {

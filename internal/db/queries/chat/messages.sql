@@ -8,12 +8,12 @@
 
 -- name: CreateMessage :one
 INSERT INTO messages (id, channel_id, author_id, content, mentions_entire_channel, mentions_here, reply_to_message_id,
-    thread_root_id, in_channel)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
+    thread_root_id, in_channel, seq)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, sqlc.arg(seq)::bigint)
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq;
 
 -- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
 FROM messages WHERE id = $1;
 
 -- ListMessagesBefore carries the replied-to message's quote (if any) so
@@ -57,7 +57,12 @@ WHERE message_id = ANY($1::uuid[]);
 -- check.
 -- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at;
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq;
+
+-- StampMessageSeq records the channel log position a row last changed at
+-- (NextChannelSeq in channels.sql); no row means the message is gone.
+-- name: StampMessageSeq :execrows
+UPDATE messages SET seq = sqlc.arg(seq)::bigint WHERE id = sqlc.arg(id);
 
 -- name: DeleteMessage :exec
 DELETE FROM messages WHERE id = $1;

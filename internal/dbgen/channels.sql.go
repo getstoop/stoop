@@ -34,7 +34,7 @@ const createChannel = `-- name: CreateChannel :one
 
 INSERT INTO channels (id, space_id, name, kind, position, private)
 VALUES ($1, $2::uuid, $3, $4, $5, $6)
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private, seq, swept_seq
 `
 
 type CreateChannelParams struct {
@@ -70,6 +70,8 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.Topic,
 		&i.PostPolicy,
 		&i.Private,
+		&i.Seq,
+		&i.SweptSeq,
 	)
 	return i, err
 }
@@ -84,7 +86,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id string) error {
 }
 
 const getChannel = `-- name: GetChannel :one
-SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private FROM channels WHERE id = $1
+SELECT id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private, seq, swept_seq FROM channels WHERE id = $1
 `
 
 func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
@@ -102,6 +104,8 @@ func (q *Queries) GetChannel(ctx context.Context, id string) (Channel, error) {
 		&i.Topic,
 		&i.PostPolicy,
 		&i.Private,
+		&i.Seq,
+		&i.SweptSeq,
 	)
 	return i, err
 }
@@ -173,7 +177,7 @@ func (q *Queries) ListChannelNamesByIDs(ctx context.Context, ids []string) ([]Li
 }
 
 const listChannelsBySpace = `-- name: ListChannelsBySpace :many
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, r.last_read_message_id,
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, c.swept_seq, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
@@ -222,6 +226,8 @@ func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpa
 			&i.Channel.Topic,
 			&i.Channel.PostPolicy,
 			&i.Channel.Private,
+			&i.Channel.Seq,
+			&i.Channel.SweptSeq,
 			&i.LastReadMessageID,
 			&i.Muted,
 			&i.UnreadCount,
@@ -287,6 +293,22 @@ func (q *Queries) LockChannel(ctx context.Context, id string) (string, error) {
 	return id_2, err
 }
 
+const nextChannelSeq = `-- name: NextChannelSeq :one
+UPDATE channels SET seq = seq + 1 WHERE id = $1 RETURNING seq
+`
+
+// NextChannelSeq takes the next position in the channel log, and with it
+// the channel row until the transaction ends: message writes in one
+// channel commit one at a time, so "next" is exact. A transaction that
+// writes message rows takes this (or LockChannel) before anything else
+// (internal/chat/seq.go).
+func (q *Queries) NextChannelSeq(ctx context.Context, id string) (int64, error) {
+	row := q.db.QueryRow(ctx, nextChannelSeq, id)
+	var seq int64
+	err := row.Scan(&seq)
+	return seq, err
+}
+
 const setChannelLastMessage = `-- name: SetChannelLastMessage :exec
 UPDATE channels SET last_message_id = $2 WHERE id = $1
 `
@@ -322,7 +344,7 @@ SET name = COALESCE($2, name),
     topic = COALESCE($3, topic),
     post_policy = COALESCE($4, post_policy)
 WHERE id = $1
-RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private
+RETURNING id, space_id, name, kind, position, created_at, last_message_id, dm_key, topic, post_policy, private, seq, swept_seq
 `
 
 type UpdateChannelParams struct {
@@ -352,6 +374,8 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 		&i.Topic,
 		&i.PostPolicy,
 		&i.Private,
+		&i.Seq,
+		&i.SweptSeq,
 	)
 	return i, err
 }

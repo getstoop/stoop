@@ -11,7 +11,7 @@ import (
 )
 
 const getChannelInSpaceByName = `-- name: GetChannelInSpaceByName :one
-SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private FROM channels c
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, c.swept_seq FROM channels c
 WHERE c.space_id = $1::uuid AND lower(c.name) = lower($2)
   AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $3::uuid)
 ORDER BY (c.name = $2) DESC, c.position, c.created_at
@@ -43,13 +43,15 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 		&i.Topic,
 		&i.PostPolicy,
 		&i.Private,
+		&i.Seq,
+		&i.SweptSeq,
 	)
 	return i, err
 }
 
 const searchMessages = `-- name: SearchMessages :many
 
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids FROM message_with_reply m
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, m.seq FROM message_with_reply m
 JOIN messages indexed ON indexed.id = m.id
 WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid
         AND ($2::bool OR c.kind <> 2)
@@ -131,6 +133,7 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 			&i.ThreadReplyCount,
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
+			&i.Seq,
 		); err != nil {
 			return nil, err
 		}
