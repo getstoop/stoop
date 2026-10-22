@@ -1,3 +1,5 @@
+// Kept for the mobile app, which imports it through @stoop/core; the web
+// app no longer uses it (it runs core/channelLog, proposals/channel-log.md).
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";

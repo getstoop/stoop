@@ -1,5 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { memo, type ReactNode, useMemo } from "react";
+import { useAuthorShown } from "../../api/authors";
 import { Attachments } from "../../components/Attachments";
 import { Avatar } from "../../components/Avatar";
 import { BotMark } from "../../components/BotMark";
@@ -9,6 +10,7 @@ import { LinkedMessages } from "../../components/LinkedMessages";
 import { LinkPreviews } from "../../components/LinkPreviews";
 import { MessageBody } from "../../components/MessageBody";
 import { ReactionBar } from "../../components/ReactionBar";
+import { authorShown } from "../../core/author";
 import { dayAndTime, fullDateTime } from "../../core/dates";
 import { emojiOnly } from "../../core/emojiText";
 import type {
@@ -24,12 +26,18 @@ import { ThreadSummary } from "./ThreadSummary";
 
 // One message in a timeline: quote, author, toolbar, body, reactions, and
 // on a root the line that opens its thread. A root deleted while its
-// thread has replies is a placeholder that only opens the thread.
-// Memoised, so the list's own state (a picker, a card, scrolling) doesn't
-// re-render rows; the handlers take the message so they can be shared.
+// thread has replies is a placeholder that only opens the thread. The
+// author, and the authors the quotes name, are shown as the members list
+// has them now, or from their profile once they are off it
+// (api/authors.ts). Memoised, so the list's own state (a picker, a card,
+// scrolling) doesn't re-render rows; the handlers take the message so
+// they can be shared.
 export const MessageRow = memo(function MessageRow({
   message,
   continued,
+  index,
+  top,
+  measure,
   spaceId,
   link,
   mine,
@@ -60,6 +68,12 @@ export const MessageRow = memo(function MessageRow({
   message: Message;
   // Same author within the minute: no avatar or author line.
   continued: boolean;
+  // Its place in the virtualised list: the item index the virtualiser
+  // measures it under, and its offset in the list's body. Absent on a row
+  // drawn outside the list's body (a thread's root on the head).
+  index?: number;
+  top?: number;
+  measure?: (element: HTMLDivElement | null) => void;
   spaceId: string;
   link: string;
   mine: boolean;
@@ -112,8 +126,10 @@ export const MessageRow = memo(function MessageRow({
       ? dayAndTime(created)
       : created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const fullTime = created ? fullDateTime(created) : undefined;
-  const authorName =
-    message.author?.displayName || message.author?.username || "?";
+  const author = useAuthorShown(message.author, members);
+  const quoted = useAuthorShown(message.replyTo?.author, members);
+  const origin = authorShown(message.threadRoot?.author, members);
+  const authorName = author?.displayName || author?.username || "?";
   const summary = message.thread && onThread && (
     <ThreadSummary
       thread={message.thread}
@@ -129,12 +145,19 @@ export const MessageRow = memo(function MessageRow({
     .filter(Boolean)
     .join(" ");
 
+  // The virtualiser's attributes, only where it placed the row.
+  const placement =
+    top === undefined
+      ? {}
+      : { "data-index": index, ref: measure, style: { top } };
+
   if (message.deleted) {
     return (
       <div
         id={`${rowIdPrefix}${message.id}`}
         tabIndex={-1}
         className={`${rowClass} deleted-root`}
+        {...placement}
       >
         <span className="message-avatar" aria-hidden="true">
           <span className="avatar medium placeholder-avatar" />
@@ -154,6 +177,7 @@ export const MessageRow = memo(function MessageRow({
       // screens, where there is no hover.
       tabIndex={-1}
       className={rowClass}
+      {...placement}
     >
       {message.pinned && (
         <div className="pinned-marker eyebrow">
@@ -170,11 +194,9 @@ export const MessageRow = memo(function MessageRow({
         >
           <span>↩</span>
           <strong>
-            {message.replyTo.author?.displayName ||
-              message.replyTo.author?.username ||
-              "deleted"}
-            <BotMark kind={message.replyTo.author?.kind} />
-            <DeletedMark deleted={message.replyTo.author?.deleted} />
+            {quoted?.displayName || quoted?.username || "deleted"}
+            <BotMark kind={quoted?.kind} />
+            <DeletedMark deleted={quoted?.deleted} />
           </strong>
           <span className="reply-preview">
             {message.replyTo.preview || "(message deleted)"}
@@ -190,12 +212,7 @@ export const MessageRow = memo(function MessageRow({
         >
           <span>↳</span>
           <span>replied to a thread:</span>
-          {message.threadRoot.author && (
-            <strong>
-              {message.threadRoot.author.displayName ||
-                message.threadRoot.author.username}
-            </strong>
-          )}
+          {origin && <strong>{origin.displayName || origin.username}</strong>}
           <span className="reply-preview">
             {message.threadRoot.preview || "(message deleted)"}
           </span>
@@ -207,14 +224,13 @@ export const MessageRow = memo(function MessageRow({
           className="message-avatar"
           aria-label={`${authorName} — profile`}
           onClick={(e) =>
-            message.author &&
-            onCard(message.author.id, e.currentTarget.getBoundingClientRect())
+            author && onCard(author.id, e.currentTarget.getBoundingClientRect())
           }
         >
           <Avatar
             name={authorName}
-            fileId={message.author?.avatarFileId}
-            kind={message.author?.kind}
+            fileId={author?.avatarFileId}
+            kind={author?.kind}
             size="medium"
           />
         </button>
@@ -224,13 +240,12 @@ export const MessageRow = memo(function MessageRow({
           type="button"
           className="message-author"
           onClick={(e) =>
-            message.author &&
-            onCard(message.author.id, e.currentTarget.getBoundingClientRect())
+            author && onCard(author.id, e.currentTarget.getBoundingClientRect())
           }
         >
-          {message.author?.displayName || message.author?.username}
-          <BotMark kind={message.author?.kind} />
-          <DeletedMark deleted={message.author?.deleted} />
+          {author?.displayName || author?.username}
+          <BotMark kind={author?.kind} />
+          <DeletedMark deleted={author?.deleted} />
         </button>
         <span className="message-time" title={fullTime}>
           {time}

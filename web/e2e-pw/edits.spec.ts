@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { BASE } from "../e2e/seed.mjs";
 import { acceptDialog, expect, say, seed, signIn, test } from "./lib";
 
 // Which message actions each role is offered, the inline editor (Enter
@@ -132,4 +133,89 @@ test("message actions, editing and deleting", async ({ browser }) => {
     B.locator(".message-content"),
     "owner's delete propagates to B",
   ).toHaveCount(before - 1);
+});
+
+// The inline editor's draft survives the view scrolling away from its row:
+// the virtualised list keeps the edited row mounted beyond the overscan
+// (docs/architecture/web.md → The message list).
+test("an unsaved edit survives scrolling away and back", async ({
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const { tokens, channels } = await seed({ channels: ["general"] });
+  // One page, seeded over RPC from Node (window.spec.ts says why): at this
+  // height the rows near the bottom plus the overscan come to thirty or
+  // so, so the first rows are out of the DOM once the view is there.
+  const SEED = 50;
+  const ids: string[] = [];
+  for (let i = 1; i <= SEED; i++) {
+    const res = await fetch(`${BASE}/stoop.chat.v1.ChatService/SendMessage`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${tokens.ada}`,
+      },
+      body: JSON.stringify({
+        channelId: channels.general,
+        content: `message ${i}`,
+      }),
+    });
+    if (!res.ok) throw new Error(`seeding message ${i}: HTTP ${res.status}`);
+    ids.push((await res.json()).message.id);
+  }
+
+  const A = await (
+    await browser.newContext({ viewport: { width: 1100, height: 600 } })
+  ).newPage();
+  const list = A.locator(".message-list");
+  const editor = A.locator(".message-editor .rich-editor-content");
+  const rowOf = (id: string) => A.locator(`#msg-${id}`);
+  const scrollTo = (top: number) =>
+    list.evaluate((element, top) => {
+      element.scrollTop = top;
+    }, top);
+  const scrollTop = () => list.evaluate((element) => element.scrollTop);
+
+  await signIn(A, tokens.ada);
+  await expect(list, "the window holds every message").toHaveAttribute(
+    "data-rows",
+    String(SEED),
+  );
+  await expect
+    .poll(scrollTop, { message: "starts scrolled to the bottom" })
+    .toBeGreaterThan(0);
+
+  // Edit the window's first message, rendered once the view is at the top.
+  await scrollTo(0);
+  const edited = rowOf(ids[0]);
+  await expect(edited).toBeAttached();
+  await edited.hover();
+  await edited.locator('.message-action[aria-label="Edit"]').click();
+  await expect(editor, "the editor opens on the message").toHaveText(
+    "message 1",
+  );
+  await editor.pressSequentially(" with a draft");
+  await expect(editor).toHaveText("message 1 with a draft");
+  const editingAt = await scrollTop();
+
+  // At the bottom the rows near the edited one have left the DOM; the
+  // edited row has not.
+  await scrollTo(1_000_000);
+  await expect(
+    rowOf(ids[4]),
+    "a row near the top is out of the DOM at the bottom",
+  ).toHaveCount(0);
+  await expect(
+    rowOf(ids[0]),
+    "the row being edited stays mounted",
+  ).toBeAttached();
+
+  // Back where the edit began, the draft is as it was typed.
+  await scrollTo(editingAt);
+  await expect(editor, "the draft survives the round trip").toHaveText(
+    "message 1 with a draft",
+  );
+  await expect(editor).toBeVisible();
+  await A.keyboard.press("Escape");
+  await expect(editor, "Esc closes the editor").toHaveCount(0);
 });

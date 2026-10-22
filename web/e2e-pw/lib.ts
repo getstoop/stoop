@@ -139,6 +139,30 @@ export async function focus(page: Page) {
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 }
 
+// A row's top on screen, read from a frame that has the row. The message
+// list is virtualised, and the frame between a landing's scrollTop write
+// and the virtualiser's read-back render has no rows in it at all, so a
+// single sample taken there is −1 whatever the list did; a spec that
+// measures where a row sat before a page landed polls for a position
+// instead. Specs pass the element id ("msg-<id>").
+export async function anchoredTop(page: Page, elementId: string) {
+  let top = -1;
+  await expect
+    .poll(
+      async () => {
+        top = await page.evaluate(
+          (id) =>
+            document.getElementById(id)?.getBoundingClientRect().top ?? -1,
+          elementId,
+        );
+        return top;
+      },
+      { message: `#${elementId} has a position on screen` },
+    )
+    .toBeGreaterThanOrEqual(0);
+  return top;
+}
+
 // reload() on a channel URL meets the gate, so always come back through
 // it, and wait for the new socket so what follows is a push, not the load.
 export async function reload(page: Page) {

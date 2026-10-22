@@ -1,24 +1,34 @@
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../../gen/stoop/realtime/v1/realtime_pb";
 import { withArrivals } from "./arrivals";
-import { withViewerHalf } from "./rows";
+import { hasPage } from "./pages";
+import { FROM_EVENT, withViewerHalf } from "./rows";
 import { tombstoneOf } from "./tombstone";
 import type { ChannelLog } from "./types";
 
 // What a realtime event about a message does to its channel's log. Each
 // kind yields a row at the event's seq, merged by seq like any other
-// arrival. Then the position: the next seq is applied and known; one
+// arrival, and every kind moves seenSeq, the highest seq an event has
+// carried. Then the position: the next seq is applied and known; one
 // further on is applied too (higher wins) but marks a gap, so a catch-up
-// is owed; one at or below what is known is ignored. Before the first page
-// (seq 0) rows are kept and the page's channelSeq decides the position.
+// is owed; one at or below what is known is ignored. A partial event (a
+// reaction, a pin, a thread summary) about a row that isn't held covers
+// nothing of its seq, so it owes a catch-up too, which brings the whole
+// row. Before the first page rows are kept without judging the gap, and
+// the page's channelSeq decides the position (hasPage: a channel empty
+// when opened is at 0 after its page too, and events move it on from
+// there), with seenSeq saying whether an event already lies above it.
 export function withEvent(log: ChannelLog, event: ServerEvent): ChannelLog {
   const change = changeOf(event);
   if (!change || change.channelId !== log.channelId) return log;
   const seq = Number(change.seq);
-  if (log.seq > 0 && seq <= log.seq) return log;
-  const next = change.apply(log);
-  if (log.seq === 0) return next;
-  if (seq === log.seq + 1) return { ...next, seq };
+  const positioned = hasPage(log);
+  if (positioned && seq <= log.seq) return log;
+  let next = change.apply(log);
+  if (seq > next.seenSeq) next = { ...next, seenSeq: seq };
+  if (!positioned) return next;
+  const covered = !change.patches || log.rows.has(change.patches);
+  if (covered && seq === log.seq + 1) return { ...next, seq };
   return next.needsCatchUp ? next : { ...next, needsCatchUp: true };
 }
 
@@ -31,6 +41,9 @@ export function channelOfEvent(event: ServerEvent): string | undefined {
 type Change = {
   channelId: string;
   seq: bigint;
+  // For a partial event: the row it changes, which the event covers only
+  // when held.
+  patches?: string;
   apply: (log: ChannelLog) => ChannelLog;
 };
 
@@ -43,7 +56,7 @@ function changeOf(event: ServerEvent): Change | null {
       return {
         channelId: row.channelId,
         seq: row.seq,
-        apply: (log) => withArrivals(log, [row], true),
+        apply: (log) => withArrivals(log, [row], FROM_EVENT),
       };
     }
     case "reactionsChanged": {
@@ -51,6 +64,7 @@ function changeOf(event: ServerEvent): Change | null {
       return {
         channelId,
         seq,
+        patches: messageId,
         apply: (log) =>
           patched(log, messageId, seq, (held) => ({ ...held, reactions })),
       };
@@ -60,6 +74,7 @@ function changeOf(event: ServerEvent): Change | null {
       return {
         channelId,
         seq,
+        patches: messageId,
         apply: (log) =>
           patched(log, messageId, seq, (held) => ({ ...held, pinned })),
       };
@@ -69,6 +84,7 @@ function changeOf(event: ServerEvent): Change | null {
       return {
         channelId,
         seq,
+        patches: rootMessageId,
         apply: (log) =>
           patched(log, rootMessageId, seq, (held) => ({
             ...held,
@@ -85,7 +101,7 @@ function changeOf(event: ServerEvent): Change | null {
           withArrivals(
             log,
             [tombstoneOf(log.rows.get(deletion.messageId), deletion)],
-            true,
+            FROM_EVENT,
           ),
       };
     }
@@ -95,7 +111,7 @@ function changeOf(event: ServerEvent): Change | null {
 }
 
 // The held row with the change, at the event's seq. A row that isn't held
-// has nothing to patch; the event's position still counts.
+// has nothing to patch.
 function patched(
   log: ChannelLog,
   id: string,
@@ -104,5 +120,5 @@ function patched(
 ): ChannelLog {
   const held = log.rows.get(id);
   if (!held) return log;
-  return withArrivals(log, [{ ...change(held), seq }], true);
+  return withArrivals(log, [{ ...change(held), seq }], FROM_EVENT);
 }

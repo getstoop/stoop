@@ -18,10 +18,15 @@
   font-weight: 600;
 }
 
+/* The scroll container. Its rows are virtualised (virtual-list.css): the
+   top and bottom padding belong to the first and last rows, so the body's
+   height is the rows' alone, and the browser's own scroll anchoring is off
+   because the virtualiser does its own. */
 .message-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  overflow-anchor: none;
+  padding: 0 16px;
   display: flex;
   flex-direction: column;
   gap: 0;

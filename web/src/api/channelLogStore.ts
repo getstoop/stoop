@@ -99,6 +99,23 @@ export function generationOf(view: ViewRef): number {
   return log ? (viewOf(log, view.rootId)?.generation ?? 0) : 0;
 }
 
+// The view's range and flags now, outside React; undefined until its
+// channel is held.
+export function readView(view: ViewRef): View | undefined {
+  const log = logOf(view.channelId);
+  return log && viewOf(log, view.rootId);
+}
+
+// One held row now, outside React.
+export const readRow = (channelId: string, id: string): Message | undefined =>
+  logOf(channelId)?.rows.get(id);
+
+// Whether the view has had its first page: opened and jumped move the
+// generation, and a view before that shows nothing and is not at its
+// start.
+export const hasOpened = (view: View | undefined): boolean =>
+  !!view && view.generation > 0;
+
 export function beganLoading(view: ViewRef) {
   const key = viewKey(view);
   out.set(key, (out.get(key) ?? 0) + 1);
@@ -134,6 +151,14 @@ function setStatus(view: ViewRef, change: Partial<ViewStatus>) {
 
 const NO_ITEMS: Message[] = [];
 const IDLE: ViewStatus = { loading: false, landOn: null };
+
+export const readStatus = (view: ViewRef): ViewStatus =>
+  useChannelLogStore.getState().status[viewKey(view)] ?? IDLE;
+
+// One held row by id, shown or not; undefined when the channel, or the
+// row, isn't held.
+export const useRow = (channelId: string, id: string): Message | undefined =>
+  useChannelLogStore((state) => state.logs[channelId]?.rows.get(id));
 
 // Each hook selects a value that stays the same object while nothing it
 // shows changed (core/channelLog items), so a list redraws only for its

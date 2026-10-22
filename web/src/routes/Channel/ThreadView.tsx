@@ -1,5 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import {
+  hasOpened,
+  holdRow,
+  patchRow,
+  useOpenView,
+  useRow,
+  useThreadItems,
+  useView,
+} from "../../api/channelLog";
 import { channelNameText, isAnnouncement } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import {
@@ -12,13 +21,11 @@ import { errorText } from "../../api/errors";
 import {
   useInstanceStatus,
   useMe,
-  useMessages,
   useSpaces,
   useThreadRoot,
 } from "../../api/queries";
 import { copyShareLink, shareUrl, threadPath } from "../../api/shareLinks";
 import { setThreadMuted } from "../../api/threads";
-import { removeMessageFromCache } from "../../api/ws";
 import { ChannelName } from "../../components/ChannelName";
 import {
   BellIcon,
@@ -31,6 +38,7 @@ import { useCloseSidePanel } from "../../components/SidePanel/context";
 import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
 import { Tooltip } from "../../components/Tooltip";
+import { isShown } from "../../core/channelLog";
 import { canDeleteAnyMessage, canPost } from "../../core/permissions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoReadActivity } from "../../hooks/useAutoRead";
@@ -47,8 +55,21 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   const { spaceId = "", channelId = "", rootId = "", focusId } = params;
   const queryClient = useQueryClient();
   const close = useCloseSidePanel();
-  const root = useThreadRoot(channelId, rootId);
-  const replies = useMessages({ channelId, rootId }, focusId);
+  // The channel's log, held while the thread is open, with the thread's
+  // replies as a view on it (or, with focusId, the page around that reply,
+  // which the list's jump brings).
+  useOpenView({ channelId, rootId }, focusId);
+  // The root comes from the log when the channel's page holds it; a
+  // thread opened from the activity feed or a link fetches it and hands
+  // it to the log, where its edits and summary reach it from then on.
+  const held = useRow(channelId, rootId);
+  const root = useThreadRoot(channelId, rootId, !held);
+  const fetched = root.data?.[0];
+  useEffect(() => {
+    if (fetched) holdRow(channelId, fetched);
+  }, [channelId, fetched]);
+  const replies = useThreadItems(channelId, rootId);
+  const view = useView(channelId, rootId);
   const { data: me } = useMe();
   const { data: spaces } = useSpaces();
   const space = spaces?.find((s) => s.id === spaceId);
@@ -79,21 +100,19 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     return () => clearTimeout(timer);
   }, [copied]);
 
-  const rootMessage = root.data?.[0];
+  // A root held as a tombstone with no replies left is gone, as is one the
+  // server has no row for.
+  const rootMessage = held && isShown(held) ? held : undefined;
+  const rootGone = (held && !isShown(held)) || (root.data && !fetched);
   const summary = rootMessage?.thread;
   // Nothing is read until the replies are on screen.
-  const shown = !!replies.data && !replies.isError;
+  const shown = hasOpened(view);
   useMarkThreadRead(channelId, rootId, shown ? summary : undefined);
   useAutoReadActivity(channelId, rootId, shown);
   // A space that has gone leaves its queries as they were: the spaces
   // list is what says so.
   const spaceGone = !isDM && !!spaces && !space;
-  if (
-    spaceGone ||
-    root.isError ||
-    replies.isError ||
-    (root.data && !rootMessage)
-  ) {
+  if (spaceGone || root.isError || rootGone) {
     return (
       <SidePanelFrame title="Thread" subtitle={channelLabel}>
         <SidePanelUnavailable message="This thread isn't available any more." />
@@ -116,7 +135,13 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     if (!ok) return;
     try {
       await chatClient.deleteThread({ messageId: rootId });
-      removeMessageFromCache(queryClient, channelId, rootId);
+      // Gone at once, as the root's message_deleted makes it; the replies'
+      // tombstones come with the catch-up its seq asks for.
+      patchRow(channelId, rootId, (row) => ({
+        ...row,
+        deleted: true,
+        thread: undefined,
+      }));
       close();
     } catch (err) {
       notice({ title: "Couldn't delete the thread", body: errorText(err) });
@@ -136,7 +161,9 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     }
   };
   const editLast = () => {
-    const mine = replies.data?.filter((m) => m.author?.id === me?.id) ?? [];
+    const mine = replies.filter(
+      (m) => m.id !== rootId && m.author?.id === me?.id,
+    );
     const last = mine[mine.length - 1];
     if (last) setEditingId(last.id);
   };
@@ -243,7 +270,6 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     >
       {rootMessage && (
         <MessageList
-          messages={replies.data ?? []}
           spaceId={spaceId}
           channelId={channelId}
           channelName={channelName}

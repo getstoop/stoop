@@ -145,7 +145,9 @@ sections, in this order:
   whatever it fetched before the gateway's Ready (`api/ws.ts` through
   `api/stale.ts`, which waits for a load still in flight to land and
   then goes again, because a refetch asked of a load with no data yet is
-  deduped onto it rather than restarting it), and
+  deduped onto it rather than restarting it; the messages instead ask
+  `ListChanges` from the seq their first page carried, `reconnected()`
+  in `api/channelLog.ts`), and
   `signIn()`/`reload()` in `web/e2e-pw/lib.ts` wait for the rail's status
   icon to read connected before returning, so a spec never talks to a
   page that cannot hear yet. The symptom is a second page missing exactly
@@ -261,22 +263,52 @@ force-pushes, and a pull request can only merge once every CI job is green
   nothing goes *above* Name.
 - **`setQueryData` bumps `dataUpdatedAt`.** An effect keyed on a query's
   `dataUpdatedAt` to detect "a fresh fetch happened" also fires on every
-  cache write (the realtime client's appends, history prepends). Put
-  fetch-only side effects in the `queryFn` (see `useMessages` handing
-  its answer to the history store), not in an effect.
-- **The timeline is a window, not "everything since the top".** A jump
-  (reply quote, `?m=`) can replace `["messages", channelId]` wholesale,
-  and a non-live window never contains the newest message. A realtime
-  message event reaches a timeline through `applyTimelineEvent` (or
-  `appendMessage`, `replaceMessage` and `removeMessageFromCache` for the
-  reader's own send, edit and delete), which runs the timeline reducer,
-  and a `queryFn` refetch must keep a non-live window rather than swap
-  the newest page in under the reader.
+  cache write (the realtime client's patches to a channel record, a
+  presence change). Put fetch-only side effects in the `queryFn`, not in
+  an effect.
+- **Messages are not in the query cache.** They live in the channel log
+  store (`api/channelLog.ts`, `docs/architecture/web.md` → State), one
+  log per channel, rows merged by `seq`; there is no `["messages",
+  channelId]` query to read or write, and the only `["messages", …]` keys
+  left are one-message copies (`linkedMessageKey`). A realtime message
+  event goes through `applyEvent`; the reader's own send or edit answer
+  through `holdRow` (merge by seq, like an event); a change made before
+  the server answers through `patchRow` (at the row's own seq, so the
+  event replaces it). Never build a `Message` the server did not send
+  and hand it to the log: a row without a seq the server stamped is
+  either ignored or wins over the truth.
+- **A view is a range over the log, not "everything since the top".** A
+  jump (reply quote, `?m=`) replaces the range, and a non-live range
+  never contains the newest message: an arrival beyond it is counted on
+  the pill, not shown. Read the edges from `useView`/`readView`
+  (`hasOlder`, `hasNewer`, `pendingNewer`) and whether a page is out from
+  `useViewStatus`/`readStatus`; a view before its first page
+  (`hasOpened` false) says nothing about its edges.
+- **A channel's log is held by whoever shows it.** `useOpenView` in the
+  channel page and the thread panel hold it and the log is forgotten when
+  the last of them leaves; a `holdRow` or `patchRow` for a channel nobody
+  holds does nothing, by design. Open a view with `useOpenView`, never by
+  calling `openChannel` from a component directly, or the log leaks.
 - **Dividers are siblings of message rows, not children.** `.new-divider`
-  and `.day-divider` sit between `.message` elements in `.message-list`
-  (so the row's absolutely positioned avatar stays aligned). From a
-  divider, the message it introduces is `nextElementSibling`, not
-  `closest(".message")`.
+  and `.day-divider` sit between `.message` elements in
+  `.message-list-body` (so the row's absolutely positioned avatar stays
+  aligned). From a divider, the message it introduces is
+  `nextElementSibling`, not `closest(".message")`.
+- **A message row far from the viewport is not in the DOM.** The list is
+  virtualised (`docs/architecture/web.md` → The message list): the DOM
+  holds the rows on screen plus a few either side, whatever the window
+  holds. A spec that counts `.message` elements, or locates a row by id
+  without bringing it on screen, sees only the rendered rows. Read the
+  window from the list instead — `.message-list[data-rows]` is how many
+  messages it holds and `data-oldest` the id of its first — and scroll to
+  a row (a quote's jump, the list's `scrollTop`) before asserting on it.
+  `.message-content .md-lines` `.first()` is the window's oldest only
+  while the view is at the top, and `.last()` the newest only at the
+  bottom. Avoid `.nth(n)` on `.message` for a row's absolute position in
+  the channel: it indexes the rendered rows, and a spec that posts twenty
+  or so messages (`formatting`, `edits`, `pins`, `attachments`, `unfurl`)
+  sits close to the bound at which the first ones leave the DOM; find a
+  row by text or id instead. `virtual-list.spec.ts` is the model.
 - **Below 768px the rail and channel sidebar are a transformed drawer.**
   `position: fixed` elements rendered inside `.channel-sidebar` (the invite
   modal) are positioned relative to the sidebar while it is translated, so

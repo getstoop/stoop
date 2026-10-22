@@ -1,7 +1,8 @@
 import type { ListMessagesResponse } from "../../gen/stoop/chat/v1/chat_pb";
 import { withFloor } from "./floor";
+import { positioned } from "./position";
 import { pruned } from "./prune";
-import { isShown, mergeRows } from "./rows";
+import { FROM_PAGE, isShown, mergeRows } from "./rows";
 import { type ChannelLog, emptyView, type View } from "./types";
 import { belongs, inRange, viewOf, withView } from "./views";
 
@@ -14,10 +15,21 @@ export type PageAnswer = {
   res: ListMessagesResponse;
 };
 
+// Whether a page has set the log's position: opened and jumped move the
+// generation of the view they fill. The position itself can't say, since
+// a channel with no messages yet is at 0 after its page as before it.
+export function hasPage(log: ChannelLog): boolean {
+  return (
+    log.channel.generation > 0 ||
+    Object.values(log.threads).some((view) => view.generation > 0)
+  );
+}
+
 // A new range for the view: the page's rows, edge to edge. The first page
-// a log sees sets its seq; later pages never move it, a page not being a
-// complete picture of the changes. The generation moves, so a page still
-// out for the old range is dropped when it answers.
+// a log sees sets its seq (position.ts: an event seen above it keeps a
+// catch-up owed); later pages never move it, a page not being a complete
+// picture of the changes. The generation moves, so a page still out for
+// the old range is dropped when it answers.
 export function opened(log: ChannelLog, answer: PageAnswer): ChannelLog {
   const view = viewOf(log, answer.rootId) ?? emptyView;
   if (view.generation !== answer.generation) return log;
@@ -31,12 +43,9 @@ export function opened(log: ChannelLog, answer: PageAnswer): ChannelLog {
     pendingNewer: 0,
     generation: view.generation + 1,
   };
+  const merged = { ...log, rows: mergeRows(log.rows, rows, FROM_PAGE) };
   const next = withView(
-    {
-      ...log,
-      rows: mergeRows(log.rows, rows, false),
-      seq: log.seq === 0 ? Number(res.channelSeq) : log.seq,
-    },
+    hasPage(log) ? merged : positioned(merged, Number(res.channelSeq)),
     answer.rootId,
     replaced,
   );
@@ -74,7 +83,7 @@ export function paged(
           pendingNewer: res.hasNewer ? view.pendingNewer : 0,
         };
   let next = withView(
-    { ...log, rows: mergeRows(log.rows, rows, false) },
+    { ...log, rows: mergeRows(log.rows, rows, FROM_PAGE) },
     answer.rootId,
     grown,
   );

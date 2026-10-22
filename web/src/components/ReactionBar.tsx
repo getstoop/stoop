@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { usePeople } from "../api/dms";
 import { emojiName } from "../api/emoji";
 import { useMe } from "../api/queries";
@@ -15,7 +14,6 @@ export function ReactionBar({
   message: Message;
   spaceId: string;
 }) {
-  const queryClient = useQueryClient();
   const { data: me } = useMe();
   const members = usePeople(spaceId, message.channelId);
   if (message.reactions.length === 0) return null;
@@ -38,9 +36,7 @@ export function ReactionBar({
             title={`${listNames(names)} reacted with ${emojiName(r.emoji)}`}
             aria-label={`${r.emoji} ${r.userIds.length}, ${listNames(names)}`}
             aria-pressed={mine}
-            onClick={() =>
-              me && toggleReaction(queryClient, message, r.emoji, me.id)
-            }
+            onClick={() => me && toggleReaction(message, r.emoji, me.id)}
           >
             <span className="reaction-emoji">{r.emoji}</span>
             <span className="reaction-count">{r.userIds.length}</span>

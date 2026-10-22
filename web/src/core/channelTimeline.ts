@@ -1,3 +1,5 @@
+// Kept for the mobile app, which imports it through @stoop/core; the web
+// app no longer uses it (it runs core/channelLog, proposals/channel-log.md).
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import {

@@ -77,12 +77,11 @@ client reconnects and refetches. So:
 - **The RPCs are the source of truth**, always: `ListMessages` for a
   window, `ListChanges` for what has happened since. The socket is an
   optimisation over polling, not a separate protocol with its own state.
-- Recovery is uniform: on reconnect the client invalidates every query and
-  lets them refetch. That path runs on every reconnect, not just after a
-  drop, so it is exercised constantly rather than being a rarely-taken
-  branch that rots. (The web client in this repository still works this
-  way; a client on the channel log catches up with `ListChanges` from the
-  seq it holds instead.)
+- Recovery is uniform: on reconnect the client asks `ListChanges` for
+  every channel it holds, from the seq it holds, and refetches every
+  other query. That path runs on every reconnect, not just after a drop,
+  so it is exercised constantly rather than being a rarely-taken branch
+  that rots ([The channel log on the client](#the-channel-log-on-the-client)).
 
 Because every payload is a protobuf message, a cross-process
 implementation of `Bus` is a marshal/unmarshal wrapper behind the same
@@ -131,9 +130,9 @@ event is handled once.
 
 The relay keeps the bus's guarantees and adds none. `NOTIFY` is at most
 once: a notification raised while the listener is reconnecting is lost,
-and nothing replays it. Clients refetch everything on reconnect and
-`ListMessages` stays the source of truth, so a lost relayed event costs a
-stale picture until the next load, not correctness.
+and nothing replays it. Clients refetch what these events are about on
+reconnect and the RPCs stay the source of truth, so a lost relayed event
+costs a stale picture until the next load, not correctness.
 
 ## The gateway
 
@@ -249,7 +248,7 @@ the server side.
 | 18 | `member_joined` | space | |
 | 14 | `member_role_changed` | space | |
 | 15 | `member_removed` | space | Kick, leave, or ban. |
-| 28 | `member_updated` | space | A member's avatar or username changed; refetch them and the messages. |
+| 28 | `member_updated` | space | A member's avatar or username changed; refetch them (the rows read their name from the members list). |
 | 39 | `groups_changed` | space | A group was created, changed or deleted; refetch the space's groups. |
 | 19 | `activity_item_created` | user | |
 | 21 | `presence_changed` | space | Online, offline (after the grace period), do not disturb turning on or off, including when it ends on its own, or moving between only mobile and anything else. |
@@ -364,8 +363,11 @@ dependency, and voice works with none configured.
 `web/src/api/ws.ts` is the whole realtime client.
 
 **One socket, exponential backoff to 15 s.** On open it records the
-connection status; on a *re*connect it calls `queryClient.invalidateQueries()`
-— everything — and re-reports voice state, because the gateway forgot it.
+connection status; when the gateway's Ready lands it refetches every
+query fetched before it (`api/stale.ts`), asks every held channel log for
+the changes since the seq it holds (`reconnected()` in
+`api/channelLog.ts`), and re-reports voice state, because the gateway
+forgot it.
 A close with code 4001 (credential revoked) is the one close it does not
 simply retry: it asks the server who it is, directly and a few times a
 moment apart, since the tab that replaced the session may not have its
@@ -376,80 +378,114 @@ socket reconnects with it, reporting voice state again. Signed out: the
 `me` query is refetched, fails, and the shell goes to the login page. No
 answer at all: the usual backoff.
 
-**Events are applied directly to the TanStack Query cache**
-([web.md](web.md#state-one-source-of-truth)); there is no parallel
-event store. This is why `ServerEvent.message_created` carries `stoop.chat.v1.Message`
-rather than a realtime-specific shape: the object that arrives on the
-socket is the object the cache already holds.
+**Events are applied directly to the one place that holds what they are
+about** ([web.md](web.md#state-one-source-of-truth)): an event about a
+message to its channel's log, every other event to the TanStack Query
+cache; there is no parallel event store. This is why
+`ServerEvent.message_created` carries `stoop.chat.v1.Message` rather than
+a realtime-specific shape: the object that arrives on the socket is the
+object the log already holds, and its `seq` says whether it is newer.
 
-## History windows
+## The channel log on the client
 
-The most intricate consequence of "events go into the cache" is the message
-timeline, which lives in `web/src/api/history.ts`.
+The most intricate consequence of events carrying a position is the
+message timeline, which lives in the channel log store
+(`web/src/api/channelLog.ts`, `channelLogStore.ts`, `channelLogCatchUp.ts`,
+the model in `web/src/core/channelLog/`;
+[web.md](web.md#state-one-source-of-truth) has the parts, this section
+has the behaviour).
 
-A channel's messages are **one flat, oldest-first array** at
-`["messages", channelId]` — a contiguous *window* of the channel. Not
-pages, not a map of ranges: one array, so every feature that reads the
-cache sees one timeline regardless of how it got filled.
+**One log per channel.** A `ChannelLog` holds every row known by id,
+tombstones included, and `seq`, the position through which every change
+is known. The channel's timeline and each open thread of it are *views*:
+a range of two ids over the same rows, with `hasOlder` and `hasNewer`
+from the server's last answer for that edge. One row, however many views
+list it, so an edit reaches the root in the channel and the same root
+above its replies in one write.
 
-A thread has its own window, `["messages", channelId, rootId]`, filled
-and paged the same way through `ListMessages` with `thread_id`; the store
-calls either a *timeline* (`Timeline` in `history.ts`). Because a thread's
-key sits under its channel's, a thread's new summary or a pin is one
-write to the `["messages", channelId]` prefix.
+**Merge by seq.** Every row that arrives — a page's, an event's, a
+catch-up's, the answer to the reader's own send or edit — replaces the
+held copy when its `seq` is higher, and the server's whole row (a page, a
+catch-up, an answer) also wins a tie, since an event may have patched the
+held copy partially under that seq (a reaction on top of an edit the
+socket missed). That one comparison replaces the old client's request
+bookkeeping: a page that was out while an edit landed cannot put the old
+text back, because the page's copy carries a lower seq. A deletion is a
+row too, a tombstone, so a stale copy cannot bring a deleted message
+back. The reader's own changes before the server
+answers (a reaction, a pin, their own delete hidden at once) are written
+at the row's *own* seq (`patchRow`), so the event that follows, at a
+higher seq, replaces them and a refusal is reverted the same way.
 
-**Each window runs the shared timeline reducer** (`core/timelineState.ts`,
-the one the app's channel screen runs). Its state — the requests out and
-the events each has kept — sits in the history store beside the window;
-the messages stay in the cache, and each step reads them from there and
-writes back what changed. Every request (`api/timelineLoads.ts`: the
-messages query's first load and refetches, a page either way, a jump)
-starts under an id and hands the reducer its answer. A message created,
-edited or deleted, or a reaction, reaches every timeline of its channel
-through the reducer (`applyTimelineEvent`), which puts a new message in
-the timeline it shows in and keeps the event for each request out. The
-reader's own send, edit and delete go the same way (`appendMessage`,
-`replaceMessage`, `removeMessageFromCache` make the event the socket will
-bring). A pin, a thread's summary and a reaction before the server
-answers are still written to the cache alone. The history store forgets
-a window's state when the cache lets go of it: unused for a while,
-removed, or the whole cache cleared for a change of account. So an
-edit or a deletion that lands while a page is out is replayed over the
-page when it comes, rather than lost under it; Ready drops a page asked
-for before it (it may have read the server while the socket was down)
-and asks again from what is held then.
+**Events by position.** An event whose seq is exactly the next one is
+applied and the position moves. One further on is applied too (higher
+wins) but marks a gap: a `ListChanges` from the held seq is owed. One at
+or below the position is ignored; one about a row that isn't held, when
+it carries only part of the row (a reaction, a pin, a summary), marks a
+gap too, so the catch-up brings the whole row. Before the first page the
+position is 0 and events are kept without judgement; the page's
+`channel_seq`, read by the server before the page query, sets it (to 0
+again for a channel with no messages yet, so whether a page has been
+taken is kept apart from the position, `hasPage`). The log also keeps
+`seenSeq`, the highest seq any event carried: a load that sets the
+position below it (the server read its seq before the rows) leaves the
+catch-up owed, so an event missed while the first page or a catch-up was
+out is still fetched.
 
-`ListMessages` fills it ([messaging.md](messaging.md#history)): the newest
-page on opening a channel, `before_id` on scrolling up, `after_id` on
-scrolling down after a jump, and `around_id` for reply quotes, activity
-rows and `?m=<id>` links.
+**Catch-up, not refetch.** A gap, and every reconnect (the gateway's
+Ready, which `api/ws.ts` turns into `reconnected()` for every held log),
+is one `ListChanges(channel_id, since_seq)` loop per channel
+([messaging.md](messaging.md#catching-up-listchanges)): every row with a
+higher seq, tombstones and thread replies included, merged by seq, a row
+new to the log placed in the views that list it (shown inside a range or
+beyond a live range's end, counted on the pill beyond a range that stops
+short), the position moving to the channel's seq on the last page. A
+message posted while this page's socket was down appears when the socket
+is back, without a reload, and nothing the reader had paged in is
+dropped. The loop is shared by concurrent callers, retried with backoff
+capped at 15 s while the socket is open, and ended by a refusal that
+won't change (no access, not found, signed out). A reconnect's catch-up
+is followed by one more `ListMessages` per view with a page (the channel's
+newest page, each open thread's, and an open thread's root), because a
+thread's reads and mutes changed on another device meanwhile bump no seq
+and come with no change; the pages refresh the rows on screen, and older
+rows are put right when paged in again.
 
-The response reports `has_older` and `has_newer`, so the client knows where
-the window's edges are without guessing from page sizes.
+**The floor.** Retention hard-deletes rows with no tombstone and no
+event, so `ListMessages` and `ListChanges` both carry the sweep's
+`retention_floor_id` and the client drops a held row below it unless it
+is pinned, and a reply whose root is below it unless the root is pinned
+(the sweep spares a pinned root and its thread). The floor never tightens
+a view's range, since a pinned row may still lie below it.
 
-**Liveness is derived, not tracked**: `isLive = !hasNewer`. A window that
-reaches the newest message is live, and realtime appends to it. While it
-isn't live, arrivals are *counted* on the "Jump to latest" pill rather than
-spliced in — splicing into a window that has a gap above it would be a lie
-about the order of the conversation. Pressing the pill, or sending a
-message, refetches the newest page.
+**Views.** Opening a channel asks for the newest page and makes it the
+channel view's range; `before_id` and `after_id` pages grow it one page
+per direction at a time; a jump (a reply quote, an activity row, `?m=`)
+asks `around_id` and *replaces* the range, moving the view's generation
+so a page out for the old range is dropped when it answers. **Liveness is
+derived, not tracked**: `isLive = !hasNewer`. While a view stops short of
+the newest row, arrivals beyond it are held and *counted*
+(`pendingNewer`) on the "Jump to latest" pill rather than shown —
+splicing into a range with a gap above it would be a lie about the order
+of the conversation. Pressing the pill, or sending a message, replaces
+the range with the newest page.
 
-**A refetch keeps the window.** Events that change how old messages render
-(`member_updated`, `groups_changed`) and Ready invalidate every window. A
-live one is fetched again from the newest message back to its oldest row
-(`fetchLiveWindow`, pages of 100), so history the reader paged in is
-redrawn rather than dropped. A window that isn't live is left as it is,
-and a refetch is skipped (the query keeps what it holds) while a jump
-asked for since the last reconnect is on its way.
-Message windows do not refetch on tab focus: the socket keeps them current.
+**The cap.** A view holds at most `LOG_CAP` (2,000) shown rows; past
+that the end away from the reader is pruned and that end's flag set, so
+paging far back makes the view stop being live. The cap is about memory;
+the DOM is bounded on its own by the virtualised list
+([web.md](web.md#the-message-list)). A row pruned from a view leaves the
+map unless another view still lists it.
 
-**The window is capped at 300 rows** (`WINDOW_CAP`). Paging in one
-direction prunes the far end, and the pruning sets the opposite edge flag:
-dropping the newest rows to prepend older ones means the window no longer
-ends at the newest message, so `hasNewer` becomes true and the timeline
-stops being live. That is what keeps the DOM bounded without
-virtualization, and the flag bookkeeping is what keeps it *correct* while
-bounded.
+**What stays in the query cache.** Search, pins, activity and the
+one-message copies fetched on their own (a linked message's card, a
+thread's root before the log holds it) are request/response queries. An
+event about such a message makes the client fetch the copy again; a
+reconnect refetches these queries as before (`api/stale.ts`). Nothing
+else about a message is in the cache, and nothing invalidates
+`["messages"]` any more: `member_updated` and `groups_changed` refetch
+the members and groups, which the rows read their author's name and a
+group's handle from.
 
 Following behaviour is deliberately narrow: the view follows an arrival
 only when it is already at the bottom, or when the message is the reader's

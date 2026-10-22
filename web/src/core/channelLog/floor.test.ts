@@ -78,6 +78,28 @@ describe("the retention floor", () => {
     );
   });
 
+  it("drops a swept row a page asked for before the sweep brings back", () => {
+    const log = caughtUp(
+      held(),
+      changes([], { channelSeq: 15, floor: id(50) }),
+    );
+    // The page's answer carries the older floor (or none) and the rows the
+    // sweep since took; neither moves the log back.
+    for (const floor of ["", id(40)]) {
+      const late = paged(log, "older", {
+        generation: 1,
+        res: page(
+          [message(id(35), { seq: 2n }), message(id(36), { seq: 3n })],
+          { hasOlder: false, floor },
+        ),
+      });
+      expect(late.rows.has(id(35))).toBe(false);
+      expect(late.rows.has(id(36))).toBe(false);
+      expect(late.floor).toBe(id(50));
+      expect(ids(channelItems(late))).toEqual(ids(channelItems(log)));
+    }
+  });
+
   it("leaves a log alone with retention off", () => {
     const log = held();
     expect(caughtUp(log, changes([], { channelSeq: 15 }))).toBe(log);
