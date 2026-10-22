@@ -1,4 +1,4 @@
-import { expect, reload, say, seed, signIn, test } from "./lib";
+import { anchoredTop, expect, reload, say, seed, signIn, test } from "./lib";
 
 // Older history: the timeline opens on the latest page, loads the page
 // before it when scrolled to the top without the view jumping, and shows
@@ -67,10 +67,8 @@ test("paging back through older history", async ({ browser }) => {
 
   // Scroll to the top: the previous page arrives and the message that was
   // at the top stays exactly where it was on screen. The page's request is
-  // held until the row's position has been read, and the position is read
-  // from a frame that has the row: the one between a scrollTop write and
-  // the virtualiser's read-back render has no rows at all, so a sample
-  // taken there is −1 whatever the list does.
+  // held until the row's position has been read (anchoredTop in lib.ts
+  // says why that is a poll).
   let hold = false;
   let release = () => {};
   const held = new Promise<void>((resolve) => {
@@ -87,16 +85,7 @@ test("paging back through older history", async ({ browser }) => {
   // rows there are not in the DOM until then).
   const anchorId = `msg-${ids[70]}`;
   await expect(A.locator(`#${anchorId}`)).toBeAttached();
-  let before = -1;
-  await expect
-    .poll(
-      async () => {
-        before = await topOf(anchorId);
-        return before;
-      },
-      { message: "the anchored row has a position on screen" },
-    )
-    .toBeGreaterThanOrEqual(0);
+  const before = await anchoredTop(A, anchorId);
   await pageRequest;
   hold = false;
   release();
