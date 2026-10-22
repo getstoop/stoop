@@ -30,6 +30,7 @@ ALTER TABLE channels ADD COLUMN swept_seq bigint NOT NULL DEFAULT 0;
 ALTER TABLE messages ADD COLUMN seq bigint;            -- 00068, 0.14.0
 CREATE INDEX messages_channel_seq_idx ON messages (channel_id, seq);
 ALTER TABLE messages ALTER COLUMN seq SET NOT NULL;    -- 00069, 0.15.0
+ALTER TABLE channels DROP COLUMN swept_seq;            -- 00070, 0.16.0
 ```
 
 - **Every render-affecting write stamps the row** in its own transaction:
@@ -53,7 +54,7 @@ ALTER TABLE messages ALTER COLUMN seq SET NOT NULL;    -- 00069, 0.15.0
   answer `too_old` when `since_seq` fell below `channels.swept_seq`, the
   highest seq the sweep had hard-deleted. As built nothing reads
   `swept_seq` (the sweep raised it through 0.14.0; step 8 stopped that,
-  and the column goes a release later). Instead
+  and 00070 dropped the column). Instead
   `ListChanges` and `ListMessages` both carry `retention_floor_id`, the
   sweep's own cutoff from one helper so the two never disagree (empty with
   retention off), and the client drops a held row below it unless it is

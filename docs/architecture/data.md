@@ -402,7 +402,12 @@ restore. So migrations follow **expand/contract**:
 - A release may **drop, rename, or tighten** (`NOT NULL`, a narrower type,
   a new constraint) only what the *previous* release already stopped
   reading and writing. Removing something therefore takes two releases:
-  N stops using it, N+1 drops it.
+  N stops using it, N+1 drops it. Mind that sqlc expands `t.*` and
+  `RETURNING *` into explicit column lists, so every column of a table
+  sqlc reads is *read* by every shipped release: dropping one is always a
+  contract against the previous release, and the floor goes to the
+  dropping migration's own number (00070). The two releases buy the
+  write-stop, not a rollback-safe drop.
 - A backfill the new code depends on runs in the migration, not lazily, so
   the new binary never sees the half state — but the column it fills stays
   nullable or defaulted until the release after.

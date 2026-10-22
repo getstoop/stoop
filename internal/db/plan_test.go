@@ -85,10 +85,11 @@ func TestInspectAheadAndRefused(t *testing.T) {
 	}
 }
 
-// A database 0.14.0 made (newest 68) upgrading to this binary meets the
-// contract migration 00069: the floor goes from 65 to 68, so the plan
-// says the release that made the database can still start, and the one
-// before it cannot.
+// A database 0.15.0 made (newest 69) upgrading to this binary meets the
+// contract migration 00070, which drops a column 0.15.0's generated
+// queries name (sqlc expands channels.* into column lists): the floor
+// goes from 68 to 70, so the plan says the release that made the database
+// cannot start against the result, only the one that ships 00070.
 func TestInspectContractFromPreviousRelease(t *testing.T) {
 	ctx := context.Background()
 	pool, err := db.Connect(ctx, dbtest.NewURL(t), 0)
@@ -110,10 +111,14 @@ func TestInspectContractFromPreviousRelease(t *testing.T) {
 	if len(plan.Pending) == 0 || plan.Pending[0].Version != 70 || plan.Pending[0].Name != "drop_swept_seq" {
 		t.Errorf("pending should start at 00070_drop_swept_seq: %+v", plan.Pending)
 	}
-	// 00070 refuses the release before it, so until the release that ships
-	// it is tagged no release can start against the result.
-	if release, ok := db.OldestStartable(plan.FloorAfter); ok {
-		t.Errorf("oldest release starting against floor %d = %+v, want none yet", plan.FloorAfter, release)
+	// 00070 refuses the release before it: 0.15.0's newest migration is
+	// below the new floor. (Whether a release can start against it depends
+	// on whether the release that ships 00070 has a row yet, which the
+	// release-candidate workflow adds, so that is not asserted.)
+	for _, release := range db.Releases {
+		if release.Version == "0.15.0" && release.Migration >= plan.FloorAfter {
+			t.Errorf("0.15.0 (migration %d) should be refused by floor %d", release.Migration, plan.FloorAfter)
+		}
 	}
 	if release, ok := db.OldestStartable(plan.Floor); !ok || release.Version != "0.14.0" {
 		t.Errorf("oldest release starting against floor %d = %+v %v, want 0.14.0", plan.Floor, release, ok)
