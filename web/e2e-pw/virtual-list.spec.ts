@@ -1,5 +1,5 @@
 import { BASE } from "../e2e/seed.mjs";
-import { expect, say, seed, signIn, test } from "./lib";
+import { anchoredTop, expect, say, seed, signIn, test } from "./lib";
 
 // The virtualised timeline (routes/Channel/MessageList): the DOM holds only
 // the rows near the viewport while the window holds many more; a quote's
@@ -113,13 +113,36 @@ test("the list renders only the rows near the viewport", async ({
     "50",
   );
 
+  // An older page's request is held, when asked, until the position it
+  // must not move has been read (anchoredTop in lib.ts says why that is
+  // a poll); a gate set holds the next request.
+  let gate: Promise<void> | null = null;
+  let open = () => {};
+  const holdPage = () => {
+    gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+  };
+  const releasePage = () => {
+    gate = null;
+    open();
+  };
+  await A.route("**/stoop.chat.v1.ChatService/ListMessages", async (route) => {
+    if (gate) await gate;
+    await route.continue();
+  });
+
   // Scrolling to the top pages back, and the row at the top of the view
   // stays exactly where it was on screen.
+  holdPage();
+  const firstPageRequest = A.waitForRequest(/ChatService\/ListMessages/);
   await scrollToTop();
   // The window's first row, rendered once the view is at the top.
   const anchorId = `msg-${ids[SEED - 50]}`;
   await expect(A.locator(`#${anchorId}`)).toBeAttached();
-  const before = await topOf(anchorId);
+  const before = await anchoredTop(A, anchorId);
+  await firstPageRequest;
+  releasePage();
   await expect(list, "the older page loaded").toHaveAttribute(
     "data-rows",
     "100",
@@ -143,21 +166,12 @@ test("the list renders only the rows near the viewport", async ({
   const B = await (await browser.newContext({ viewport: VIEWPORT })).newPage();
   await signIn(B, tokens.bea);
   await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
-  let hold = false;
-  let release = () => {};
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await A.route("**/stoop.chat.v1.ChatService/ListMessages", async (route) => {
-    if (hold) await held;
-    await route.continue();
-  });
-  hold = true;
+  holdPage();
   const pageRequest = A.waitForRequest(/ChatService\/ListMessages/);
   await scrollToTop();
   const heldId = `msg-${ids[SEED - 100]}`;
   await expect(A.locator(`#${heldId}`)).toBeAttached();
-  const heldTop = await topOf(heldId);
+  const heldTop = await anchoredTop(A, heldId);
   await pageRequest;
   await say(B, "posted while a page is out");
   await expect(pill, "the arrival counts on the pill").toHaveText(
@@ -167,8 +181,7 @@ test("the list renders only the rows near the viewport", async ({
     Math.abs((await topOf(heldId)) - heldTop),
     "…and does not move the viewed row",
   ).toBeLessThan(3);
-  hold = false;
-  release();
+  releasePage();
   await expect(list, "the held page lands").toHaveAttribute("data-rows", "151");
   await expect
     .poll(async () => Math.abs((await topOf(heldId)) - heldTop), {

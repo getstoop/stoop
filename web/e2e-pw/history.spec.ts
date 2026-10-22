@@ -1,4 +1,4 @@
-import { expect, reload, say, seed, signIn, test } from "./lib";
+import { anchoredTop, expect, reload, say, seed, signIn, test } from "./lib";
 
 // Older history: the timeline opens on the latest page, loads the page
 // before it when scrolled to the top without the view jumping, and shows
@@ -66,19 +66,36 @@ test("paging back through older history", async ({ browser }) => {
     .toBeGreaterThan(0);
 
   // Scroll to the top: the previous page arrives and the message that was
-  // at the top stays exactly where it was on screen.
+  // at the top stays exactly where it was on screen. The page's request is
+  // held until the row's position has been read (anchoredTop in lib.ts
+  // says why that is a poll).
+  let hold = false;
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await A.route("**/stoop.chat.v1.ChatService/ListMessages", async (route) => {
+    if (hold) await held;
+    await route.continue();
+  });
+  hold = true;
+  const pageRequest = A.waitForRequest(/ChatService\/ListMessages/);
   await scrollToTop();
   // The window's first row, rendered once the view is at the top (the
   // rows there are not in the DOM until then).
   const anchorId = `msg-${ids[70]}`;
   await expect(A.locator(`#${anchorId}`)).toBeAttached();
-  const before = await topOf(anchorId);
+  const before = await anchoredTop(A, anchorId);
+  await pageRequest;
+  hold = false;
+  release();
   await expect(list, "second page loaded").toHaveAttribute("data-rows", "100");
   await expect
     .poll(async () => Math.abs((await topOf(anchorId)) - before), {
       message: "view stays anchored on the same message",
     })
     .toBeLessThan(3);
+  await A.unroute("**/stoop.chat.v1.ChatService/ListMessages");
   await expect(list, "the oldest loaded message is now #21").toHaveAttribute(
     "data-oldest",
     ids[20],
