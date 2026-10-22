@@ -9,6 +9,19 @@ import (
 	"context"
 )
 
+const deleteThreadViewerRows = `-- name: DeleteThreadViewerRows :exec
+WITH mutes AS (DELETE FROM thread_mutes WHERE root_message_id = $1::uuid)
+DELETE FROM thread_reads WHERE root_message_id = $1::uuid
+`
+
+// DeleteThreadViewerRows drops every person's mute and read marker for a
+// thread nobody is shown any more: its root is a tombstone with no live
+// reply. A hard delete used to cascade them.
+func (q *Queries) DeleteThreadViewerRows(ctx context.Context, rootID string) error {
+	_, err := q.db.Exec(ctx, deleteThreadViewerRows, rootID)
+	return err
+}
+
 const listThreadMutes = `-- name: ListThreadMutes :many
 SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, m.seq, c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, c.swept_seq
 FROM thread_mutes tm
@@ -138,7 +151,7 @@ const threadViewerStates = `-- name: ThreadViewerStates :many
 SELECT r.id AS root_id,
     (r.author_id = $1::uuid
      OR EXISTS (SELECT 1 FROM messages m
-                WHERE m.thread_root_id = r.id AND m.author_id = $1::uuid)
+                WHERE m.thread_root_id = r.id AND m.author_id = $1::uuid AND m.deleted_at IS NULL)
      OR EXISTS (SELECT 1 FROM message_mentions mm JOIN messages m ON m.id = mm.message_id
                 WHERE mm.user_id = $1::uuid
                   AND (m.id = r.id OR m.thread_root_id = r.id)
@@ -146,7 +159,7 @@ SELECT r.id AS root_id,
     EXISTS (SELECT 1 FROM thread_mutes tm
             WHERE tm.user_id = $1::uuid AND tm.root_message_id = r.id)::bool AS muted,
     (SELECT count(*) FROM messages m
-     WHERE m.thread_root_id = r.id AND m.author_id <> $1::uuid
+     WHERE m.thread_root_id = r.id AND m.author_id <> $1::uuid AND m.deleted_at IS NULL
        AND m.id > COALESCE((SELECT tr.last_read_message_id FROM thread_reads tr
                             WHERE tr.user_id = $1::uuid AND tr.root_message_id = r.id),
                            '00000000-0000-0000-0000-000000000000'::uuid))::int AS unread_count
@@ -169,7 +182,8 @@ type ThreadViewerStatesRow struct {
 // ThreadViewerStates is one person's view of each root: whether they are
 // in its thread (started it, replied, or were @mentioned by name in it;
 // @channel and @here don't count), whether they muted it, and how many
-// replies by others came after their read marker.
+// replies by others came after their read marker. A deleted reply is a
+// tombstone and counts for nothing here.
 func (q *Queries) ThreadViewerStates(ctx context.Context, arg ThreadViewerStatesParams) ([]ThreadViewerStatesRow, error) {
 	rows, err := q.db.Query(ctx, threadViewerStates, arg.UserID, arg.RootIds)
 	if err != nil {

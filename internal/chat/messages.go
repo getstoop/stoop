@@ -653,16 +653,11 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
 		return nil, err
 	}
-	switch {
-	case msg.DeletedAt != nil:
-		// Already a placeholder: it goes with its last reply.
-	case msg.ThreadRootID != nil:
-		err = s.deleteThreadReply(ctx, msg, channel)
-	default:
-		err = s.deleteTopLevel(ctx, msg, channel)
-	}
-	if err != nil {
-		return nil, err
+	// A placeholder is a tombstone already: it goes with its last reply.
+	if msg.DeletedAt == nil {
+		if err := s.tombstoneMessage(ctx, msg, channel); err != nil {
+			return nil, err
+		}
 	}
 	return connect.NewResponse(&chatv1.DeleteMessageResponse{}), nil
 }

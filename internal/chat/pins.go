@@ -44,6 +44,11 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 		return nil, connect.NewError(connect.CodeFailedPrecondition,
 			errors.New("messages in a thread can't be pinned"))
 	}
+	// A placeholder has nothing to keep, and a pin would keep it from
+	// the retention sweep.
+	if req.Msg.Pinned && msg.DeletedAt != nil {
+		return nil, placeholderError()
+	}
 	if req.Msg.Pinned {
 		return s.pin(ctx, msg, channel)
 	}

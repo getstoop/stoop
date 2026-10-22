@@ -2,7 +2,7 @@
 -- Only internal/chat may use these queries.
 
 -- AddReaction adds nothing to a root kept as a placeholder. The share lock
--- orders it against MakePlaceholder: a reaction either lands first and is
+-- orders it against TombstoneMessage: a reaction either lands first and is
 -- cleared with the rest, or waits and finds the message deleted.
 -- name: AddReaction :execrows
 INSERT INTO message_reactions (message_id, user_id, emoji)

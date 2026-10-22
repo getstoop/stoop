@@ -14,10 +14,10 @@ import (
 // changes how a message renders takes the channel's next seq and stamps
 // the row with it, in the write's own transaction. The stamp comes first
 // in that transaction, so every RPC transaction that writes message rows
-// takes the channel row (NextChannelSeq, or LockChannel where a delete
-// may not stamp) before any message row, and no two of them wait on each
-// other's rows. The retention sweep deletes outside that rule for now;
-// step 3 of the proposal brings it in.
+// takes the channel row (NextChannelSeq, or LockChannel where more than
+// one row is written) before any message row, and no two of them wait on
+// each other's rows. The retention sweep, the one hard delete, holds the
+// channel row the same way (retention_sweep.go).
 
 // errMessageGone is the row to stamp no longer existing. It rolls the
 // transaction back, so the position it took is not spent. stampMessage

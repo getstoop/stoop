@@ -7,11 +7,13 @@
 -- for the search vector the view leaves out. `words` is websearch
 -- syntax; `prefix` is a quoted lexeme with :* or "" (see
 -- internal/chat/search_query.go). Dates bound created_at; the cursor
--- bounds id. Hidden voice channels (kind 2) are left out.
+-- bounds id. Hidden voice channels (kind 2) are left out, and so is
+-- every tombstone.
 -- name: SearchMessages :many
 SELECT m.* FROM message_with_reply m
 JOIN messages indexed ON indexed.id = m.id
-WHERE m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid
+WHERE m.deleted_at IS NULL
+  AND m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = sqlc.arg(space_id)::uuid
         AND (sqlc.arg(with_voice)::bool OR c.kind <> 2)
         AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = sqlc.arg(user_id)::uuid))
   AND indexed.search @@ (CASE

@@ -34,14 +34,15 @@ func newThreadSpace(t *testing.T) (*threadSpace, func() int) {
 	if _, err := svc.JoinSpace(bea, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
 		t.Fatal(err)
 	}
-	rows := func() int {
+	// tombstoned is how many message rows are deleted but still there.
+	tombstoned := func() int {
 		var count int
-		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM messages`).Scan(&count); err != nil {
+		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM messages WHERE deleted_at IS NOT NULL AND content = ''`).Scan(&count); err != nil {
 			t.Fatal(err)
 		}
 		return count
 	}
-	return &threadSpace{t: t, svc: svc, ada: ada, bea: bea, space: sp.Msg.Space.Id, channel: sp.Msg.DefaultChannel.Id}, rows
+	return &threadSpace{t: t, svc: svc, ada: ada, bea: bea, space: sp.Msg.Space.Id, channel: sp.Msg.DefaultChannel.Id}, tombstoned
 }
 
 func (ts *threadSpace) send(ctx context.Context, content, threadRoot, quote string) *chatv1.Message {
@@ -84,7 +85,7 @@ func (ts *threadSpace) remove(ctx context.Context, id string) {
 // A root deleted while its thread has replies stays as a placeholder; the
 // replies stay; and the last reply's delete takes the placeholder too.
 func TestDeletedRootBecomesPlaceholder(t *testing.T) {
-	ts, rows := newThreadSpace(t)
+	ts, tombstoned := newThreadSpace(t)
 	root := ts.send(ts.ada, "ladder? "+mentionOf(ts.bea), "", "")
 	quote := ts.send(ts.bea, "quoting the root", "", root.Id)
 	first := ts.send(ts.bea, "mine", root.Id, "")
@@ -133,13 +134,18 @@ func TestDeletedRootBecomesPlaceholder(t *testing.T) {
 	if ts.find(root.Id).Thread.GetReplyCount() != 1 {
 		t.Errorf("after one reply goes, thread = %+v", ts.find(root.Id).Thread)
 	}
-	before := rows()
+	before := tombstoned()
 	ts.remove(ts.ada, second.Id)
 	if ts.find(root.Id) != nil {
 		t.Error("the placeholder outlived its last reply")
 	}
-	if rows() != before-2 {
-		t.Errorf("deleting the last reply removed %d rows, want 2 (reply and placeholder)", before-rows())
+	// The reply is a tombstone too, and the placeholder stays one: both
+	// rows remain, shown to nobody.
+	if tombstoned() != before+1 {
+		t.Errorf("deleting the last reply left %d tombstones, want %d (the reply joins the placeholder)", tombstoned(), before+1)
+	}
+	if _, err := ts.svc.ListMessages(ts.ada, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: ts.channel, ThreadId: root.Id})); code(err) != connect.CodeNotFound {
+		t.Errorf("opening the hidden root's thread: want not_found, got %v", err)
 	}
 }
 
@@ -170,7 +176,7 @@ func TestDeletingRepliesRecounts(t *testing.T) {
 }
 
 func TestDeleteThread(t *testing.T) {
-	ts, rows := newThreadSpace(t)
+	ts, tombstoned := newThreadSpace(t)
 	root := ts.send(ts.bea, "root", "", "")
 	reply := ts.send(ts.bea, "reply", root.Id, "")
 	ts.send(ts.ada, "another", root.Id, "")
@@ -188,7 +194,14 @@ func TestDeleteThread(t *testing.T) {
 	if err := deleteThread(ts.ada, root.Id); err != nil {
 		t.Fatal(err)
 	}
-	if left := rows(); left != 0 {
-		t.Errorf("%d messages left after Delete thread, want 0", left)
+	// Every row is a tombstone: the channel is empty and the thread gone.
+	if got := tombstoned(); got != 3 {
+		t.Errorf("%d tombstones after Delete thread, want 3 (the root and both replies)", got)
+	}
+	if page := ts.channelPage(); len(page) != 0 {
+		t.Errorf("channel after Delete thread = %v, want empty", page)
+	}
+	if _, err := ts.svc.ListMessages(ts.ada, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: ts.channel, ThreadId: root.Id})); code(err) != connect.CodeNotFound {
+		t.Errorf("opening the deleted thread: want not_found, got %v", err)
 	}
 }

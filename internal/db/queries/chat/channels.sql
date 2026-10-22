@@ -10,14 +10,16 @@ RETURNING *;
 SELECT * FROM channels WHERE id = $1;
 
 -- ListChannelsBySpace is the space's public channels and the private
--- ones the caller is in, with the caller's read marker, how many
--- messages are newer than it (all of them if they've never opened it),
--- and whether they muted it.
+-- ones the caller is in, with the caller's read marker, how many shown
+-- messages are newer than it (all of them if they've never opened it; a
+-- tombstone counts only as the placeholder of a thread with live
+-- replies), and whether they muted it.
 -- name: ListChannelsBySpace :many
 SELECT sqlc.embed(c), r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = sqlc.arg(user_id)) AS muted,
     (SELECT count(*) FROM messages m
      WHERE m.channel_id = c.id AND m.in_channel
+       AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
 FROM channels c
 LEFT JOIN channel_reads r ON r.channel_id = c.id AND r.user_id = sqlc.arg(user_id)
@@ -27,6 +29,12 @@ ORDER BY c.position, c.created_at;
 
 -- name: SetChannelLastMessage :exec
 UPDATE channels SET last_message_id = $2 WHERE id = $1;
+
+-- RaiseChannelSweptSeq records that the retention sweep hard-deleted rows
+-- stamped up to seq; it never goes down, so 0 (no row removed was
+-- stamped) leaves it alone.
+-- name: RaiseChannelSweptSeq :exec
+UPDATE channels SET swept_seq = GREATEST(swept_seq, sqlc.arg(seq)::bigint) WHERE id = $1;
 
 -- NextChannelSeq takes the next position in the channel log, and with it
 -- the channel row until the transaction ends: message writes in one

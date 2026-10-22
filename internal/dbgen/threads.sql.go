@@ -14,14 +14,45 @@ const deleteThreadSummary = `-- name: DeleteThreadSummary :exec
 DELETE FROM threads WHERE root_message_id = $1
 `
 
+// DeleteThreadSummary drops the summary once a thread has no live reply;
+// the row exists exactly while it has one.
 func (q *Queries) DeleteThreadSummary(ctx context.Context, rootMessageID string) error {
 	_, err := q.db.Exec(ctx, deleteThreadSummary, rootMessageID)
 	return err
 }
 
+const listLiveThreadReplies = `-- name: ListLiveThreadReplies :many
+SELECT id FROM messages
+WHERE thread_root_id = $1::uuid AND deleted_at IS NULL
+ORDER BY id
+`
+
+// ListLiveThreadReplies is every reply under a root that is not yet a
+// tombstone, oldest first, for Delete thread.
+func (q *Queries) ListLiveThreadReplies(ctx context.Context, rootID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listLiveThreadReplies, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listThreadAfter = `-- name: ListThreadAfter :many
 SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
+  AND m.deleted_at IS NULL
   AND (m.id > $2::uuid OR ($3::bool AND m.id = $2::uuid))
 ORDER BY m.id ASC
 LIMIT $4
@@ -83,6 +114,7 @@ const listThreadBefore = `-- name: ListThreadBefore :many
 
 SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
 WHERE m.thread_root_id = $1::uuid
+  AND m.deleted_at IS NULL
   AND ($2::uuid IS NULL OR m.id < $2::uuid)
 ORDER BY m.id DESC
 LIMIT $3
@@ -97,7 +129,8 @@ type ListThreadBeforeParams struct {
 // Threads: a root's replies and its summary row. Owned by the chat module.
 // Only internal/chat may use these queries. docs/architecture/messaging.md.
 // ListThreadBefore pages a thread backwards, like ListMessagesBefore; the
-// root itself is not a reply and is not returned.
+// root itself is not a reply and is not returned, and a deleted reply is
+// a tombstone nobody is shown.
 func (q *Queries) ListThreadBefore(ctx context.Context, arg ListThreadBeforeParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, listThreadBefore, arg.RootID, arg.BeforeID, arg.Limit)
 	if err != nil {
@@ -180,29 +213,10 @@ func (q *Queries) LockThread(ctx context.Context, rootMessageID string) (int32, 
 	return reply_count, err
 }
 
-const makePlaceholder = `-- name: MakePlaceholder :exec
-WITH attachments AS (DELETE FROM message_attachments WHERE message_id = $1::uuid),
-links AS (DELETE FROM message_links WHERE message_id = $1::uuid),
-reactions AS (DELETE FROM message_reactions WHERE message_id = $1::uuid),
-mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
-pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
-activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
-UPDATE messages SET content = '', mentions_entire_channel = false, mentions_here = false,
-    edited_at = NULL, deleted_at = now()
-WHERE id = $1::uuid
-`
-
-// MakePlaceholder keeps a root whose thread still has replies as an empty
-// row: no text, attachments, previews, reactions, mentions, pin or
-// activity. Its files are deleted through the port afterwards.
-func (q *Queries) MakePlaceholder(ctx context.Context, id string) error {
-	_, err := q.db.Exec(ctx, makePlaceholder, id)
-	return err
-}
-
 const recomputeThread = `-- name: RecomputeThread :one
 WITH replies AS (
-    SELECT id, author_id, created_at FROM messages WHERE thread_root_id = $1::uuid
+    SELECT id, author_id, created_at FROM messages
+    WHERE thread_root_id = $1::uuid AND deleted_at IS NULL
 ), latest AS (
     SELECT id, created_at FROM replies ORDER BY id DESC LIMIT 1
 ), authors AS (
@@ -219,8 +233,8 @@ WHERE root_message_id = $1::uuid
 RETURNING root_message_id, reply_count, last_reply_id, last_reply_at, recent_author_ids
 `
 
-// RecomputeThread recounts a root's summary from its remaining replies,
-// after one is deleted.
+// RecomputeThread recounts a root's summary from its live replies, after
+// one becomes a tombstone.
 func (q *Queries) RecomputeThread(ctx context.Context, rootID string) (Thread, error) {
 	row := q.db.QueryRow(ctx, recomputeThread, rootID)
 	var i Thread
@@ -276,7 +290,7 @@ const threadParticipants = `-- name: ThreadParticipants :many
 WITH thread AS (
     SELECT m.id, m.channel_id, m.author_id, m.mentions_entire_channel, m.mentions_here FROM messages m
     WHERE m.id = $1::uuid
-       OR (m.thread_root_id = $1::uuid AND m.id < $2::uuid)
+       OR (m.thread_root_id = $1::uuid AND m.id < $2::uuid AND m.deleted_at IS NULL)
 ), people AS (
     SELECT t.author_id AS user_id FROM thread t
     UNION
@@ -298,9 +312,10 @@ type ThreadParticipantsParams struct {
 
 // ThreadParticipants are who a new reply's thread_reply activity goes
 // to: the people in the thread before reply_id (its root's author,
-// repliers, and people @mentioned by name, as ThreadViewerStates counts
-// them), less anyone who muted it and anyone who can no longer read the
-// channel: message rows outlive a leave or a kick.
+// repliers whose reply still stands, and people @mentioned by name, as
+// ThreadViewerStates counts them), less anyone who muted it and anyone
+// who can no longer read the channel: message rows outlive a leave or a
+// kick.
 func (q *Queries) ThreadParticipants(ctx context.Context, arg ThreadParticipantsParams) ([]string, error) {
 	rows, err := q.db.Query(ctx, threadParticipants, arg.RootID, arg.ReplyID)
 	if err != nil {

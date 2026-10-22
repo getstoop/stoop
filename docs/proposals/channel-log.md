@@ -89,7 +89,13 @@ query with the embedded author as fallback.
    and `channel_seq`. No behaviour change.
 3. Server: tombstones. One delete path; `DeleteThread` as its bulk form;
    recomputes skip tombstones; sweep records `swept_seq`; publish
-   `message_updated` alongside `message_deleted` for now.
+   `message_updated` alongside `message_deleted` for now. As built: the
+   events are exactly today's (no `message_updated` for a row that used
+   to vanish; that is step 4's job), a tombstone is shown only as the
+   placeholder of a thread with live replies, `GetMessage` hides every
+   other tombstone so each RPC answers as before, and a quote of a
+   deleted message now reads as deleted rather than disappearing, since
+   `reply_to_message_id` is kept.
 4. Server: `ListChanges` and `too_old`; reactions, pins and thread
    summaries also publish `message_updated` with the row.
 5. Web: the new store and loader, unit-tested, unwired.

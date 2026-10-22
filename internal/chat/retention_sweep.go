@@ -3,11 +3,15 @@ package chat
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -15,9 +19,12 @@ import (
 // Message retention: messages older than the instance's
 // message_retention_days go, pinned ones excepted, with everything that
 // cascades from a message and their attachments' files. A thread goes by
-// its root's age, replies and all. No events are
-// published; clients see the gap on their next load. See
-// docs/architecture/messaging.md#message-retention.
+// its root's age, replies and all. Tombstones past the cutoff are rows
+// like any other. This is the one hard delete of message rows outside
+// deleting a channel or a space, and it holds the channel row like every
+// other message write (seq.go), recording in channels.swept_seq the
+// highest seq it removed. No events are published; clients see the gap
+// on their next load. See docs/architecture/messaging.md#message-retention.
 
 const (
 	retentionBatch = 1000
@@ -71,27 +78,24 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 			break
 		}
 		ids := make([]string, len(rows))
-		channels := map[string]bool{}
-		for i, r := range rows {
-			ids[i] = r.ID
-			channels[r.ChannelID] = true
+		byChannel := map[string][]string{}
+		for index, row := range rows {
+			ids[index] = row.ID
+			byChannel[row.ChannelID] = append(byChannel[row.ChannelID], row.ID)
 		}
 		fileIDs, err := s.q.ListThreadFileIDsForRoots(ctx, ids)
 		if err != nil {
 			return removed, fmt.Errorf("list expired attachments: %w", err)
 		}
-		replies, err := s.q.CountRepliesUnder(ctx, ids)
-		if err != nil {
-			return removed, fmt.Errorf("count expired replies: %w", err)
-		}
-		if err := s.q.DeleteMessagesByIDs(ctx, ids); err != nil {
-			return removed, fmt.Errorf("delete expired messages: %w", err)
-		}
-		removed += int64(len(ids)) + replies
-		for id := range channels {
-			if err := s.q.RecomputeChannelLastMessage(ctx, id); err != nil {
-				return removed, fmt.Errorf("recompute last message: %w", err)
+		// One transaction per channel, channels in one order, so two
+		// sweeps (or a sweep and a channel delete) never wait on each
+		// other's rows.
+		for _, channelID := range slices.Sorted(maps.Keys(byChannel)) {
+			count, err := s.sweepChannel(ctx, channelID, byChannel[channelID])
+			if err != nil {
+				return removed, err
 			}
+			removed += count
 		}
 		s.deleteMessageFiles(ctx, fileIDs)
 		if len(rows) < retentionBatch {
@@ -102,6 +106,35 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 		slog.Default().Info("messages past retention deleted", "removed", removed, "days", days)
 	}
 	return removed, nil
+}
+
+// sweepChannel hard-deletes these roots of one channel and every reply
+// under them, holding the channel row first, and raises swept_seq to the
+// highest seq among the rows removed. A channel deleted meanwhile took
+// its rows with it: nothing to do.
+func (s *Service) sweepChannel(ctx context.Context, channelID string, rootIDs []string) (int64, error) {
+	var removed int64
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockChannel(ctx, channelID); err != nil {
+			return fmt.Errorf("lock channel: %w", err)
+		}
+		result, err := qtx.DeleteExpiredMessages(ctx, rootIDs)
+		if err != nil {
+			return fmt.Errorf("delete expired messages: %w", err)
+		}
+		removed = result.Removed
+		if err := qtx.RaiseChannelSweptSeq(ctx, dbgen.RaiseChannelSweptSeqParams{ID: channelID, Seq: result.MaxSeq}); err != nil {
+			return fmt.Errorf("raise swept seq: %w", err)
+		}
+		if err := qtx.RecomputeChannelLastMessage(ctx, channelID); err != nil {
+			return fmt.Errorf("recompute last message: %w", err)
+		}
+		return nil
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	}
+	return removed, err
 }
 
 // SweepMessagesKind is the job kind internal/app registers for SweepMessages.

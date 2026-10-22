@@ -8,6 +8,13 @@ ON CONFLICT DO NOTHING;
 -- name: UnmuteThread :exec
 DELETE FROM thread_mutes WHERE user_id = $1 AND root_message_id = $2;
 
+-- DeleteThreadViewerRows drops every person's mute and read marker for a
+-- thread nobody is shown any more: its root is a tombstone with no live
+-- reply. A hard delete used to cascade them.
+-- name: DeleteThreadViewerRows :exec
+WITH mutes AS (DELETE FROM thread_mutes WHERE root_message_id = sqlc.arg(root_id)::uuid)
+DELETE FROM thread_reads WHERE root_message_id = sqlc.arg(root_id)::uuid;
+
 -- ListThreadMutes is Profile → Muted's threads, newest mute first, in
 -- channels the person can still read; the caller drops hidden voice
 -- channels, as accessChannel does.
@@ -34,12 +41,13 @@ RETURNING last_read_message_id;
 -- ThreadViewerStates is one person's view of each root: whether they are
 -- in its thread (started it, replied, or were @mentioned by name in it;
 -- @channel and @here don't count), whether they muted it, and how many
--- replies by others came after their read marker.
+-- replies by others came after their read marker. A deleted reply is a
+-- tombstone and counts for nothing here.
 -- name: ThreadViewerStates :many
 SELECT r.id AS root_id,
     (r.author_id = sqlc.arg(user_id)::uuid
      OR EXISTS (SELECT 1 FROM messages m
-                WHERE m.thread_root_id = r.id AND m.author_id = sqlc.arg(user_id)::uuid)
+                WHERE m.thread_root_id = r.id AND m.author_id = sqlc.arg(user_id)::uuid AND m.deleted_at IS NULL)
      OR EXISTS (SELECT 1 FROM message_mentions mm JOIN messages m ON m.id = mm.message_id
                 WHERE mm.user_id = sqlc.arg(user_id)::uuid
                   AND (m.id = r.id OR m.thread_root_id = r.id)
@@ -47,7 +55,7 @@ SELECT r.id AS root_id,
     EXISTS (SELECT 1 FROM thread_mutes tm
             WHERE tm.user_id = sqlc.arg(user_id)::uuid AND tm.root_message_id = r.id)::bool AS muted,
     (SELECT count(*) FROM messages m
-     WHERE m.thread_root_id = r.id AND m.author_id <> sqlc.arg(user_id)::uuid
+     WHERE m.thread_root_id = r.id AND m.author_id <> sqlc.arg(user_id)::uuid AND m.deleted_at IS NULL
        AND m.id > COALESCE((SELECT tr.last_read_message_id FROM thread_reads tr
                             WHERE tr.user_id = sqlc.arg(user_id)::uuid AND tr.root_message_id = r.id),
                            '00000000-0000-0000-0000-000000000000'::uuid))::int AS unread_count
