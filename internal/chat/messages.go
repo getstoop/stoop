@@ -702,13 +702,10 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 		Content: row.Content, CreatedAt: timestamppb.New(row.CreatedAt),
 		MentionUserIds: mentions, SpaceId: spaceID,
 		MentionsEntireChannel: row.MentionsEntireChannel, MentionsHere: row.MentionsHere,
-		InChannel: row.InChannel, Deleted: row.DeletedAt != nil,
+		InChannel: row.InChannel, Deleted: row.DeletedAt != nil, Seq: row.Seq,
 	}
 	if row.ThreadRootID != nil {
 		out.ThreadRootId = *row.ThreadRootID
-	}
-	if row.Seq != nil {
-		out.Seq = *row.Seq
 	}
 	out.EditedAt = pbtime.OrNil(row.EditedAt)
 	return out

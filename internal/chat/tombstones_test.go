@@ -26,7 +26,7 @@ func at(seq int64) string {
 type tombstone struct {
 	deletedAt  *time.Time
 	content    string
-	seq        *int64
+	seq        int64
 	dependents int // rows in the tables a hard delete used to cascade through
 }
 
@@ -155,8 +155,8 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 		if row.deletedAt == nil || row.content != "" || row.dependents != 0 {
 			t.Errorf("%s: row = deleted_at %v, content %q, %d dependent rows; want a bare tombstone", what, row.deletedAt, row.content, row.dependents)
 		}
-		if row.seq == nil || *row.seq <= before {
-			t.Errorf("%s: stamped %v, want above %d", what, row.seq, before)
+		if row.seq <= before {
+			t.Errorf("%s: stamped %d, want above %d", what, row.seq, before)
 		}
 		return row
 	}
@@ -299,8 +299,8 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	remove(owner, byOwner.Id)
 	replyRow := expectTombstone("last reply under a placeholder", byOwner.Id, before)
 	rootRow := readTombstone(t, pool, root.Id)
-	if rootRow.seq == nil || *rootRow.seq <= *replyRow.seq {
-		t.Errorf("the vanishing placeholder was stamped %v, want above the reply's %d", rootRow.seq, *replyRow.seq)
+	if rootRow.seq <= replyRow.seq {
+		t.Errorf("the vanishing placeholder was stamped %d, want above the reply's %d", rootRow.seq, replyRow.seq)
 	}
 	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + byOwner.Id + ":" + root.Id + stamp(byOwner.Id), "message_deleted:" + root.Id + ":" + stamp(root.Id)}) {
 		t.Errorf("events after deleting the last reply under a placeholder: %v", kinds)
@@ -386,17 +386,17 @@ func TestDeleteThreadTombstonesEveryRow(t *testing.T) {
 	var stamps []int64
 	for _, id := range []string{first.Id, second.Id, root.Id} {
 		row := readTombstone(t, pool, id)
-		if row.deletedAt == nil || row.content != "" || row.seq == nil || *row.seq <= before {
+		if row.deletedAt == nil || row.content != "" || row.seq <= before {
 			t.Errorf("row %s after Delete thread = %+v, want a tombstone stamped above %d", id, row, before)
 			continue
 		}
-		stamps = append(stamps, *row.seq)
+		stamps = append(stamps, row.seq)
 	}
 	if !slices.IsSorted(stamps) || len(slices.Compact(slices.Clone(stamps))) != len(stamps) {
 		t.Errorf("Delete thread stamped %v, want distinct and increasing", stamps)
 	}
-	if got := readTombstone(t, pool, gone.Id).seq; got == nil || goneStamp == nil || *got != *goneStamp {
-		t.Errorf("the reply deleted earlier was stamped again: %v, had %v", got, goneStamp)
+	if got := readTombstone(t, pool, gone.Id).seq; got != goneStamp {
+		t.Errorf("the reply deleted earlier was stamped again: %d, had %d", got, goneStamp)
 	}
 	var summaries int
 	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM threads WHERE root_message_id = $1`, root.Id).Scan(&summaries); err != nil {

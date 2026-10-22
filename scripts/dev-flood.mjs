@@ -105,17 +105,27 @@ BEGIN
   people := ARRAY(SELECT user_id FROM space_members WHERE space_id = sid);
   IF chans = '{}' OR people = '{}' THEN RAISE EXCEPTION 'space has no text channels or members'; END IF;
 
-  INSERT INTO messages (id, channel_id, author_id, content, created_at)
-  SELECT pg_temp.uuid7(t.ts), chans[1 + floor(random() * array_length(chans, 1))::int],
-         people[1 + floor(random() * array_length(people, 1))::int],
-         lines[1 + floor(random() * array_length(lines, 1))::int]
-           || CASE WHEN random() < 0.6 THEN '. ' || lines[1 + floor(random() * array_length(lines, 1))::int] ELSE '' END,
-         t.ts
-  FROM generate_series(1, ${COUNT}) g,
-       LATERAL (SELECT now() - (random() * interval '${DAYS} days') - (g * interval '0 seconds') AS ts) t;
+  -- Each row takes a channel log position above its channel's counter, in
+  -- time order, as a write by the server would (messages.seq is required),
+  -- and the counters follow.
+  INSERT INTO messages (id, channel_id, author_id, content, created_at, seq)
+  SELECT pg_temp.uuid7(r.ts), r.channel_id, r.author_id, r.content, r.ts,
+         c.seq + row_number() OVER (PARTITION BY r.channel_id ORDER BY r.ts)
+  FROM (
+    SELECT chans[1 + floor(random() * array_length(chans, 1))::int] AS channel_id,
+           people[1 + floor(random() * array_length(people, 1))::int] AS author_id,
+           lines[1 + floor(random() * array_length(lines, 1))::int]
+             || CASE WHEN random() < 0.6 THEN '. ' || lines[1 + floor(random() * array_length(lines, 1))::int] ELSE '' END AS content,
+           t.ts
+    FROM generate_series(1, ${COUNT}) g,
+         LATERAL (SELECT now() - (random() * interval '${DAYS} days') - (g * interval '0 seconds') AS ts) t
+  ) r
+  JOIN channels c ON c.id = r.channel_id;
   GET DIAGNOSTICS n = ROW_COUNT;
 
-  UPDATE channels c SET last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id ORDER BY m.id DESC LIMIT 1)
+  UPDATE channels c SET
+    seq = GREATEST(c.seq, (SELECT COALESCE(max(m.seq), 0) FROM messages m WHERE m.channel_id = c.id)),
+    last_message_id = (SELECT m.id FROM messages m WHERE m.channel_id = c.id ORDER BY m.id DESC LIMIT 1)
   WHERE c.id = ANY(chans);
   RAISE NOTICE 'inserted % messages into % channels of %', n, array_length(chans, 1), $q$${SPACE}$q$;
 END

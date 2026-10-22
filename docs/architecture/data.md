@@ -86,8 +86,10 @@ not a space power.
 
 **`channels`** — `name`, `kind` (1 text, 2 voice, 3 DM), `position`,
 `topic`, `last_message_id`, `post_policy` (who may post; see
-[messaging.md](messaging.md#announcement-channels)), `seq` and `swept_seq`
-(the channel log, under `messages` below), and the two columns that make
+[messaging.md](messaging.md#announcement-channels)), `seq` (the channel
+log, under `messages` below), `swept_seq` (written and read by nothing
+since 0.15.0; dropped in the release after it, once no shipped binary
+writes it), and the two columns that make
 direct messages work:
 
 ```sql
@@ -162,15 +164,17 @@ takes the next value with
 the same transaction. The row lock is the point: writes to one channel
 commit one at a time, so "next" is exact, and every transaction that
 writes message rows takes the channel row first (`internal/chat/seq.go`),
-the retention sweep included. `channels.swept_seq` is the highest seq the
-sweep has hard-deleted in the channel, raised with `GREATEST` so it never
-goes down. It is informational — cheap to keep and there for an operator
-to read; nothing serves it. A client learns what the sweep took from the
-retention floor on `ListMessages` and `ListChanges`
-([messaging.md](messaging.md#catching-up-listchanges)), not from this
-column.
-`messages.seq` is nullable this release and `NOT NULL` the next;
-migration 00068 backfilled it as each row's rank by id in its channel.
+the retention sweep included. A client learns what the sweep took from
+the retention floor on `ListMessages` and `ListChanges`
+([messaging.md](messaging.md#catching-up-listchanges)).
+`channels.swept_seq` was where 0.14.0's sweep recorded the highest seq it
+had hard-deleted; nothing read it, 0.15.0 stopped writing it, and the
+release after drops the column, once no shipped binary writes it.
+`messages.seq` is `NOT NULL`: migration 00068 added it nullable and
+backfilled it as each row's rank by id in its channel, and 00069 (the
+contract half, one release later) gave any row still without one — written
+by a 0.13.0 binary during a rollback — a position above its channel's
+counter, moved the counter past it, and made the column required.
 
 **Deleting a message leaves a tombstone.** `deleted_at` is set, `content`
 is blanked (so the generated `search` column is empty), the row's
@@ -427,6 +431,15 @@ One migration raises the floor to itself without dropping anything:
 it and treat every private channel as public, so it has to be refused.
 Until the release that ships it is tagged, the floor names a migration no
 release has.
+
+The usual shape is 00069, which makes `messages.seq` `NOT NULL` one
+release after 00068 added it nullable: the floor goes to 68, the last
+migration of 0.14.0, whose code always writes the column and so still
+runs against the result, while 0.13.0 (newest 67) never wrote it and is
+refused. 00065 set the floor to its own number because the release before
+it could not run against a renamed column at all; a contract migration
+the previous release *can* live with points at that release, not at
+itself.
 
 A contract migration raises the constant `db.Floor` in the same PR.
 `TestFloorMatchesSchema` migrates a fresh database and checks

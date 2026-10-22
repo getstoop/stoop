@@ -64,7 +64,7 @@ type CreateMessageRow struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
-	Seq                   *int64
+	Seq                   int64
 }
 
 // Messages. Owned by the chat module.
@@ -106,29 +106,20 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 	return i, err
 }
 
-const deleteExpiredMessages = `-- name: DeleteExpiredMessages :one
-WITH removed AS (
-    DELETE FROM messages
-    WHERE id = ANY($1::uuid[]) OR thread_root_id = ANY($1::uuid[])
-    RETURNING seq
-)
-SELECT count(*)::bigint AS removed, COALESCE(max(seq), 0)::bigint AS max_seq FROM removed
+const deleteExpiredMessages = `-- name: DeleteExpiredMessages :execrows
+DELETE FROM messages
+WHERE id = ANY($1::uuid[]) OR thread_root_id = ANY($1::uuid[])
 `
-
-type DeleteExpiredMessagesRow struct {
-	Removed int64
-	MaxSeq  int64
-}
 
 // DeleteExpiredMessages hard-deletes these roots and every reply under
 // them, in one channel whose row the caller holds, and reports how many
-// rows went and the highest seq among them (0 when none was stamped),
-// for channels.swept_seq.
-func (q *Queries) DeleteExpiredMessages(ctx context.Context, ids []string) (DeleteExpiredMessagesRow, error) {
-	row := q.db.QueryRow(ctx, deleteExpiredMessages, ids)
-	var i DeleteExpiredMessagesRow
-	err := row.Scan(&i.Removed, &i.MaxSeq)
-	return i, err
+// rows went.
+func (q *Queries) DeleteExpiredMessages(ctx context.Context, ids []string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMessages, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getMessage = `-- name: GetMessage :one
@@ -151,7 +142,7 @@ type GetMessageRow struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
-	Seq                   *int64
+	Seq                   int64
 }
 
 // GetMessage is the message an RPC starts from, so it finds only what a
@@ -314,9 +305,7 @@ type ListMessageChangesParams struct {
 // ListMessageChanges is the channel log from a position: every row stamped
 // above since_seq, in seq order, for ListChanges. Deliberately no shown
 // filter: a tombstone and a thread reply are changes the client applies
-// to what it holds, so every row comes back. A row with no seq (written by
-// an older binary during a rollback) is never above since_seq and is left
-// for the next full load.
+// to what it holds, so every row comes back.
 func (q *Queries) ListMessageChanges(ctx context.Context, arg ListMessageChangesParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, listMessageChanges, arg.ChannelID, arg.SinceSeq, arg.Limit)
 	if err != nil {
@@ -588,7 +577,7 @@ type UpdateMessageContentRow struct {
 	ThreadRootID          *string
 	InChannel             bool
 	DeletedAt             *time.Time
-	Seq                   *int64
+	Seq                   int64
 }
 
 // UpdateMessageContent never writes onto a root kept as a placeholder: no

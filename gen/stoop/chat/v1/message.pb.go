@@ -317,8 +317,8 @@ type Message struct {
 	// The channel log position when this row last changed: the channel's
 	// seq, taken by the write that sent, edited, deleted, reacted to, pinned
 	// or unpinned it, gave it a link preview, or changed its thread summary.
-	// Higher is newer; a client keeps the copy with the higher seq. 0 only
-	// on a row a binary from before the log wrote (a rollback).
+	// Higher is newer; a client keeps the copy with the higher seq. Always
+	// set: every row has been stamped since the column became required.
 	Seq           int64 `protobuf:"varint,21,opt,name=seq,proto3" json:"seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

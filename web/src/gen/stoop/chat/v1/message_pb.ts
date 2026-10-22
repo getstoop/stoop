@@ -306,8 +306,8 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
    * The channel log position when this row last changed: the channel's
    * seq, taken by the write that sent, edited, deleted, reacted to, pinned
    * or unpinned it, gave it a link preview, or changed its thread summary.
-   * Higher is newer; a client keeps the copy with the higher seq. 0 only
-   * on a row a binary from before the log wrote (a rollback).
+   * Higher is newer; a client keeps the copy with the higher seq. Always
+   * set: every row has been stamped since the column became required.
    *
    * @generated from field: int64 seq = 21;
    */

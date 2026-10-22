@@ -22,9 +22,9 @@ import (
 // its root's age, replies and all. Tombstones past the cutoff are rows
 // like any other. This is the one hard delete of message rows outside
 // deleting a channel or a space, and it holds the channel row like every
-// other message write (seq.go), recording in channels.swept_seq the
-// highest seq it removed. No events are published; clients see the gap
-// on their next load. See docs/architecture/messaging.md#message-retention.
+// other message write (seq.go). No events are published; clients see the
+// gap on their next load, and the retention floor on ListMessages and
+// ListChanges tells a client which held rows went. See docs/architecture/messaging.md#message-retention.
 
 const (
 	retentionBatch = 1000
@@ -109,23 +109,19 @@ func (s *Service) SweepMessages(ctx context.Context, now time.Time) (int64, erro
 }
 
 // sweepChannel hard-deletes these roots of one channel and every reply
-// under them, holding the channel row first, and raises swept_seq to the
-// highest seq among the rows removed. A channel deleted meanwhile took
-// its rows with it: nothing to do.
+// under them, holding the channel row first. A channel deleted meanwhile
+// took its rows with it: nothing to do.
 func (s *Service) sweepChannel(ctx context.Context, channelID string, rootIDs []string) (int64, error) {
 	var removed int64
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		if _, err := qtx.LockChannel(ctx, channelID); err != nil {
 			return fmt.Errorf("lock channel: %w", err)
 		}
-		result, err := qtx.DeleteExpiredMessages(ctx, rootIDs)
+		count, err := qtx.DeleteExpiredMessages(ctx, rootIDs)
 		if err != nil {
 			return fmt.Errorf("delete expired messages: %w", err)
 		}
-		removed = result.Removed
-		if err := qtx.RaiseChannelSweptSeq(ctx, dbgen.RaiseChannelSweptSeqParams{ID: channelID, Seq: result.MaxSeq}); err != nil {
-			return fmt.Errorf("raise swept seq: %w", err)
-		}
+		removed = count
 		if err := qtx.RecomputeChannelLastMessage(ctx, channelID); err != nil {
 			return fmt.Errorf("recompute last message: %w", err)
 		}

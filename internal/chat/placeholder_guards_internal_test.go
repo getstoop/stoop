@@ -24,7 +24,7 @@ func TestPlaceholderGuardsInTheWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO messages (id, channel_id, author_id, content, deleted_at) VALUES (gen_random_uuid(), $1, $2, '', now()) RETURNING id`,
+		`INSERT INTO messages (id, channel_id, author_id, content, deleted_at, seq) VALUES (gen_random_uuid(), $1, $2, '', now(), 1) RETURNING id`,
 		channel, user).Scan(&message); err != nil {
 		t.Fatal(err)
 	}
