@@ -11,8 +11,8 @@ the release that closes the way back.
 **What's in it.** Nothing new to use. This is the second half of the
 channel log that 0.14.0 shipped: the position every message carries is
 now required by the database rather than filled in by the app, and the
-schema floor moves up to match. The one visible change for people is
-none; the one for operators is below.
+schema floor moves up to match. Nothing changes for the people using
+Stoop; what changes for operators is below.
 
 **For operators.**
 
