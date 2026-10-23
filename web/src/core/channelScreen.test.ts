@@ -352,6 +352,13 @@ describe("the reader's own send", () => {
     expect(caught.log.needsCatchUp).toBe(false);
   });
 
+  it("is the same state for another channel's row", () => {
+    const elsewhere = message(id(10), { seq: 11n, channelId: "c2" });
+    expect(screenReducer(ready, { type: "sent", message: elsewhere })).toBe(
+      ready,
+    );
+  });
+
   it("merges an answer under a fresh open, being a row and not a page", () => {
     // Opened again after a reconnect while the send was out: the range
     // was replaced (generation 2), and the answer still lands in it.

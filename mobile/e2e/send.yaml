@@ -60,6 +60,11 @@ name: Write in a channel and see it land, once, where it was sent
 - extendedWaitUntil:
     visible: "And a pen"
     timeout: 10000
+# Once on screen (no second element with that text: the answer and the
+# socket's copy merged into one row), and once on the server.
+- assertNotVisible:
+    text: "And a pen"
+    index: 1
 - runScript:
     file: scripts/rpc.js
     env:
@@ -74,8 +79,13 @@ name: Write in a channel and see it land, once, where it was sent
 - assertVisible: "Bulleted list"
 - tapOn: "Formatting"
 - assertNotVisible: "Bold"
-# Tapping the list puts the keyboard away and the pill back.
+# Tapping the list puts the keyboard away and the pill back: the card's
+# buttons go with it. (The field's placeholder reads "Message #chapters"
+# too, so that text alone can't tell the two states apart.)
 - tapOn: "And a pen"
 - extendedWaitUntil:
-    visible: "Message #chapters"
+    notVisible: "Send"
     timeout: 5000
+- assertNotVisible:
+    id: "composer"
+- assertVisible: "Message #chapters"

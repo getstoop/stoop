@@ -195,10 +195,19 @@ export default function Channel({
               list.current?.scrollToOffset({ offset: index * 60, animated: false });
               setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
             }}
-            keyboardDismissMode="interactive"
+            // On a drag, not interactively: the card follows the keyboard's
+            // hide event, which iOS posts only at the end of an interactive
+            // drag, so the card would float over an empty strip while the
+            // keyboard followed the finger. Following it needs
+            // react-native-keyboard-controller, a follow-up.
+            keyboardDismissMode="on-drag"
             // Drawn upside down, so the top padding is the bottom edge: the
             // list scrolls under the composer, and its newest message clears it.
             contentContainerStyle={[styles.content, { paddingTop: 12 + composerHeight + composerBottom }]}
+            // Rows in view stay put when that padding changes (the composer
+            // growing a line) and when a row arrives, unless the reader is at
+            // the newest edge, where the list follows it.
+            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
             ListFooterComponent={
               loadingOlder ? (
                 <ActivityIndicator style={styles.edge} color={theme.textMuted} />

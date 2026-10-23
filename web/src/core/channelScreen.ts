@@ -142,6 +142,8 @@ export function screenReducer(
     case "reconnected":
       return { ...state, log: reconnected(state.log) };
     case "sent": {
+      // Another channel's row is nobody's here, as with an event.
+      if (action.message.channelId !== state.log.channelId) return state;
       const log = withArrivals(state.log, [action.message], FROM_ANSWER);
       return log === state.log ? state : { ...state, log };
     }

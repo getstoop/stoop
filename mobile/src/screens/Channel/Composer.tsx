@@ -53,6 +53,10 @@ export default function Composer({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
+  // Send pressed again before React commits the sending state must not
+  // send twice, so the guard is a ref as well.
+  const sendingRef = useRef(false);
+  const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
 
   // Android hides the keyboard (the back gesture) without blurring the
   // field; iOS blurs it, so the field's own onBlur covers it there.
@@ -66,7 +70,8 @@ export default function Composer({
   const blank = isBlankMessage(draft);
 
   const submit = async () => {
-    if (sending || blank) return;
+    if (sendingRef.current || blank) return;
+    sendingRef.current = true;
     const typed = draft;
     setDraft("");
     setError(null);
@@ -77,14 +82,17 @@ export default function Composer({
       setDraft((typedSince) => restoreDraft(typed, typedSince));
       setError(errorText(err));
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
 
+  const raised = glass ? styles.glassRaised : styles.raised;
+
   if (!writing) {
     return (
-      <Surface style={styles.pill}>
-        <Round label="Attach files" style={styles.raised}>
+      <Surface glass={glass} style={styles.pill}>
+        <Round label="Attach files" style={raised}>
           <PlusIcon color={theme.text} size={22} />
         </Round>
         <Pressable accessibilityRole="button" onPress={() => setWriting(true)} style={styles.prompt}>
@@ -92,12 +100,15 @@ export default function Composer({
             {draft || placeholder}
           </Text>
         </Pressable>
+        {/* A send that failed after the field lost focus: the reason waits in
+            the card, so the pill says there is one. */}
+        {error && <Text style={styles.failed}>Couldn't send</Text>}
       </Surface>
     );
   }
 
   return (
-    <Surface style={styles.card}>
+    <Surface glass={glass} style={styles.card}>
       <TextInput
         ref={input}
         testID="composer"
@@ -118,7 +129,7 @@ export default function Composer({
       )}
       {formatting && <FormatRow />}
       <View style={styles.buttons}>
-        <Round label="Attach files" style={styles.raised}>
+        <Round label="Attach files" style={raised}>
           <PlusIcon color={theme.text} size={22} />
         </Round>
         <Round
@@ -139,10 +150,11 @@ export default function Composer({
 }
 
 // The composer's surface: Liquid Glass where iOS has it, else drawn with
-// the theme's panel and border, as the Android tab bar is.
-function Surface({ children, style }: { children: ReactNode; style: ViewStyle }) {
+// the theme's panel and border under a light shadow, as the composing
+// mockup for Android draws it.
+function Surface({ glass, children, style }: { glass: boolean; children: ReactNode; style: ViewStyle }) {
   const theme = useTheme();
-  if (Platform.OS === "ios" && isLiquidGlassAvailable()) {
+  if (glass) {
     return (
       <GlassView glassEffectStyle="regular" colorScheme={theme.scheme} style={[style, { overflow: "hidden" }]}>
         {children}
@@ -157,7 +169,7 @@ function Surface({ children, style }: { children: ReactNode; style: ViewStyle })
           backgroundColor: theme.panel,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: theme.border,
-          boxShadow: theme.shadow,
+          boxShadow: theme.scheme === "dark" ? "0 6px 20px rgba(0, 0, 0, 0.35)" : "0 6px 20px rgba(30, 25, 20, 0.16)",
         },
       ]}
     >
@@ -189,14 +201,19 @@ function Round({
       accessibilityState={{ disabled, selected: pressed }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed: down }) => [styles.round, style, disabled && styles.disabled, down && styles.down]}
+      style={({ pressed: down }) => [
+        roundStyles.round,
+        style,
+        disabled && roundStyles.disabled,
+        down && roundStyles.down,
+      ]}
     >
       {children}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const roundStyles = StyleSheet.create({
   round: {
     width: 40,
     height: 40,
@@ -272,6 +289,15 @@ function makeStyles(theme: Theme) {
     },
     raised: {
       backgroundColor: theme.raised,
+    },
+    // On glass a solid disc reads as a hole: the mockup's translucent one.
+    glassRaised: {
+      backgroundColor: theme.scheme === "dark" ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.06)",
+    },
+    failed: {
+      marginRight: 4,
+      color: theme.danger,
+      fontSize: tokens.textSm,
     },
     toggled: {
       backgroundColor: theme.accentSoft,

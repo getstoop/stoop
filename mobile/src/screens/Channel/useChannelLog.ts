@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { type ChannelLog, channelItems, forgetItems, hasPage, LOG_CAP, nextSince } from "@stoop/core/channelLog";
 import { type ChannelScreen, emptyScreen, type Outcome, type ScreenAction, screenReducer } from "@stoop/core/channelScreen";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { ChannelGone, loadChanges, loadChannel, loadHeader, loadOlder, PAGE, sendMessage } from "../../api/messages";
@@ -231,11 +232,21 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
 
   // The reader's own message: sent, then its answer merged like an event
   // (the socket's copy usually lands first; the log keeps one row either
-  // way). Nothing is shown before the server answers, and a refusal is
-  // the caller's to show: the composer puts the draft back.
+  // way). Nothing is shown before the server answers. A refusal that
+  // means the channel is gone or the sign-in has ended shows as such,
+  // like any other request's; every other failure is the caller's to
+  // show, and the composer puts the draft back.
   const send = useCallback(
     async (content: string) => {
-      const message = await sendMessage(server.origin, latest.current.token, channelId, content);
+      const mine = life.current;
+      let message: Message;
+      try {
+        message = await sendMessage(server.origin, latest.current.token, channelId, content);
+      } catch (err) {
+        const outcome = outcomeOf(err);
+        if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
+        throw err;
+      }
       if (latest.current.log.channelId === channelId) dispatch({ type: "sent", message });
     },
     [server.origin, channelId, dispatch, latest],

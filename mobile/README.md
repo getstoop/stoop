@@ -67,9 +67,12 @@ import a screen; the screens themselves live in `src/screens`, so
   tapped, a card above the keyboard with the field, Attach, Aa (the
   formatting row) and Send. Losing focus returns it to the pill with the
   draft kept. On iOS 26 the surface is Liquid Glass (`expo-glass-effect`);
-  older iOS and Android draw it with the theme's panel and border, as the
-  Android tab bar is drawn. Only Send does anything yet: Attach and the
-  eleven formats are placed for the steps that give them work.
+  older iOS and Android draw it with the theme's panel and border under
+  a light shadow. Dragging the list puts the keyboard away (the card
+  follows the keyboard's hide event; tracking the finger needs
+  `react-native-keyboard-controller`, a follow-up). Only Send does
+  anything yet: Attach and the eleven formats are placed for the steps
+  that give them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -271,8 +274,11 @@ already allows that in development, so nothing in `app.json` adds it:
 
 ## Code shared with web
 
-The app keeps no copies of web code. Two folders of web are shared as
-source, not packages:
+The app keeps no copies of web code, with one small exception:
+`src/api/errors.ts` repeats web's `errorText`, since it needs
+`@connectrpc/connect`, which `core/` may not import
+(`scripts/check-core.mjs`). Two folders of web are shared as source, not
+packages:
 
 - `@stoop/gen/*` maps to `../web/src/gen/*`, the client generated from
   the protos.
