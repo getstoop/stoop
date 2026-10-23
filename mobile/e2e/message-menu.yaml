@@ -35,7 +35,10 @@ name: Long-press a message and see its menu, with what the reader may do to it
     visible: "chapters, ${SPACE}, \\d+ members"
     timeout: 15000
 # The reader's own message: the sheet offers everything, Edit and Delete
-# included, under the quick reactions.
+# included, under the quick reactions. Before each long press the list
+# settles: a touch while it is still moving is the list's, not the row's.
+- waitForAnimationToEnd:
+    timeout: 3000
 - longPressOn: "Chapter 55 notes"
 - extendedWaitUntil:
     visible: "Reply in thread.*"
@@ -62,6 +65,8 @@ name: Long-press a message and see its menu, with what the reader may do to it
 - extendedWaitUntil:
     visible: "Bringing the second copy after all"
     timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
 - longPressOn: "Bringing the second copy after all"
 - extendedWaitUntil:
     visible: "Reply in thread.*"
@@ -79,6 +84,8 @@ name: Long-press a message and see its menu, with what the reader may do to it
     timeout: 5000
 - assertVisible: "Bringing the second copy after all"
 # Swiping the sheet down closes it too.
+- waitForAnimationToEnd:
+    timeout: 3000
 - longPressOn: "Chapter 55 notes"
 - extendedWaitUntil:
     visible: "Quote in reply"
@@ -123,6 +130,8 @@ name: Long-press a message and see its menu, with what the reader may do to it
 - extendedWaitUntil:
     visible: "chapters, ${SPACE}, \\d+ members"
     timeout: 15000
+- waitForAnimationToEnd:
+    timeout: 3000
 - longPressOn: "Chapter 55 notes"
 - extendedWaitUntil:
     visible: "Reply in thread.*"
