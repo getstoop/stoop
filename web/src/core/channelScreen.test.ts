@@ -292,3 +292,81 @@ describe("events", () => {
     ).toBe(ready);
   });
 });
+
+describe("the reader's own send", () => {
+  const ready = run([opened(0)]);
+  // The reader's message, as the server answers it and as its event
+  // carries it: the same row at the same seq.
+  const mine = message(id(10), { seq: 11n, content: "mine" });
+  const sent: ScreenAction = { type: "sent", message: mine };
+  const created: ScreenAction = {
+    type: "event",
+    event: event({ case: "messageCreated", value: mine }),
+  };
+
+  it("shows the answer's row once when it lands before the event", () => {
+    const answered = screenReducer(ready, sent);
+    expect(shown(answered)).toEqual(ids(rows(0, 11)));
+    // The answer is a row, not a change seen: the position waits for the
+    // event, which then arrives as the next seq and is not a gap.
+    expect(answered.log.seq).toBe(10);
+    expect(answered.log.needsCatchUp).toBe(false);
+    const both = screenReducer(answered, created);
+    expect(shown(both)).toEqual(ids(rows(0, 11)));
+    expect(both.log.seq).toBe(11);
+    expect(both.log.needsCatchUp).toBe(false);
+  });
+
+  it("shows the row once when the event lands first, the server's copy winning the tie", () => {
+    const eventFirst = screenReducer(ready, {
+      type: "event",
+      event: event({
+        case: "messageCreated",
+        value: message(id(10), { seq: 11n, content: "the event's copy" }),
+      }),
+    });
+    const both = screenReducer(eventFirst, sent);
+    expect(shown(both)).toEqual(ids(rows(0, 11)));
+    expect(both.log.rows.get(id(10))?.content).toBe("mine");
+    expect(both.log.seq).toBe(11);
+    expect(both.log.needsCatchUp).toBe(false);
+  });
+
+  it("merges an answer that lands across a reconnect, which the catch-up then surrounds", () => {
+    // The socket dropped after the send went out; someone else wrote
+    // id(10) at 11 meanwhile, unseen, and the answer carries 12.
+    const late = message(id(11), { seq: 12n, content: "mine" });
+    const state = run(
+      [{ type: "reconnected" }, { type: "sent", message: late }],
+      ready,
+    );
+    expect(shown(state)).toEqual([...ids(rows(0, 10)), id(11)]);
+    expect(state.log.needsCatchUp).toBe(true);
+    expect(state.log.seq).toBe(10);
+    const caught = screenReducer(state, {
+      type: "caughtUp",
+      res: changes([message(id(10), { seq: 11n }), late], { channelSeq: 12 }),
+    });
+    expect(shown(caught)).toEqual(ids(rows(0, 12)));
+    expect(caught.log.seq).toBe(12);
+    expect(caught.log.needsCatchUp).toBe(false);
+  });
+
+  it("is the same state for another channel's row", () => {
+    const elsewhere = message(id(10), { seq: 11n, channelId: "c2" });
+    expect(screenReducer(ready, { type: "sent", message: elsewhere })).toBe(
+      ready,
+    );
+  });
+
+  it("merges an answer under a fresh open, being a row and not a page", () => {
+    // Opened again after a reconnect while the send was out: the range
+    // was replaced (generation 2), and the answer still lands in it.
+    const reopened = screenReducer(
+      ready,
+      opened(ready.log.channel.generation, { rows: rows(5, 10, 6) }),
+    );
+    const state = screenReducer(reopened, sent);
+    expect(shown(state)).toEqual(ids(rows(5, 11)));
+  });
+});

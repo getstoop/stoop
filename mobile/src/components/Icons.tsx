@@ -170,3 +170,68 @@ export function PlusIcon({ color, size = 20 }: IconProps) {
     </Svg>
   );
 }
+
+// The composer's: the send arrow, and the formatting row's link and
+// lists, drawn as the composing mockups draw them.
+export function SendIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M12 19V5M5 12l7-7 7 7" />
+    </Svg>
+  );
+}
+
+function Format({ color, size, children }: { color: ColorValue; size: number; children: ReactNode }) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </Svg>
+  );
+}
+
+export function LinkIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Format color={color} size={size}>
+      <Path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+      <Path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+    </Format>
+  );
+}
+
+export function BulletListIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Format color={color} size={size}>
+      <Path d="M9 6h11M9 12h11M9 18h11" />
+      <Circle cx={4.5} cy={6} r={1.2} fill={color} stroke="none" />
+      <Circle cx={4.5} cy={12} r={1.2} fill={color} stroke="none" />
+      <Circle cx={4.5} cy={18} r={1.2} fill={color} stroke="none" />
+    </Format>
+  );
+}
+
+export function NumberedListIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Format color={color} size={size}>
+      <Path d="M10 6h10M10 12h10M10 18h10" />
+      <Path d="M4 5h1.5v4M4 9h3M4 14.5h2.5l-2.5 2.5h3" />
+    </Format>
+  );
+}

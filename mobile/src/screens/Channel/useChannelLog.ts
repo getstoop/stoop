@@ -1,9 +1,10 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { type ChannelLog, channelItems, forgetItems, hasPage, LOG_CAP, nextSince } from "@stoop/core/channelLog";
 import { type ChannelScreen, emptyScreen, type Outcome, type ScreenAction, screenReducer } from "@stoop/core/channelScreen";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { ChannelGone, loadChanges, loadChannel, loadHeader, loadOlder, PAGE } from "../../api/messages";
+import { ChannelGone, loadChanges, loadChannel, loadHeader, loadOlder, PAGE, sendMessage } from "../../api/messages";
 import { sessionToken } from "../../api/servers";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
@@ -42,7 +43,9 @@ export const olderFits = (log: ChannelLog) => channelItems(log).length + PAGE <=
 // reads the lifetime it was made under when it lands and dispatches
 // nothing once that has ended, so a page for the channel before never
 // reaches this one's store, and a catch-up running for it stops at its
-// next step.
+// next step. A send's answer is the one exception: the row went into
+// the channel whatever screen is showing, so it is merged as long as
+// the store is this channel's.
 type Lifetime = {
   ended: boolean;
   // The open whose answer is wanted. An earlier one still out (a Ready
@@ -227,7 +230,29 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
     void open();
   }, [dispatch, open]);
 
-  return { state, older, retry };
+  // The reader's own message: sent, then its answer merged like an event
+  // (the socket's copy usually lands first; the log keeps one row either
+  // way). Nothing is shown before the server answers. A refusal that
+  // means the channel is gone or the sign-in has ended shows as such,
+  // like any other request's; every other failure is the caller's to
+  // show, and the composer puts the draft back.
+  const send = useCallback(
+    async (content: string) => {
+      const mine = life.current;
+      let message: Message;
+      try {
+        message = await sendMessage(server.origin, latest.current.token, channelId, content);
+      } catch (err) {
+        const outcome = outcomeOf(err);
+        if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
+        throw err;
+      }
+      if (latest.current.log.channelId === channelId) dispatch({ type: "sent", message });
+    },
+    [server.origin, channelId, dispatch, latest],
+  );
+
+  return { state, older, retry, send };
 }
 
 export type { ChannelScreen };

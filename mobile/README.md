@@ -62,6 +62,17 @@ import a screen; the screens themselves live in `src/screens`, so
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs instead, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer.
+- The composer (`src/screens/Channel/Composer.tsx`) is one control in two
+  states: at rest a pill floating over the list, which scrolls under it;
+  tapped, a card above the keyboard with the field, Attach, Aa (the
+  formatting row) and Send. Losing focus returns it to the pill with the
+  draft kept. On iOS 26 the surface is Liquid Glass (`expo-glass-effect`);
+  older iOS and Android draw it with the theme's panel and border under
+  a light shadow. Dragging the list puts the keyboard away (the card
+  follows the keyboard's hide event; tracking the finger needs
+  `react-native-keyboard-controller`, a follow-up). Only Send does
+  anything yet: Attach and the eleven formats are placed for the steps
+  that give them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -112,7 +123,13 @@ The screen's own part is small: `src/screens/Channel/useChannelLog.ts`
 makes the requests and dispatches each answer and event to it; the
 screen (`src/screens/Channel/index.tsx`) marks read and draws the rows
 `core/grouping.ts` groups (day lines, the "New" line, which message
-continues the one before).
+continues the one before). Sending is send-then-merge, as on web: the
+composer clears the draft, awaits `SendMessage`, and the answer's row is
+dispatched as `sent` and merged by seq like an event's (the socket's
+copy usually lands first; either order leaves one row). There are no
+pending rows in the model. A refusal puts the draft back ahead of
+anything typed since, with the server's words under the field, and
+pressing Send again is the retry.
 
 ## Themes
 
@@ -207,8 +224,8 @@ The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,
 sign in and see the Spaces tab's badges, open a space and see what is
 waiting in each of its channels, read a channel from its "New" line back
-to its first message while messages arrive, change and go, add a second
-server from the
+to its first message while messages arrive, change and go, write in a
+channel and see the message land once, add a second server from the
 switcher and switch back (the same server by `127.0.0.1`, which the app
 counts as another), create an account from a pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and
@@ -257,8 +274,11 @@ already allows that in development, so nothing in `app.json` adds it:
 
 ## Code shared with web
 
-The app keeps no copies of web code. Two folders of web are shared as
-source, not packages:
+The app keeps no copies of web code, with one small exception:
+`src/api/errors.ts` repeats web's `errorText`, since it needs
+`@connectrpc/connect`, which `core/` may not import
+(`scripts/check-core.mjs`). Two folders of web are shared as source, not
+packages:
 
 - `@stoop/gen/*` maps to `../web/src/gen/*`, the client generated from
   the protos.

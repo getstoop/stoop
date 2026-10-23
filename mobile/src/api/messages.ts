@@ -1,5 +1,6 @@
 import type { ChannelHeader } from "@stoop/core/channelHeader";
 import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { authClient, chatClient } from "./clients";
 
 // A channel's screen: the channel and its space for the title, how many
@@ -7,7 +8,7 @@ import { authClient, chatClient } from "./clients";
 // mentions them), and the pages and changes of its channel log
 // (core/channelLog): the newest page on opening, older pages as the
 // reader scrolls up, and ListChanges from the position held after a
-// reconnect or a gap in the events.
+// reconnect or a gap in the events), and the reader's own message.
 
 const TIMEOUT_MS = 10000;
 export const PAGE = 50;
@@ -80,4 +81,14 @@ export function loadChanges(
 // Moves the reader's marker in the channel up to messageId.
 export async function markRead(origin: string, token: string, channelId: string, messageId: string): Promise<void> {
   await chatClient(origin, token).markChannelRead({ channelId, messageId }, { timeoutMs: TIMEOUT_MS });
+}
+
+// The reader's own message. The answer is the row the server stamped,
+// for the screen to merge as it merges an event's (core/channelScreen
+// `sent`). Plain text into the channel: a reply, files and a thread come
+// in later steps.
+export async function sendMessage(origin: string, token: string, channelId: string, content: string): Promise<Message> {
+  const { message } = await chatClient(origin, token).sendMessage({ channelId, content }, { timeoutMs: TIMEOUT_MS });
+  if (!message) throw new Error("The server answered with nothing.");
+  return message;
 }
