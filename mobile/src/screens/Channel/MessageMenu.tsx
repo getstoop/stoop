@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { recentEmoji } from "../../api/emoji";
 import {
   CopyIcon,
   LinkIcon,
@@ -28,7 +29,8 @@ import { useSheet } from "./useSheet";
 // reaction the reader already has is filled. A quick reaction toggles
 // itself on the message and closes the sheet; More reactions puts the
 // emoji picker (EmojiPicker) in the sheet's place, under the same scrim
-// and card, and a pick there does the same; Copy text puts the message's
+// and card, once the phone's recent emoji are read so it is drawn
+// final, and a pick there does the same; Copy text puts the message's
 // words on the clipboard, as the row draws them, and closes it; Copy
 // link does the same with the message's link, as the screen built it,
 // and says so (onCopyFailed) when the clipboard refuses; Delete message
@@ -37,7 +39,8 @@ import { useSheet } from "./useSheet";
 // remove), and so is saying when one is refused. The other items are
 // placed and inert: pressing one only closes the sheet, until the steps
 // that give them work. Either sheet goes on a tap on the scrim, a swipe
-// down, or Android's back (useSheet).
+// down, or Android's back (useSheet), and the picker's going closes the
+// menu with it; a sheet on its way out takes no more taps.
 
 const QUICK_REACTIONS = COMMON_EMOJI.slice(0, 5);
 
@@ -70,11 +73,17 @@ export default function MessageMenu({
   const insets = useSafeAreaInsets();
   // The scrim and the card fade in, and out with whichever sheet is up.
   const shown = useRef(new Animated.Value(0)).current;
-  const { dismiss, onLayout, slide, panHandlers } = useSheet(shown, onClose);
-  // Whether the picker has taken the menu's place.
-  const [picking, setPicking] = useState(false);
+  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  // The picker in the menu's place, with the recent emoji it opens on.
+  const [picking, setPicking] = useState<string[] | null>(null);
   const picker = useRef<EmojiPickerHandle>(null);
   const close = () => (picking ? picker.current?.dismiss() : dismiss());
+  const openPicker = () => {
+    if (closing()) return;
+    recentEmoji().then((recent) => {
+      if (!closing()) setPicking(recent);
+    });
+  };
 
   useEffect(() => {
     Animated.timing(shown, { toValue: 1, duration: tokens.dur, useNativeDriver: true }).start();
@@ -86,22 +95,26 @@ export default function MessageMenu({
     message.reactions.some((group) => group.emoji === emoji && group.userIds.includes(myUserId));
 
   const react = (emoji: string) => {
+    if (closing()) return;
     onReact(emoji);
     dismiss();
   };
+  const tap = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   // The words as the row draws them (core/markdown plainLines): a mention
   // as its name, a link as its words or its address, lines kept. A light
   // tap says it happened.
   const copy = () => {
+    if (closing()) return;
     Clipboard.setStringAsync(plainLines(message.content)).catch(() => {});
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    tap();
     dismiss();
   };
-  // The link the same way; a clipboard that refuses it is said, since
-  // nothing else shows whether it was copied.
+  // The link the same way, the tap only once the clipboard has it; one
+  // that refuses it is said, since nothing else shows whether it was
+  // copied. The sheet closes either way.
   const copyLink = () => {
-    Clipboard.setStringAsync(link).catch(onCopyFailed);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (closing()) return;
+    Clipboard.setStringAsync(link).then(tap, onCopyFailed);
     dismiss();
   };
   // The system's confirm over the sheet; Cancel leaves the sheet open.
@@ -163,7 +176,7 @@ export default function MessageMenu({
           </Animated.View>
         </View>
         {picking ? (
-          <EmojiPicker ref={picker} shown={shown} reacted={reacted} onPick={onReact} onClose={onClose} />
+          <EmojiPicker ref={picker} shown={shown} recent={picking} reacted={reacted} onPick={onReact} onClose={onClose} />
         ) : (
           <Animated.View
             style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
@@ -192,7 +205,7 @@ export default function MessageMenu({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="More reactions"
-                onPress={() => setPicking(true)}
+                onPress={openPicker}
                 style={({ pressed }) => [styles.reaction, pressed && styles.down]}
               >
                 <SmileyIcon color={theme.textMuted} />

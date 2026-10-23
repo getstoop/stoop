@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { channelPath, messagePath, threadPath } from "./shareLinks";
+import {
+  channelPath,
+  messageLinkPath,
+  messagePath,
+  threadPath,
+} from "./shareLinks";
 
 const SPACE = "spc_porch";
 const CHANNEL = "chn_stoop";
@@ -47,6 +52,35 @@ describe("threadPath", () => {
   it("escapes the root and the reply", () => {
     expect(threadPath(SPACE, CHANNEL, "root a", "msg &")).toBe(
       `/s/${SPACE}/c/${CHANNEL}?t=root%20a&m=msg%20%26`,
+    );
+  });
+});
+
+describe("messageLinkPath", () => {
+  it("opens the channel around a top-level message", () => {
+    expect(messageLinkPath(SPACE, CHANNEL, MESSAGE, "", true)).toBe(
+      `/s/${SPACE}/c/${CHANNEL}?m=${MESSAGE}`,
+    );
+  });
+
+  it("does the same for a reply the channel shows", () => {
+    expect(messageLinkPath(SPACE, CHANNEL, MESSAGE, "root1", true)).toBe(
+      `/s/${SPACE}/c/${CHANNEL}?m=${MESSAGE}`,
+    );
+  });
+
+  it("opens the thread on a reply that stays in it", () => {
+    expect(messageLinkPath(SPACE, CHANNEL, MESSAGE, "root1", false)).toBe(
+      `/s/${SPACE}/c/${CHANNEL}?t=root1&m=${MESSAGE}`,
+    );
+    expect(messageLinkPath("", DM, MESSAGE, "root1", false)).toBe(
+      `/dm/${DM}?t=root1&m=${MESSAGE}`,
+    );
+  });
+
+  it("never opens a root as a reply to itself", () => {
+    expect(messageLinkPath(SPACE, CHANNEL, "root1", "root1", false)).toBe(
+      `/s/${SPACE}/c/${CHANNEL}?m=root1`,
     );
   });
 });

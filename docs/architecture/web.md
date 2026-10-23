@@ -367,6 +367,7 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   (`shortcodes.ts`), `searchEmoji`, and the rules of the recently-used
   list each client stores its own way (`api/emoji.ts` in localStorage).
 - `shareLinks.ts` — the paths a shared link carries (`channelPath`,
+  `messageLinkPath`, which of the two a message's Copy link takes,
   `messagePath`, `threadPath`); what makes them links, and what a
   browser does on one, stays in `api/shareLinks.ts`.
 - `unreads.ts` (`badgeCount`, `isUnread`), `reactions.ts`

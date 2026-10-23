@@ -28,3 +28,19 @@ export function threadPath(
     query += `&m=${encodeURIComponent(messageId)}`;
   return `${channelPath(spaceId, channelId)}?${query}`;
 }
+
+// The path Copy link gives a message: the channel opened around it, as
+// web's channel list links every row it shows, a reply sent to the
+// channel too; for a reply that stays in its thread, the thread opened
+// on it, as web's thread view links one.
+export function messageLinkPath(
+  spaceId: string,
+  channelId: string,
+  messageId: string,
+  threadRootId: string,
+  inChannel: boolean,
+): string {
+  if (threadRootId && threadRootId !== messageId && !inChannel)
+    return threadPath(spaceId, channelId, threadRootId, messageId);
+  return messagePath(spaceId, channelId, messageId);
+}

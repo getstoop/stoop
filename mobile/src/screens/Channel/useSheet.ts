@@ -6,8 +6,10 @@ import { tokens } from "../../theme";
 // in from its own height below its place once measured, follows a finger
 // dragging it down, and closes on a swipe far or fast enough, or on
 // dismiss, sliding out while the modal's scrim (`shown`, the modal's
-// own) fades; onClose runs when both are done. The menu and the emoji
-// picker are each one of these, over the one scrim.
+// own) fades; onClose runs when both are done. A sheet on its way out
+// takes no more actions (`closing`): a second tap during the slide-out
+// would otherwise do the first one's work again. The menu and the
+// emoji picker are each one of these, over the one scrim.
 
 // Off screen until the sheet has been measured.
 const OFF = 2000;
@@ -64,5 +66,7 @@ export function useSheet(shown: Animated.Value, onClose: () => void) {
     [offset, drag],
   );
 
-  return { dismiss, onLayout, slide, panHandlers: pan.panHandlers };
+  const isClosing = useCallback(() => closing.current, []);
+
+  return { dismiss, closing: isClosing, onLayout, slide, panHandlers: pan.panHandlers };
 }

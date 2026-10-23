@@ -1,9 +1,9 @@
 import { COMMON_EMOJI, emojiName, searchEmoji } from "@stoop/core/emoji";
 import { EMOJI_GROUPS } from "@stoop/core/emojiData";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { Animated, FlatList, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { recentEmoji, rememberEmoji } from "../../api/emoji";
+import { rememberEmoji } from "../../api/emoji";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { useSheet } from "./useSheet";
@@ -11,13 +11,15 @@ import { useSheet } from "./useSheet";
 // The reaction picker, in the message menu's place when More reactions
 // is pressed: web's EmojiPicker as a sheet. A search field over every
 // emoji's name and keywords (core/emoji searchEmoji); with nothing
-// typed, what this phone used recently (api/emoji, newest first), the
-// curated common row and then every group in CLDR order, in a grid of
-// 48pt cells, one the reader has already given filled in. A pick
-// toggles that reaction, is remembered as recent and closes the sheet.
-// The sheet sits on the keyboard while the field has it, and above the
-// home indicator otherwise. The modal, the scrim and the card above are
-// the menu's; `ref.dismiss` closes this sheet from its scrim and back.
+// typed, what this phone used recently (`recent`, read by the menu
+// before it opens this, so the grid is drawn final), the curated common
+// row and then every group in CLDR order, in a grid of 48pt cells, one
+// the reader has already given filled in. A pick toggles that reaction,
+// is remembered as recent (api/emoji) and closes the sheet; a second
+// tap while it is closing does nothing. The sheet sits on the keyboard
+// while the field has it, and above the home indicator otherwise. The
+// modal, the scrim and the card above are the menu's; `ref.dismiss`
+// closes this sheet from its scrim and back, and with it the modal.
 
 export type EmojiPickerHandle = { dismiss: () => void };
 
@@ -36,33 +38,24 @@ export default forwardRef<
   EmojiPickerHandle,
   {
     shown: Animated.Value;
+    recent: string[];
     reacted: (emoji: string) => boolean;
     onPick: (emoji: string) => void;
     onClose: () => void;
   }
->(function EmojiPicker({ shown, reacted, onPick, onClose }, ref) {
+>(function EmojiPicker({ shown, recent, reacted, onPick, onClose }, ref) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
   const window = useWindowDimensions();
-  const { dismiss, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
   const [query, setQuery] = useState("");
-  const [recent, setRecent] = useState<string[]>([]);
   const [focused, setFocused] = useState(false);
   useImperativeHandle(ref, () => ({ dismiss }), [dismiss]);
 
-  useEffect(() => {
-    let gone = false;
-    recentEmoji().then((list) => {
-      if (!gone) setRecent(list);
-    });
-    return () => {
-      gone = true;
-    };
-  }, []);
-
   const pick = (emoji: string) => {
+    if (closing()) return;
     rememberEmoji(emoji).catch(() => {});
     onPick(emoji);
     dismiss();

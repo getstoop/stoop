@@ -104,15 +104,23 @@ import a screen; the screens themselves live in `src/screens`, so
   and with nothing typed, what this phone used recently (`src/api/emoji.ts`,
   newest first, sixteen at most, kept in the keychain as the theme is),
   the common row and every group, in a grid of 48pt cells with the
-  reader's own filled in; a tap toggles that reaction as a quick one
-  does, remembers it and closes the sheet. The sheet rises with the
-  keyboard while the field has it. Copy link puts the message's link
-  on the clipboard (`src/api/shareLinks.ts` over `core/shareLinks`, as
-  web's channel builds it: the saved server's origin, then
-  `/s/<space>/c/<channel>?m=<message>`, a `/dm/` path for a direct
-  message, and `?t=<root>&m=<reply>` for a reply in a thread, so the
-  browser opens the thread on it) and says "Couldn't copy the link"
-  over the composer when the clipboard refuses. Delete message asks first, in the system's confirm,
+  reader's own filled in (the recent list is read before the picker
+  opens, so its grid is drawn final); a tap toggles that reaction as a
+  quick one does, remembers it and closes the sheet, and a second tap
+  while it is closing does nothing, on the quick row too. The sheet
+  rises with the keyboard while the field has it; on Android that
+  offset is unverified (the system's Modal may resize for the keyboard
+  on its own, and then the sheet would rise twice). Copy link puts the
+  message's link on the clipboard (`src/api/shareLinks.ts` over
+  `core/shareLinks`, with the path web builds: the address the phone
+  was given for the server, then `/s/<space>/c/<channel>?m=<message>`,
+  a `/dm/` path for a direct message, and `?t=<root>&m=<reply>` for a
+  reply that stays in its thread, so the browser opens the thread on
+  it) and says "Couldn't copy the link" over the composer when the
+  clipboard refuses. Web puts the instance's public address on its
+  links instead, so a server added by its LAN address gives links
+  others can't follow yet: keeping that address with the saved server
+  is a follow-up. Delete message asks first, in the system's confirm,
   then `DeleteMessage`; the row goes at once (`deleted`, the same way)
   as the server's event makes it, and a root with replies stays as its
   placeholder when that event says so. What the server refuses is said

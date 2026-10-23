@@ -1,16 +1,17 @@
-import { messagePath, threadPath } from "@stoop/core/shareLinks";
+import { messageLinkPath } from "@stoop/core/shareLinks";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 
-// The link to a message, as web's channel builds it for Copy link
-// (routes/Channel/MessageList): the server's origin as the app saved it
-// (the string its requests go to, no trailing slash) and the channel
-// opened around the message; a reply in a thread opens the thread on
-// it. A direct message has no space and gets the /dm/ path.
+// The link to a message, with the path web builds for Copy link
+// (core/shareLinks messageLinkPath: the channel opened around it, or
+// the thread for a reply that stays there; /dm/ for a direct message,
+// which has no space). The address is the one the phone was
+// given for the server (the string its requests go to, no trailing
+// slash); web uses the instance's public address instead
+// (GetInstanceStatus publicUrl), so a server reached by a LAN address
+// links where others can follow. Keeping that beside the saved server
+// is a follow-up: the app asks for the status at sign-in and holds
+// nothing of it after.
 export function messageLink(origin: string, spaceId: string, message: Message): string {
-  const { channelId, threadRootId, id } = message;
-  const path =
-    threadRootId && threadRootId !== id
-      ? threadPath(spaceId, channelId, threadRootId, id)
-      : messagePath(spaceId, channelId, id);
-  return origin.replace(/\/+$/, "") + path;
+  const { channelId, threadRootId, id, inChannel } = message;
+  return origin.replace(/\/+$/, "") + messageLinkPath(spaceId, channelId, id, threadRootId, inChannel);
 }
