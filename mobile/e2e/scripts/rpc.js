@@ -47,6 +47,11 @@ var steps = {
   unsay: function () {
     rpc("DeleteMessage", POSTER_TOKEN, { messageId: output.messageId });
   },
+  // In CHANNEL_ID (message-menu.yaml): ada, who owns the space and so
+  // moderates it, writes TEXT.
+  ownerSays: function () {
+    rpc("SendMessage", OWNER_TOKEN, { channelId: CHANNEL_ID, content: TEXT });
+  },
   // In CHANNEL_ID (send.yaml): how many of the newest page's messages
   // read TEXT, as the server holds them.
   count: function () {

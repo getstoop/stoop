@@ -73,6 +73,19 @@ import a screen; the screens themselves live in `src/screens`, so
   `react-native-keyboard-controller`, a follow-up). Only Send does
   anything yet: Attach and the eleven formats are placed for the steps
   that give them work.
+- A long press on a message opens its menu
+  (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
+  message drawn once more as a card, and a sheet of five quick reactions
+  (the first of web's common row, `core/emoji.ts`, one the reader has
+  already given filled in) with More reactions, then Reply in thread
+  (with the reply count), Quote in reply, Copy text, Copy link, Edit
+  message on the reader's own, and Delete message on their own or, where
+  they moderate the space, anyone's (`core/permissions`
+  `canDeleteAnyMessage`, as web decides it). A tap on the scrim, a swipe
+  down or Android's back closes it, as does the message being deleted or
+  the channel going while it is open; opening it taps the phone
+  (`expo-haptics`). Every item is placed and inert: pressing one only
+  closes the sheet, until the steps that give them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -225,9 +238,11 @@ one YAML file each, driving the app on the iPhone simulator: add a server,
 sign in and see the Spaces tab's badges, open a space and see what is
 waiting in each of its channels, read a channel from its "New" line back
 to its first message while messages arrive, change and go, write in a
-channel and see the message land once, add a second server from the
-switcher and switch back (the same server by `127.0.0.1`, which the app
-counts as another), create an account from a pasted invite link, and
+channel and see the message land once, long-press a message and see
+what its menu offers as a member and as a moderator, add a second
+server from the switcher and switch back (the same server by
+`127.0.0.1`, which the app counts as another), create an account from a
+pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a

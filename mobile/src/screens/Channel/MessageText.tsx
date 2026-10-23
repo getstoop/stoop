@@ -8,15 +8,18 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // for now: bold, code and the rest read as their text, lists and quotes
 // as their lines, and a spoiler stays covered. Mentions and channel links show as highlighted names,
 // the reader's own name filled in, and links open in the browser. An
-// edited message says so after its words, as on web.
+// edited message says so after its words, as on web. A link takes the
+// row's long-press too, since a touch on it never reaches the row.
 export default function MessageText({
   content,
   myUserId,
   edited,
+  onLongPress,
 }: {
   content: string;
   myUserId: string;
   edited: boolean;
+  onLongPress?: () => void;
 }) {
   const styles = makeStyles(useTheme());
   const lines = parseMarkdown(content).flatMap((block) => {
@@ -51,6 +54,7 @@ export default function MessageText({
               style={styles.link}
               accessibilityRole="link"
               onPress={() => Linking.openURL(node.href).catch(() => {})}
+              onLongPress={onLongPress}
             >
               {node.label ? draw(node.label, at) : node.href}
             </Text>
