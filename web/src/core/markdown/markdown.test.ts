@@ -5,6 +5,7 @@ import {
   linksIn,
   parseInline,
   parseMarkdown,
+  plainLines,
   plainText,
 } from ".";
 
@@ -527,6 +528,16 @@ describe("plainText mirrors the server", () => {
       expect(plainText(input)).toBe(want);
     });
   }
+});
+
+describe("plainLines", () => {
+  it("keeps the lines, a mention as its handle and a link as its words or address", () => {
+    expect(
+      plainLines(
+        "<@u:00000000-0000-0000-0000-000000000001:ada> see [the notes](https://example.com/n)\n- or https://example.com\n```\ncode\n```",
+      ),
+    ).toBe("@ada see the notes\nor https://example.com\ncode");
+  });
 });
 
 describe("plainText", () => {

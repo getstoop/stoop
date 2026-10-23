@@ -4,15 +4,22 @@ import type { Block, Inline } from "./types";
 
 // What other features read out of a message without rendering it.
 
-// The message with its markup removed, for one-line previews (reply bar,
-// activity previews). Mirrors plainText on the server.
-export function plainText(content: string): string {
+// The message's words with their lines kept, as a row draws them: a
+// mention as its @handle or #name, a link as its words or else its
+// address, a list as its items. For copying a message as text.
+export function plainLines(content: string): string {
   return parseMarkdown(content)
     .map((b) => {
       if (b.type === "codeblock") return b.text;
       return lineRuns(b).map(inlineText).join("\n");
     })
-    .join("\n")
+    .join("\n");
+}
+
+// The message with its markup removed, for one-line previews (reply bar,
+// activity previews). Mirrors plainText on the server.
+export function plainText(content: string): string {
+  return plainLines(content)
     .replace(/\s*\n\s*/g, " ")
     .trim();
 }

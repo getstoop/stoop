@@ -4,5 +4,5 @@
 
 export { parseMarkdown } from "./blocks";
 export { parseInline } from "./inline";
-export { isBlankMessage, linksIn, plainText } from "./text";
+export { isBlankMessage, linksIn, plainLines, plainText } from "./text";
 export type { Block, Inline, ListItem } from "./types";

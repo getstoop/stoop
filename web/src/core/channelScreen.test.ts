@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
+import { ReactionSchema } from "../gen/stoop/chat/v1/reaction_pb";
 import { SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import type { ChannelHeader } from "./channelHeader";
 import { channelItems } from "./channelLog";
@@ -368,5 +369,150 @@ describe("the reader's own send", () => {
     );
     const state = screenReducer(reopened, sent);
     expect(shown(state)).toEqual(ids(rows(5, 11)));
+  });
+});
+
+describe("the reader's own reaction", () => {
+  const ready = run([opened(0)]);
+  // id(5) stands at seq 6 in the page; the toggle is made on that copy.
+  const target = id(5);
+  const seq = 6n;
+  const thumbs = (...userIds: string[]) =>
+    create(ReactionSchema, { emoji: "👍", userIds });
+  const reacted: ScreenAction = {
+    type: "reacted",
+    messageId: target,
+    seq,
+    reactions: [thumbs("me")],
+  };
+  const rowOf = (state: ChannelScreen) => state.log.rows.get(target);
+
+  it("writes the toggle to the held row at its own seq, and the event that follows replaces it", () => {
+    const patched = screenReducer(ready, reacted);
+    expect(rowOf(patched)?.reactions).toEqual([thumbs("me")]);
+    expect(rowOf(patched)?.seq).toBe(seq);
+    expect(patched.log.seq).toBe(10);
+    expect(shown(patched)).toEqual(shown(ready));
+    const settled = screenReducer(patched, {
+      type: "event",
+      event: event({
+        case: "reactionsChanged",
+        value: {
+          channelId: CHANNEL,
+          messageId: target,
+          reactions: [thumbs("them", "me")],
+          seq: 11n,
+        },
+      }),
+    });
+    expect(rowOf(settled)?.reactions).toEqual([thumbs("them", "me")]);
+    expect(rowOf(settled)?.seq).toBe(11n);
+    expect(settled.log.seq).toBe(11);
+  });
+
+  it("takes the answer's row over the patch, the event then being nothing new", () => {
+    const answer = message(target, { seq: 11n, reactions: [thumbs("me")] });
+    const answered = run([reacted, { type: "sent", message: answer }], ready);
+    expect(rowOf(answered)).toMatchObject({
+      seq: 11n,
+      reactions: [thumbs("me")],
+    });
+    const both = screenReducer(answered, {
+      type: "event",
+      event: event({
+        case: "reactionsChanged",
+        value: {
+          channelId: CHANNEL,
+          messageId: target,
+          reactions: [thumbs("me")],
+          seq: 11n,
+        },
+      }),
+    });
+    expect(rowOf(both)?.reactions).toEqual([thumbs("me")]);
+    expect(both.log.seq).toBe(11);
+    expect(both.log.needsCatchUp).toBe(false);
+  });
+
+  it("reverts a refusal with the reactions from before, unless the row has moved on", () => {
+    const revert: ScreenAction = { ...reacted, reactions: [] };
+    const reverted = run([reacted, revert], ready);
+    expect(rowOf(reverted)?.reactions).toEqual([]);
+    expect(rowOf(reverted)?.seq).toBe(seq);
+    // Someone else's reaction landed between the patch and the refusal:
+    // the row carries the server's list, which the revert must not undo.
+    const moved = run(
+      [
+        reacted,
+        {
+          type: "event",
+          event: event({
+            case: "reactionsChanged",
+            value: {
+              channelId: CHANNEL,
+              messageId: target,
+              reactions: [thumbs("them")],
+              seq: 11n,
+            },
+          }),
+        },
+      ],
+      ready,
+    );
+    expect(screenReducer(moved, revert)).toBe(moved);
+    expect(rowOf(moved)?.reactions).toEqual([thumbs("them")]);
+  });
+
+  it("is the same state for a row not held, or not at that seq", () => {
+    expect(screenReducer(ready, { ...reacted, messageId: "m-elsewhere" })).toBe(
+      ready,
+    );
+    expect(screenReducer(ready, { ...reacted, seq: 5n })).toBe(ready);
+  });
+});
+
+describe("the reader's own delete", () => {
+  const ready = run([opened(0)]);
+  const target = id(5);
+  const deleted: ScreenAction = { type: "deleted", messageId: target };
+
+  it("hides the row at once as a tombstone at its own seq, which the event then replaces", () => {
+    const gone = screenReducer(ready, deleted);
+    expect(shown(gone)).toEqual(
+      ids(rows(0, 10)).filter((rowId) => rowId !== target),
+    );
+    expect(gone.log.rows.get(target)).toMatchObject({ deleted: true, seq: 6n });
+    expect(gone.log.seq).toBe(10);
+    const settled = screenReducer(gone, {
+      type: "event",
+      event: event({
+        case: "messageDeleted",
+        value: { channelId: CHANNEL, messageId: target, seq: 11n },
+      }),
+    });
+    expect(shown(settled)).toEqual(shown(gone));
+    expect(settled.log.rows.get(target)).toMatchObject({
+      deleted: true,
+      seq: 11n,
+    });
+    expect(settled.log.seq).toBe(11);
+  });
+
+  it("leaves a root with a thread summary to the server's update, and a row not held alone", () => {
+    const rooted = run(
+      [
+        {
+          type: "sent",
+          message: message(target, { seq: 6n, thread: { replyCount: 2 } }),
+        },
+      ],
+      ready,
+    );
+    expect(screenReducer(rooted, deleted)).toBe(rooted);
+    expect(
+      screenReducer(ready, { type: "deleted", messageId: "m-elsewhere" }),
+    ).toBe(ready);
+    const once = screenReducer(ready, deleted);
+    expect(screenReducer(once, deleted)).toBe(once);
   });
 });

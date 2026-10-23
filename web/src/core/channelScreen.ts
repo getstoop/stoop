@@ -3,6 +3,7 @@ import type {
   ListMessagesResponse,
 } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
+import type { Reaction } from "../gen/stoop/chat/v1/reaction_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import {
   type ChannelHeader,
@@ -19,6 +20,7 @@ import {
   reconnected,
   withArrivals,
   withEvent,
+  withPatch,
 } from "./channelLog";
 
 // A channel screen's state over its log: the log itself (channelLog owns
@@ -66,15 +68,29 @@ export type ScreenAction =
   | { type: "event"; event: ServerEvent }
   | { type: "caughtUp"; res: ListChangesResponse }
   | { type: "reconnected" }
-  // The answer to the reader's own send: its row, merged by seq like an
-  // event's, as web's holdRow does while the view is live (this screen's
-  // always is). The socket's event usually lands first; either order
-  // leaves one row, since the server's whole row wins a tie with the
-  // event's copy (FROM_ANSWER). A row, not a page: it answers to no
+  // The answer to the reader's own send, or to their reaction toggle:
+  // its row, merged by seq like an event's, as web's holdRow does while
+  // the view is live (this screen's always is). The socket's event
+  // usually lands first; either order leaves one row, since the server's
+  // whole row wins a tie with the event's copy, or with a copy `reacted`
+  // patched (FROM_ANSWER). A row, not a page: it answers to no
   // generation and no reconnect, so one that lands across a reconnect
   // or a fresh open is merged all the same, and the catch-up the
   // reconnect owes brings whatever was written around it.
-  | { type: "sent"; message: Message };
+  | { type: "sent"; message: Message }
+  // The reader's own reaction, written to the held row at once and at
+  // its own seq (channelLog withPatch), so the server's row replaces it:
+  // the reactions_changed that follows at a higher seq, or the answer
+  // dispatched as `sent`. Only while the row still stands at `seq`, the
+  // one the toggle was made on: a refusal is reverted the same way, with
+  // the reactions from before, and a row an event has replaced meanwhile
+  // carries the server's list already and is left alone.
+  | { type: "reacted"; messageId: string; seq: bigint; reactions: Reaction[] }
+  // The reader's own delete, answered: the held row as a tombstone at
+  // its own seq, gone from the list at once as the message_deleted that
+  // follows makes it. A root with a thread summary is left to the
+  // server's update for it, which fills the placeholder in.
+  | { type: "deleted"; messageId: string };
 
 export const emptyScreen = (channelId: string): ChannelScreen => ({
   log: emptyLog(channelId),
@@ -145,6 +161,20 @@ export function screenReducer(
       // Another channel's row is nobody's here, as with an event.
       if (action.message.channelId !== state.log.channelId) return state;
       const log = withArrivals(state.log, [action.message], FROM_ANSWER);
+      return log === state.log ? state : { ...state, log };
+    }
+    case "reacted": {
+      const log = withPatch(state.log, action.messageId, (held) =>
+        held.seq === action.seq
+          ? { ...held, reactions: action.reactions }
+          : held,
+      );
+      return log === state.log ? state : { ...state, log };
+    }
+    case "deleted": {
+      const log = withPatch(state.log, action.messageId, (held) =>
+        held.deleted || held.thread ? held : { ...held, deleted: true },
+      );
       return log === state.log ? state : { ...state, log };
     }
   }
