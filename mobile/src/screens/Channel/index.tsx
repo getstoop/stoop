@@ -1,6 +1,6 @@
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
-import { canDeleteAnyMessage } from "@stoop/core/permissions";
+import { canDeleteAnyMessage, canStartThreads } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -145,6 +145,7 @@ export default function Channel({
     gone: !!outcome,
     engine,
     keyboard,
+    focused,
     list,
     items,
   });
@@ -288,9 +289,15 @@ export default function Channel({
           link={messageLink(server.origin, spaceId, menuMessage)}
           onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
           onCopyFailed={actions.linkNotCopied}
-          onThread={() => {
-            threadAfterMenu.current = menuMessage.threadRootId || menuMessage.id;
-          }}
+          onThread={
+            // As web's: where the reader may start one, and not on a reply
+            // also sent here, which is in a thread already.
+            canStartThreads(space, channel) && !menuMessage.threadRootId
+              ? () => {
+                  threadAfterMenu.current = menuMessage.id;
+                }
+              : undefined
+          }
           onQuote={() => actions.quote(menuMessage)}
           onEdit={() => actions.startEdit(menuMessage)}
           onDelete={() => actions.deleteMessage(menuMessage)}

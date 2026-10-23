@@ -178,7 +178,9 @@ import a screen; the screens themselves live in `src/screens`, so
   (that is the rich row's ticket), so a reaction shows only in the
   sheet's highlight. Reply in thread opens the message's thread once
   the sheet has gone (below), an empty one on a message that has none
-  yet, and its root's for a reply also sent to the channel.
+  yet. As on web it is only where the reader may start a thread
+  (`core/permissions` `canStartThreads`: not in an announcement
+  channel) and not on a reply also sent to the channel.
 - A root with replies has a line under it, as the server summarises the
   thread (`message.thread`; nothing is counted on the phone): the two
   who replied last, "N replies" in the accent, an "N new" badge while
@@ -212,7 +214,13 @@ import a screen; the screens themselves live in `src/screens`, so
   clears it and a refusal sets it back. Sending is the channel's,
   `SendMessage` with `thread_root_id`, the answer merged as `sent`. A
   deleted root or an announcement channel takes no replies, and the
-  composer's place says so in web's words (`core/threadReplies`). A long
+  composer's place says so in web's words (`core/threadReplies`); the
+  menu there has no Quote in reply or Edit message, and a quote or an
+  edit begun goes as the thread closes (web edits inline there; the
+  phone can't yet). A send refused as not found with a root or a quote
+  named asks for the channel's header before calling the channel gone,
+  and with the channel there, a root the server no longer has is the
+  thread gone. A long
   press on the root or a reply opens the channel's menu, without Reply
   in thread, as web's thread offers none; Quote in reply and Edit
   message act on the thread's composer (the menu, the quote, the edit

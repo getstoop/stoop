@@ -114,6 +114,10 @@ name: Reply in a thread, also to the channel, and edit, react and delete there
     visible: "2 replies, open the thread"
     timeout: 10000
 - assertVisible: "Bring snacks, everyone"
+# Once: the answer and the socket's copy are one row.
+- assertNotVisible:
+    text: "Bring snacks, everyone"
+    index: 1
 - assertNotVisible: "I can host"
 - assertVisible:
     text: "replied to a thread: ${POSTER}, Who's hosting Thursday\\?, open the thread"
@@ -135,7 +139,8 @@ name: Reply in a thread, also to the channel, and edit, react and delete there
     timeout: 5000
 - assertVisible: "Edit message"
 - assertVisible: "Delete message"
-- assertNotVisible: "Reply in thread"
+- assertNotVisible:
+    id: "menu-reply-in-thread"
 - tapOn: "Edit message"
 - extendedWaitUntil:
     visible: "Editing message"
@@ -193,7 +198,56 @@ name: Reply in a thread, also to the channel, and edit, react and delete there
 - extendedWaitUntil:
     visible: "1 reply"
     timeout: 10000
+# The root deleted from another device while ada quotes the reply: the
+# thread takes no more replies, the composer gives way to a line saying
+# so, the quote and its ring go, and the menu has nothing to write.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Bring snacks, everyone"
+- extendedWaitUntil:
+    visible: "Quote in reply"
+    timeout: 5000
+- tapOn: "Quote in reply"
+- extendedWaitUntil:
+    visible:
+      id: "reply-strip"
+    timeout: 5000
+- assertVisible:
+    id: "reply-target"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: messageId
+      CHANNEL_ID: ${NINE_ID}
+      TEXT: Who's hosting Thursday?
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: ownerUnsays
+- extendedWaitUntil:
+    visible: "The message this thread started from was deleted, so it takes no new replies."
+    timeout: 10000
+- assertVisible: "Original message deleted"
+- assertNotVisible:
+    id: "composer"
+- assertNotVisible:
+    id: "reply-target"
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Bring snacks, everyone"
+- extendedWaitUntil:
+    visible: "Copy text"
+    timeout: 5000
+- assertNotVisible: "Quote in reply"
+- assertNotVisible: "Edit message"
+- assertVisible: "Delete message"
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Copy text"
+    timeout: 5000
 - tapOn: "Back"
 - extendedWaitUntil:
     visible: "1 reply, open the thread"
     timeout: 10000
+- assertVisible: "Original message deleted"

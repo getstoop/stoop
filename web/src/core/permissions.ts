@@ -44,6 +44,17 @@ export function canPost(
   return can(space, Permission.CHANNELS_MANAGE);
 }
 
+// Starting a thread: where the reader may post, never in an announcement
+// channel, which has no threads.
+export function canStartThreads(
+  space: Space | undefined,
+  channel: Channel | undefined,
+): boolean {
+  return (
+    canPost(space, channel) && channel?.postPolicy !== ChannelPostPolicy.ADMINS
+  );
+}
+
 const rank: Record<SpaceRole, number> = {
   [SpaceRole.UNSPECIFIED]: 0,
   [SpaceRole.MEMBER]: 1,

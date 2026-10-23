@@ -16,6 +16,7 @@ import {
   canManageMembers,
   canMentionEntireChannel,
   canPost,
+  canStartThreads,
   grantableRoles,
   roleLabel,
 } from "./permissions";
@@ -200,5 +201,34 @@ describe("canPost", () => {
   it("leaves a direct message and a loading channel alone", () => {
     expect(canPost(undefined, channel(ChannelPostPolicy.EVERYONE))).toBe(true);
     expect(canPost(member, undefined)).toBe(true);
+  });
+});
+
+describe("canStartThreads", () => {
+  const channel = (postPolicy: ChannelPostPolicy): Channel =>
+    ({ postPolicy }) as unknown as Channel;
+  const member = space(SpaceRole.MEMBER, [Permission.MESSAGES_POST]);
+  const admin = space(SpaceRole.ADMIN, [
+    Permission.MESSAGES_POST,
+    Permission.CHANNELS_MANAGE,
+  ]);
+
+  it("starts threads where everyone posts", () => {
+    expect(canStartThreads(member, channel(ChannelPostPolicy.EVERYONE))).toBe(
+      true,
+    );
+  });
+
+  it("never in an announcement channel, not even for an admin", () => {
+    expect(canStartThreads(member, channel(ChannelPostPolicy.ADMINS))).toBe(
+      false,
+    );
+    expect(canStartThreads(admin, channel(ChannelPostPolicy.ADMINS))).toBe(
+      false,
+    );
+  });
+
+  it("starts them while the channel is still loading, as posting does", () => {
+    expect(canStartThreads(member, undefined)).toBe(true);
   });
 });

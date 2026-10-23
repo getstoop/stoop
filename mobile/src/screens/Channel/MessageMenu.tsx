@@ -41,9 +41,12 @@ import { useSheet } from "./useSheet";
 // toggle or a delete does to the log is the screen's (useChannelLog
 // react and remove), and so is saying when one is refused. Reply in
 // thread hands the message to the screen (onThread), which opens its
-// thread once the sheet has gone; in a thread there is none. Either sheet goes on a tap on the scrim, a swipe
-// down, or Android's back (useSheet), and the picker's going closes the
-// menu with it; a sheet on its way out takes no more taps.
+// thread once the sheet has gone; in a thread there is none, nor where
+// threads can't be started, and where nothing can be written there is
+// no Quote in reply or Edit message either. Either sheet goes on a tap
+// on the scrim, a swipe down, or Android's back (useSheet), and the
+// picker's going closes the menu with it; a sheet on its way out takes
+// no more taps.
 
 const QUICK_REACTIONS = COMMON_EMOJI.slice(0, 5);
 
@@ -73,8 +76,9 @@ export default function MessageMenu({
   onCopyFailed: () => void;
   // Not in a thread, where every message is in it already.
   onThread?: () => void;
-  onQuote: () => void;
-  onEdit: () => void;
+  // Not where nothing can be written: a thread that takes no replies.
+  onQuote?: () => void;
+  onEdit?: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -134,12 +138,12 @@ export default function MessageMenu({
   };
   const quote = () => {
     if (closing()) return;
-    onQuote();
+    onQuote?.();
     dismiss();
   };
   const edit = () => {
     if (closing()) return;
-    onEdit();
+    onEdit?.();
     dismiss();
   };
   // The system's confirm over the sheet; Cancel leaves the sheet open.
@@ -162,6 +166,7 @@ export default function MessageMenu({
     note?: string;
     lead?: boolean;
     danger?: boolean;
+    testID?: string;
     onPress?: () => void;
   }[] = [];
   if (onThread) {
@@ -170,15 +175,16 @@ export default function MessageMenu({
       icon: <ThreadIcon color={theme.accent} />,
       note: replies > 0 ? `${replies} ${replies === 1 ? "reply" : "replies"}` : undefined,
       lead: true,
+      testID: "menu-reply-in-thread",
       onPress: thread,
     });
   }
+  if (onQuote) items.push({ label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} />, onPress: quote });
   items.push(
-    { label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} />, onPress: quote },
     { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
     { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} />, onPress: copyLink },
   );
-  if (mine) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} />, onPress: edit });
+  if (mine && onEdit) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} />, onPress: edit });
   if (mine || canModerate) {
     items.push({
       label: "Delete message",
@@ -243,6 +249,7 @@ export default function MessageMenu({
             {items.map((item) => (
               <Pressable
                 key={item.label}
+                testID={item.testID}
                 accessibilityRole="menuitem"
                 accessibilityLabel={item.note ? `${item.label}, ${item.note}` : item.label}
                 onPress={item.onPress ?? dismiss}

@@ -64,6 +64,10 @@ function outcomeOf(err: unknown): Outcome {
 // A refusal that won't change, so a catch-up stops asking.
 const final = (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument;
 
+// A refusal for something not found: a send's NotFound may be its root's
+// or its quote's, not the channel's.
+const notFound = (err: unknown) => err instanceof ConnectError && err.code === Code.NotFound;
+
 // A refusal that means the sign-in has ended. For a request about one
 // message that is the only answer that says anything about the screen:
 // NotFound is the message's, not the channel's, and PermissionDenied says
@@ -250,6 +254,22 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       const outcome = outcomeOf(err);
       if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
     }
+  }
+
+  // A send naming a root or a quote refused as not found: whether the
+  // channel went is the header's to say, and with the channel still there,
+  // a root the server no longer has (a retention sweep, say) is the
+  // thread gone, not the channel. A failure to ask leaves both alone.
+  async function confirmGone(mine: Lifetime, rootId: string) {
+    await refreshHeader();
+    if (mine.ended || state.outcome || !rootId || !threadHolders.has(rootId)) return;
+    let gone: boolean;
+    try {
+      gone = !(await loadRoot(server.origin, await token(), channelId, rootId));
+    } catch (err) {
+      gone = notFound(err);
+    }
+    if (gone && !mine.ended && threadHolders.has(rootId)) dispatch({ type: "threadFailed", rootId, outcome: "gone" });
   }
 
   // A thread's newest replies, with its root when the log doesn't hold
@@ -481,16 +501,21 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     // usually lands first; the log keeps one row either way). Nothing is
     // shown before the server answers. A refusal that means the channel
     // is gone or the sign-in has ended shows as such, like any other
-    // request's; every other failure is the caller's to show, and the
-    // composer puts the draft and the quote back.
+    // request's, but a NotFound with a root or a quote named is checked
+    // first (confirmGone); every other failure is the caller's to show,
+    // and the composer puts the draft and the quote back.
     async send(content: string, to: SendTo = {}) {
       const mine = life;
       let message: Message;
       try {
         message = await sendMessage(server.origin, state.token, channelId, content, to);
       } catch (err) {
-        const outcome = outcomeOf(err);
-        if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
+        if (!mine.ended && notFound(err) && (to.threadRootId || to.replyToMessageId)) {
+          void confirmGone(mine, to.threadRootId ?? "");
+        } else {
+          const outcome = outcomeOf(err);
+          if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
+        }
         throw err;
       }
       dispatch({ type: "sent", message });

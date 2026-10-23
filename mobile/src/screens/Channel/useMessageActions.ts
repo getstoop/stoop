@@ -16,8 +16,11 @@ import type { ComposerHandle } from "./Composer";
 // with the channel; the quote and the edit go with their message,
 // silently. A quote or an edit picked opens the composer once the menu
 // has gone, and its row is scrolled to the middle of what the keyboard
-// leaves, once. A change of `scope` (another channel, another thread)
-// lets it all go.
+// leaves, once, while the screen is the one on top (`focused`). Where
+// no composer is shown (`composing` false: a thread that takes no
+// replies) there is nothing to quote or edit into, and a quote or an
+// edit held goes as that starts. A change of `scope` (another channel,
+// another thread) lets it all go.
 
 // How long a refusal's line stays.
 const NOTICE_MS = 4000;
@@ -34,6 +37,8 @@ export function useMessageActions({
   gone,
   engine,
   keyboard,
+  focused,
+  composing = true,
   list,
   items,
 }: {
@@ -45,6 +50,8 @@ export function useMessageActions({
   gone: boolean;
   engine: Pick<ChannelEngine, "react" | "remove">;
   keyboard: number;
+  focused: boolean;
+  composing?: boolean;
   list: RefObject<FlatList<GroupedRow> | null>;
   // The list's rows, newest first.
   items: GroupedRow[];
@@ -147,13 +154,13 @@ export function useMessageActions({
   // The quote and the message being edited, as the log holds them; gone
   // with the message.
   const replyRow = replyToId ? log.rows.get(replyToId) : undefined;
-  const replyTo = replyRow && !replyRow.deleted ? replyRow : null;
+  const replyTo = composing && replyRow && !replyRow.deleted ? replyRow : null;
   const replyGone = !!replyToId && !replyTo;
   useEffect(() => {
     if (replyGone) setReplyToId(null);
   }, [replyGone]);
   const editRow = editingId ? log.rows.get(editingId) : undefined;
-  const editing = editRow && !editRow.deleted ? editRow : null;
+  const editing = composing && editRow && !editRow.deleted ? editRow : null;
   const editGone = !!editingId && !editing;
   useEffect(() => {
     if (editGone) setEditingId(null);
@@ -168,14 +175,14 @@ export function useMessageActions({
   // over its replies) stays where it is.
   const targetId = replyToId ?? editingId;
   useEffect(() => {
-    if (!targetId || keyboard === 0 || !scrollOnce.current) return;
+    if (!targetId || keyboard === 0 || !scrollOnce.current || !focused) return;
     const timer = setTimeout(() => {
       scrollOnce.current = false;
       const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === targetId);
       if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
     }, KEYBOARD_SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [targetId, keyboard, list]);
+  }, [targetId, keyboard, focused, list]);
 
   // Which ring a row wears: the quote's or the edit's.
   const targetOf = useCallback(

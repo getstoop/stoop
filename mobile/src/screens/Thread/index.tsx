@@ -36,7 +36,9 @@ import ThreadTitle from "./ThreadTitle";
 // it lands on that reply instead, when it is among the replies loaded.
 // The composer replies in the thread, and to the channel as well when
 // asked (Composer `inThread`); a deleted root or an announcement channel
-// takes no replies, and a line says so in its place, as on web. A long
+// takes no replies, and a line says so in its place, as on web (with no
+// Quote in reply or Edit message in its menu, and a quote or an edit
+// begun dropped as it closes; web edits inline there, this screen not yet). A long
 // press on the root or a reply opens the channel's menu, with no Reply
 // in thread since everything here is in it already; Quote in reply and
 // Edit message act on this composer (useMessageActions, as the
@@ -131,6 +133,9 @@ export default function Thread({
   }, [rows.length, landIndex]);
 
   const shown = useMemo(() => (root ? [root, ...replies] : replies), [root, replies]);
+  // Why the thread takes no replies, if it doesn't: then there is no
+  // composer, and nothing to quote or edit into.
+  const closed = header ? threadRepliesClosed(header.channel, root) : null;
   const actions = useMessageActions({
     scope: rootId,
     shown,
@@ -138,6 +143,8 @@ export default function Thread({
     gone: !!outcome,
     engine,
     keyboard,
+    focused,
+    composing: !closed,
     list,
     items: rows,
   });
@@ -210,7 +217,6 @@ export default function Thread({
   // The root heads the list once nothing older is left to load, or none
   // fits.
   const atTop = !view?.hasOlder || !olderFits(log, rootId);
-  const closed = threadRepliesClosed(channel, root);
   const { menuMessage } = actions;
 
   return (
@@ -299,8 +305,8 @@ export default function Thread({
           link={threadMessageLink(server.origin, spaceId, menuMessage)}
           onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
           onCopyFailed={actions.linkNotCopied}
-          onQuote={() => actions.quote(menuMessage)}
-          onEdit={() => actions.startEdit(menuMessage)}
+          onQuote={closed ? undefined : () => actions.quote(menuMessage)}
+          onEdit={closed ? undefined : () => actions.startEdit(menuMessage)}
           onDelete={() => actions.deleteMessage(menuMessage)}
           onClose={actions.closeMenu}
         />
