@@ -3,9 +3,9 @@ name: Edit a message from its menu, cancel an edit, and see Save refuse an empti
 ---
 # After channel.yaml, which needs chapters unread for ada with only dee's
 # first notes in it: ada writes here, from another device (and deletes
-# it again, so the seed is left as found), and alphabetical order
-# carries that today; nothing later minds the edits meanwhile. As ada,
-# editing her own notes in chapters.
+# it again, so the seed is left as found); e2e/config.yaml runs it
+# after the channel flow, and nothing later minds the edits meanwhile.
+# As ada, editing her own notes in chapters.
 - clearKeychain
 - launchApp:
     clearState: true
@@ -79,10 +79,30 @@ name: Edit a message from its menu, cancel an edit, and see Save refuse an empti
     id: "composer"
     text: "Bring the paperback"
 - assertVisible: "Save"
+- assertNotVisible: "Send"
 - assertVisible: "Cancel editing"
 - assertVisible:
     text: "Attach files"
     enabled: false
+# The keyboard put away, the pill says so and keeps Attach dimmed, the
+# ring stays; tapping it opens the card again on the same words.
+- tapOn: "Chapter 54 notes"
+- extendedWaitUntil:
+    notVisible: "Save"
+    timeout: 5000
+- assertVisible: "Editing message"
+- assertVisible:
+    text: "Attach files"
+    enabled: false
+- assertVisible:
+    id: "edit-target"
+- tapOn: "Editing message"
+- extendedWaitUntil:
+    visible: "Cancel editing"
+    timeout: 5000
+- assertVisible:
+    id: "composer"
+    text: "Bring the paperback"
 # Cancel editing: the strip and the ring go, the note stands as it was,
 # and the draft set aside is back in the field.
 - tapOn: "Cancel editing"
@@ -131,6 +151,35 @@ name: Edit a message from its menu, cancel an edit, and see Save refuse an empti
       CHANNEL_ID: ${CHAPTERS_ID}
       EXPECTED: Bring the paperback, please
 - assertTrue: ${output.contentIs}
+- tapOn: "Chapter 54 notes"
+- extendedWaitUntil:
+    notVisible: "Send"
+    timeout: 5000
+# Saved with nothing changed, the edit ends and nothing is sent: the
+# server's copy reads, and was last edited, as before. The strip goes
+# only once a request would have been answered.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Bring the paperback, please.*"
+- extendedWaitUntil:
+    visible: "Edit message"
+    timeout: 5000
+- tapOn: "Edit message"
+- extendedWaitUntil:
+    visible: "Editing message"
+    timeout: 5000
+- tapOn: "Save"
+- extendedWaitUntil:
+    notVisible: "Cancel editing"
+    timeout: 5000
+- assertNotVisible:
+    id: "edit-target"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: unchangedSince
+      CHANNEL_ID: ${CHAPTERS_ID}
+- assertTrue: ${output.unchangedSince}
 - tapOn: "Chapter 54 notes"
 - extendedWaitUntil:
     notVisible: "Send"

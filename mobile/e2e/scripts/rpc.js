@@ -60,13 +60,20 @@ var steps = {
     }).message.id;
   },
   // Whether the message `ownerSays` or `ownerMentions` wrote now reads
-  // EXPECTED, as the server holds it (edit.yaml); the content read is
-  // left in output.content for the failure to show.
+  // EXPECTED, as the server holds it (edit.yaml); what it reads and when
+  // it was last edited are left in output.content and output.editedAt.
   contentIs: function () {
-    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
-    output.content = "";
-    for (var i = 0; i < messages.length; i++) if (messages[i].id === output.messageId) output.content = messages[i].content;
+    var message = held();
+    output.content = message ? message.content : "";
+    output.editedAt = message ? message.editedAt || "" : "";
     output.contentIs = output.content === EXPECTED;
+  },
+  // Whether that message still reads, and was last edited, as contentIs
+  // found it: a Save with nothing changed sent nothing (edit.yaml).
+  unchangedSince: function () {
+    var message = held();
+    output.unchangedSince =
+      !!message && message.content === output.content && (message.editedAt || "") === output.editedAt;
   },
   // In CHANNEL_ID (send.yaml): how many of the newest page's messages
   // read TEXT, as the server holds them.
@@ -146,6 +153,14 @@ var steps = {
     rpc("SetMemberRole", OWNER_TOKEN, { spaceId: SPACE_ID, userId: OUTSIDER_ID, role: "SPACE_ROLE_MEMBER" });
   },
 };
+
+// The message output.messageId names, from CHANNEL_ID's newest page as
+// the server holds it, or null.
+function held() {
+  var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+  for (var i = 0; i < messages.length; i++) if (messages[i].id === output.messageId) return messages[i];
+  return null;
+}
 
 // hasOwnProperty from the prototype, so a STEP like "toString" is unknown.
 if (!Object.prototype.hasOwnProperty.call(steps, STEP)) throw new Error("unknown STEP " + STEP);

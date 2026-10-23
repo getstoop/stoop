@@ -49,15 +49,19 @@ import FormatRow from "./FormatRow";
 // is set aside, the field holds the message's words (its mention and
 // channel tokens as the @handle and #name they show as; core/editableText),
 // the strip says "Editing message" with Cancel editing, Attach is dimmed
-// since an edit changes words only, and Send is Save. Save puts the
-// tokens back for the handles the original had and sends EditMessage;
-// the answer merges like a send's. Words unchanged end the edit with no
-// request; none at all are refused with web's wording, the edit going
-// on; a refusal keeps the edited words with the server's under them.
-// Editing ends on Save, Cancel editing, or the screen letting the
-// message go (deleted, or quoted instead), and the set-aside draft comes
-// back each way. A copy of the same message arriving edited elsewhere
-// leaves the field's words alone; saving then replaces it, as on web.
+// since an edit changes words only, and Send is Save; the pill says
+// "Editing message" under the pencil while the keyboard is down. Save
+// puts the tokens back for the handles the original had and sends
+// EditMessage; the answer merges like a send's. Words unchanged end the
+// edit with no request; none at all are refused with web's wording, the
+// edit going on; a refusal keeps the edited words with the server's
+// under them, and Cancel editing waits for the answer. Editing ends on
+// Save, Cancel editing, or the screen letting the message go (deleted,
+// or quoted instead), and the set-aside draft comes back each way. A
+// copy of the same message arriving edited elsewhere leaves the field's
+// words alone; saving then replaces it, as on web. A send refused while
+// an edit is open puts its words into the draft set aside, never into
+// the field, and its reason waits for the edit to end.
 
 // The pill's height and the gap under it, for the screen to keep the
 // list's newest message clear of it.
@@ -93,18 +97,36 @@ export default forwardRef<
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
-  // The draft set aside while a message is edited, to come back after.
+  // The draft set aside while a message is edited, to come back after,
+  // and a send's refusal that waits with it.
   const setAside = useRef("");
+  const heldError = useRef<string | null>(null);
   // Which message the field holds for editing, so a change of it (in,
   // out, or to another message) is taken in the same render, while a
-  // copy of the same one, edited elsewhere, leaves the field alone.
+  // copy of the same one, edited elsewhere, leaves the field alone; the
+  // content the field was filled from, which Save restores tokens
+  // against; and a count of the edits begun, so a Save's answer is only
+  // the edit it was pressed in.
   const editingShown = useRef<string | null>(null);
+  const filledFrom = useRef("");
+  const session = useRef(0);
   const editingId = editing?.id ?? null;
   if (editingShown.current !== editingId) {
-    if (editingShown.current === null) setAside.current = draft;
+    session.current++;
+    if (editingShown.current === null) {
+      setAside.current = draft;
+      heldError.current = error;
+    }
     editingShown.current = editingId;
-    setDraft(editing ? editableText(editing.content) : setAside.current);
-    setError(null);
+    if (editing) {
+      filledFrom.current = editing.content;
+      setDraft(editableText(editing.content));
+      setError(null);
+    } else {
+      setDraft(setAside.current);
+      setError(heldError.current);
+      heldError.current = null;
+    }
   }
   // Send pressed again before React commits the sending state must not
   // send twice, so the guard is a ref as well.
@@ -152,10 +174,16 @@ export default forwardRef<
   const blank = isBlankMessage(draft);
   const quotedName = replyTo ? authorName(replyTo.author) : "";
 
-  // Save: the words as typed with the original's tokens put back. The
-  // same words end the edit with nothing sent; no words are refused.
+  // Save: the words as typed with the tokens put back by the content the
+  // field was filled from, not a copy edited elsewhere since, which could
+  // only take a token away or hand one to typed words. The same words
+  // as the latest copy end the edit with nothing sent, as on web; no
+  // words are refused. The answer counts only for the edit Save was
+  // pressed in: ended, or begun again on the same message, meanwhile,
+  // it is nobody's.
   const save = async (message: Message) => {
-    const content = withTokensRestored(draft.trim(), message.content);
+    const mine = session.current;
+    const content = withTokensRestored(draft.trim(), filledFrom.current);
     if (content === message.content) {
       onEditDone();
       return;
@@ -169,10 +197,9 @@ export default forwardRef<
     setSending(true);
     try {
       await edit(message.id, content);
-      if (editingShown.current === message.id) onEditDone();
+      if (session.current === mine) onEditDone();
     } catch (err) {
-      // Unless the edit ended meanwhile (the message gone from under it).
-      if (editingShown.current === message.id) setError(errorText(err));
+      if (session.current === mine) setError(errorText(err));
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -196,10 +223,17 @@ export default forwardRef<
     try {
       await send(typed.trim(), quoted?.id ?? "");
     } catch (err) {
-      setDraft((typedSince) => restoreDraft(typed, typedSince));
+      if (editingShown.current !== null) {
+        // An edit has begun meanwhile: the words go into the draft set
+        // aside, and the reason waits with them for the edit to end.
+        setAside.current = restoreDraft(typed, setAside.current);
+        heldError.current = errorText(err);
+      } else {
+        setDraft((typedSince) => restoreDraft(typed, typedSince));
+        setError(errorText(err));
+      }
       const quotedNow = replyToRef.current;
       if (quoted && (!quotedNow || quotedNow.id === quoted.id)) onReply(quoted);
-      setError(errorText(err));
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -221,7 +255,7 @@ export default forwardRef<
             replyTo && <QuoteReplyIcon color={theme.accent} size={16} />
           )}
           <Text numberOfLines={1} style={draft || replyTo || editing ? styles.draft : styles.placeholder}>
-            {draft || (editing ? "Editing message" : replyTo ? `Replying to ${quotedName}` : placeholder)}
+            {editing ? "Editing message" : draft || (replyTo ? `Replying to ${quotedName}` : placeholder)}
           </Text>
         </Pressable>
         {/* A send that failed after the field lost focus: the reason waits in
@@ -242,9 +276,16 @@ export default forwardRef<
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Cancel editing"
+            accessibilityState={{ disabled: sending }}
+            disabled={sending}
             onPress={onEditDone}
             hitSlop={6}
-            style={({ pressed }) => [styles.cancel, raised, pressed && roundStyles.down]}
+            style={({ pressed }) => [
+              styles.cancel,
+              raised,
+              sending && roundStyles.disabled,
+              pressed && roundStyles.down,
+            ]}
           >
             <CloseIcon color={theme.text} />
           </Pressable>

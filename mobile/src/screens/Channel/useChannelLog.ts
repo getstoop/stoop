@@ -350,9 +350,10 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
   // The reader's own message with new words: EditMessage, then its answer
   // merged like a send's (the message_updated that follows says the same
   // at the same seq; either order leaves one row). Nothing is shown
-  // before the server answers. A refusal is the caller's to show, as
-  // above, one that means the sign-in has ended shows as such, and
-  // nothing once this screen has left the channel.
+  // before the server answers. A refusal is the caller's to show and is
+  // always thrown, as a send's is, so one landing after this lifetime
+  // has ended is never taken for a save; one that means the sign-in has
+  // ended shows as such while the screen is still here.
   const edit = useCallback(
     async (messageId: string, content: string) => {
       const mine = life.current;
@@ -360,8 +361,7 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
       try {
         message = await editMessage(server.origin, latest.current.token, messageId, content);
       } catch (err) {
-        if (mine.ended) return;
-        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
         throw err;
       }
       if (!mine.ended && latest.current.log.channelId === channelId) dispatch({ type: "sent", message });

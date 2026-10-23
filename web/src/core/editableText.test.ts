@@ -17,6 +17,19 @@ describe("editableText", () => {
       "plain @words and #tags",
     );
   });
+
+  it("shows a token stuck to a word raw", () => {
+    expect(editableText(`cc${ada}`)).toBe(`cc${ada}`);
+    expect(editableText(`${ada}cc`)).toBe(`${ada}cc`);
+    expect(editableText(`${ada}${ada}`)).toBe(`@ada${ada}`);
+    expect(editableText(`${garden}${ada}`)).toBe(`#garden${ada}`);
+  });
+
+  it("shows a token beside punctuation as words", () => {
+    expect(editableText(`${ada}'s (${ada}) ${ada}.`)).toBe(
+      "@ada's (@ada) @ada.",
+    );
+  });
 });
 
 describe("withTokensRestored", () => {
@@ -28,6 +41,16 @@ describe("withTokensRestored", () => {
       `${ada} said so, @ada`,
       "no tokens, @ada and #garden as words",
       "",
+      // Tokens stuck to words, or to each other.
+      `cc${ada}`,
+      `${ada}cc`,
+      `${ada}${ada}`,
+      `${garden}${ada}`,
+      `${ada}@ada`,
+      `#garden${ada}`,
+      // Beside punctuation.
+      `${ada}'s (${ada}) ${ada}.`,
+      `${ada} @channel @here`,
     ]) {
       expect(withTokensRestored(editableText(original), original)).toBe(
         original,
@@ -47,6 +70,12 @@ describe("withTokensRestored", () => {
     expect(withTokensRestored("all the details in #garden now", original)).toBe(
       `all the details in ${garden} now`,
     );
+  });
+
+  it("restores a token beside punctuation", () => {
+    expect(
+      withTokensRestored("(@ada) has @ada's copy, @ada.", `${ada} has it`),
+    ).toBe(`(${ada}) has ${ada}'s copy, ${ada}.`);
   });
 
   it("keeps a removed mention removed", () => {
@@ -83,6 +112,12 @@ describe("withTokensRestored", () => {
     expect(withTokensRestored("@bea alone", "@bea alone")).toBe("@bea alone");
   });
 
+  it("leaves @channel and @here as the words they are", () => {
+    expect(
+      withTokensRestored("@channel @here and @ada", `${ada} @channel @here`),
+    ).toBe(`@channel @here and ${ada}`);
+  });
+
   it("matches whole words only", () => {
     const original = `${ada} and ${garden}`;
     expect(
@@ -103,6 +138,13 @@ describe("withTokensRestored", () => {
     );
   });
 
+  it("never respells words to match the original's plain form", () => {
+    const original = `@Ada as words, ${ada} as a mention`;
+    expect(
+      withTokensRestored("@ada as words, @ada as a mention", original),
+    ).toBe(`@ada as words, ${ada} as a mention`);
+  });
+
   it("tells a person's token from a group's by position", () => {
     const original = `${ada} then ${adaGroup}`;
     expect(withTokensRestored("@ada then @ada, both", original)).toBe(
@@ -114,5 +156,11 @@ describe("withTokensRestored", () => {
     expect(withTokensRestored(`${ada} typed whole`, `${ada} typed whole`)).toBe(
       `${ada} typed whole`,
     );
+  });
+
+  it("puts a token into a code span too, as things stand", () => {
+    // The field can't tell code from words; the server saves a token in
+    // code as its @handle text, so the message reads the same.
+    expect(withTokensRestored("`@ada` hi", `${ada} hi`)).toBe(`\`${ada}\` hi`);
   });
 });

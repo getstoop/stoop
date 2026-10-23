@@ -343,9 +343,9 @@ pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a
-`testID`. They run in the order `e2e/config.yaml` lists them, by file
-name (Maestro runs a directory in no fixed order of its own, and a new
-flow goes in that list too), and some lean on it: the message-menu
+`testID`. They run in the order `e2e/config.yaml` lists them: by their
+names, in file-name order (Maestro runs a directory in no fixed order
+of its own; a new flow goes in that list too). Some lean on it: the message-menu
 flow has ada write in chapters, message-actions has dee write there
 (ada only deletes in it, and bea only reads), quote-reply has ada
 reply there (and delete the reply) and dee post and delete "Going
