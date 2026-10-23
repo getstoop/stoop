@@ -4,8 +4,9 @@ import { LockIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // The thread screen's title: "Thread", and under it the channel (a lock
-// for a private one, as the channel's own title has) and its space.
-export default function ThreadTitle({ channel, spaceName }: { channel: Channel; spaceName: string }) {
+// for a private one, as the channel's own title has) and its space, once
+// they are known.
+export default function ThreadTitle({ channel, spaceName }: { channel?: Channel; spaceName: string }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   return (
@@ -13,16 +14,18 @@ export default function ThreadTitle({ channel, spaceName }: { channel: Channel; 
       style={styles.title}
       accessible
       accessibilityRole="header"
-      accessibilityLabel={`Thread, ${channel.name}, ${spaceName}`}
+      accessibilityLabel={channel ? `Thread, ${channel.name}, ${spaceName}` : "Thread"}
     >
       <Text style={styles.name}>Thread</Text>
-      <View style={styles.line}>
-        {channel.private && <LockIcon color={theme.textMuted} size={12} />}
-        <Text style={styles.about} numberOfLines={1}>
-          {channel.private ? "" : "#"}
-          {channel.name} · {spaceName}
-        </Text>
-      </View>
+      {channel && (
+        <View style={styles.line}>
+          {channel.private && <LockIcon color={theme.textMuted} size={12} />}
+          <Text style={styles.about} numberOfLines={1}>
+            {channel.private ? "" : "#"}
+            {channel.name} · {spaceName}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }

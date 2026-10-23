@@ -143,12 +143,25 @@ export default function Channel({
   }, []);
   const closeMenu = useCallback(() => setMenuFor(null), []);
   // The thread pushed over the channel, by its root's id.
+  // One at a time: a second tap before the first has covered the channel
+  // pushes nothing; coming back to the channel lets the next go, as does
+  // a second gone by, should the push have gone nowhere.
+  const pushed = useRef(false);
+  useEffect(() => {
+    if (focused) pushed.current = false;
+  }, [focused]);
   const pushThread = useCallback(
-    (rootId: string) =>
+    (rootId: string) => {
+      if (pushed.current) return;
+      pushed.current = true;
+      setTimeout(() => {
+        pushed.current = false;
+      }, 1000);
       router.push({
         pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
         params: { id: server.id, spaceId, channelId, rootId },
-      }),
+      });
+    },
     [router, server.id, spaceId, channelId],
   );
   const openThread = useCallback((message: Message) => pushThread(message.id), [pushThread]);

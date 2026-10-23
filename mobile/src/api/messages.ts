@@ -81,6 +81,25 @@ export function loadReplies(
   );
 }
 
+// The channel's newest page, asked for again after a reconnect.
+export function loadPage(origin: string, token: string, channelId: string): Promise<ListMessagesResponse> {
+  return chatClient(origin, token).listMessages({ channelId, limit: PAGE }, { timeoutMs: TIMEOUT_MS });
+}
+
+// The page of one around a message: a thread's root, which a thread's
+// own pages never list.
+export function loadAround(
+  origin: string,
+  token: string,
+  channelId: string,
+  messageId: string,
+): Promise<ListMessagesResponse> {
+  return chatClient(origin, token).listMessages(
+    { channelId, aroundId: messageId, limit: 1 },
+    { timeoutMs: TIMEOUT_MS },
+  );
+}
+
 // A thread's root, for a thread opened with the channel's page not
 // holding it; undefined when the server has no such message.
 export async function loadRoot(
@@ -89,10 +108,7 @@ export async function loadRoot(
   channelId: string,
   rootId: string,
 ): Promise<Message | undefined> {
-  const { messages } = await chatClient(origin, token).listMessages(
-    { channelId, aroundId: rootId, limit: 1 },
-    { timeoutMs: TIMEOUT_MS },
-  );
+  const { messages } = await loadAround(origin, token, channelId, rootId);
   return messages.find((message) => message.id === rootId);
 }
 

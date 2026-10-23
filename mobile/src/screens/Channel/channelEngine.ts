@@ -11,6 +11,7 @@ import {
 } from "@stoop/core/channelLog";
 import { emptyScreen, type Outcome, type ScreenAction, screenReducer } from "@stoop/core/channelScreen";
 import { toggledReactions } from "@stoop/core/reactions";
+import type { ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { AppState } from "react-native";
@@ -21,7 +22,9 @@ import {
   loadChanges,
   loadChannel,
   loadHeader,
+  loadAround,
   loadOlder,
+  loadPage,
   loadReplies,
   loadRoot,
   markThreadRead,
@@ -98,21 +101,34 @@ export type ChannelEngine = ReturnType<typeof createEngine>;
 // By server and channel: the log every screen showing that channel holds.
 const engines = new Map<string, ChannelEngine>();
 
-// The channel's engine, made the first time a screen asks; it starts
-// once one holds it (hold) and goes when the last lets go.
+export const engineKey = (server: SavedServer, channelId: string) => `${server.id}/${channelId}`;
+
+// The channel's engine as a screen first renders: the one a screen holds
+// already, or a new one that nothing knows of until it is held.
 export function channelEngine(
   server: SavedServer,
   spaceId: string,
   channelId: string,
   subscribe: Subscribe,
 ): ChannelEngine {
-  const key = `${server.id}/${channelId}`;
-  let engine = engines.get(key);
-  if (!engine) {
-    engine = createEngine(key, server, spaceId, channelId, subscribe);
-    engines.set(key, engine);
-  }
-  return engine;
+  const key = engineKey(server, channelId);
+  return engines.get(key) ?? createEngine(key, server, spaceId, channelId, subscribe);
+}
+
+// The engine a mounted screen holds: the one held for the channel already,
+// or this one, which starts and becomes it. Let go with the function
+// returned; the last to let go ends it.
+export function holdEngine(engine: ChannelEngine, rootId?: string) {
+  const held = engines.get(engine.key) ?? engine;
+  const release = held.hold();
+  const close = rootId === undefined ? undefined : held.holdThread(rootId);
+  return {
+    engine: held,
+    release: () => {
+      close?.();
+      release();
+    },
+  };
 }
 
 function createEngine(key: string, server: SavedServer, spaceId: string, channelId: string, subscribe: Subscribe) {
@@ -162,13 +178,16 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     let delay = RETRY_BASE_MS;
     try {
       for (;;) {
-        const { log, token } = state;
-        if (mine.ended || !token || !log.needsCatchUp || !hasPage(log)) return;
+        // Before the channel's own page a thread's may have positioned
+        // the log, so the session is looked up when the header has none.
+        const session = await token();
+        const { log } = state;
+        if (mine.ended || !session || !log.needsCatchUp || !hasPage(log)) return;
         if (AppState.currentState === "background") return;
         try {
           let since = log.seq;
           for (;;) {
-            const res = await loadChanges(server.origin, token, channelId, since);
+            const res = await loadChanges(server.origin, session, channelId, since);
             if (mine.ended) return;
             dispatch({ type: "caughtUp", res });
             if (!res.hasMore || res.messages.length === 0) break;
@@ -243,6 +262,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     threadOpens.set(rootId, attempt);
     const stale = () => mine.ended || threadOpens.get(rootId) !== attempt || !threadHolders.has(rootId);
     dispatch({ type: "threadOpening", rootId });
+    const epoch = state.threads[rootId]?.epoch ?? 0;
     const session = await token();
     if (stale()) return;
     if (!session) {
@@ -261,7 +281,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         dispatch({ type: "threadFailed", rootId, outcome: "gone" });
         return;
       }
-      dispatch({ type: "threadOpened", rootId, res, generation, root });
+      dispatch({ type: "threadOpened", rootId, epoch, res, generation, root });
       if (state.log.needsCatchUp) void catchUp();
     } catch (err) {
       if (stale()) return;
@@ -289,22 +309,54 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     }
     // The socket is back. A channel or a thread not yet open is opened
     // again, since a load still out may have read the server before the
-    // socket was; one that is open owes a catch-up from where it stands,
-    // and a catch-up waiting to retry goes now.
+    // socket was. Once any page has positioned the log it owes a catch-up
+    // from where it stands (a catch-up waiting to retry goes now), and
+    // after it each view's newest page is asked for again, for what
+    // changed elsewhere with no seq: a thread read or muted.
     const { header, outcome } = state;
     if (outcome === "ended" || outcome === "gone") return;
     for (const rootId of threadHolders.keys()) {
       const gone = state.threads[rootId]?.outcome === "gone";
       if (!gone && !viewOf(state.log, rootId)?.generation) void openThread(rootId);
     }
+    if (hasPage(state.log)) {
+      const mine = life;
+      dispatch({ type: "reconnected" });
+      mine.wake?.();
+      void catchUp().then(() => refreshViews(mine));
+    }
     if (!header) {
       void open();
       return;
     }
-    dispatch({ type: "reconnected" });
-    life.wake?.();
-    void catchUp();
     void refreshHeader();
+  }
+
+  // The newest page of each view that has one, and each open thread's
+  // root, merged with the range and the position left alone (as web's
+  // refreshViews). A failure is left to the next reconnect.
+  async function refreshViews(mine: Lifetime) {
+    const session = await token();
+    if (mine.ended || !session) return;
+    const pages: Promise<ListMessagesResponse>[] = [];
+    if (state.log.channel.generation > 0) pages.push(loadPage(server.origin, session, channelId));
+    for (const [rootId, view] of Object.entries(state.log.threads)) {
+      if (view.generation === 0) continue;
+      pages.push(
+        loadReplies(server.origin, session, channelId, rootId),
+        loadAround(server.origin, session, channelId, rootId),
+      );
+    }
+    await Promise.all(
+      pages.map((page) =>
+        page.then(
+          (res) => {
+            if (!mine.ended) dispatch({ type: "refreshed", res });
+          },
+          () => {},
+        ),
+      ),
+    );
   }
 
   function start() {
@@ -327,6 +379,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   }
 
   const self = {
+    key,
     current: () => state,
     subscribe(watcher: () => void) {
       watchers.add(watcher);
@@ -395,7 +448,9 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       dispatch({ type: "threadPagingOlder", rootId });
       try {
         const res = await loadReplies(server.origin, await token(), channelId, rootId, view.oldestId);
-        if (!mine.ended) dispatch({ type: "threadPaged", rootId, res, generation: view.generation });
+        if (!mine.ended) {
+          dispatch({ type: "threadPaged", rootId, epoch: thread.epoch, res, generation: view.generation });
+        }
       } catch {
         if (!mine.ended) dispatch({ type: "threadPageFailed", rootId });
       }

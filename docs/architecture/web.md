@@ -357,6 +357,9 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   page only while a screen has it open. The mobile app's channel and
   thread screens run it on one log; web's screen is wired in
   `api/channelLog.ts` instead.
+- `threadUnread.ts` — the reader's half of a thread summary as replies
+  arrive (`viewerHalfAfter`, `namesMe`): web's `api/threads.ts` and the
+  mobile app's screen reducer both move the unread count with it.
 - `author.ts` — who a message is shown as being from: the member as the
   members list has them now, over the row's embedded author.
 - `grouping.ts` — where a day line goes, which message continues the one

@@ -1,7 +1,7 @@
 import { isShown, threadItems } from "@stoop/core/channelLog";
 import { firstUnreadReplyId, type GroupedRow, threadRows } from "@stoop/core/grouping";
 import { Stack, useIsFocused, useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
@@ -25,6 +25,9 @@ import ThreadTitle from "./ThreadTitle";
 // count, as the server gave it when the thread opened) and marks the
 // thread read while it is on screen with the app open, again for each
 // new reply. Replying, and the menu on a reply, are the next step's.
+
+// How long after a failed read it is asked for again.
+const READ_RETRY_MS = 5000;
 
 export default function Thread({
   server,
@@ -69,12 +72,29 @@ export default function Thread({
     setFirstNew(firstUnreadReplyId(replies, root.thread?.unreadCount ?? 0, header.myUserId));
   }
 
-  // Read while on screen, and again for each new reply.
+  // Read while on screen, again for each new reply, and again whenever
+  // the count comes back above nothing (a page read on the server before
+  // the read landed after it), so the read wins. A read that fails is
+  // asked for again after a moment, or on the next change.
   const replyCount = root?.thread?.replyCount ?? 0;
+  const unread = root?.thread?.unreadCount ?? 0;
+  const readAt = useRef(-1);
+  const [retries, setRetries] = useState(0);
   useEffect(() => {
     if (!decided || replyCount === 0 || !focused || !active) return;
-    engine.readThread(rootId).catch(() => {});
-  }, [decided, replyCount, focused, active, engine, rootId]);
+    if (readAt.current === replyCount && unread === 0) return;
+    readAt.current = replyCount;
+    let left = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    engine.readThread(rootId).catch(() => {
+      readAt.current = -1;
+      if (!left) timer = setTimeout(() => setRetries((count) => count + 1), READ_RETRY_MS);
+    });
+    return () => {
+      left = true;
+      clearTimeout(timer);
+    };
+  }, [decided, replyCount, unread, focused, active, engine, rootId, retries]);
 
   // Newest first, for a list drawn from the bottom up.
   const rows = useMemo(
@@ -90,52 +110,71 @@ export default function Thread({
     if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
   }, [rows.length, newIndex]);
 
+  // The header in every state, the channel once it is known.
+  const title = (
+    <Stack.Screen
+      options={{ headerTitle: () => <ThreadTitle channel={header?.channel} spaceName={header?.space.name ?? ""} /> }}
+    />
+  );
   if (outcome === "ended") {
     return (
-      <Unavailable
-        message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
-        action={{
-          label: "Sign in again",
-          onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
-        }}
-      />
+      <Screen title={title}>
+        <Unavailable
+          message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
+          action={{
+            label: "Sign in again",
+            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+          }}
+        />
+      </Screen>
     );
   }
-  if (outcome === "gone") return <Unavailable message="This channel isn't available any more." />;
+  if (outcome === "gone") {
+    return (
+      <Screen title={title}>
+        <Unavailable message="This channel isn't available any more." />
+      </Screen>
+    );
+  }
   if (thread?.outcome === "gone" || (held && !root)) {
-    return <Unavailable message="This thread isn't available any more." />;
+    return (
+      <Screen title={title}>
+        <Unavailable message="This thread isn't available any more." />
+      </Screen>
+    );
   }
   const failed = outcome === "failed" || thread?.outcome === "failed";
   if (failed) {
     return (
-      <Unavailable
-        message={`Couldn't reach ${hostOf(server.origin)}.`}
-        action={{
-          label: "Try again",
-          onPress: () => {
-            if (outcome === "failed") engine.retry();
-            engine.retryThread(rootId);
-          },
-        }}
-      />
+      <Screen title={title}>
+        <Unavailable
+          message={`Couldn't reach ${hostOf(server.origin)}.`}
+          action={{
+            label: "Try again",
+            onPress: () => {
+              if (outcome === "failed") engine.retry();
+              engine.retryThread(rootId);
+            },
+          }}
+        />
+      </Screen>
     );
   }
   if (!header || !decided || !root) {
     return (
-      <View style={styles.screen}>
+      <Screen title={title}>
         <ActivityIndicator style={styles.center} color={theme.textMuted} />
-      </View>
+      </Screen>
     );
   }
 
-  const { space, channel, myUserId } = header;
+  const { myUserId } = header;
   // The root heads the list once nothing older is left to load, or none
   // fits.
   const atTop = !view?.hasOlder || !olderFits(log, rootId);
 
   return (
-    <View style={styles.screen}>
-      <Stack.Screen options={{ headerTitle: () => <ThreadTitle channel={channel} spaceName={space.name} /> }} />
+    <Screen title={title}>
       <FlatList
         ref={list}
         inverted
@@ -188,6 +227,17 @@ export default function Thread({
           ) : undefined
         }
       />
+    </Screen>
+  );
+}
+
+// The screen's surface under its header.
+function Screen({ title, children }: { title: ReactNode; children: ReactNode }) {
+  const styles = makeStyles(useTheme());
+  return (
+    <View style={styles.screen}>
+      {title}
+      {children}
     </View>
   );
 }

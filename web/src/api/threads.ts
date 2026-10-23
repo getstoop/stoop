@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { namesMe, viewerHalfAfter } from "../core/threadUnread";
 import type { GetMeResponse } from "../gen/stoop/auth/v1/auth_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type {
@@ -24,13 +25,7 @@ export function noteMentionInThread(
   message: Message,
 ) {
   const me = queryClient.getQueryData<GetMeResponse>(["me"])?.user?.id;
-  if (
-    message.threadRootId &&
-    me &&
-    !message.mentionsEntireChannel &&
-    !message.mentionsHere &&
-    message.mentionUserIds.includes(me)
-  ) {
+  if (namesMe(message, me) && message.threadRootId) {
     namedIn.add(message.threadRootId);
   }
 }
@@ -56,33 +51,9 @@ export function applyThreadChanged(
     return;
   }
   const me = queryClient.getQueryData<GetMeResponse>(["me"])?.user?.id;
-  // A first reply has no summary to carry: the root says whether we
-  // started it or were named in it (@channel and @here don't count).
-  const previous = root.thread ?? {
-    replyCount: 0,
-    participating:
-      root.author?.id === me ||
-      (!root.mentionsEntireChannel &&
-        !root.mentionsHere &&
-        !!me &&
-        root.mentionUserIds.includes(me)),
-    muted: false,
-    unreadCount: 0,
-  };
-  const added = next.replyCount - previous.replyCount;
-  const byMe = next.recentAuthors[0]?.id === me;
-  const participating =
-    previous.participating || (added > 0 && byMe) || namedIn.has(rootId);
-  const counts = participating && !previous.muted;
+  const half = viewerHalfAfter(root, next, me, namedIn.has(rootId));
   namedIn.delete(rootId);
-  patchThread(channelId, rootId, {
-    participating,
-    muted: previous.muted,
-    unreadCount: Math.min(
-      next.replyCount,
-      previous.unreadCount + (counts && added > 0 && !byMe ? added : 0),
-    ),
-  });
+  patchThread(channelId, rootId, half);
 }
 
 export function applyThreadMuted(

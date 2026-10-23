@@ -196,10 +196,15 @@ import a screen; the screens themselves live in `src/screens`, so
   (`core/grouping` `firstUnreadReplyId`), and marks the thread read
   (`MarkThreadRead`) while on screen with the app open, again for each
   new reply; the count clears there and on the channel's line, and on
-  a ThreadRead from another device. The badge does not grow while the
-  channel is open: a new reply's event carries the shared half of the
-  summary only, and web's rule for adding to the reader's count stays
-  web's for now. Replying, Also send to the channel, the menu on a reply
+  a ThreadRead from another device. A new reply's event carries only the
+  shared half of the summary, so the reader's count moves on by web's
+  rule (`core/threadUnread`, which web runs too): a reply by someone
+  else adds to a thread the reader is in and hasn't muted. A read wins
+  over a page read on the server before it: the thread is marked again
+  whenever its count comes back while on screen, and a read that fails
+  is asked for again after a moment. After a reconnect's catch-up the
+  channel's newest page, and each open thread's with its root, are asked
+  for again, for reads and mutes made elsewhere meanwhile. Replying, Also send to the channel, the menu on a reply
   and the mute bell are the next steps; the composer is left out until
   it can send.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,

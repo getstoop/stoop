@@ -3,7 +3,8 @@ name: Open a thread from its replies line and from Reply in thread, and read it,
 ---
 # As ada in chapter-nine (seed.mjs): her thread has four replies by dee,
 # the last two unread, and dee's question after it has none yet. dee
-# replies once more from another device while ada reads.
+# replies from another device while ada is in the channel, and again
+# while she reads the thread.
 - clearKeychain
 - launchApp:
     clearState: true
@@ -41,19 +42,33 @@ name: Open a thread from its replies line and from Reply in thread, and read it,
 - extendedWaitUntil:
     visible: "4 replies, 2 new, open the thread"
     timeout: 10000
-- tapOn: "4 replies, 2 new, open the thread"
+# A reply by dee while ada is in the channel counts as new.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: replyInThread
+      TEXT: Chapter 10 already?
+- extendedWaitUntil:
+    visible: "5 replies, 3 new, open the thread"
+    timeout: 10000
+- tapOn: "5 replies, 3 new, open the thread"
 # The thread over the channel: the root, its count, the replies, and the
-# New line above the two ada hadn't read.
+# New line above the three ada hadn't read.
 - extendedWaitUntil:
     visible: "Thread, chapter-nine, ${SPACE}"
     timeout: 10000
 - assertVisible: "Finished chapter 9. No spoilers here, but I need to talk about it."
-- assertVisible: "4 replies"
+- assertVisible: "5 replies"
 - assertVisible: "Two more pages and I'm there."
 - assertVisible: "Waiting. Very patiently."
-- assertVisible: "New messages"
-- assertVisible: "Same. Reading ahead was a mistake."
+- assertVisible:
+    text: "New messages"
+    below: "Waiting. Very patiently."
+- assertVisible:
+    text: "New messages"
+    above: "Same. Reading ahead was a mistake."
 - assertVisible: "The fire scene\\?\\? I had to put it down for a minute."
+- assertVisible: "Chapter 10 already\\?"
 # Live: dee's next reply lands, and the count with it.
 - runScript:
     file: scripts/rpc.js
@@ -64,21 +79,21 @@ name: Open a thread from its replies line and from Reply in thread, and read it,
     visible: "Page 300 and I can't stop"
     timeout: 10000
 - extendedWaitUntil:
-    visible: "5 replies"
+    visible: "6 replies"
     timeout: 10000
 # Back in the channel, read: no more new.
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: "5 replies, open the thread"
+    visible: "6 replies, open the thread"
     timeout: 10000
 # The menu's Reply in thread, with the root's count, opens the same thread.
 - waitForAnimationToEnd:
     timeout: 3000
 - longPressOn: "Finished chapter 9. No spoilers here, but I need to talk about it."
 - extendedWaitUntil:
-    visible: "Reply in thread, 5 replies"
+    visible: "Reply in thread, 6 replies"
     timeout: 5000
-- tapOn: "Reply in thread, 5 replies"
+- tapOn: "Reply in thread, 6 replies"
 - extendedWaitUntil:
     visible: "Thread, chapter-nine, ${SPACE}"
     timeout: 10000
