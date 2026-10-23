@@ -87,8 +87,26 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-haptics`). While the keyboard is up a long press first puts it
   away (the list takes that first touch), and a second one opens the
   menu. A screen reader can't open it yet: an accessibility action on
-  the row is a follow-up. Every item is placed and inert: pressing one
-  only closes the sheet, until the steps that give them work.
+  the row is a follow-up. Three of its items work. A quick reaction
+  toggles itself on the message and closes the sheet, as web does it:
+  the held row takes the reader's toggle at once (`core/reactions`
+  `toggledReactions`, through the screen reducer's `reacted`, at the
+  row's own seq so the event that follows replaces it), `ToggleReaction`
+  goes out, and its answer merges like a send's; a refusal puts the
+  reactions back. Copy text puts the message's words on the clipboard
+  (`expo-clipboard`, a native module, so a build on the phone needs
+  `make mobile-ios` again) as the row draws them, a mention as its
+  name and a link as its words or address (`core/markdown`
+  `plainLines`). Delete message asks first, in the system's confirm,
+  then `DeleteMessage`; the row goes at once (`deleted`, the same way)
+  as the server's event makes it, and a root with replies stays as its
+  placeholder when that event says so. What the server refuses is said
+  in a line over the composer for a few seconds, with its reason. The
+  list draws no reaction chips yet (that is the rich row's ticket), so
+  a reaction shows only in the sheet's highlight. More reactions, Reply
+  in thread, Quote in reply, Copy link and Edit message are placed and
+  inert: pressing one only closes the sheet, until the steps that give
+  them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -241,7 +259,8 @@ one YAML file each, driving the app on the iPhone simulator: add a server,
 sign in and see the Spaces tab's badges, open a space and see what is
 waiting in each of its channels, read a channel from its "New" line back
 to its first message while messages arrive, change and go, write in a
-channel and see the message land once, long-press a message and see
+channel and see the message land once, react to a message from its
+menu, copy its words and delete it, long-press a message and see
 what its menu offers as a member and as a moderator, add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
@@ -250,8 +269,9 @@ open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a
 `testID`. They run in file order, and some lean on it: the message-menu
-flow has ada write in chapters, which the channel flow needs unread for
-her with dee's notes alone, so the channel flow goes first.
+and message-actions flows have ada write in chapters, which the channel
+flow needs unread for her with dee's notes alone, so the channel flow
+goes first.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on

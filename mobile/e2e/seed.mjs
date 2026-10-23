@@ -93,6 +93,7 @@ const env = {
   // ada owns it, dee posts in it.
   SPACE_ID: s.space.id,
   MEMBER_ID: s.ids.ada,
+  OUTSIDER_ID: s.ids.bea,
   OWNER_TOKEN: ada,
   POSTER_TOKEN: dee,
   CHAPTERS_ID: chapters.channel.id,

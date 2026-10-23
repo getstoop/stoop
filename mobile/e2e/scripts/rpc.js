@@ -60,6 +60,40 @@ var steps = {
     for (var i = 0; i < messages.length; i++) if (messages[i].content === TEXT) count++;
     output.count = count;
   },
+  // In CHANNEL_ID (message-actions.yaml): how many people have given
+  // EMOJI to the newest page's message reading TEXT, as the server holds
+  // it; -1 when no message reads TEXT.
+  reactionCount: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    output.reactionCount = -1;
+    for (var i = 0; i < messages.length; i++) {
+      if (messages[i].content !== TEXT) continue;
+      output.reactionCount = 0;
+      var reactions = messages[i].reactions || [];
+      for (var j = 0; j < reactions.length; j++) {
+        if (reactions[j].emoji === EMOJI) output.reactionCount = (reactions[j].userIds || []).length;
+      }
+    }
+  },
+  // The message `say` wrote, deleted by ada, who moderates the space, as
+  // if from another device while its author has the confirm open.
+  ownerUnsays: function () {
+    rpc("DeleteMessage", OWNER_TOKEN, { messageId: output.messageId });
+  },
+  // bea (OUTSIDER_ID) in Book club as an admin, who moderates; already a
+  // member when the invite flows ran first. Then back to a plain member,
+  // as if demoted while she has a confirm open.
+  promote: function () {
+    try {
+      rpc("AddMember", OWNER_TOKEN, { spaceId: SPACE_ID, userId: OUTSIDER_ID });
+    } catch (err) {
+      if (String(err).indexOf("already") === -1) throw err;
+    }
+    rpc("SetMemberRole", OWNER_TOKEN, { spaceId: SPACE_ID, userId: OUTSIDER_ID, role: "SPACE_ROLE_ADMIN" });
+  },
+  demote: function () {
+    rpc("SetMemberRole", OWNER_TOKEN, { spaceId: SPACE_ID, userId: OUTSIDER_ID, role: "SPACE_ROLE_MEMBER" });
+  },
 };
 
 // hasOwnProperty from the prototype, so a STEP like "toString" is unknown.

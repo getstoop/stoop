@@ -1,7 +1,10 @@
 import { COMMON_EMOJI } from "@stoop/core/emoji";
+import { plainLines } from "@stoop/core/markdown";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
-import { Animated, Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CopyIcon,
@@ -20,10 +23,15 @@ import MessageRow from "./MessageRow";
 // quick reactions and the actions the reader may take on it, as the
 // mockup draws it. Edit is the author's; Delete is the author's or a
 // moderator's (core/permissions canDeleteAnyMessage, as on web). A
-// reaction the reader already has is filled. Every item is placed and
-// inert for now: pressing one only closes the sheet, until the steps
-// that give them work. The sheet goes on a tap on the scrim, a swipe
-// down, or Android's back.
+// reaction the reader already has is filled. A quick reaction toggles
+// itself on the message and closes the sheet; Copy text puts the
+// message's words on the clipboard, as the row draws them, and closes
+// it; Delete message asks first, and the confirm's Delete sends it.
+// What a toggle or a delete does to the log is the screen's
+// (useChannelLog react and remove), and so is saying when one is
+// refused. The other items are placed and inert: pressing one only
+// closes the sheet, until the steps that give them work. The sheet goes
+// on a tap on the scrim, a swipe down, or Android's back.
 
 const QUICK_REACTIONS = COMMON_EMOJI.slice(0, 5);
 // Off screen until the sheet has been measured.
@@ -38,6 +46,8 @@ export default function MessageMenu({
   canModerate,
   origin,
   token,
+  onReact,
+  onDelete,
   onClose,
 }: {
   message: Message;
@@ -45,6 +55,8 @@ export default function MessageMenu({
   canModerate: boolean;
   origin: string;
   token: string;
+  onReact: (emoji: string) => void;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   const theme = useTheme();
@@ -92,7 +104,40 @@ export default function MessageMenu({
   const reacted = (emoji: string) =>
     message.reactions.some((group) => group.emoji === emoji && group.userIds.includes(myUserId));
 
-  const items: { label: string; icon: ReactNode; note?: string; lead?: boolean; danger?: boolean }[] = [
+  const react = (emoji: string) => {
+    onReact(emoji);
+    dismiss();
+  };
+  // The words as the row draws them (core/markdown plainLines): a mention
+  // as its name, a link as its words or its address, lines kept. A light
+  // tap says it happened.
+  const copy = () => {
+    Clipboard.setStringAsync(plainLines(message.content)).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    dismiss();
+  };
+  // The system's confirm over the sheet; Cancel leaves the sheet open.
+  const confirmDelete = () =>
+    Alert.alert("Delete message?", "It's removed for everyone and can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          onDelete();
+          dismiss();
+        },
+      },
+    ]);
+
+  const items: {
+    label: string;
+    icon: ReactNode;
+    note?: string;
+    lead?: boolean;
+    danger?: boolean;
+    onPress?: () => void;
+  }[] = [
     {
       label: "Reply in thread",
       icon: <ThreadIcon color={theme.accent} />,
@@ -100,12 +145,17 @@ export default function MessageMenu({
       lead: true,
     },
     { label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} /> },
-    { label: "Copy text", icon: <CopyIcon color={theme.textMuted} /> },
+    { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
     { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} /> },
   ];
   if (mine) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} /> });
   if (mine || canModerate) {
-    items.push({ label: "Delete message", icon: <TrashIcon color={theme.danger} />, danger: true });
+    items.push({
+      label: "Delete message",
+      icon: <TrashIcon color={theme.danger} />,
+      danger: true,
+      onPress: confirmDelete,
+    });
   }
 
   const slide = Animated.add(
@@ -151,7 +201,7 @@ export default function MessageMenu({
                   accessibilityRole="button"
                   accessibilityLabel={`React with ${emoji}`}
                   accessibilityState={{ selected: on }}
-                  onPress={dismiss}
+                  onPress={() => react(emoji)}
                   style={({ pressed }) => [styles.reaction, on && styles.reacted, pressed && styles.down]}
                 >
                   <Text style={styles.emoji}>{emoji}</Text>
@@ -172,7 +222,7 @@ export default function MessageMenu({
               key={item.label}
               accessibilityRole="menuitem"
               accessibilityLabel={item.note ? `${item.label}, ${item.note}` : item.label}
-              onPress={dismiss}
+              onPress={item.onPress ?? dismiss}
               style={({ pressed }) => [styles.item, pressed && styles.pressed]}
             >
               {item.icon}

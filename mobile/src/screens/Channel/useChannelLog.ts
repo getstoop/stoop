@@ -1,10 +1,21 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { type ChannelLog, channelItems, forgetItems, hasPage, LOG_CAP, nextSince } from "@stoop/core/channelLog";
 import { type ChannelScreen, emptyScreen, type Outcome, type ScreenAction, screenReducer } from "@stoop/core/channelScreen";
+import { toggledReactions } from "@stoop/core/reactions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { ChannelGone, loadChanges, loadChannel, loadHeader, loadOlder, PAGE, sendMessage } from "../../api/messages";
+import {
+  ChannelGone,
+  deleteMessage,
+  loadChanges,
+  loadChannel,
+  loadHeader,
+  loadOlder,
+  PAGE,
+  sendMessage,
+  toggleReaction,
+} from "../../api/messages";
 import { sessionToken } from "../../api/servers";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
@@ -31,6 +42,12 @@ function outcomeOf(err: unknown): Outcome {
 
 // A refusal that won't change, so a catch-up stops asking.
 const final = (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument;
+
+// A refusal that means the sign-in has ended. For a request about one
+// message that is the only answer that says anything about the screen:
+// NotFound is the message's, not the channel's, and PermissionDenied says
+// what the reader may do to it.
+const ended = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
 
 // Whether another older page fits. A view holds at most LOG_CAP rows and
 // a page past that prunes the newest, the edge this screen keeps live
@@ -262,7 +279,62 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
     [server.origin, channelId, dispatch, latest],
   );
 
-  return { state, older, retry, send };
+  // The reader's own reaction, as web toggles one: written to the held
+  // row at once (core/channelScreen `reacted`, at the row's own seq, so
+  // the reactions_changed that follows replaces it), then ToggleReaction,
+  // whose answer is merged like a send's. A refusal puts the reactions
+  // back, unless the row has moved on meanwhile, and is the caller's to
+  // show; one that means the sign-in has ended shows as such.
+  const react = useCallback(
+    async (message: Message, emoji: string) => {
+      const mine = life.current;
+      const { header, token } = latest.current;
+      if (!header || !token) return;
+      const before = message.reactions;
+      const patch = (reactions: typeof before): ScreenAction => ({
+        type: "reacted",
+        messageId: message.id,
+        seq: message.seq,
+        reactions,
+      });
+      dispatch(patch(toggledReactions(before, emoji, header.myUserId)));
+      let answer: Message;
+      try {
+        answer = await toggleReaction(server.origin, token, message.id, emoji);
+      } catch (err) {
+        if (mine.ended) throw err;
+        if (latest.current.log.channelId === channelId) dispatch(patch(before));
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (latest.current.log.channelId === channelId) dispatch({ type: "sent", message: answer });
+    },
+    [server.origin, channelId, dispatch, latest],
+  );
+
+  // The reader's own delete, confirmed already: DeleteMessage, then the
+  // held row hidden at once (core/channelScreen `deleted`), as the
+  // message_deleted that follows makes it. A message already gone from
+  // under the confirm (deleted elsewhere while it was open) is nothing to
+  // ask for again. A refusal is the caller's to show, as above.
+  const remove = useCallback(
+    async (message: Message) => {
+      const mine = life.current;
+      const { token, log } = latest.current;
+      const held = log.rows.get(message.id);
+      if (!token || (held && held.deleted)) return;
+      try {
+        await deleteMessage(server.origin, token, message.id);
+      } catch (err) {
+        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (latest.current.log.channelId === channelId) dispatch({ type: "deleted", messageId: message.id });
+    },
+    [server.origin, channelId, dispatch, latest],
+  );
+
+  return { state, older, retry, send, react, remove };
 }
 
 export type { ChannelScreen };
