@@ -136,15 +136,17 @@ import a screen; the screens themselves live in `src/screens`, so
   the row is ringed in the accent on the panel surface (over the
   mention tint when it has one; the ring stays while the reader scrolls
   or puts the keyboard away), and the composer opens on the reply
-  strip with the field focused, the row scrolled into view when the
-  keyboard would cover it. The screen holds the quote by id, for this
+  strip with the field focused and, once the keyboard is up, the row
+  scrolled to the middle of what it leaves (once; a later keyboard
+  leaves the list where the reader put it). The screen holds the quote by id, for this
   channel only, and reads the row from the log, so it goes, silently
   and with the draft kept, when the message is deleted or left as a
   placeholder; a second Quote in reply replaces it, and a send or
   Cancel reply clears it. The reply goes out with `reply_to_message_id`
   and lands as the server's row, which says "↳ Replying to NAME: the
   first words" over its byline, as web's row does (the server's
-  preview; "a deleted message" once that is gone). A refused send puts
+  preview, `core/messagePreview` on the strip; "a deleted message" once
+  that is gone). A refused send puts
   the quote back with the draft, unless another was picked meanwhile,
   as web does. The list draws no reaction chips yet (that is the rich
   row's ticket), so a reaction shows only in the sheet's highlight.
@@ -316,9 +318,9 @@ They find things by the words on screen and, for text fields, a
 `testID`. They run in file order, and some lean on it: the message-menu
 flow has ada write in chapters, message-actions has dee write there
 (ada only deletes in it, and bea only reads), and quote-reply has ada
-reply there (and delete the reply), which the channel flow
-needs unread for ada with dee's first notes alone, so the channel flow
-goes first.
+reply there (and delete the reply) and dee post and delete "Going
+once", which the channel flow needs unread for ada with dee's first
+notes alone, so the channel flow goes first.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on
@@ -374,7 +376,8 @@ packages:
   dates, the emoji (`core/emoji.ts`: the common row, the names and
   keywords and the search over them, with the Unicode list in
   `core/emojiData.ts` and the `:shortcodes:` in `core/shortcodes.ts`),
-  the paths a message's link carries (`core/shareLinks.ts`), badge
+  the paths a message's link carries (`core/shareLinks.ts`), a
+  message's one-line preview (`core/messagePreview.ts`), badge
   counts, which
   messages run together and where the "New" line goes, the channel log
   web's timeline runs on (`core/channelLog`, which this app's channel

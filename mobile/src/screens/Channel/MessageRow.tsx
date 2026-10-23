@@ -4,6 +4,7 @@ import { mentionsMe } from "@stoop/core/mentions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
 import { type Theme, tokens, useTheme } from "../../theme";
 import MessageText from "./MessageText";
@@ -55,13 +56,14 @@ export default memo(function MessageRow({
   }
 
   const author = message.author;
-  const name = author ? author.displayName || author.username : "Someone";
+  const name = authorName(author);
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const hold = onLongPress && (() => onLongPress(message));
   const mentioned = !card && mentionsMe(message, myUserId);
   const ringed = !card && target;
+  // A quoted message since deleted comes with no author (and no preview;
+  // core/channelLog withQuotesBlanked, as the server reads it).
   const quoted = message.replyTo;
-  const quotedName = quoted?.author ? quoted.author.displayName || quoted.author.username : "";
   const body = (
     <>
       {message.content !== "" && (
@@ -80,6 +82,7 @@ export default memo(function MessageRow({
       onLongPress={hold}
       // Not one element: its name, time and words stay readable apart.
       accessible={false}
+      accessibilityLabel={ringed ? "Replying to this message" : undefined}
       testID={ringed ? "reply-target" : undefined}
       style={({ pressed }) => [
         card ? styles.card : styles.row,
@@ -97,10 +100,9 @@ export default memo(function MessageRow({
           <View style={styles.main}>
             {quoted && (
               <Text style={styles.quote} numberOfLines={1}>
-                {quotedName || quoted.preview ? (
+                {quoted.author ? (
                   <>
-                    ↳ Replying to <Text style={styles.quotedName}>{quotedName || "deleted"}</Text>:{" "}
-                    {quoted.preview || "(message deleted)"}
+                    ↳ Replying to <Text style={styles.quotedName}>{authorName(quoted.author)}</Text>: {quoted.preview}
                   </>
                 ) : (
                   "↳ Replying to a deleted message"

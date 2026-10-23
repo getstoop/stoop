@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  type FlatListProps,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -44,10 +43,10 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // clipboard refused. Quote in reply makes the message the composer's
 // quote: this screen holds it by id while the composer is on this
 // channel, rings its row, and once the menu has gone opens the composer
-// over it, scrolled into view if the keyboard would cover it; the quote
-// goes with a send, Cancel reply, the channel, or the message itself
-// (deleted, or left as a placeholder), silently. What is held and what
-// each answer and event does to it is the channel log's
+// over it, the row scrolled to the middle of what the keyboard leaves,
+// once; the quote goes with a send, Cancel reply, the channel, or the
+// message itself (deleted, or left as a placeholder), silently. What is
+// held and what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
 
@@ -56,8 +55,6 @@ const NOTICE_MS = 4000;
 // How long after the keyboard is announced the list has made room for it
 // (iOS animates the two together, over about a quarter of a second).
 const KEYBOARD_SETTLE_MS = 350;
-// A row half in view is in view.
-const VIEWABILITY = { itemVisiblePercentThreshold: 50 };
 
 export default function Channel({
   server,
@@ -89,12 +86,12 @@ export default function Channel({
   // The message the composer is quoting, by id; the row itself is read
   // from the log, so a deletion lets it go.
   const [replyToId, setReplyToId] = useState<string | null>(null);
-  // Whether the composer opens once the menu has gone (a quote picked).
+  // Whether the composer opens once the menu has gone (a quote picked),
+  // and whether the quote is still owed its scroll: once, as the keyboard
+  // first comes up for it, never again for a later keyboard.
   const openComposer = useRef(false);
+  const scrollOnce = useRef(false);
   const composer = useRef<ComposerHandle>(null);
-  // The rows in view, by message id, for a quote's scroll.
-  const inView = useRef(new Set<string>());
-  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   // What was refused, for a moment, with the server's reason when there
   // is one: the latest replaces the one before it.
   const [notice, setNotice] = useState<{ title: string; body?: string } | null>(null);
@@ -113,6 +110,7 @@ export default function Channel({
     if (menuFor) setMenuFor(null);
     if (replyToId) setReplyToId(null);
     openComposer.current = false;
+    scrollOnce.current = false;
   }
 
   useEffect(() => {
@@ -156,8 +154,15 @@ export default function Channel({
   const quote = useCallback((message: Message) => {
     setReplyToId(message.id);
     openComposer.current = true;
+    scrollOnce.current = true;
   }, []);
-  const reply = useCallback((message: Message) => setReplyToId(message.id), []);
+  // A refused send's quote coming back: only onto the channel it was for.
+  const reply = useCallback(
+    (message: Message) => {
+      if (message.channelId === channelId) setReplyToId(message.id);
+    },
+    [channelId],
+  );
   const cancelReply = useCallback(() => setReplyToId(null), []);
   const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
   // The menu closes without its own fade, by an abrupt unmount, when the
@@ -183,27 +188,19 @@ export default function Channel({
     if (replyGone) setReplyToId(null);
   }, [replyGone]);
   // The list makes room for the keyboard by shrinking from the bottom,
-  // so a quote high on the screen can end up under it: once the keyboard
-  // has settled, a quote out of view is scrolled to.
-  const onViewableItemsChanged = useCallback<NonNullable<FlatListProps<GroupedRow>["onViewableItemsChanged"]>>(
-    ({ viewableItems }) => {
-      inView.current = new Set(
-        viewableItems.flatMap((token) => (token.item.kind === "message" ? [token.item.message.id] : [])),
-      );
-    },
-    [],
-  );
+  // and the card floats over its foot, so a quote can end up under either:
+  // once the keyboard has settled, the quote is scrolled to the middle of
+  // what is left, whether or not it was in view (the list can't tell a
+  // row under the card from one in the clear). Once per quote: a later
+  // keyboard, with the reader scrolled away to read, leaves the list be.
   useEffect(() => {
-    if (!replyToId || keyboard === 0) return;
-    settle.current = setTimeout(() => {
-      settle.current = null;
-      if (inView.current.has(replyToId)) return;
+    if (!replyToId || keyboard === 0 || !scrollOnce.current) return;
+    const timer = setTimeout(() => {
+      scrollOnce.current = false;
       const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === replyToId);
       if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
     }, KEYBOARD_SETTLE_MS);
-    return () => {
-      if (settle.current) clearTimeout(settle.current);
-    };
+    return () => clearTimeout(timer);
   }, [replyToId, keyboard]);
 
   // The reader's marker follows the newest message while the channel is
@@ -319,8 +316,6 @@ export default function Channel({
             }
             onEndReached={older}
             onEndReachedThreshold={0.5}
-            viewabilityConfig={VIEWABILITY}
-            onViewableItemsChanged={onViewableItemsChanged}
             onScrollToIndexFailed={({ index }) => {
               // Rows not measured yet: get near, then try again once drawn.
               list.current?.scrollToOffset({ offset: index * 60, animated: false });

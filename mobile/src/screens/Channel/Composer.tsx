@@ -1,4 +1,5 @@
-import { isBlankMessage, plainText } from "@stoop/core/markdown";
+import { isBlankMessage } from "@stoop/core/markdown";
+import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -14,6 +15,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import { authorName } from "../../api/authors";
 import { errorText } from "../../api/errors";
 import { CloseIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -78,18 +80,31 @@ export default forwardRef<
   replyToRef.current = replyTo;
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
 
-  // The card, with the field focused: mounted so (autoFocus), or focused
-  // again if it is already up.
+  // The card, with the field focused: mounted so (autoFocus), and focused
+  // once more on the frame after it is up, since Android does not always
+  // honour autoFocus on a field mounted as a modal goes; or focused again
+  // if it is already up.
+  const focusWanted = useRef(false);
   useImperativeHandle(
     ref,
     () => ({
       open: () => {
-        if (writing) input.current?.focus();
-        else setWriting(true);
+        if (writing) {
+          input.current?.focus();
+          return;
+        }
+        focusWanted.current = true;
+        setWriting(true);
       },
     }),
     [writing],
   );
+  useEffect(() => {
+    if (!writing || !focusWanted.current) return;
+    focusWanted.current = false;
+    const frame = requestAnimationFrame(() => input.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [writing]);
 
   // Android hides the keyboard (the back gesture) without blurring the
   // field; iOS blurs it, so the field's own onBlur covers it there.
@@ -101,7 +116,7 @@ export default forwardRef<
 
   const placeholder = `Message #${channelName}`;
   const blank = isBlankMessage(draft);
-  const quotedName = replyTo ? authorName(replyTo) : "";
+  const quotedName = replyTo ? authorName(replyTo.author) : "";
 
   const submit = async () => {
     if (sendingRef.current || blank) return;
@@ -152,12 +167,14 @@ export default forwardRef<
         <View style={styles.reply}>
           <QuoteReplyIcon color={theme.accent} size={16} />
           <Text numberOfLines={1} style={styles.replyText} testID="reply-strip">
-            Replying to <Text style={styles.replyName}>{quotedName}</Text> · {preview(replyTo)}
+            Replying to <Text style={styles.replyName}>{quotedName}</Text> · {messagePreview(replyTo)}
           </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Cancel reply"
             onPress={onCancelReply}
+            // Drawn at 32; a 44 touch target.
+            hitSlop={6}
             style={({ pressed }) => [styles.cancel, raised, pressed && roundStyles.down]}
           >
             <CloseIcon color={theme.text} />
@@ -203,20 +220,6 @@ export default forwardRef<
     </Surface>
   );
 });
-
-// The quoted message's author, as the row names them.
-const authorName = (message: Message) =>
-  message.author ? message.author.displayName || message.author.username : "Someone";
-
-// The quoted message's first words, as the server previews a reply
-// (core/markdown plainText, web's messagePreview): its text, or its
-// first file's name when it has none.
-function preview(message: Message): string {
-  const text = plainText(message.content);
-  if (text) return text;
-  const first = message.attachments[0];
-  return first ? `📎 ${first.name}` : "";
-}
 
 // The composer's surface: Liquid Glass where iOS has it, else drawn with
 // the theme's panel and border under a light shadow, as the composing

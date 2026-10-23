@@ -237,9 +237,13 @@ name: React to a message from its menu, copy its words, and delete it
 - extendedWaitUntil:
     visible: "chapters, ${SPACE}, \\d+ members"
     timeout: 15000
+# Centred, so the note lands clear of the composer's pill, which floats
+# over the foot of the list: a long press on a note half under it is the
+# pill's.
 - scrollUntilVisible:
     element: "Chapter 55 notes"
     direction: DOWN
+    centerElement: true
     timeout: 60000
 - waitForAnimationToEnd:
     timeout: 3000
