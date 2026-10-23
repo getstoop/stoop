@@ -6,7 +6,7 @@ import {
   rememberEmoji,
   searchEmoji,
 } from "../api/emoji";
-import { EMOJI_GROUPS } from "../api/emojiData";
+import { EMOJI_GROUPS } from "../core/emojiData";
 
 // The reaction picker, anchored below the button that opened it (same
 // placement rules as UserCard): a text filter over every emoji's name,
