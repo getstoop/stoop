@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerates web/src/api/emojiData.ts from Unicode's emoji-test.txt.
+// Regenerates web/src/core/emojiData.ts from Unicode's emoji-test.txt.
 //
 //   node scripts/gen-emoji.mjs [path-or-url]
 //
@@ -18,7 +18,7 @@ const MAX_BYTES = 16;
 const out = join(
   dirname(fileURLToPath(import.meta.url)),
   "..",
-  "web/src/api/emojiData.ts",
+  "web/src/core/emojiData.ts",
 );
 
 const text = /^https?:/.test(SOURCE)

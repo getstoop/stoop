@@ -8,6 +8,9 @@ import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instanc
 import { notice } from "../stores/dialogs";
 import { serverOrigin } from "./origin";
 
+// The paths themselves are core/shareLinks.ts, shared with the phone.
+export { channelPath, messagePath, threadPath } from "../core/shareLinks";
+
 // What a shared path leads to, or "" for a path nobody shares. Settings,
 // admin and search are not sharing surfaces and never match.
 export type SharedLinkKind = "invite" | "message" | "channel" | "space" | "";
@@ -32,20 +35,6 @@ export function sharedLinkKind(
   return "";
 }
 
-// A space channel, or a direct message when there is no space.
-export function channelPath(spaceId: string, channelId: string): string {
-  return spaceId ? `/s/${spaceId}/c/${channelId}` : `/dm/${channelId}`;
-}
-
-// ?m= opens the channel around that message rather than the newest one.
-export function messagePath(
-  spaceId: string,
-  channelId: string,
-  messageId: string,
-): string {
-  return `${channelPath(spaceId, channelId)}?m=${encodeURIComponent(messageId)}`;
-}
-
 // The search that opens a message where it shows: the channel around it,
 // and for a reply in a thread, that thread as well.
 export function messageSearch(
@@ -54,18 +43,6 @@ export function messageSearch(
 ): { m?: string; t?: string } {
   if (!messageId) return {};
   return threadRootId ? { t: threadRootId, m: messageId } : { m: messageId };
-}
-
-// ?t= opens a thread in the side panel; ?m= with it lands on one reply.
-export function threadPath(
-  spaceId: string,
-  channelId: string,
-  rootId: string,
-  messageId?: string,
-): string {
-  const query = new URLSearchParams({ t: rootId });
-  if (messageId && messageId !== rootId) query.set("m", messageId);
-  return `${channelPath(spaceId, channelId)}?${query}`;
 }
 
 // The thread a link names: its channel from the path, its root from ?t=,
