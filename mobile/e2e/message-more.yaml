@@ -1,0 +1,156 @@
+appId: ${APP_ID}
+name: Pick a reaction from the emoji picker, and copy a message's link
+---
+# After channel.yaml, which needs chapters unread for ada with only dee's
+# first notes in it (the reaction given here is taken back, and nothing
+# is written). Alphabetical order carries that today, and puts this flow
+# after message-actions and message-menu, which it minds nothing of. As
+# dee, a plain member, in chapters, where every note is dee's own.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${POSTER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+# More reactions puts the picker in the menu's place: a search field, the
+# common row and the groups; nothing used yet, so no Recently used row.
+# Before each long press the list settles.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "More reactions"
+    timeout: 5000
+- tapOn: "More reactions"
+- extendedWaitUntil:
+    visible:
+      id: "emoji-search"
+    timeout: 5000
+- assertVisible: "Common"
+- assertNotVisible: "Recently used"
+- assertNotVisible: "Quote in reply"
+# A search by a keyword finds the party popper, and a tap on it closes
+# the sheet with the reaction on the server.
+- tapOn:
+    id: "emoji-search"
+- inputText: "tada"
+- extendedWaitUntil:
+    visible:
+      id: "search:🎉"
+    timeout: 5000
+- assertNotVisible: "Common"
+- tapOn:
+    id: "search:🎉"
+- extendedWaitUntil:
+    notVisible:
+      id: "emoji-search"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reactionCount
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Chapter 55 notes
+      EMOJI: 🎉
+      EXPECTED: 1
+- assertTrue: ${output.reactionCount == 1}
+# Opened again, the picker remembers it under Recently used, filled in;
+# tapped there, it is taken away.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "More reactions"
+    timeout: 5000
+- tapOn: "More reactions"
+- extendedWaitUntil:
+    visible: "Recently used"
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: "recent:🎉"
+      selected: true
+    timeout: 5000
+- tapOn:
+    id: "recent:🎉"
+- extendedWaitUntil:
+    notVisible: "Recently used"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reactionCount
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Chapter 55 notes
+      EMOJI: 🎉
+      EXPECTED: 0
+- assertTrue: ${output.reactionCount == 0}
+# Copy link closes the sheet with the message's link on the clipboard:
+# the server's address, the channel, and ?m= for the message. Pasted
+# into the composer, it is the draft, letter for letter.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: messageId
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Chapter 55 notes
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Copy link"
+    timeout: 5000
+- tapOn: "Copy link"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- tapOn: "Message #chapters"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+- longPressOn:
+    id: "composer"
+- extendedWaitUntil:
+    visible: "Paste"
+    timeout: 5000
+- tapOn: "Paste"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+      text: "${SERVER}/s/${SPACE_ID}/c/${CHAPTERS_ID}\\?m=${output.messageId}"
+    timeout: 5000
+- copyTextFrom:
+    id: "composer"
+- assertTrue: ${maestro.copiedText == SERVER + "/s/" + SPACE_ID + "/c/" + CHAPTERS_ID + "?m=" + output.messageId}
+- eraseText: 200
+- tapOn: "Chapter 54 notes"
+- extendedWaitUntil:
+    notVisible: "Send"
+    timeout: 5000

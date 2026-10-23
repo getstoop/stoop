@@ -87,7 +87,7 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-haptics`). While the keyboard is up a long press first puts it
   away (the list takes that first touch), and a second one opens the
   menu. A screen reader can't open it yet: an accessibility action on
-  the row is a follow-up. Three of its items work. A quick reaction
+  the row is a follow-up. Five of its items work. A quick reaction
   toggles itself on the message and closes the sheet, as web does it:
   the held row takes the reader's toggle at once (`core/reactions`
   `toggledReactions`, through the screen reducer's `reacted`, at the
@@ -97,16 +97,30 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-clipboard`, a native module, so a build on the phone needs
   `make mobile-ios` again) as the row draws them, a mention as its
   name and a link as its words or address (`core/markdown`
-  `plainLines`). Delete message asks first, in the system's confirm,
+  `plainLines`). More reactions puts web's emoji picker in the sheet's
+  place (`src/screens/Channel/EmojiPicker.tsx`, under the same scrim and
+  card): a search field over every emoji's name and keywords
+  (`core/emoji` `searchEmoji`, the list and the groups shared with web),
+  and with nothing typed, what this phone used recently (`src/api/emoji.ts`,
+  newest first, sixteen at most, kept in the keychain as the theme is),
+  the common row and every group, in a grid of 48pt cells with the
+  reader's own filled in; a tap toggles that reaction as a quick one
+  does, remembers it and closes the sheet. The sheet rises with the
+  keyboard while the field has it. Copy link puts the message's link
+  on the clipboard (`src/api/shareLinks.ts` over `core/shareLinks`, as
+  web's channel builds it: the saved server's origin, then
+  `/s/<space>/c/<channel>?m=<message>`, a `/dm/` path for a direct
+  message, and `?t=<root>&m=<reply>` for a reply in a thread, so the
+  browser opens the thread on it) and says "Couldn't copy the link"
+  over the composer when the clipboard refuses. Delete message asks first, in the system's confirm,
   then `DeleteMessage`; the row goes at once (`deleted`, the same way)
   as the server's event makes it, and a root with replies stays as its
   placeholder when that event says so. What the server refuses is said
   in a line over the composer for a few seconds, with its reason. The
   list draws no reaction chips yet (that is the rich row's ticket), so
-  a reaction shows only in the sheet's highlight. More reactions, Reply
-  in thread, Quote in reply, Copy link and Edit message are placed and
-  inert: pressing one only closes the sheet, until the steps that give
-  them work.
+  a reaction shows only in the sheet's highlight. Reply in thread,
+  Quote in reply and Edit message are placed and inert: pressing one
+  only closes the sheet, until the steps that give them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -261,7 +275,8 @@ waiting in each of its channels, read a channel from its "New" line back
 to its first message while messages arrive, change and go, write in a
 channel and see the message land once, react to a message from its
 menu, copy its words and delete it, long-press a message and see
-what its menu offers as a member and as a moderator, add a second
+what its menu offers as a member and as a moderator, pick a reaction
+from the emoji picker and copy a message's link, add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and
@@ -325,7 +340,11 @@ packages:
   the protos.
 - `@stoop/core/*` maps to `../web/src/core/*`, web's code that needs no
   browser. That covers the Markdown parser, mention tokens, permissions,
-  dates, the common emoji (`core/emoji.ts`), badge counts, which
+  dates, the emoji (`core/emoji.ts`: the common row, the names and
+  keywords and the search over them, with the Unicode list in
+  `core/emojiData.ts` and the `:shortcodes:` in `core/shortcodes.ts`),
+  the paths a message's link carries (`core/shareLinks.ts`), badge
+  counts, which
   messages run together and where the "New" line goes, the channel log
   web's timeline runs on (`core/channelLog`, which this app's channel
   screen runs on too), a channel's header

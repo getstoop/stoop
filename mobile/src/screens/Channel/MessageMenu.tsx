@@ -3,8 +3,8 @@ import { plainLines } from "@stoop/core/markdown";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
-import { Alert, Animated, Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CopyIcon,
@@ -16,7 +16,9 @@ import {
   TrashIcon,
 } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import EmojiPicker, { type EmojiPickerHandle } from "./EmojiPicker";
 import MessageRow from "./MessageRow";
+import { useSheet } from "./useSheet";
 
 // The message menu, opened by a long press on a row: a scrim over the
 // channel, the message drawn once more as a card above a sheet of the
@@ -24,21 +26,20 @@ import MessageRow from "./MessageRow";
 // mockup draws it. Edit is the author's; Delete is the author's or a
 // moderator's (core/permissions canDeleteAnyMessage, as on web). A
 // reaction the reader already has is filled. A quick reaction toggles
-// itself on the message and closes the sheet; Copy text puts the
-// message's words on the clipboard, as the row draws them, and closes
-// it; Delete message asks first, and the confirm's Delete sends it.
-// What a toggle or a delete does to the log is the screen's
-// (useChannelLog react and remove), and so is saying when one is
-// refused. The other items are placed and inert: pressing one only
-// closes the sheet, until the steps that give them work. The sheet goes
-// on a tap on the scrim, a swipe down, or Android's back.
+// itself on the message and closes the sheet; More reactions puts the
+// emoji picker (EmojiPicker) in the sheet's place, under the same scrim
+// and card, and a pick there does the same; Copy text puts the message's
+// words on the clipboard, as the row draws them, and closes it; Copy
+// link does the same with the message's link, as the screen built it,
+// and says so (onCopyFailed) when the clipboard refuses; Delete message
+// asks first, and the confirm's Delete sends it. What a toggle or a
+// delete does to the log is the screen's (useChannelLog react and
+// remove), and so is saying when one is refused. The other items are
+// placed and inert: pressing one only closes the sheet, until the steps
+// that give them work. Either sheet goes on a tap on the scrim, a swipe
+// down, or Android's back (useSheet).
 
 const QUICK_REACTIONS = COMMON_EMOJI.slice(0, 5);
-// Off screen until the sheet has been measured.
-const OFF = 2000;
-// How far, or how fast, a swipe down must go to close the sheet.
-const DISMISS_DY = 80;
-const DISMISS_VY = 0.6;
 
 export default function MessageMenu({
   message,
@@ -46,7 +47,9 @@ export default function MessageMenu({
   canModerate,
   origin,
   token,
+  link,
   onReact,
+  onCopyFailed,
   onDelete,
   onClose,
 }: {
@@ -55,49 +58,27 @@ export default function MessageMenu({
   canModerate: boolean;
   origin: string;
   token: string;
+  // The message's link, ready to copy.
+  link: string;
   onReact: (emoji: string) => void;
+  onCopyFailed: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
-  // The scrim and the card fade; the sheet slides from its own height
-  // below its place, and follows a finger dragging it down.
+  // The scrim and the card fade in, and out with whichever sheet is up.
   const shown = useRef(new Animated.Value(0)).current;
-  const offset = useRef(new Animated.Value(OFF)).current;
-  const drag = useRef(new Animated.Value(0)).current;
-  const height = useRef(0);
-  const closing = useRef(false);
+  const { dismiss, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  // Whether the picker has taken the menu's place.
+  const [picking, setPicking] = useState(false);
+  const picker = useRef<EmojiPickerHandle>(null);
+  const close = () => (picking ? picker.current?.dismiss() : dismiss());
 
   useEffect(() => {
     Animated.timing(shown, { toValue: 1, duration: tokens.dur, useNativeDriver: true }).start();
   }, [shown]);
-
-  const dismiss = useCallback(() => {
-    if (closing.current) return;
-    closing.current = true;
-    Animated.parallel([
-      Animated.timing(shown, { toValue: 0, duration: tokens.dur, useNativeDriver: true }),
-      Animated.timing(offset, { toValue: height.current || OFF, duration: tokens.dur, useNativeDriver: true }),
-    ]).start(onClose);
-  }, [shown, offset, onClose]);
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
-          gesture.dy > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-        onPanResponderMove: (_event, gesture) => drag.setValue(gesture.dy),
-        onPanResponderRelease: (_event, gesture) => {
-          if (gesture.dy > DISMISS_DY || gesture.vy > DISMISS_VY) dismiss();
-          else Animated.spring(drag, { toValue: 0, bounciness: 0, useNativeDriver: true }).start();
-        },
-        onPanResponderTerminate: () =>
-          Animated.spring(drag, { toValue: 0, bounciness: 0, useNativeDriver: true }).start(),
-      }),
-    [drag, dismiss],
-  );
 
   const mine = message.author?.id === myUserId;
   const replies = message.thread?.replyCount ?? 0;
@@ -113,6 +94,13 @@ export default function MessageMenu({
   // tap says it happened.
   const copy = () => {
     Clipboard.setStringAsync(plainLines(message.content)).catch(() => {});
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    dismiss();
+  };
+  // The link the same way; a clipboard that refuses it is said, since
+  // nothing else shows whether it was copied.
+  const copyLink = () => {
+    Clipboard.setStringAsync(link).catch(onCopyFailed);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     dismiss();
   };
@@ -146,7 +134,7 @@ export default function MessageMenu({
     },
     { label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} /> },
     { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
-    { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} /> },
+    { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} />, onPress: copyLink },
   ];
   if (mine) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} /> });
   if (mine || canModerate) {
@@ -158,79 +146,73 @@ export default function MessageMenu({
     });
   }
 
-  const slide = Animated.add(
-    offset,
-    drag.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolateLeft: "clamp" }),
-  );
-
   return (
-    <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.fill} onAccessibilityEscape={dismiss}>
+    <Modal transparent visible animationType="none" onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
+      <View style={styles.fill} onAccessibilityEscape={close}>
         <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
         <View style={styles.above}>
           <Pressable
             style={StyleSheet.absoluteFill}
             accessibilityRole="button"
             accessibilityLabel="Close"
-            onPress={dismiss}
+            onPress={close}
             testID="message-menu-close"
           />
           <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
             <MessageRow message={message} continued={false} myUserId={myUserId} origin={origin} token={token} card />
           </Animated.View>
         </View>
-        <Animated.View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
-          accessibilityRole="menu"
-          accessibilityLabel="Message actions"
-          onLayout={(event) => {
-            if (height.current) return;
-            height.current = event.nativeEvent.layout.height;
-            offset.setValue(height.current);
-            Animated.timing(offset, { toValue: 0, duration: tokens.dur, useNativeDriver: true }).start();
-          }}
-          {...pan.panHandlers}
-        >
-          <View style={styles.handle} />
-          <View style={styles.reactions}>
-            {QUICK_REACTIONS.map((emoji) => {
-              const on = reacted(emoji);
-              return (
-                <Pressable
-                  key={emoji}
-                  accessibilityRole="button"
-                  accessibilityLabel={`React with ${emoji}`}
-                  accessibilityState={{ selected: on }}
-                  onPress={() => react(emoji)}
-                  style={({ pressed }) => [styles.reaction, on && styles.reacted, pressed && styles.down]}
-                >
-                  <Text style={styles.emoji}>{emoji}</Text>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="More reactions"
-              onPress={dismiss}
-              style={({ pressed }) => [styles.reaction, pressed && styles.down]}
-            >
-              <SmileyIcon color={theme.textMuted} />
-            </Pressable>
-          </View>
-          {items.map((item) => (
-            <Pressable
-              key={item.label}
-              accessibilityRole="menuitem"
-              accessibilityLabel={item.note ? `${item.label}, ${item.note}` : item.label}
-              onPress={item.onPress ?? dismiss}
-              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-            >
-              {item.icon}
-              <Text style={[styles.label, item.lead && styles.lead, item.danger && styles.danger]}>{item.label}</Text>
-              {item.note && <Text style={styles.note}>{item.note}</Text>}
-            </Pressable>
-          ))}
-        </Animated.View>
+        {picking ? (
+          <EmojiPicker ref={picker} shown={shown} reacted={reacted} onPick={onReact} onClose={onClose} />
+        ) : (
+          <Animated.View
+            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
+            accessibilityRole="menu"
+            accessibilityLabel="Message actions"
+            onLayout={onLayout}
+            {...panHandlers}
+          >
+            <View style={styles.handle} />
+            <View style={styles.reactions}>
+              {QUICK_REACTIONS.map((emoji) => {
+                const on = reacted(emoji);
+                return (
+                  <Pressable
+                    key={emoji}
+                    accessibilityRole="button"
+                    accessibilityLabel={`React with ${emoji}`}
+                    accessibilityState={{ selected: on }}
+                    onPress={() => react(emoji)}
+                    style={({ pressed }) => [styles.reaction, on && styles.reacted, pressed && styles.down]}
+                  >
+                    <Text style={styles.emoji}>{emoji}</Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="More reactions"
+                onPress={() => setPicking(true)}
+                style={({ pressed }) => [styles.reaction, pressed && styles.down]}
+              >
+                <SmileyIcon color={theme.textMuted} />
+              </Pressable>
+            </View>
+            {items.map((item) => (
+              <Pressable
+                key={item.label}
+                accessibilityRole="menuitem"
+                accessibilityLabel={item.note ? `${item.label}, ${item.note}` : item.label}
+                onPress={item.onPress ?? dismiss}
+                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+              >
+                {item.icon}
+                <Text style={[styles.label, item.lead && styles.lead, item.danger && styles.danger]}>{item.label}</Text>
+                {item.note && <Text style={styles.note}>{item.note}</Text>}
+              </Pressable>
+            ))}
+          </Animated.View>
+        )}
       </View>
     </Modal>
   );

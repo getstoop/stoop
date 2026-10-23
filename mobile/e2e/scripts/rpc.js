@@ -60,6 +60,14 @@ var steps = {
     for (var i = 0; i < messages.length; i++) if (messages[i].content === TEXT) count++;
     output.count = count;
   },
+  // In CHANNEL_ID (message-more.yaml): the id of the newest page's message
+  // reading TEXT, as the server holds it, for the link the flow expects.
+  messageId: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    output.messageId = "";
+    for (var i = 0; i < messages.length; i++) if (messages[i].content === TEXT) output.messageId = messages[i].id;
+    if (!output.messageId) throw new Error("no message reads " + TEXT);
+  },
   // In CHANNEL_ID (message-actions.yaml): how many people have given
   // EMOJI to the newest page's message reading TEXT, as the server holds
   // it; -1 when no message reads TEXT. The sheet closes on the tap,

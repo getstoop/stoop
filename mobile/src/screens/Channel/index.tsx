@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { errorText } from "../../api/errors";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
+import { messageLink } from "../../api/shareLinks";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -38,7 +39,8 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // comes back as a row the same way an event does. A long press on a
 // message opens its menu over the channel (MessageMenu); a reaction or a
 // delete from it goes through useChannelLog, and one the server refuses
-// is said in a line over the composer for a moment. What is held and
+// is said in a line over the composer for a moment, as is a link the
+// clipboard refused. What is held and
 // what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
@@ -73,9 +75,9 @@ export default function Channel({
   // The message whose menu is open, by id: it closes with the message if
   // that is deleted, and with the channel if that goes.
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  // What the server refused, for a moment: the latest one replaces the
-  // one before it.
-  const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
+  // What was refused, for a moment, with the server's reason when there
+  // is one: the latest replaces the one before it.
+  const [notice, setNotice] = useState<{ title: string; body?: string } | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const screen = useRef<ComponentRef<typeof View>>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
@@ -105,7 +107,7 @@ export default function Channel({
     setMenuFor(message.id);
   }, []);
   const closeMenu = useCallback(() => setMenuFor(null), []);
-  const notify = useCallback((title: string, body: string) => {
+  const notify = useCallback((title: string, body?: string) => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     setNotice({ title, body });
     noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
@@ -128,6 +130,7 @@ export default function Channel({
     },
     [remove, notify],
   );
+  const linkNotCopied = useCallback(() => notify("Couldn't copy the link"), [notify]);
   const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
   // The menu closes without its own fade, by an abrupt unmount, when the
   // message goes (deleted, or left as a placeholder) or the channel does;
@@ -292,9 +295,11 @@ export default function Channel({
               pointerEvents="none"
             >
               <Text style={styles.toastTitle}>{notice.title}</Text>
-              <Text style={styles.toastBody} numberOfLines={2}>
-                {notice.body}
-              </Text>
+              {notice.body && (
+                <Text style={styles.toastBody} numberOfLines={2}>
+                  {notice.body}
+                </Text>
+              )}
             </View>
           )}
         </View>
@@ -306,7 +311,9 @@ export default function Channel({
           canModerate={canDeleteAnyMessage(space)}
           origin={server.origin}
           token={token}
+          link={messageLink(server.origin, spaceId, menuMessage)}
           onReact={(emoji) => reactTo(menuMessage, emoji)}
+          onCopyFailed={linkNotCopied}
           onDelete={() => deleteMessage(menuMessage)}
           onClose={closeMenu}
         />
