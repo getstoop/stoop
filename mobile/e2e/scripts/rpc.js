@@ -47,10 +47,26 @@ var steps = {
   unsay: function () {
     rpc("DeleteMessage", POSTER_TOKEN, { messageId: output.messageId });
   },
-  // In CHANNEL_ID (message-menu.yaml): ada, who owns the space and so
-  // moderates it, writes TEXT.
+  // In CHANNEL_ID (message-menu.yaml, edit.yaml): ada, who owns the space
+  // and so moderates it, writes TEXT; or (edit.yaml) TEXT after a mention
+  // of dee, as a token.
   ownerSays: function () {
-    rpc("SendMessage", OWNER_TOKEN, { channelId: CHANNEL_ID, content: TEXT });
+    output.messageId = rpc("SendMessage", OWNER_TOKEN, { channelId: CHANNEL_ID, content: TEXT }).message.id;
+  },
+  ownerMentions: function () {
+    output.messageId = rpc("SendMessage", OWNER_TOKEN, {
+      channelId: CHANNEL_ID,
+      content: "<@u:" + POSTER_ID + ":" + POSTER + "> " + TEXT,
+    }).message.id;
+  },
+  // Whether the message `ownerSays` or `ownerMentions` wrote now reads
+  // EXPECTED, as the server holds it (edit.yaml); the content read is
+  // left in output.content for the failure to show.
+  contentIs: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    output.content = "";
+    for (var i = 0; i < messages.length; i++) if (messages[i].id === output.messageId) output.content = messages[i].content;
+    output.contentIs = output.content === EXPECTED;
   },
   // In CHANNEL_ID (send.yaml): how many of the newest page's messages
   // read TEXT, as the server holds them.

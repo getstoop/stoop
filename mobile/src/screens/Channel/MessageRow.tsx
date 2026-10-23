@@ -18,8 +18,9 @@ const GAP = 10;
 // words of that message over its byline, as the mockup draws it (the
 // server's preview; a quoted message since deleted reads as such). A
 // message that mentions the reader is tinted; the one the reader is
-// quoting in the composer (`target`) is ringed in the accent on the
-// panel surface, over the tint when it has one. A long press anywhere
+// quoting or editing in the composer (`target`) is ringed in the accent
+// on the panel surface, over the tint when it has one, one ring for
+// either, told apart by the row's label. A long press anywhere
 // on it opens the message menu (MessageMenu), which draws the row again
 // as a card: the mockup's 12px inset, no tint or ring, and the day with
 // the time, since the list's day lines are not there to carry it. A
@@ -34,7 +35,7 @@ export default memo(function MessageRow({
   token,
   onLongPress,
   card = false,
-  target = false,
+  target,
 }: {
   message: Message;
   continued: boolean;
@@ -43,7 +44,7 @@ export default memo(function MessageRow({
   token: string;
   onLongPress?: (message: Message) => void;
   card?: boolean;
-  target?: boolean;
+  target?: "reply" | "edit";
 }) {
   const styles = makeStyles(useTheme());
 
@@ -60,7 +61,7 @@ export default memo(function MessageRow({
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const hold = onLongPress && (() => onLongPress(message));
   const mentioned = !card && mentionsMe(message, myUserId);
-  const ringed = !card && target;
+  const ringed = !card && !!target;
   // A quoted message since deleted comes with no author (and no preview;
   // core/channelLog withQuotesBlanked, as the server reads it).
   const quoted = message.replyTo;
@@ -82,8 +83,8 @@ export default memo(function MessageRow({
       onLongPress={hold}
       // Not one element: its name, time and words stay readable apart.
       accessible={false}
-      accessibilityLabel={ringed ? "Replying to this message" : undefined}
-      testID={ringed ? "reply-target" : undefined}
+      accessibilityLabel={ringed ? (target === "edit" ? "Editing this message" : "Replying to this message") : undefined}
+      testID={ringed ? `${target}-target` : undefined}
       style={({ pressed }) => [
         card ? styles.card : styles.row,
         mentioned && styles.mentioned,

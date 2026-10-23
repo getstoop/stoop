@@ -94,7 +94,7 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-haptics`). While the keyboard is up a long press first puts it
   away (the list takes that first touch), and a second one opens the
   menu. A screen reader can't open it yet: an accessibility action on
-  the row is a follow-up. Six of its items work. A quick reaction
+  the row is a follow-up. Seven of its items work. A quick reaction
   toggles itself on the message and closes the sheet, as web does it:
   the held row takes the reader's toggle at once (`core/reactions`
   `toggledReactions`, through the screen reducer's `reacted`, at the
@@ -148,10 +148,36 @@ import a screen; the screens themselves live in `src/screens`, so
   preview, `core/messagePreview` on the strip; "a deleted message" once
   that is gone). A refused send puts
   the quote back with the draft, unless another was picked meanwhile,
-  as web does. The list draws no reaction chips yet (that is the rich
-  row's ticket), so a reaction shows only in the sheet's highlight.
-  Reply in thread and Edit message are placed and inert: pressing one
-  only closes the sheet, until the steps that give them work.
+  as web does. Edit message, on the reader's own, puts the composer
+  into editing mode the same way: the sheet closes, the row is ringed
+  as a quoted one is (labelled "Editing this message"), and the
+  composer opens with the draft set aside and the message's words in
+  the field, under a strip that says "Editing message" with an accent
+  pencil and a round Cancel editing; Send is Save (a check in the same
+  accent circle), and Attach is dimmed, since an edit changes words
+  only. The screen holds the edit by id as it holds the quote, one of
+  the two at a time: an edit begun drops a quote, Quote in reply ends
+  an edit, and the message going (deleted, or left as a placeholder)
+  ends it silently, the edited words dropped. Cancel editing or Save
+  ends it with the set-aside draft back in the field. A plain field
+  can't hold the tokens a mention or a channel link is stored as, so
+  the field shows each as its `@handle` or `#name` and Save puts the
+  tokens back for the handles the original message had as tokens
+  (`core/editableText`, with its tests: a mention moved or repeated
+  keeps its token, one removed stays removed, a `@name` the original
+  had no token for stays words, and where the original had the same
+  words both as a token and as text the n-th stays what the n-th was).
+  Save with the words unchanged ends the edit with nothing sent; with
+  none at all it is refused in web's words ("A message can't be empty —
+  delete it instead.") under the field, the edit going on; otherwise
+  `EditMessage` goes out and its answer merges like a send's, the row
+  then marked "(edited)". A refusal keeps the edited words with the
+  server's reason under them. The same message edited elsewhere
+  meanwhile leaves the field's words alone; saving then replaces it,
+  last write wins, as on web. The list draws no reaction chips yet
+  (that is the rich row's ticket), so a reaction shows only in the
+  sheet's highlight. Reply in thread is placed and inert: pressing it
+  only closes the sheet, until the step that gives it work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -308,18 +334,23 @@ channel and see the message land once, react to a message from its
 menu, copy its words and delete it, long-press a message and see
 what its menu offers as a member and as a moderator, pick a reaction
 from the emoji picker and copy a message's link, quote a message in a
-reply, cancel it, send it and see the quote go with its message, add a second
+reply, cancel it, send it and see the quote go with its message, edit a
+message from its menu, cancel an edit and see Save refuse an emptied
+one (and keep a mention's token), add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a
-`testID`. They run in file order, and some lean on it: the message-menu
+`testID`. They run in the order `e2e/config.yaml` lists them, by file
+name (Maestro runs a directory in no fixed order of its own, and a new
+flow goes in that list too), and some lean on it: the message-menu
 flow has ada write in chapters, message-actions has dee write there
-(ada only deletes in it, and bea only reads), and quote-reply has ada
+(ada only deletes in it, and bea only reads), quote-reply has ada
 reply there (and delete the reply) and dee post and delete "Going
-once", which the channel flow needs unread for ada with dee's first
+once", and edit has ada write there over RPC and delete what she wrote,
+which the channel flow needs unread for ada with dee's first
 notes alone, so the channel flow goes first.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a

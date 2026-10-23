@@ -121,6 +121,16 @@ export async function toggleReaction(
   return message;
 }
 
+// The reader's own message with new words: content only, its files
+// untouched. The answer is the row at its new seq, for the screen to
+// merge as it merges a send's answer (the message_updated that follows
+// says the same).
+export async function editMessage(origin: string, token: string, messageId: string, content: string): Promise<Message> {
+  const { message } = await chatClient(origin, token).editMessage({ messageId, content }, { timeoutMs: TIMEOUT_MS });
+  if (!message) throw new Error("The server answered with nothing.");
+  return message;
+}
+
 // The message goes for everyone; the server decides who may (the author,
 // or someone who moderates the space).
 export async function deleteMessage(origin: string, token: string, messageId: string): Promise<void> {
