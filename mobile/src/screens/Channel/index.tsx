@@ -45,10 +45,13 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // channel, rings its row, and once the menu has gone opens the composer
 // over it, the row scrolled to the middle of what the keyboard leaves,
 // once; the quote goes with a send, Cancel reply, the channel, or the
-// message itself (deleted, or left as a placeholder), silently. What is
-// held and what each answer and event does to it is the channel log's
-// (core/channelLog, under core/channelScreen, through useChannelLog);
-// this screen marks read and draws.
+// message itself (deleted, or left as a placeholder), silently. Edit
+// message holds the message the same way, for the composer to edit;
+// one at a time between the two, so an edit begun drops a quote and a
+// quote picked ends an edit. What is held and what each answer and
+// event does to it is the channel log's (core/channelLog, under
+// core/channelScreen, through useChannelLog); this screen marks read
+// and draws.
 
 // How long a refusal's line stays.
 const NOTICE_MS = 4000;
@@ -71,7 +74,7 @@ export default function Channel({
   const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
-  const { state, older, retry, send, react, remove } = useChannelLog(server, spaceId, channelId);
+  const { state, older, retry, send, react, remove, edit } = useChannelLog(server, spaceId, channelId);
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
   // The composer's height as drawn, for the list to clear.
@@ -86,9 +89,13 @@ export default function Channel({
   // The message the composer is quoting, by id; the row itself is read
   // from the log, so a deletion lets it go.
   const [replyToId, setReplyToId] = useState<string | null>(null);
-  // Whether the composer opens once the menu has gone (a quote picked),
-  // and whether the quote is still owed its scroll: once, as the keyboard
-  // first comes up for it, never again for a later keyboard.
+  // The message the composer is editing, by id, held the same way; never
+  // both at once.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // Whether the composer opens once the menu has gone (a quote or an
+  // edit picked), and whether that row is still owed its scroll: once,
+  // as the keyboard first comes up for it, never again for a later
+  // keyboard.
   const openComposer = useRef(false);
   const scrollOnce = useRef(false);
   const composer = useRef<ComposerHandle>(null);
@@ -109,6 +116,7 @@ export default function Channel({
     landed.current = false;
     if (menuFor) setMenuFor(null);
     if (replyToId) setReplyToId(null);
+    if (editingId) setEditingId(null);
     openComposer.current = false;
     scrollOnce.current = false;
   }
@@ -152,16 +160,25 @@ export default function Channel({
   );
   const linkNotCopied = useCallback(() => notify("Couldn't copy the link"), [notify]);
   const quote = useCallback((message: Message) => {
+    setEditingId(null);
     setReplyToId(message.id);
     openComposer.current = true;
     scrollOnce.current = true;
   }, []);
-  // A refused send's quote coming back: only onto the channel it was for.
+  const startEdit = useCallback((message: Message) => {
+    setReplyToId(null);
+    setEditingId(message.id);
+    openComposer.current = true;
+    scrollOnce.current = true;
+  }, []);
+  const endEdit = useCallback(() => setEditingId(null), []);
+  // A refused send's quote coming back: only onto the channel it was for,
+  // and not over an edit begun meanwhile.
   const reply = useCallback(
     (message: Message) => {
-      if (message.channelId === channelId) setReplyToId(message.id);
+      if (message.channelId === channelId && !editingId) setReplyToId(message.id);
     },
-    [channelId],
+    [channelId, editingId],
   );
   const cancelReply = useCallback(() => setReplyToId(null), []);
   const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
@@ -173,35 +190,44 @@ export default function Channel({
   useEffect(() => {
     if (menuGone) setMenuFor(null);
   }, [menuGone]);
-  // The composer opens for a quote once the menu's modal is gone, so its
-  // field can take the keyboard.
+  // The composer opens for a quote or an edit once the menu's modal is
+  // gone, so its field can take the keyboard.
   useEffect(() => {
     if (menuFor || !openComposer.current) return;
     openComposer.current = false;
     composer.current?.open();
   }, [menuFor]);
-  // The quote, as the log holds it; gone with the message.
+  // The quote and the message being edited, as the log holds them; gone
+  // with the message.
   const replyRow = replyToId ? log.rows.get(replyToId) : undefined;
   const replyTo = replyRow && !replyRow.deleted ? replyRow : null;
   const replyGone = !!replyToId && !replyTo;
   useEffect(() => {
     if (replyGone) setReplyToId(null);
   }, [replyGone]);
-  // The list makes room for the keyboard by shrinking from the bottom,
-  // and the card floats over its foot, so a quote can end up under either:
-  // once the keyboard has settled, the quote is scrolled to the middle of
-  // what is left, whether or not it was in view (the list can't tell a
-  // row under the card from one in the clear). Once per quote: a later
-  // keyboard, with the reader scrolled away to read, leaves the list be.
+  const editRow = editingId ? log.rows.get(editingId) : undefined;
+  const editing = editRow && !editRow.deleted ? editRow : null;
+  const editGone = !!editingId && !editing;
   useEffect(() => {
-    if (!replyToId || keyboard === 0 || !scrollOnce.current) return;
+    if (editGone) setEditingId(null);
+  }, [editGone]);
+  // The list makes room for the keyboard by shrinking from the bottom,
+  // and the card floats over its foot, so the quoted or edited row can
+  // end up under either: once the keyboard has settled, it is scrolled
+  // to the middle of what is left, whether or not it was in view (the
+  // list can't tell a row under the card from one in the clear). Once
+  // per pick: a later keyboard, with the reader scrolled away to read,
+  // leaves the list be.
+  const targetId = replyToId ?? editingId;
+  useEffect(() => {
+    if (!targetId || keyboard === 0 || !scrollOnce.current) return;
     const timer = setTimeout(() => {
       scrollOnce.current = false;
-      const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === replyToId);
+      const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === targetId);
       if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
     }, KEYBOARD_SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [replyToId, keyboard]);
+  }, [targetId, keyboard]);
 
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.
@@ -308,7 +334,9 @@ export default function Channel({
                   origin={server.origin}
                   token={token}
                   onLongPress={openMenu}
-                  target={item.message.id === replyToId}
+                  target={
+                    item.message.id === replyToId ? "reply" : item.message.id === editingId ? "edit" : undefined
+                  }
                 />
               ) : (
                 <Divider label={item.label} fresh={item.kind === "new"} />
@@ -355,9 +383,12 @@ export default function Channel({
               key={channelId}
               channelName={channel.name}
               send={send}
+              edit={edit}
               replyTo={replyTo}
               onCancelReply={cancelReply}
               onReply={reply}
+              editing={editing}
+              onEditDone={endEdit}
             />
           </View>
           {notice && (
@@ -388,6 +419,7 @@ export default function Channel({
           onReact={(emoji) => reactTo(menuMessage, emoji)}
           onCopyFailed={linkNotCopied}
           onQuote={() => quote(menuMessage)}
+          onEdit={() => startEdit(menuMessage)}
           onDelete={() => deleteMessage(menuMessage)}
           onClose={closeMenu}
         />

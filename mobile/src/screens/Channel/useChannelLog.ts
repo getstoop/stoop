@@ -8,6 +8,7 @@ import { AppState } from "react-native";
 import {
   ChannelGone,
   deleteMessage,
+  editMessage,
   loadChanges,
   loadChannel,
   loadHeader,
@@ -346,7 +347,29 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
     [server.origin, channelId, dispatch, latest],
   );
 
-  return { state, older, retry, send, react, remove };
+  // The reader's own message with new words: EditMessage, then its answer
+  // merged like a send's (the message_updated that follows says the same
+  // at the same seq; either order leaves one row). Nothing is shown
+  // before the server answers. A refusal is the caller's to show and is
+  // always thrown, as a send's is, so one landing after this lifetime
+  // has ended is never taken for a save; one that means the sign-in has
+  // ended shows as such while the screen is still here.
+  const edit = useCallback(
+    async (messageId: string, content: string) => {
+      const mine = life.current;
+      let message: Message;
+      try {
+        message = await editMessage(server.origin, latest.current.token, messageId, content);
+      } catch (err) {
+        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (!mine.ended && latest.current.log.channelId === channelId) dispatch({ type: "sent", message });
+    },
+    [server.origin, channelId, dispatch, latest],
+  );
+
+  return { state, older, retry, send, react, remove, edit };
 }
 
 export type { ChannelScreen };

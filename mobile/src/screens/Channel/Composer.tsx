@@ -1,3 +1,4 @@
+import { editableText, withTokensRestored } from "@stoop/core/editableText";
 import { isBlankMessage } from "@stoop/core/markdown";
 import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
@@ -17,7 +18,7 @@ import {
 } from "react-native";
 import { authorName } from "../../api/authors";
 import { errorText } from "../../api/errors";
-import { CloseIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
+import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import FormatRow from "./FormatRow";
 
@@ -42,6 +43,25 @@ import FormatRow from "./FormatRow";
 // A refusal puts the draft back ahead of anything typed since, with the
 // server's words under it, and the quote back unless another was picked
 // meanwhile (web's rule); pressing Send again is the retry.
+//
+// A message being edited (`editing`, the screen's to hold, never
+// together with a quote) puts the composer in editing mode: the draft
+// is set aside, the field holds the message's words (its mention and
+// channel tokens as the @handle and #name they show as; core/editableText),
+// the strip says "Editing message" with Cancel editing, Attach is dimmed
+// since an edit changes words only, and Send is Save; the pill says
+// "Editing message" under the pencil while the keyboard is down. Save
+// puts the tokens back for the handles the original had and sends
+// EditMessage; the answer merges like a send's. Words unchanged end the
+// edit with no request; none at all are refused with web's wording, the
+// edit going on; a refusal keeps the edited words with the server's
+// under them, and Cancel editing waits for the answer. Editing ends on
+// Save, Cancel editing, or the screen letting the message go (deleted,
+// or quoted instead), and the set-aside draft comes back each way. A
+// copy of the same message arriving edited elsewhere leaves the field's
+// words alone; saving then replaces it, as on web. A send refused while
+// an edit is open puts its words into the draft set aside, never into
+// the field, and its reason waits for the edit to end.
 
 // The pill's height and the gap under it, for the screen to keep the
 // list's newest message clear of it.
@@ -57,13 +77,18 @@ export default forwardRef<
   {
     channelName: string;
     send: (content: string, replyToMessageId: string) => Promise<void>;
+    edit: (messageId: string, content: string) => Promise<void>;
     // The message being quoted, if any.
     replyTo: Message | null;
     onCancelReply: () => void;
     // A refused send's quote, coming back.
     onReply: (message: Message) => void;
+    // The reader's own message being edited, if any.
+    editing: Message | null;
+    // Saved, or Cancel editing.
+    onEditDone: () => void;
   }
->(function Composer({ channelName, send, replyTo, onCancelReply, onReply }, ref) {
+>(function Composer({ channelName, send, edit, replyTo, onCancelReply, onReply, editing, onEditDone }, ref) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [draft, setDraft] = useState("");
@@ -72,6 +97,37 @@ export default forwardRef<
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
+  // The draft set aside while a message is edited, to come back after,
+  // and a send's refusal that waits with it.
+  const setAside = useRef("");
+  const heldError = useRef<string | null>(null);
+  // Which message the field holds for editing, so a change of it (in,
+  // out, or to another message) is taken in the same render, while a
+  // copy of the same one, edited elsewhere, leaves the field alone; the
+  // content the field was filled from, which Save restores tokens
+  // against; and a count of the edits begun, so a Save's answer is only
+  // the edit it was pressed in.
+  const editingShown = useRef<string | null>(null);
+  const filledFrom = useRef("");
+  const session = useRef(0);
+  const editingId = editing?.id ?? null;
+  if (editingShown.current !== editingId) {
+    session.current++;
+    if (editingShown.current === null) {
+      setAside.current = draft;
+      heldError.current = error;
+    }
+    editingShown.current = editingId;
+    if (editing) {
+      filledFrom.current = editing.content;
+      setDraft(editableText(editing.content));
+      setError(null);
+    } else {
+      setDraft(setAside.current);
+      setError(heldError.current);
+      heldError.current = null;
+    }
+  }
   // Send pressed again before React commits the sending state must not
   // send twice, so the guard is a ref as well.
   const sendingRef = useRef(false);
@@ -114,12 +170,49 @@ export default forwardRef<
     return () => sub.remove();
   }, []);
 
-  const placeholder = `Message #${channelName}`;
+  const placeholder = editing ? "Edit message" : `Message #${channelName}`;
   const blank = isBlankMessage(draft);
   const quotedName = replyTo ? authorName(replyTo.author) : "";
 
+  // Save: the words as typed with the tokens put back by the content the
+  // field was filled from, not a copy edited elsewhere since, which could
+  // only take a token away or hand one to typed words. The same words
+  // as the latest copy end the edit with nothing sent, as on web; no
+  // words are refused. The answer counts only for the edit Save was
+  // pressed in: ended, or begun again on the same message, meanwhile,
+  // it is nobody's.
+  const save = async (message: Message) => {
+    const mine = session.current;
+    const content = withTokensRestored(draft.trim(), filledFrom.current);
+    if (content === message.content) {
+      onEditDone();
+      return;
+    }
+    if (blank) {
+      setError("A message can't be empty — delete it instead.");
+      return;
+    }
+    sendingRef.current = true;
+    setError(null);
+    setSending(true);
+    try {
+      await edit(message.id, content);
+      if (session.current === mine) onEditDone();
+    } catch (err) {
+      if (session.current === mine) setError(errorText(err));
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  };
+
   const submit = async () => {
-    if (sendingRef.current || blank) return;
+    if (sendingRef.current) return;
+    if (editing) {
+      await save(editing);
+      return;
+    }
+    if (blank) return;
     sendingRef.current = true;
     const typed = draft;
     const quoted = replyTo;
@@ -130,10 +223,17 @@ export default forwardRef<
     try {
       await send(typed.trim(), quoted?.id ?? "");
     } catch (err) {
-      setDraft((typedSince) => restoreDraft(typed, typedSince));
+      if (editingShown.current !== null) {
+        // An edit has begun meanwhile: the words go into the draft set
+        // aside, and the reason waits with them for the edit to end.
+        setAside.current = restoreDraft(typed, setAside.current);
+        heldError.current = errorText(err);
+      } else {
+        setDraft((typedSince) => restoreDraft(typed, typedSince));
+        setError(errorText(err));
+      }
       const quotedNow = replyToRef.current;
       if (quoted && (!quotedNow || quotedNow.id === quoted.id)) onReply(quoted);
-      setError(errorText(err));
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -145,25 +245,53 @@ export default forwardRef<
   if (!writing) {
     return (
       <Surface glass={glass} style={styles.pill}>
-        <Round label="Attach files" style={raised}>
+        <Round label="Attach files" disabled={!!editing} style={raised}>
           <PlusIcon color={theme.text} size={22} />
         </Round>
         <Pressable accessibilityRole="button" onPress={() => setWriting(true)} style={styles.prompt}>
-          {replyTo && <QuoteReplyIcon color={theme.accent} size={16} />}
-          <Text numberOfLines={1} style={draft || replyTo ? styles.draft : styles.placeholder}>
-            {draft || (replyTo ? `Replying to ${quotedName}` : placeholder)}
+          {editing ? (
+            <PencilIcon color={theme.accent} size={16} />
+          ) : (
+            replyTo && <QuoteReplyIcon color={theme.accent} size={16} />
+          )}
+          <Text numberOfLines={1} style={draft || replyTo || editing ? styles.draft : styles.placeholder}>
+            {editing ? "Editing message" : draft || (replyTo ? `Replying to ${quotedName}` : placeholder)}
           </Text>
         </Pressable>
         {/* A send that failed after the field lost focus: the reason waits in
             the card, so the pill says there is one. */}
-        {error && <Text style={styles.failed}>Couldn't send</Text>}
+        {error && <Text style={styles.failed}>{editing ? "Couldn't save" : "Couldn't send"}</Text>}
       </Surface>
     );
   }
 
   return (
     <Surface glass={glass} style={styles.card}>
-      {replyTo && (
+      {editing ? (
+        <View style={styles.reply}>
+          <PencilIcon color={theme.accent} size={16} />
+          <Text numberOfLines={1} style={styles.editingText} testID="edit-strip">
+            Editing message
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel editing"
+            accessibilityState={{ disabled: sending }}
+            disabled={sending}
+            onPress={onEditDone}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.cancel,
+              raised,
+              sending && roundStyles.disabled,
+              pressed && roundStyles.down,
+            ]}
+          >
+            <CloseIcon color={theme.text} />
+          </Pressable>
+        </View>
+      ) : (
+        replyTo && (
         <View style={styles.reply}>
           <QuoteReplyIcon color={theme.accent} size={16} />
           <Text numberOfLines={1} style={styles.replyText} testID="reply-strip">
@@ -180,6 +308,7 @@ export default forwardRef<
             <CloseIcon color={theme.text} />
           </Pressable>
         </View>
+        )
       )}
       <TextInput
         ref={input}
@@ -201,7 +330,7 @@ export default forwardRef<
       )}
       {formatting && <FormatRow />}
       <View style={styles.buttons}>
-        <Round label="Attach files" style={raised}>
+        <Round label="Attach files" disabled={!!editing} style={raised}>
           <PlusIcon color={theme.text} size={22} />
         </Round>
         <Round
@@ -213,9 +342,15 @@ export default forwardRef<
           <Text style={styles.aa}>Aa</Text>
         </Round>
         <View style={styles.spacer} />
-        <Round label="Send" disabled={blank || sending} onPress={submit} style={styles.send}>
-          {sending ? <ActivityIndicator color={theme.onAccent} /> : <SendIcon color={theme.onAccent} />}
-        </Round>
+        {editing ? (
+          <Round label="Save" disabled={sending} onPress={submit} style={styles.send}>
+            {sending ? <ActivityIndicator color={theme.onAccent} /> : <CheckIcon color={theme.onAccent} size={20} />}
+          </Round>
+        ) : (
+          <Round label="Send" disabled={blank || sending} onPress={submit} style={styles.send}>
+            {sending ? <ActivityIndicator color={theme.onAccent} /> : <SendIcon color={theme.onAccent} />}
+          </Round>
+        )}
       </View>
     </Surface>
   );
@@ -346,6 +481,12 @@ function makeStyles(theme: Theme) {
     },
     replyName: {
       color: theme.text,
+      fontWeight: "700",
+    },
+    editingText: {
+      flex: 1,
+      color: theme.text,
+      fontSize: tokens.textUi,
       fontWeight: "700",
     },
     cancel: {

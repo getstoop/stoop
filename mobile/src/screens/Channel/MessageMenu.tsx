@@ -35,12 +35,13 @@ import { useSheet } from "./useSheet";
 // link does the same with the message's link, as the screen built it,
 // and says so (onCopyFailed) when the clipboard refuses; Quote in reply
 // hands the message to the screen (onQuote), which holds it as the
-// composer's quote and opens the composer once the sheet has gone;
+// composer's quote and opens the composer once the sheet has gone, and
+// Edit message does the same (onEdit) for the composer to edit it;
 // Delete message asks first, and the confirm's Delete sends it. What a
 // toggle or a delete does to the log is the screen's (useChannelLog
-// react and remove), and so is saying when one is refused. The other
-// items are placed and inert: pressing one only closes the sheet, until
-// the steps that give them work. Either sheet goes on a tap on the scrim, a swipe
+// react and remove), and so is saying when one is refused. Reply in
+// thread is placed and inert: pressing it only closes the sheet, until
+// the step that gives it work. Either sheet goes on a tap on the scrim, a swipe
 // down, or Android's back (useSheet), and the picker's going closes the
 // menu with it; a sheet on its way out takes no more taps.
 
@@ -56,6 +57,7 @@ export default function MessageMenu({
   onReact,
   onCopyFailed,
   onQuote,
+  onEdit,
   onDelete,
   onClose,
 }: {
@@ -69,6 +71,7 @@ export default function MessageMenu({
   onReact: (emoji: string) => void;
   onCopyFailed: () => void;
   onQuote: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -126,6 +129,11 @@ export default function MessageMenu({
     onQuote();
     dismiss();
   };
+  const edit = () => {
+    if (closing()) return;
+    onEdit();
+    dismiss();
+  };
   // The system's confirm over the sheet; Cancel leaves the sheet open.
   const confirmDelete = () =>
     Alert.alert("Delete this message?", "It's removed for everyone and can't be undone.", [
@@ -158,7 +166,7 @@ export default function MessageMenu({
     { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
     { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} />, onPress: copyLink },
   ];
-  if (mine) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} /> });
+  if (mine) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} />, onPress: edit });
   if (mine || canModerate) {
     items.push({
       label: "Delete message",

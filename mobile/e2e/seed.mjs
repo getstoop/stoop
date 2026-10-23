@@ -94,6 +94,7 @@ const env = {
   SPACE_ID: s.space.id,
   MEMBER_ID: s.ids.ada,
   OUTSIDER_ID: s.ids.bea,
+  POSTER_ID: s.ids.dee,
   OWNER_TOKEN: ada,
   POSTER_TOKEN: dee,
   CHAPTERS_ID: chapters.channel.id,
