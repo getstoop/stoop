@@ -5,6 +5,7 @@ import {
   linksIn,
   parseInline,
   parseMarkdown,
+  plainLines,
   plainText,
 } from ".";
 
@@ -527,6 +528,45 @@ describe("plainText mirrors the server", () => {
       expect(plainText(input)).toBe(want);
     });
   }
+});
+
+describe("plainLines", () => {
+  it("keeps a blank line between paragraphs", () => {
+    expect(plainLines("first\n\nsecond")).toBe("first\n\nsecond");
+  });
+
+  it("reads a mention as its handle", () => {
+    expect(
+      plainLines("<@u:00000000-0000-0000-0000-000000000001:ada> who's in?"),
+    ).toBe("@ada who's in?");
+  });
+
+  it("keeps a bare link's address and a labelled link's words", () => {
+    expect(plainLines("see https://example.com now")).toBe(
+      "see https://example.com now",
+    );
+    expect(plainLines("see [the notes](https://example.com/n)")).toBe(
+      "see the notes",
+    );
+  });
+
+  it("copies a spoiler's words", () => {
+    expect(plainLines("||secret|| words")).toBe("secret words");
+  });
+
+  it("keeps a quoted line's mark and drops the others", () => {
+    expect(plainLines("> quoted\n> twice\nplain **bold**")).toBe(
+      "> quoted\n> twice\nplain bold",
+    );
+  });
+
+  it("lists a nested list's items one to a line, and a fence's code", () => {
+    expect(plainLines("- a\n  - b\n- c\n```\ncode\n```")).toBe("a\nb\nc\ncode");
+  });
+
+  it("is empty for a message with no words, as an attachment alone", () => {
+    expect(plainLines("")).toBe("");
+  });
 });
 
 describe("plainText", () => {

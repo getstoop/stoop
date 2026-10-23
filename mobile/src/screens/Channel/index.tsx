@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { errorText } from "../../api/errors";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
@@ -35,10 +36,15 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // newest message while it is on screen. The composer floats over the
 // bottom of the list and rides up with the keyboard; what it sends
 // comes back as a row the same way an event does. A long press on a
-// message opens its menu over the channel (MessageMenu). What is held
-// and what each answer and event does to it is the channel log's
+// message opens its menu over the channel (MessageMenu); a reaction or a
+// delete from it goes through useChannelLog, and one the server refuses
+// is said in a line over the composer for a moment. What is held and
+// what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
+
+// How long a refusal's line stays.
+const NOTICE_MS = 4000;
 
 export default function Channel({
   server,
@@ -55,7 +61,7 @@ export default function Channel({
   const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
-  const { state, older, retry, send } = useChannelLog(server, spaceId, channelId);
+  const { state, older, retry, send, react, remove } = useChannelLog(server, spaceId, channelId);
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
   // The composer's height as drawn, for the list to clear.
@@ -67,6 +73,10 @@ export default function Channel({
   // The message whose menu is open, by id: it closes with the message if
   // that is deleted, and with the channel if that goes.
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // What the server refused, for a moment: the latest one replaces the
+  // one before it.
+  const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const screen = useRef<ComponentRef<typeof View>>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
   // What this screen remembers about the channel shown: the marker it
@@ -95,6 +105,29 @@ export default function Channel({
     setMenuFor(message.id);
   }, []);
   const closeMenu = useCallback(() => setMenuFor(null), []);
+  const notify = useCallback((title: string, body: string) => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    setNotice({ title, body });
+    noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
+  }, []);
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
+  const reactTo = useCallback(
+    (message: Message, emoji: string) => {
+      react(message, emoji).catch((err) => notify("Couldn't react", errorText(err)));
+    },
+    [react, notify],
+  );
+  const deleteMessage = useCallback(
+    (message: Message) => {
+      remove(message).catch((err) => notify("Couldn't delete the message", errorText(err)));
+    },
+    [remove, notify],
+  );
   const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
   // The menu closes without its own fade, by an abrupt unmount, when the
   // message goes (deleted, or left as a placeholder) or the channel does;
@@ -251,6 +284,19 @@ export default function Channel({
           >
             <Composer key={channelId} channelName={channel.name} send={send} />
           </View>
+          {notice && (
+            <View
+              style={[styles.toast, { bottom: composerBottom + composerHeight + GAP }]}
+              accessibilityRole="alert"
+              testID="channel-notice"
+              pointerEvents="none"
+            >
+              <Text style={styles.toastTitle}>{notice.title}</Text>
+              <Text style={styles.toastBody} numberOfLines={2}>
+                {notice.body}
+              </Text>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
       {menuMessage && !menuMessage.deleted && (
@@ -260,6 +306,8 @@ export default function Channel({
           canModerate={canDeleteAnyMessage(space)}
           origin={server.origin}
           token={token}
+          onReact={(emoji) => reactTo(menuMessage, emoji)}
+          onDelete={() => deleteMessage(menuMessage)}
           onClose={closeMenu}
         />
       )}
@@ -317,6 +365,29 @@ function makeStyles(theme: Theme) {
       color: theme.onAccent,
       fontSize: tokens.textBody,
       fontWeight: "600",
+    },
+    toast: {
+      position: "absolute",
+      left: 16,
+      right: 16,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      gap: 2,
+      borderRadius: tokens.radiusMd,
+      backgroundColor: theme.panel,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+      boxShadow: theme.scheme === "dark" ? "0 6px 20px rgba(0, 0, 0, 0.35)" : "0 6px 20px rgba(30, 25, 20, 0.16)",
+    },
+    toastTitle: {
+      color: theme.danger,
+      fontSize: tokens.textUi,
+      fontWeight: "600",
+    },
+    toastBody: {
+      color: theme.text,
+      fontSize: tokens.textUi,
+      lineHeight: tokens.textUi * tokens.leadingUi,
     },
   });
 }

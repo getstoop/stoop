@@ -10,6 +10,7 @@ export { withFloor } from "./floor";
 export { channelItems, forgetItems, threadItems } from "./items";
 export { type ThreadOverlay, withThreadOverlay } from "./overlay";
 export { hasPage, jumped, opened, type PageAnswer, paged } from "./pages";
+export { withPatch } from "./patch";
 export {
   FROM_ANSWER,
   FROM_EVENT,

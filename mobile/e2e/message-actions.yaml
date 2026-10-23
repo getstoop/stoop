@@ -1,0 +1,265 @@
+appId: ${APP_ID}
+name: React to a message from its menu, copy its words, and delete it
+---
+# After channel.yaml, which needs chapters unread for ada with only dee's
+# first notes in it: dee's messages below would already be there (only
+# dee writes here; ada deletes one of them, and bea reads). Alphabetical
+# order carries that today, and puts this flow before message-menu.yaml,
+# which minds nothing done here. The list draws no reaction chips yet,
+# so a reaction shows in the sheet's highlight and on the server.
+# As dee, a plain member, in chapters, where every note is dee's own.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${POSTER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+# A quick reaction: the sheet closes, the server has it, and the sheet
+# opened again shows it filled. Before each long press the list settles.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "React with 👍"
+    timeout: 5000
+- assertVisible:
+    text: "React with 👍"
+    selected: false
+- tapOn: "React with 👍"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reactionCount
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Chapter 55 notes
+      EMOJI: 👍
+      EXPECTED: 1
+- assertTrue: ${output.reactionCount == 1}
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible:
+      text: "React with 👍"
+      selected: true
+    timeout: 5000
+# Tapped again, it is taken away.
+- tapOn: "React with 👍"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reactionCount
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Chapter 55 notes
+      EMOJI: 👍
+      EXPECTED: 0
+- assertTrue: ${output.reactionCount == 0}
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible:
+      text: "React with 👍"
+      selected: false
+    timeout: 5000
+# Copy text closes the sheet with the words on the clipboard: pasted into
+# the composer, they are the draft.
+- tapOn: "Copy text"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- tapOn: "Message #chapters"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+- longPressOn:
+    id: "composer"
+- extendedWaitUntil:
+    visible: "Paste"
+    timeout: 5000
+- tapOn: "Paste"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+      text: "Chapter 55 notes"
+    timeout: 5000
+- eraseText: 20
+- tapOn: "Chapter 54 notes"
+- extendedWaitUntil:
+    notVisible: "Send"
+    timeout: 5000
+# Delete asks first; Cancel leaves the sheet and the message. Confirmed,
+# the message goes, here and on the server.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: say
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Scratch that
+- extendedWaitUntil:
+    visible: "Scratch that"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Scratch that"
+- extendedWaitUntil:
+    visible: "Delete message"
+    timeout: 5000
+- tapOn: "Delete message"
+- extendedWaitUntil:
+    visible: "Delete this message\\?"
+    timeout: 5000
+- tapOn: "Cancel"
+- extendedWaitUntil:
+    notVisible: "Delete this message\\?"
+    timeout: 5000
+- assertVisible: "Quote in reply"
+- tapOn: "Delete message"
+- extendedWaitUntil:
+    visible: "Delete this message\\?"
+    timeout: 5000
+- tapOn: "Delete"
+- extendedWaitUntil:
+    notVisible: "Scratch that"
+    timeout: 10000
+- assertNotVisible: "Quote in reply"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Scratch that
+- assertTrue: ${output.count == 0}
+# Deleted elsewhere while the confirm is up: the sheet goes with the
+# message, and the confirm's Delete asks for nothing and says nothing.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: say
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Going, going
+- extendedWaitUntil:
+    visible: "Going, going"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Going, going"
+- extendedWaitUntil:
+    visible: "Delete message"
+    timeout: 5000
+- tapOn: "Delete message"
+- extendedWaitUntil:
+    visible: "Delete this message\\?"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: ownerUnsays
+- extendedWaitUntil:
+    notVisible: "Going, going"
+    timeout: 10000
+- assertNotVisible: "Quote in reply"
+- tapOn: "Delete"
+- extendedWaitUntil:
+    notVisible: "Delete this message\\?"
+    timeout: 5000
+- assertVisible: "chapters, ${SPACE}, \\d+ members"
+# As bea, made an admin of the space: dee's note may be deleted, until
+# she is a plain member again while the confirm is up. Then the server
+# refuses, and the screen says so for a moment. She has never read
+# chapters, so it opens at its "New" line, far from the newest note.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: promote
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${OUTSIDER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+- scrollUntilVisible:
+    element: "Chapter 55 notes"
+    direction: DOWN
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Delete message"
+    timeout: 5000
+- tapOn: "Delete message"
+- extendedWaitUntil:
+    visible: "Delete this message\\?"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: demote
+- tapOn: "Delete"
+- extendedWaitUntil:
+    visible: "Couldn't delete the message"
+    timeout: 10000
+- assertVisible: "Chapter 55 notes"
+- extendedWaitUntil:
+    notVisible: "Couldn't delete the message"
+    timeout: 10000

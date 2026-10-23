@@ -8,7 +8,8 @@ import { authClient, chatClient } from "./clients";
 // mentions them), and the pages and changes of its channel log
 // (core/channelLog): the newest page on opening, older pages as the
 // reader scrolls up, and ListChanges from the position held after a
-// reconnect or a gap in the events), and the reader's own message.
+// reconnect or a gap in the events), the reader's own message, and what
+// the message menu does to one.
 
 const TIMEOUT_MS = 10000;
 export const PAGE = 50;
@@ -91,4 +92,27 @@ export async function sendMessage(origin: string, token: string, channelId: stri
   const { message } = await chatClient(origin, token).sendMessage({ channelId, content }, { timeoutMs: TIMEOUT_MS });
   if (!message) throw new Error("The server answered with nothing.");
   return message;
+}
+
+// The reader's reaction on a message, added or taken away. The answer is
+// the row with its reactions after the toggle, for the screen to merge as
+// it merges a send's answer; or no row at all, which is not a failure:
+// the server saves the toggle, and when its reload of the row fails it
+// answers with no message and sends no event rather than report the
+// save as failed (internal/chat/reactions.go), as web's toggleReaction
+// takes it.
+export async function toggleReaction(
+  origin: string,
+  token: string,
+  messageId: string,
+  emoji: string,
+): Promise<Message | undefined> {
+  const { message } = await chatClient(origin, token).toggleReaction({ messageId, emoji }, { timeoutMs: TIMEOUT_MS });
+  return message;
+}
+
+// The message goes for everyone; the server decides who may (the author,
+// or someone who moderates the space).
+export async function deleteMessage(origin: string, token: string, messageId: string): Promise<void> {
+  await chatClient(origin, token).deleteMessage({ messageId }, { timeoutMs: TIMEOUT_MS });
 }

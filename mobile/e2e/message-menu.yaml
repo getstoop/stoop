@@ -79,7 +79,8 @@ name: Long-press a message and see its menu, with what the reader may do to it
 - assertVisible: "Copy link"
 - assertNotVisible: "Edit message"
 - assertNotVisible: "Delete message"
-# Nothing in it does anything yet: an item only closes the sheet, and the
+# The quick reactions, Copy text and Delete message do what they say
+# (message-actions.yaml); the other items only close the sheet, and the
 # message is as it was.
 - tapOn: "Copy text"
 - extendedWaitUntil:
