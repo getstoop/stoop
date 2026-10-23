@@ -1,4 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { dayAndTime, sameDay } from "@stoop/core/dates";
 import { mentionsMe } from "@stoop/core/mentions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
@@ -14,9 +15,11 @@ const GAP = 10;
 // one before (same author, same minute); its words; and a line per file,
 // which opens nothing yet. A message that mentions the reader is tinted.
 // A long press anywhere on it opens the message menu (MessageMenu),
-// which draws the row again over the channel. A root deleted while its
-// thread has replies stays as a placeholder, which no press opens.
-// Replies, reactions, previews and threads come in later steps.
+// which draws the row again as a card: the mockup's 12px inset, no
+// tint, and the day with the time, since the list's day lines are not
+// there to carry it. A root deleted while its thread has replies stays
+// as a placeholder, which no press opens. Replies, reactions, previews
+// and threads come in later steps.
 export default memo(function MessageRow({
   message,
   continued,
@@ -24,6 +27,7 @@ export default memo(function MessageRow({
   origin,
   token,
   onLongPress,
+  card = false,
 }: {
   message: Message;
   continued: boolean;
@@ -31,6 +35,7 @@ export default memo(function MessageRow({
   origin: string;
   token: string;
   onLongPress?: (message: Message) => void;
+  card?: boolean;
 }) {
   const styles = makeStyles(useTheme());
 
@@ -65,8 +70,8 @@ export default memo(function MessageRow({
       // Not one element: its name, time and words stay readable apart.
       accessible={false}
       style={({ pressed }) => [
-        styles.row,
-        mentionsMe(message, myUserId) && styles.mentioned,
+        card ? styles.card : styles.row,
+        !card && mentionsMe(message, myUserId) && styles.mentioned,
         pressed && !!hold && styles.pressed,
       ]}
     >
@@ -81,11 +86,7 @@ export default memo(function MessageRow({
                 {name}
                 {author?.deleted && <Text style={styles.muted}> (deleted)</Text>}
               </Text>
-              {created && (
-                <Text style={styles.time}>
-                  {created.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                </Text>
-              )}
+              {created && <Text style={styles.time}>{when(created, card)}</Text>}
             </View>
             {body}
           </View>
@@ -95,6 +96,15 @@ export default memo(function MessageRow({
   );
 });
 
+// The time, as the list shows it under its day lines; on the card the
+// day too, as web's thread shows a reply's.
+function when(created: Date, card: boolean): string {
+  if (!card || sameDay(created, new Date())) {
+    return created.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  return dayAndTime(created);
+}
+
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
     row: {
@@ -102,6 +112,12 @@ function makeStyles(theme: Theme) {
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: tokens.radiusMd,
+    },
+    // The lead's own 8px top makes the mockup's 12 all round.
+    card: {
+      paddingHorizontal: 12,
+      paddingTop: 4,
+      paddingBottom: 12,
     },
     mentioned: {
       backgroundColor: theme.accentSoft,

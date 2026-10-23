@@ -84,8 +84,11 @@ import a screen; the screens themselves live in `src/screens`, so
   `canDeleteAnyMessage`, as web decides it). A tap on the scrim, a swipe
   down or Android's back closes it, as does the message being deleted or
   the channel going while it is open; opening it taps the phone
-  (`expo-haptics`). Every item is placed and inert: pressing one only
-  closes the sheet, until the steps that give them work.
+  (`expo-haptics`). While the keyboard is up a long press first puts it
+  away (the list takes that first touch), and a second one opens the
+  menu. A screen reader can't open it yet: an accessibility action on
+  the row is a follow-up. Every item is placed and inert: pressing one
+  only closes the sheet, until the steps that give them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -246,7 +249,9 @@ pasted invite link, and
 open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a
-`testID`.
+`testID`. They run in file order, and some lean on it: the message-menu
+flow has ada write in chapters, which the channel flow needs unread for
+her with dee's notes alone, so the channel flow goes first.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on
@@ -299,9 +304,10 @@ packages:
   the protos.
 - `@stoop/core/*` maps to `../web/src/core/*`, web's code that needs no
   browser. That covers the Markdown parser, mention tokens, permissions,
-  dates, badge counts, which messages run together and where the "New"
-  line goes, the channel log web's timeline runs on (`core/channelLog`,
-  which this app's channel screen runs on too), a channel's header
+  dates, the common emoji (`core/emoji.ts`), badge counts, which
+  messages run together and where the "New" line goes, the channel log
+  web's timeline runs on (`core/channelLog`, which this app's channel
+  screen runs on too), a channel's header
   beside it (`core/channelHeader.ts`) and the channel screen's state over
   both (`core/channelScreen.ts`). Its tests run with web's (`make test`).
 

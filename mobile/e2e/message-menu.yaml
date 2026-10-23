@@ -1,6 +1,9 @@
 appId: ${APP_ID}
 name: Long-press a message and see its menu, with what the reader may do to it
 ---
+# After channel.yaml, which needs chapters unread for ada with only dee's
+# notes in it: the message ada writes below would already be there, and
+# read by her. Alphabetical order carries that today.
 # As dee, a plain member: every message in chapters is dee's own.
 - clearKeychain
 - launchApp:

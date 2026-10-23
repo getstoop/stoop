@@ -126,9 +126,7 @@ export default function MessageMenu({
             testID="message-menu-close"
           />
           <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
-            <View style={styles.cardRow}>
-              <MessageRow message={message} continued={false} myUserId={myUserId} origin={origin} token={token} />
-            </View>
+            <MessageRow message={message} continued={false} myUserId={myUserId} origin={origin} token={token} card />
           </Animated.View>
         </View>
         <Animated.View
@@ -208,14 +206,8 @@ function makeStyles(theme: Theme) {
       paddingBottom: 12,
     },
     card: {
-      paddingTop: 4,
-      paddingBottom: 9,
       borderRadius: tokens.radiusLg,
       backgroundColor: theme.surface,
-    },
-    // The row brings its own 16px inset; the card's is 12.
-    cardRow: {
-      marginHorizontal: -4,
     },
     sheet: {
       paddingTop: 8,

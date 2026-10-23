@@ -78,6 +78,7 @@ export default function Channel({
     shownChannel.current = channelId;
     marked.current = "";
     landed.current = false;
+    if (menuFor) setMenuFor(null);
   }
 
   useEffect(() => {
@@ -95,6 +96,14 @@ export default function Channel({
   }, []);
   const closeMenu = useCallback(() => setMenuFor(null), []);
   const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
+  // The menu closes without its own fade, by an abrupt unmount, when the
+  // message goes (deleted, or left as a placeholder) or the channel does;
+  // the id it held is let go too. A closing animation for these is a
+  // later slice's.
+  const menuGone = !!menuFor && (!menuMessage || menuMessage.deleted || !!outcome);
+  useEffect(() => {
+    if (menuGone) setMenuFor(null);
+  }, [menuGone]);
 
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.

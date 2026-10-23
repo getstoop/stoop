@@ -1,7 +1,8 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
+import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
-import { SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
+import { SpaceRole, SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ServerEvent,
   ServerEventSchema,
@@ -71,6 +72,49 @@ describe("withHeaderEvent", () => {
     );
     expect(moved.space.name).toBe("The Yard");
     expect(moved.channel.name).toBe("lobby");
+  });
+
+  it("keeps the reader's role and permissions through a space update", () => {
+    const held = header({
+      space: create(SpaceSchema, {
+        id: "s1",
+        name: "The Porch",
+        myRole: SpaceRole.ADMIN,
+        myPermissions: [Permission.MESSAGES_MODERATE],
+      }),
+    });
+    // A broadcast space says nothing about who is reading.
+    const updated = withHeaderEvent(
+      held,
+      event({
+        case: "spaceUpdated",
+        value: { space: create(SpaceSchema, { id: "s1", name: "The Yard" }) },
+      }),
+    );
+    expect(updated.space.name).toBe("The Yard");
+    expect(updated.space.myRole).toBe(SpaceRole.ADMIN);
+    expect(updated.space.myPermissions).toEqual([Permission.MESSAGES_MODERATE]);
+  });
+
+  it("takes the reader's new role, and nobody else's", () => {
+    const demoted = withHeaderEvent(
+      header(),
+      event({
+        case: "memberRoleChanged",
+        value: { spaceId: "s1", userId: "me", role: SpaceRole.ADMIN },
+      }),
+    );
+    expect(demoted.space.myRole).toBe(SpaceRole.ADMIN);
+    const held = header();
+    expect(
+      withHeaderEvent(
+        held,
+        event({
+          case: "memberRoleChanged",
+          value: { spaceId: "s1", userId: "dee", role: SpaceRole.ADMIN },
+        }),
+      ),
+    ).toBe(held);
   });
 
   it("is the same header for another channel's rename, or an unrelated event", () => {
