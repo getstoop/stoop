@@ -86,10 +86,20 @@ export async function markRead(origin: string, token: string, channelId: string,
 
 // The reader's own message. The answer is the row the server stamped,
 // for the screen to merge as it merges an event's (core/channelScreen
-// `sent`). Plain text into the channel: a reply, files and a thread come
-// in later steps.
-export async function sendMessage(origin: string, token: string, channelId: string, content: string): Promise<Message> {
-  const { message } = await chatClient(origin, token).sendMessage({ channelId, content }, { timeoutMs: TIMEOUT_MS });
+// `sent`). Plain text into the channel, quoting another of its messages
+// when replyToMessageId names one; files and a thread come in later
+// steps.
+export async function sendMessage(
+  origin: string,
+  token: string,
+  channelId: string,
+  content: string,
+  replyToMessageId = "",
+): Promise<Message> {
+  const { message } = await chatClient(origin, token).sendMessage(
+    { channelId, content, replyToMessageId },
+    { timeoutMs: TIMEOUT_MS },
+  );
   if (!message) throw new Error("The server answered with nothing.");
   return message;
 }

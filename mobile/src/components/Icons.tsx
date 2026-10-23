@@ -266,6 +266,15 @@ export function QuoteReplyIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+// A cross, at the composer's reply strip's heavier stroke.
+export function CloseIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
+      <Path d="M18 6L6 18M6 6l12 12" />
+    </Svg>
+  );
+}
+
 export function CopyIcon({ color, size = 22 }: IconProps) {
   return (
     <Stroke color={color} size={size}>

@@ -4,6 +4,7 @@ import { mentionsMe } from "@stoop/core/mentions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
 import { type Theme, tokens, useTheme } from "../../theme";
 import MessageText from "./MessageText";
@@ -13,13 +14,18 @@ const GAP = 10;
 
 // One message: the author's face, name and time, unless it continues the
 // one before (same author, same minute); its words; and a line per file,
-// which opens nothing yet. A message that mentions the reader is tinted.
-// A long press anywhere on it opens the message menu (MessageMenu),
-// which draws the row again as a card: the mockup's 12px inset, no
-// tint, and the day with the time, since the list's day lines are not
-// there to carry it. A root deleted while its thread has replies stays
-// as a placeholder, which no press opens. Replies, reactions, previews
-// and threads come in later steps.
+// which opens nothing yet. A reply says whom it answers and the first
+// words of that message over its byline, as the mockup draws it (the
+// server's preview; a quoted message since deleted reads as such). A
+// message that mentions the reader is tinted; the one the reader is
+// quoting in the composer (`target`) is ringed in the accent on the
+// panel surface, over the tint when it has one. A long press anywhere
+// on it opens the message menu (MessageMenu), which draws the row again
+// as a card: the mockup's 12px inset, no tint or ring, and the day with
+// the time, since the list's day lines are not there to carry it. A
+// root deleted while its thread has replies stays as a placeholder,
+// which no press opens. Reactions, previews and threads come in later
+// steps.
 export default memo(function MessageRow({
   message,
   continued,
@@ -28,6 +34,7 @@ export default memo(function MessageRow({
   token,
   onLongPress,
   card = false,
+  target = false,
 }: {
   message: Message;
   continued: boolean;
@@ -36,6 +43,7 @@ export default memo(function MessageRow({
   token: string;
   onLongPress?: (message: Message) => void;
   card?: boolean;
+  target?: boolean;
 }) {
   const styles = makeStyles(useTheme());
 
@@ -48,9 +56,14 @@ export default memo(function MessageRow({
   }
 
   const author = message.author;
-  const name = author ? author.displayName || author.username : "Someone";
+  const name = authorName(author);
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const hold = onLongPress && (() => onLongPress(message));
+  const mentioned = !card && mentionsMe(message, myUserId);
+  const ringed = !card && target;
+  // A quoted message since deleted comes with no author (and no preview;
+  // core/channelLog withQuotesBlanked, as the server reads it).
+  const quoted = message.replyTo;
   const body = (
     <>
       {message.content !== "" && (
@@ -69,9 +82,13 @@ export default memo(function MessageRow({
       onLongPress={hold}
       // Not one element: its name, time and words stay readable apart.
       accessible={false}
+      accessibilityLabel={ringed ? "Replying to this message" : undefined}
+      testID={ringed ? "reply-target" : undefined}
       style={({ pressed }) => [
         card ? styles.card : styles.row,
-        !card && mentionsMe(message, myUserId) && styles.mentioned,
+        mentioned && styles.mentioned,
+        ringed && !mentioned && styles.targetSurface,
+        ringed && styles.ring,
         pressed && !!hold && styles.pressed,
       ]}
     >
@@ -81,6 +98,17 @@ export default memo(function MessageRow({
         <View style={styles.lead}>
           <Avatar name={name} fileId={author?.avatarFileId ?? ""} origin={origin} token={token} size={AVATAR} />
           <View style={styles.main}>
+            {quoted && (
+              <Text style={styles.quote} numberOfLines={1}>
+                {quoted.author ? (
+                  <>
+                    ↳ Replying to <Text style={styles.quotedName}>{authorName(quoted.author)}</Text>: {quoted.preview}
+                  </>
+                ) : (
+                  "↳ Replying to a deleted message"
+                )}
+              </Text>
+            )}
             <View style={styles.byline}>
               <Text style={styles.name} numberOfLines={1}>
                 {name}
@@ -122,6 +150,13 @@ function makeStyles(theme: Theme) {
     mentioned: {
       backgroundColor: theme.accentSoft,
     },
+    targetSurface: {
+      backgroundColor: theme.panel,
+    },
+    // Inset, so the row's words don't move when the ring comes and goes.
+    ring: {
+      boxShadow: `inset 0 0 0 1.5px ${theme.accent}`,
+    },
     pressed: {
       backgroundColor: theme.hover,
     },
@@ -152,6 +187,13 @@ function makeStyles(theme: Theme) {
     muted: {
       color: theme.textMuted,
       fontWeight: "400",
+    },
+    quote: {
+      color: theme.textMuted,
+      fontSize: tokens.textSm,
+    },
+    quotedName: {
+      fontWeight: "700",
     },
     time: {
       color: theme.textMuted,

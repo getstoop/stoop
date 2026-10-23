@@ -32,7 +32,6 @@ import {
   AttachmentStrip,
   type PendingAttachment,
 } from "../../components/AttachmentStrip";
-import { messagePreview } from "../../components/Attachments";
 import { BotMark } from "../../components/BotMark";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
@@ -51,6 +50,7 @@ import {
   mentionMembers,
   mentionQueryAt,
 } from "../../core/mentions";
+import { messagePreview } from "../../core/messagePreview";
 import { canMentionEntireChannel } from "../../core/permissions";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";

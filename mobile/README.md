@@ -70,9 +70,16 @@ import a screen; the screens themselves live in `src/screens`, so
   older iOS and Android draw it with the theme's panel and border under
   a light shadow. Dragging the list puts the keyboard away (the card
   follows the keyboard's hide event; tracking the finger needs
-  `react-native-keyboard-controller`, a follow-up). Only Send does
-  anything yet: Attach and the eleven formats are placed for the steps
-  that give them work.
+  `react-native-keyboard-controller`, a follow-up). A message being
+  quoted (Quote in reply, below) is the card's first line, the reply
+  strip: a small accent reply arrow, "Replying to NAME · " and the
+  first words of the message (`core/markdown` `plainText`, as the
+  server previews a reply; a file's name when it has none), on one
+  line, with a round Cancel reply at its right, which drops the quote
+  and keeps the draft; the pill shows the same arrow with "Replying to
+  NAME", or the draft, so the quote is seen with the keyboard down. Only
+  Send does anything yet: Attach and the eleven formats are placed for
+  the steps that give them work.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions
@@ -87,7 +94,7 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-haptics`). While the keyboard is up a long press first puts it
   away (the list takes that first touch), and a second one opens the
   menu. A screen reader can't open it yet: an accessibility action on
-  the row is a follow-up. Five of its items work. A quick reaction
+  the row is a follow-up. Six of its items work. A quick reaction
   toggles itself on the message and closes the sheet, as web does it:
   the held row takes the reader's toggle at once (`core/reactions`
   `toggledReactions`, through the screen reducer's `reacted`, at the
@@ -124,10 +131,26 @@ import a screen; the screens themselves live in `src/screens`, so
   then `DeleteMessage`; the row goes at once (`deleted`, the same way)
   as the server's event makes it, and a root with replies stays as its
   placeholder when that event says so. What the server refuses is said
-  in a line over the composer for a few seconds, with its reason. The
-  list draws no reaction chips yet (that is the rich row's ticket), so
-  a reaction shows only in the sheet's highlight. Reply in thread,
-  Quote in reply and Edit message are placed and inert: pressing one
+  in a line over the composer for a few seconds, with its reason. Quote
+  in reply makes the message the composer's quote: the sheet closes,
+  the row is ringed in the accent on the panel surface (over the
+  mention tint when it has one; the ring stays while the reader scrolls
+  or puts the keyboard away), and the composer opens on the reply
+  strip with the field focused and, once the keyboard is up, the row
+  scrolled to the middle of what it leaves (once; a later keyboard
+  leaves the list where the reader put it). The screen holds the quote by id, for this
+  channel only, and reads the row from the log, so it goes, silently
+  and with the draft kept, when the message is deleted or left as a
+  placeholder; a second Quote in reply replaces it, and a send or
+  Cancel reply clears it. The reply goes out with `reply_to_message_id`
+  and lands as the server's row, which says "↳ Replying to NAME: the
+  first words" over its byline, as web's row does (the server's
+  preview, `core/messagePreview` on the strip; "a deleted message" once
+  that is gone). A refused send puts
+  the quote back with the draft, unless another was picked meanwhile,
+  as web does. The list draws no reaction chips yet (that is the rich
+  row's ticket), so a reaction shows only in the sheet's highlight.
+  Reply in thread and Edit message are placed and inert: pressing one
   only closes the sheet, until the steps that give them work.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
@@ -284,7 +307,8 @@ to its first message while messages arrive, change and go, write in a
 channel and see the message land once, react to a message from its
 menu, copy its words and delete it, long-press a message and see
 what its menu offers as a member and as a moderator, pick a reaction
-from the emoji picker and copy a message's link, add a second
+from the emoji picker and copy a message's link, quote a message in a
+reply, cancel it, send it and see the quote go with its message, add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and
@@ -292,10 +316,11 @@ open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a
 `testID`. They run in file order, and some lean on it: the message-menu
-flow has ada write in chapters, and message-actions has dee write there
-(ada only deletes in it, and bea only reads), which the channel flow
-needs unread for ada with dee's first notes alone, so the channel flow
-goes first.
+flow has ada write in chapters, message-actions has dee write there
+(ada only deletes in it, and bea only reads), and quote-reply has ada
+reply there (and delete the reply) and dee post and delete "Going
+once", which the channel flow needs unread for ada with dee's first
+notes alone, so the channel flow goes first.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on
@@ -351,7 +376,8 @@ packages:
   dates, the emoji (`core/emoji.ts`: the common row, the names and
   keywords and the search over them, with the Unicode list in
   `core/emojiData.ts` and the `:shortcodes:` in `core/shortcodes.ts`),
-  the paths a message's link carries (`core/shareLinks.ts`), badge
+  the paths a message's link carries (`core/shareLinks.ts`), a
+  message's one-line preview (`core/messagePreview.ts`), badge
   counts, which
   messages run together and where the "New" line goes, the channel log
   web's timeline runs on (`core/channelLog`, which this app's channel

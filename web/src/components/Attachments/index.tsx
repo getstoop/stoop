@@ -3,8 +3,7 @@ import {
   isPlayableAudio,
   isPlayableVideo,
 } from "../../api/files";
-import { plainText } from "../../core/markdown";
-import type { Attachment, Message } from "../../gen/stoop/chat/v1/message_pb";
+import type { Attachment } from "../../gen/stoop/chat/v1/message_pb";
 import { AttachmentCard } from "./AttachmentCard";
 import { AudioAttachment } from "./AudioAttachment";
 import { ExpiredAttachment } from "./ExpiredAttachment";
@@ -38,15 +37,4 @@ export function Attachments({ attachments }: { attachments: Attachment[] }) {
       )}
     </div>
   );
-}
-
-// One-line form of a message for the reply bar: its text, or its first
-// file's name when it has none (the server does the same for quotes and
-// activity previews).
-export function messagePreview(m: Message): string {
-  const text = plainText(m.content);
-  if (text) return text;
-  const first = m.attachments[0];
-  if (!first) return "";
-  return first.expired ? "📎 Expired attachment" : `📎 ${first.name}`;
 }

@@ -33,12 +33,14 @@ import { useSheet } from "./useSheet";
 // final, and a pick there does the same; Copy text puts the message's
 // words on the clipboard, as the row draws them, and closes it; Copy
 // link does the same with the message's link, as the screen built it,
-// and says so (onCopyFailed) when the clipboard refuses; Delete message
-// asks first, and the confirm's Delete sends it. What a toggle or a
-// delete does to the log is the screen's (useChannelLog react and
-// remove), and so is saying when one is refused. The other items are
-// placed and inert: pressing one only closes the sheet, until the steps
-// that give them work. Either sheet goes on a tap on the scrim, a swipe
+// and says so (onCopyFailed) when the clipboard refuses; Quote in reply
+// hands the message to the screen (onQuote), which holds it as the
+// composer's quote and opens the composer once the sheet has gone;
+// Delete message asks first, and the confirm's Delete sends it. What a
+// toggle or a delete does to the log is the screen's (useChannelLog
+// react and remove), and so is saying when one is refused. The other
+// items are placed and inert: pressing one only closes the sheet, until
+// the steps that give them work. Either sheet goes on a tap on the scrim, a swipe
 // down, or Android's back (useSheet), and the picker's going closes the
 // menu with it; a sheet on its way out takes no more taps.
 
@@ -53,6 +55,7 @@ export default function MessageMenu({
   link,
   onReact,
   onCopyFailed,
+  onQuote,
   onDelete,
   onClose,
 }: {
@@ -65,6 +68,7 @@ export default function MessageMenu({
   link: string;
   onReact: (emoji: string) => void;
   onCopyFailed: () => void;
+  onQuote: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
@@ -117,6 +121,11 @@ export default function MessageMenu({
     Clipboard.setStringAsync(link).then(tap, onCopyFailed);
     dismiss();
   };
+  const quote = () => {
+    if (closing()) return;
+    onQuote();
+    dismiss();
+  };
   // The system's confirm over the sheet; Cancel leaves the sheet open.
   const confirmDelete = () =>
     Alert.alert("Delete this message?", "It's removed for everyone and can't be undone.", [
@@ -145,7 +154,7 @@ export default function MessageMenu({
       note: replies > 0 ? `${replies} ${replies === 1 ? "reply" : "replies"}` : undefined,
       lead: true,
     },
-    { label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} /> },
+    { label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} />, onPress: quote },
     { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
     { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} />, onPress: copyLink },
   ];
