@@ -68,6 +68,22 @@ var steps = {
     for (var i = 0; i < messages.length; i++) if (messages[i].content === TEXT) output.messageId = messages[i].id;
     if (!output.messageId) throw new Error("no message reads " + TEXT);
   },
+  // In CHANNEL_ID (quote-reply.yaml): whether the newest page's message
+  // reading TEXT quotes the one reading QUOTED_TEXT, as the server holds
+  // them, and that message's id, for ownerUnsays to delete it.
+  repliesTo: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    var quotedId = "";
+    var reply = null;
+    for (var i = 0; i < messages.length; i++) {
+      if (messages[i].content === QUOTED_TEXT) quotedId = messages[i].id;
+      if (messages[i].content === TEXT) reply = messages[i];
+    }
+    if (!quotedId) throw new Error("no message reads " + QUOTED_TEXT);
+    if (!reply) throw new Error("no message reads " + TEXT);
+    output.messageId = reply.id;
+    output.repliesTo = !!reply.replyTo && reply.replyTo.messageId === quotedId;
+  },
   // In CHANNEL_ID (message-actions.yaml): how many people have given
   // EMOJI to the newest page's message reading TEXT, as the server holds
   // it; -1 when no message reads TEXT. The sheet closes on the tap,
@@ -93,8 +109,9 @@ var steps = {
       while (Date.now() < until) {}
     }
   },
-  // The message `say` wrote, deleted by ada, who moderates the space, as
-  // if from another device while its author has the confirm open.
+  // The message `say` or `repliesTo` found, deleted by ada, who moderates
+  // the space, as if from another device while its author has the confirm
+  // open; or ada's own reply, once the flow has seen it.
   ownerUnsays: function () {
     rpc("DeleteMessage", OWNER_TOKEN, { messageId: output.messageId });
   },

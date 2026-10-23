@@ -1,7 +1,8 @@
-import { isBlankMessage } from "@stoop/core/markdown";
+import { isBlankMessage, plainText } from "@stoop/core/markdown";
 import { restoreDraft } from "@stoop/core/unsent";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
-import { type ComponentRef, type ReactNode, useEffect, useRef, useState } from "react";
+import { type ComponentRef, forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -14,7 +15,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { errorText } from "../../api/errors";
-import { PlusIcon, SendIcon } from "../../components/Icons";
+import { CloseIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import FormatRow from "./FormatRow";
 
@@ -25,11 +26,20 @@ import FormatRow from "./FormatRow";
 // returns it to the pill, the draft kept. Only Send does anything yet:
 // Attach and the formats are placed for the steps that give them work.
 //
-// Sending is send-then-merge, never a pending row: the draft is cleared
-// as Send is pressed and the row appears when the server answers (or
-// its event lands first; core/channelScreen `sent`). A refusal puts the
-// draft back ahead of anything typed since, with the server's words
-// under it; pressing Send again is the retry.
+// A message being quoted (`replyTo`, the screen's to hold) is the card's
+// first line, the reply strip: "Replying to NAME · the first words", and
+// Cancel reply, which drops it and keeps the draft. The pill says
+// "Replying to NAME" with the strip's arrow, or the draft under that
+// arrow, so the quote shows while the keyboard is down. `ref.open` puts
+// the card up with the field focused, as a quote picked from the
+// message menu does once the menu has gone.
+//
+// Sending is send-then-merge, never a pending row: the draft and the
+// quote are cleared as Send is pressed and the row appears when the
+// server answers (or its event lands first; core/channelScreen `sent`).
+// A refusal puts the draft back ahead of anything typed since, with the
+// server's words under it, and the quote back unless another was picked
+// meanwhile (web's rule); pressing Send again is the retry.
 
 // The pill's height and the gap under it, for the screen to keep the
 // list's newest message clear of it.
@@ -38,13 +48,20 @@ export const GAP = 8;
 
 const MAX_LINES = 6;
 
-export default function Composer({
-  channelName,
-  send,
-}: {
-  channelName: string;
-  send: (content: string) => Promise<void>;
-}) {
+export type ComposerHandle = { open: () => void };
+
+export default forwardRef<
+  ComposerHandle,
+  {
+    channelName: string;
+    send: (content: string, replyToMessageId: string) => Promise<void>;
+    // The message being quoted, if any.
+    replyTo: Message | null;
+    onCancelReply: () => void;
+    // A refused send's quote, coming back.
+    onReply: (message: Message) => void;
+  }
+>(function Composer({ channelName, send, replyTo, onCancelReply, onReply }, ref) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [draft, setDraft] = useState("");
@@ -56,7 +73,23 @@ export default function Composer({
   // Send pressed again before React commits the sending state must not
   // send twice, so the guard is a ref as well.
   const sendingRef = useRef(false);
+  // The quote as it stands when a send's answer lands.
+  const replyToRef = useRef(replyTo);
+  replyToRef.current = replyTo;
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
+
+  // The card, with the field focused: mounted so (autoFocus), or focused
+  // again if it is already up.
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => {
+        if (writing) input.current?.focus();
+        else setWriting(true);
+      },
+    }),
+    [writing],
+  );
 
   // Android hides the keyboard (the back gesture) without blurring the
   // field; iOS blurs it, so the field's own onBlur covers it there.
@@ -68,18 +101,23 @@ export default function Composer({
 
   const placeholder = `Message #${channelName}`;
   const blank = isBlankMessage(draft);
+  const quotedName = replyTo ? authorName(replyTo) : "";
 
   const submit = async () => {
     if (sendingRef.current || blank) return;
     sendingRef.current = true;
     const typed = draft;
+    const quoted = replyTo;
     setDraft("");
     setError(null);
     setSending(true);
+    if (quoted) onCancelReply();
     try {
-      await send(typed.trim());
+      await send(typed.trim(), quoted?.id ?? "");
     } catch (err) {
       setDraft((typedSince) => restoreDraft(typed, typedSince));
+      const quotedNow = replyToRef.current;
+      if (quoted && (!quotedNow || quotedNow.id === quoted.id)) onReply(quoted);
       setError(errorText(err));
     } finally {
       sendingRef.current = false;
@@ -96,8 +134,9 @@ export default function Composer({
           <PlusIcon color={theme.text} size={22} />
         </Round>
         <Pressable accessibilityRole="button" onPress={() => setWriting(true)} style={styles.prompt}>
-          <Text numberOfLines={1} style={draft ? styles.draft : styles.placeholder}>
-            {draft || placeholder}
+          {replyTo && <QuoteReplyIcon color={theme.accent} size={16} />}
+          <Text numberOfLines={1} style={draft || replyTo ? styles.draft : styles.placeholder}>
+            {draft || (replyTo ? `Replying to ${quotedName}` : placeholder)}
           </Text>
         </Pressable>
         {/* A send that failed after the field lost focus: the reason waits in
@@ -109,6 +148,22 @@ export default function Composer({
 
   return (
     <Surface glass={glass} style={styles.card}>
+      {replyTo && (
+        <View style={styles.reply}>
+          <QuoteReplyIcon color={theme.accent} size={16} />
+          <Text numberOfLines={1} style={styles.replyText} testID="reply-strip">
+            Replying to <Text style={styles.replyName}>{quotedName}</Text> · {preview(replyTo)}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel reply"
+            onPress={onCancelReply}
+            style={({ pressed }) => [styles.cancel, raised, pressed && roundStyles.down]}
+          >
+            <CloseIcon color={theme.text} />
+          </Pressable>
+        </View>
+      )}
       <TextInput
         ref={input}
         testID="composer"
@@ -147,6 +202,20 @@ export default function Composer({
       </View>
     </Surface>
   );
+});
+
+// The quoted message's author, as the row names them.
+const authorName = (message: Message) =>
+  message.author ? message.author.displayName || message.author.username : "Someone";
+
+// The quoted message's first words, as the server previews a reply
+// (core/markdown plainText, web's messagePreview): its text, or its
+// first file's name when it has none.
+function preview(message: Message): string {
+  const text = plainText(message.content);
+  if (text) return text;
+  const first = message.attachments[0];
+  return first ? `📎 ${first.name}` : "";
 }
 
 // The composer's surface: Liquid Glass where iOS has it, else drawn with
@@ -244,16 +313,44 @@ function makeStyles(theme: Theme) {
     prompt: {
       flex: 1,
       height: 40,
-      justifyContent: "center",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
       paddingLeft: 6,
     },
     placeholder: {
+      flexShrink: 1,
       color: theme.textMuted,
       fontSize: 17,
     },
     draft: {
+      flexShrink: 1,
       color: theme.text,
       fontSize: 17,
+    },
+    reply: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      minHeight: 36,
+      paddingLeft: 10,
+      paddingRight: 4,
+    },
+    replyText: {
+      flex: 1,
+      color: theme.textMuted,
+      fontSize: tokens.textUi,
+    },
+    replyName: {
+      color: theme.text,
+      fontWeight: "700",
+    },
+    cancel: {
+      width: 32,
+      height: 32,
+      borderRadius: tokens.radiusPill,
+      alignItems: "center",
+      justifyContent: "center",
     },
     card: {
       marginHorizontal: 8,

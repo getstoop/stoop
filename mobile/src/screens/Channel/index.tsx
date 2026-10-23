@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
+  type FlatListProps,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -24,7 +25,7 @@ import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
-import Composer, { GAP, PILL } from "./Composer";
+import Composer, { type ComposerHandle, GAP, PILL } from "./Composer";
 import Divider from "./Divider";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
@@ -40,13 +41,23 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // message opens its menu over the channel (MessageMenu); a reaction or a
 // delete from it goes through useChannelLog, and one the server refuses
 // is said in a line over the composer for a moment, as is a link the
-// clipboard refused. What is held and
-// what each answer and event does to it is the channel log's
+// clipboard refused. Quote in reply makes the message the composer's
+// quote: this screen holds it by id while the composer is on this
+// channel, rings its row, and once the menu has gone opens the composer
+// over it, scrolled into view if the keyboard would cover it; the quote
+// goes with a send, Cancel reply, the channel, or the message itself
+// (deleted, or left as a placeholder), silently. What is held and what
+// each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
 
 // How long a refusal's line stays.
 const NOTICE_MS = 4000;
+// How long after the keyboard is announced the list has made room for it
+// (iOS animates the two together, over about a quarter of a second).
+const KEYBOARD_SETTLE_MS = 350;
+// A row half in view is in view.
+const VIEWABILITY = { itemVisiblePercentThreshold: 50 };
 
 export default function Channel({
   server,
@@ -75,6 +86,15 @@ export default function Channel({
   // The message whose menu is open, by id: it closes with the message if
   // that is deleted, and with the channel if that goes.
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // The message the composer is quoting, by id; the row itself is read
+  // from the log, so a deletion lets it go.
+  const [replyToId, setReplyToId] = useState<string | null>(null);
+  // Whether the composer opens once the menu has gone (a quote picked).
+  const openComposer = useRef(false);
+  const composer = useRef<ComposerHandle>(null);
+  // The rows in view, by message id, for a quote's scroll.
+  const inView = useRef(new Set<string>());
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
   // What was refused, for a moment, with the server's reason when there
   // is one: the latest replaces the one before it.
   const [notice, setNotice] = useState<{ title: string; body?: string } | null>(null);
@@ -91,6 +111,8 @@ export default function Channel({
     marked.current = "";
     landed.current = false;
     if (menuFor) setMenuFor(null);
+    if (replyToId) setReplyToId(null);
+    openComposer.current = false;
   }
 
   useEffect(() => {
@@ -131,6 +153,12 @@ export default function Channel({
     [remove, notify],
   );
   const linkNotCopied = useCallback(() => notify("Couldn't copy the link"), [notify]);
+  const quote = useCallback((message: Message) => {
+    setReplyToId(message.id);
+    openComposer.current = true;
+  }, []);
+  const reply = useCallback((message: Message) => setReplyToId(message.id), []);
+  const cancelReply = useCallback(() => setReplyToId(null), []);
   const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
   // The menu closes without its own fade, by an abrupt unmount, when the
   // message goes (deleted, or left as a placeholder) or the channel does;
@@ -140,6 +168,43 @@ export default function Channel({
   useEffect(() => {
     if (menuGone) setMenuFor(null);
   }, [menuGone]);
+  // The composer opens for a quote once the menu's modal is gone, so its
+  // field can take the keyboard.
+  useEffect(() => {
+    if (menuFor || !openComposer.current) return;
+    openComposer.current = false;
+    composer.current?.open();
+  }, [menuFor]);
+  // The quote, as the log holds it; gone with the message.
+  const replyRow = replyToId ? log.rows.get(replyToId) : undefined;
+  const replyTo = replyRow && !replyRow.deleted ? replyRow : null;
+  const replyGone = !!replyToId && !replyTo;
+  useEffect(() => {
+    if (replyGone) setReplyToId(null);
+  }, [replyGone]);
+  // The list makes room for the keyboard by shrinking from the bottom,
+  // so a quote high on the screen can end up under it: once the keyboard
+  // has settled, a quote out of view is scrolled to.
+  const onViewableItemsChanged = useCallback<NonNullable<FlatListProps<GroupedRow>["onViewableItemsChanged"]>>(
+    ({ viewableItems }) => {
+      inView.current = new Set(
+        viewableItems.flatMap((token) => (token.item.kind === "message" ? [token.item.message.id] : [])),
+      );
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!replyToId || keyboard === 0) return;
+    settle.current = setTimeout(() => {
+      settle.current = null;
+      if (inView.current.has(replyToId)) return;
+      const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === replyToId);
+      if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+    }, KEYBOARD_SETTLE_MS);
+    return () => {
+      if (settle.current) clearTimeout(settle.current);
+    };
+  }, [replyToId, keyboard]);
 
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.
@@ -159,6 +224,8 @@ export default function Channel({
     () => (header ? groupedRows(messages, newAfter, header.myUserId).reverse() : []),
     [messages, newAfter, header],
   );
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   // Opening lands on the "New" line, once.
   const newIndex = items.findIndex((item) => item.kind === "new");
@@ -244,6 +311,7 @@ export default function Channel({
                   origin={server.origin}
                   token={token}
                   onLongPress={openMenu}
+                  target={item.message.id === replyToId}
                 />
               ) : (
                 <Divider label={item.label} fresh={item.kind === "new"} />
@@ -251,6 +319,8 @@ export default function Channel({
             }
             onEndReached={older}
             onEndReachedThreshold={0.5}
+            viewabilityConfig={VIEWABILITY}
+            onViewableItemsChanged={onViewableItemsChanged}
             onScrollToIndexFailed={({ index }) => {
               // Rows not measured yet: get near, then try again once drawn.
               list.current?.scrollToOffset({ offset: index * 60, animated: false });
@@ -285,7 +355,15 @@ export default function Channel({
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
           >
-            <Composer key={channelId} channelName={channel.name} send={send} />
+            <Composer
+              ref={composer}
+              key={channelId}
+              channelName={channel.name}
+              send={send}
+              replyTo={replyTo}
+              onCancelReply={cancelReply}
+              onReply={reply}
+            />
           </View>
           {notice && (
             <View
@@ -314,6 +392,7 @@ export default function Channel({
           link={messageLink(server.origin, spaceId, menuMessage)}
           onReact={(emoji) => reactTo(menuMessage, emoji)}
           onCopyFailed={linkNotCopied}
+          onQuote={() => quote(menuMessage)}
           onDelete={() => deleteMessage(menuMessage)}
           onClose={closeMenu}
         />

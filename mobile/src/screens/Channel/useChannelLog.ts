@@ -257,18 +257,19 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
     void open();
   }, [dispatch, open]);
 
-  // The reader's own message: sent, then its answer merged like an event
-  // (the socket's copy usually lands first; the log keeps one row either
-  // way). Nothing is shown before the server answers. A refusal that
-  // means the channel is gone or the sign-in has ended shows as such,
-  // like any other request's; every other failure is the caller's to
-  // show, and the composer puts the draft back.
+  // The reader's own message, quoting another when replyToMessageId
+  // names one: sent, then its answer merged like an event (the socket's
+  // copy usually lands first; the log keeps one row either way). Nothing
+  // is shown before the server answers. A refusal that means the channel
+  // is gone or the sign-in has ended shows as such, like any other
+  // request's; every other failure is the caller's to show, and the
+  // composer puts the draft and the quote back.
   const send = useCallback(
-    async (content: string) => {
+    async (content: string, replyToMessageId = "") => {
       const mine = life.current;
       let message: Message;
       try {
-        message = await sendMessage(server.origin, latest.current.token, channelId, content);
+        message = await sendMessage(server.origin, latest.current.token, channelId, content, replyToMessageId);
       } catch (err) {
         const outcome = outcomeOf(err);
         if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
