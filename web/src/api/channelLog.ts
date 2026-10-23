@@ -16,6 +16,7 @@ import {
   viewOf,
   withArrivals,
   withEvent,
+  withPatch,
   withThreadOverlay,
 } from "../core/channelLog";
 import type {
@@ -287,22 +288,15 @@ export function holdRow(channelId: string, row: Message) {
 
 // A change the reader made before the server answers (a reaction, a pin,
 // hiding their own delete): the held row changed, at its own seq, so the
-// event that follows at a higher seq replaces it. Nothing when the row
-// isn't held. The caller reverts a refusal with another patch.
+// event that follows at a higher seq replaces it (core/channelLog
+// withPatch, which the phone's screen reducer uses too). Nothing when the
+// row isn't held. The caller reverts a refusal with another patch.
 export function patchRow(
   channelId: string,
   id: string,
   change: (row: Message) => Message,
 ) {
-  updateLog(channelId, (log) => {
-    const held = log.rows.get(id);
-    if (!held) return log;
-    const next = change(held);
-    if (next === held) return log;
-    const rows = new Map(log.rows);
-    rows.set(id, { ...next, seq: held.seq });
-    return { ...log, rows };
-  });
+  updateLog(channelId, (log) => withPatch(log, id, change));
 }
 
 // The reader's half of a root's thread summary, from their own read and

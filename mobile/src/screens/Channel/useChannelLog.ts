@@ -282,9 +282,14 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
   // The reader's own reaction, as web toggles one: written to the held
   // row at once (core/channelScreen `reacted`, at the row's own seq, so
   // the reactions_changed that follows replaces it), then ToggleReaction,
-  // whose answer is merged like a send's. A refusal puts the reactions
-  // back, unless the row has moved on meanwhile, and is the caller's to
-  // show; one that means the sign-in has ended shows as such.
+  // whose answer is merged like a send's. An answer with no row is a
+  // toggle saved whose reload failed (api/messages toggleReaction): the
+  // patch stands, with no event to follow it, and nothing is said. A
+  // refusal puts the reactions back, unless the row has moved on
+  // meanwhile, and is the caller's to show; one that means the sign-in
+  // has ended shows as such. Once this screen has left the channel
+  // (mine.ended) the answer, whichever it is, is nobody's: the log is
+  // gone, and a notice would land on whatever screen came next.
   const react = useCallback(
     async (message: Message, emoji: string) => {
       const mine = life.current;
@@ -298,16 +303,18 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
         reactions,
       });
       dispatch(patch(toggledReactions(before, emoji, header.myUserId)));
-      let answer: Message;
+      let answer: Message | undefined;
       try {
         answer = await toggleReaction(server.origin, token, message.id, emoji);
       } catch (err) {
-        if (mine.ended) throw err;
+        if (mine.ended) return;
         if (latest.current.log.channelId === channelId) dispatch(patch(before));
         if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
         throw err;
       }
-      if (latest.current.log.channelId === channelId) dispatch({ type: "sent", message: answer });
+      if (answer && !mine.ended && latest.current.log.channelId === channelId) {
+        dispatch({ type: "sent", message: answer });
+      }
     },
     [server.origin, channelId, dispatch, latest],
   );
@@ -316,7 +323,8 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
   // held row hidden at once (core/channelScreen `deleted`), as the
   // message_deleted that follows makes it. A message already gone from
   // under the confirm (deleted elsewhere while it was open) is nothing to
-  // ask for again. A refusal is the caller's to show, as above.
+  // ask for again. A refusal is the caller's to show, as above, and
+  // nothing once this screen has left the channel.
   const remove = useCallback(
     async (message: Message) => {
       const mine = life.current;
@@ -326,10 +334,13 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
       try {
         await deleteMessage(server.origin, token, message.id);
       } catch (err) {
-        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
         throw err;
       }
-      if (latest.current.log.channelId === channelId) dispatch({ type: "deleted", messageId: message.id });
+      if (!mine.ended && latest.current.log.channelId === channelId) {
+        dispatch({ type: "deleted", messageId: message.id });
+      }
     },
     [server.origin, channelId, dispatch, latest],
   );

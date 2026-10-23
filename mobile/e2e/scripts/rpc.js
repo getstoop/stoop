@@ -62,17 +62,27 @@ var steps = {
   },
   // In CHANNEL_ID (message-actions.yaml): how many people have given
   // EMOJI to the newest page's message reading TEXT, as the server holds
-  // it; -1 when no message reads TEXT.
+  // it; -1 when no message reads TEXT. The sheet closes on the tap,
+  // before the server has answered, so this asks again for up to five
+  // seconds until the count is EXPECTED, and leaves the last count read
+  // for the flow to judge.
   reactionCount: function () {
-    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
-    output.reactionCount = -1;
-    for (var i = 0; i < messages.length; i++) {
-      if (messages[i].content !== TEXT) continue;
-      output.reactionCount = 0;
-      var reactions = messages[i].reactions || [];
-      for (var j = 0; j < reactions.length; j++) {
-        if (reactions[j].emoji === EMOJI) output.reactionCount = (reactions[j].userIds || []).length;
+    var deadline = Date.now() + 5000;
+    for (;;) {
+      var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+      output.reactionCount = -1;
+      for (var i = 0; i < messages.length; i++) {
+        if (messages[i].content !== TEXT) continue;
+        output.reactionCount = 0;
+        var reactions = messages[i].reactions || [];
+        for (var j = 0; j < reactions.length; j++) {
+          if (reactions[j].emoji === EMOJI) output.reactionCount = (reactions[j].userIds || []).length;
+        }
       }
+      if (String(output.reactionCount) === String(EXPECTED) || Date.now() > deadline) return;
+      // The script engine has no timer: a short spin between asks.
+      var until = Date.now() + 200;
+      while (Date.now() < until) {}
     }
   },
   // The message `say` wrote, deleted by ada, who moderates the space, as

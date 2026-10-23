@@ -96,15 +96,18 @@ export async function sendMessage(origin: string, token: string, channelId: stri
 
 // The reader's reaction on a message, added or taken away. The answer is
 // the row with its reactions after the toggle, for the screen to merge as
-// it merges a send's answer.
+// it merges a send's answer; or no row at all, which is not a failure:
+// the server saves the toggle, and when its reload of the row fails it
+// answers with no message and sends no event rather than report the
+// save as failed (internal/chat/reactions.go), as web's toggleReaction
+// takes it.
 export async function toggleReaction(
   origin: string,
   token: string,
   messageId: string,
   emoji: string,
-): Promise<Message> {
+): Promise<Message | undefined> {
   const { message } = await chatClient(origin, token).toggleReaction({ messageId, emoji }, { timeoutMs: TIMEOUT_MS });
-  if (!message) throw new Error("The server answered with nothing.");
   return message;
 }
 

@@ -124,7 +124,7 @@ export default function Channel({
   );
   const deleteMessage = useCallback(
     (message: Message) => {
-      remove(message).catch((err) => notify("Couldn't delete", errorText(err)));
+      remove(message).catch((err) => notify("Couldn't delete the message", errorText(err)));
     },
     [remove, notify],
   );

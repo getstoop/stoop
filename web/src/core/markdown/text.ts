@@ -4,24 +4,35 @@ import type { Block, Inline } from "./types";
 
 // What other features read out of a message without rendering it.
 
-// The message's words with their lines kept, as a row draws them: a
-// mention as its @handle or #name, a link as its words or else its
-// address, a list as its items. For copying a message as text.
+// The message's words with their lines kept, for copying a message as
+// text: a mention as its @handle or #name, a link as its words or else
+// its address, a blank line between paragraphs, a list as its items one
+// to a line (the bullets and their nesting are markup), a fence as its
+// code. A spoiler's words are copied: the person asked for the text. A
+// quoted line keeps its "> ", so another's words are not handed on as
+// the reader's own; everything else drops its marks.
 export function plainLines(content: string): string {
-  return parseMarkdown(content)
-    .map((b) => {
-      if (b.type === "codeblock") return b.text;
-      return lineRuns(b).map(inlineText).join("\n");
-    })
-    .join("\n");
+  return textLines(content, (line) => `> ${line}`);
 }
 
 // The message with its markup removed, for one-line previews (reply bar,
 // activity previews). Mirrors plainText on the server.
 export function plainText(content: string): string {
-  return plainLines(content)
+  return textLines(content, (line) => line)
     .replace(/\s*\n\s*/g, " ")
     .trim();
+}
+
+// Each block's lines of words, blocks and lines joined by newlines; a
+// quote's lines through quoted.
+function textLines(content: string, quoted: (line: string) => string): string {
+  return parseMarkdown(content)
+    .map((b) => {
+      if (b.type === "codeblock") return b.text;
+      const lines = lineRuns(b).map(inlineText);
+      return (b.type === "quote" ? lines.map(quoted) : lines).join("\n");
+    })
+    .join("\n");
 }
 
 // No words and no mention: only markers, like an empty quote, bullet or

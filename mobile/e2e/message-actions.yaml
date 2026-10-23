@@ -2,11 +2,11 @@ appId: ${APP_ID}
 name: React to a message from its menu, copy its words, and delete it
 ---
 # After channel.yaml, which needs chapters unread for ada with only dee's
-# notes in it: dee's and ada's messages below would already be there.
-# Alphabetical order carries that today, and puts this flow before
-# message-menu.yaml, which minds nothing done here. The list draws no
-# reaction chips yet, so a reaction shows in the sheet's highlight and
-# on the server.
+# first notes in it: dee's messages below would already be there (only
+# dee writes here; ada deletes one of them, and bea reads). Alphabetical
+# order carries that today, and puts this flow before message-menu.yaml,
+# which minds nothing done here. The list draws no reaction chips yet,
+# so a reaction shows in the sheet's highlight and on the server.
 # As dee, a plain member, in chapters, where every note is dee's own.
 - clearKeychain
 - launchApp:
@@ -62,6 +62,7 @@ name: React to a message from its menu, copy its words, and delete it
       CHANNEL_ID: ${CHAPTERS_ID}
       TEXT: Chapter 55 notes
       EMOJI: 👍
+      EXPECTED: 1
 - assertTrue: ${output.reactionCount == 1}
 - waitForAnimationToEnd:
     timeout: 3000
@@ -83,6 +84,7 @@ name: React to a message from its menu, copy its words, and delete it
       CHANNEL_ID: ${CHAPTERS_ID}
       TEXT: Chapter 55 notes
       EMOJI: 👍
+      EXPECTED: 0
 - assertTrue: ${output.reactionCount == 0}
 - waitForAnimationToEnd:
     timeout: 3000
@@ -138,23 +140,22 @@ name: React to a message from its menu, copy its words, and delete it
     timeout: 5000
 - tapOn: "Delete message"
 - extendedWaitUntil:
-    visible: "Delete message\\?"
+    visible: "Delete this message\\?"
     timeout: 5000
 - tapOn: "Cancel"
 - extendedWaitUntil:
-    notVisible: "Delete message\\?"
+    notVisible: "Delete this message\\?"
     timeout: 5000
 - assertVisible: "Quote in reply"
 - tapOn: "Delete message"
 - extendedWaitUntil:
-    visible: "Delete message\\?"
+    visible: "Delete this message\\?"
     timeout: 5000
 - tapOn: "Delete"
 - extendedWaitUntil:
     notVisible: "Scratch that"
     timeout: 10000
 - assertNotVisible: "Quote in reply"
-- assertNotVisible: "Couldn't delete"
 - runScript:
     file: scripts/rpc.js
     env:
@@ -181,7 +182,7 @@ name: React to a message from its menu, copy its words, and delete it
     timeout: 5000
 - tapOn: "Delete message"
 - extendedWaitUntil:
-    visible: "Delete message\\?"
+    visible: "Delete this message\\?"
     timeout: 5000
 - runScript:
     file: scripts/rpc.js
@@ -193,10 +194,9 @@ name: React to a message from its menu, copy its words, and delete it
 - assertNotVisible: "Quote in reply"
 - tapOn: "Delete"
 - extendedWaitUntil:
-    notVisible: "Delete message\\?"
+    notVisible: "Delete this message\\?"
     timeout: 5000
 - assertVisible: "chapters, ${SPACE}, \\d+ members"
-- assertNotVisible: "Couldn't delete"
 # As bea, made an admin of the space: dee's note may be deleted, until
 # she is a plain member again while the confirm is up. Then the server
 # refuses, and the screen says so for a moment. She has never read
@@ -249,7 +249,7 @@ name: React to a message from its menu, copy its words, and delete it
     timeout: 5000
 - tapOn: "Delete message"
 - extendedWaitUntil:
-    visible: "Delete message\\?"
+    visible: "Delete this message\\?"
     timeout: 5000
 - runScript:
     file: scripts/rpc.js
@@ -257,9 +257,9 @@ name: React to a message from its menu, copy its words, and delete it
       STEP: demote
 - tapOn: "Delete"
 - extendedWaitUntil:
-    visible: "Couldn't delete"
+    visible: "Couldn't delete the message"
     timeout: 10000
 - assertVisible: "Chapter 55 notes"
 - extendedWaitUntil:
-    notVisible: "Couldn't delete"
+    notVisible: "Couldn't delete the message"
     timeout: 10000

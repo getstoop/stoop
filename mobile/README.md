@@ -269,8 +269,9 @@ open an invite the way the web's open-in-app page does, then sign in and
 join.
 They find things by the words on screen and, for text fields, a
 `testID`. They run in file order, and some lean on it: the message-menu
-and message-actions flows have ada write in chapters, which the channel
-flow needs unread for her with dee's notes alone, so the channel flow
+flow has ada write in chapters, and message-actions has dee write there
+(ada only deletes in it, and bea only reads), which the channel flow
+needs unread for ada with dee's first notes alone, so the channel flow
 goes first.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a

@@ -118,7 +118,7 @@ export default function MessageMenu({
   };
   // The system's confirm over the sheet; Cancel leaves the sheet open.
   const confirmDelete = () =>
-    Alert.alert("Delete message?", "It's removed for everyone and can't be undone.", [
+    Alert.alert("Delete this message?", "It's removed for everyone and can't be undone.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
