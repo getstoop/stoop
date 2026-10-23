@@ -1,39 +1,15 @@
 // The reaction picker's emoji set: the full Unicode list (generated into
-// emojiData.ts, grouped in CLDR order) plus a curated row of the usual
-// suspects and hand-written search keywords for the common ones. Custom
-// emoji per space will arrive with file uploads and fit the same shape.
+// emojiData.ts, grouped in CLDR order) plus the curated row of the usual
+// suspects (core/emoji.ts, shared with the phone) and hand-written search
+// keywords for the common ones. Custom emoji per space will arrive with
+// file uploads and fit the same shape.
 
 import { EMOJI_GROUPS } from "./emojiData";
 import { aliasesFor } from "./shortcodes";
 
 export type EmojiEntry = { emoji: string; name: string; keywords?: string };
 
-export const COMMON_EMOJI = [
-  "👍",
-  "👎",
-  "❤️",
-  "😂",
-  "😮",
-  "😢",
-  "🎉",
-  "🔥",
-  "👀",
-  "🙏",
-  "💯",
-  "✅",
-  "❌",
-  "😍",
-  "🤔",
-  "😅",
-  "🙌",
-  "👏",
-  "🚀",
-  "💀",
-  "🫡",
-  "😭",
-  "🤣",
-  "🥳",
-];
+export { COMMON_EMOJI } from "../core/emoji";
 
 // Extra search terms for emoji whose Unicode name isn't what people type.
 const KEYWORDS = new Map<string, string>([

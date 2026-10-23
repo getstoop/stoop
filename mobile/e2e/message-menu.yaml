@@ -1,0 +1,148 @@
+appId: ${APP_ID}
+name: Long-press a message and see its menu, with what the reader may do to it
+---
+# After channel.yaml, which needs chapters unread for ada with only dee's
+# notes in it: the message ada writes below would already be there, and
+# read by her. Alphabetical order carries that today.
+# As dee, a plain member: every message in chapters is dee's own.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${POSTER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+# The reader's own message: the sheet offers everything, Edit and Delete
+# included, under the quick reactions. Before each long press the list
+# settles: a touch while it is still moving is the list's, not the row's.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Reply in thread.*"
+    timeout: 5000
+- assertVisible: "Quote in reply"
+- assertVisible: "Copy text"
+- assertVisible: "Copy link"
+- assertVisible: "Edit message"
+- assertVisible: "Delete message"
+- assertVisible: "More reactions"
+# Tapping the scrim closes it.
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+# Another member's message, which dee may neither edit nor delete.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: ownerSays
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Bringing the second copy after all
+- extendedWaitUntil:
+    visible: "Bringing the second copy after all"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Bringing the second copy after all"
+- extendedWaitUntil:
+    visible: "Reply in thread.*"
+    timeout: 5000
+- assertVisible: "Quote in reply"
+- assertVisible: "Copy text"
+- assertVisible: "Copy link"
+- assertNotVisible: "Edit message"
+- assertNotVisible: "Delete message"
+# Nothing in it does anything yet: an item only closes the sheet, and the
+# message is as it was.
+- tapOn: "Copy text"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- assertVisible: "Bringing the second copy after all"
+# Swiping the sheet down closes it too.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Quote in reply"
+    timeout: 5000
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 98%"
+    duration: 300
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+# As ada, who owns the space: dee's message may be deleted, not edited.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Reply in thread.*"
+    timeout: 5000
+- assertNotVisible: "Edit message"
+- assertVisible: "Delete message"
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000

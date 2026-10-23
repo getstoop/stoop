@@ -44,9 +44,9 @@ export function losesChannel(
   }
 }
 
-// The header after a live event: a rename of the channel or its space, or
-// a member coming or going. The same object when the event is about
-// something else. A count is applied only as the event arrives; a header
+// The header after a live event: a rename of the channel or its space, a
+// member coming or going, or the reader's own role changing. The same
+// object when the event is about something else. A count is applied only as the event arrives; a header
 // fetched afterwards has counted the member already, so it replaces this
 // one rather than being patched.
 export function withHeaderEvent(
@@ -64,10 +64,29 @@ export function withHeaderEvent(
         channel: { ...channel, name, private: closed, topic, postPolicy },
       };
     }
-    case "spaceUpdated":
-      if (!payload.value.space || payload.value.space.id !== space.id)
+    case "spaceUpdated": {
+      const updated = payload.value.space;
+      if (!updated || updated.id !== space.id) return header;
+      // A broadcast space carries nobody's role or permissions
+      // (realtime.proto SpaceUpdated), so the held ones stay.
+      return {
+        ...header,
+        space: {
+          ...updated,
+          myRole: space.myRole,
+          myPermissions: space.myPermissions,
+        },
+      };
+    }
+    case "memberRoleChanged":
+      // The event says the new role, not what it permits: the screen asks
+      // for the header again for that (useChannelLog).
+      if (
+        payload.value.spaceId !== space.id ||
+        payload.value.userId !== header.myUserId
+      )
         return header;
-      return { ...header, space: payload.value.space };
+      return { ...header, space: { ...space, myRole: payload.value.role } };
     case "memberJoined":
     case "memberRemoved":
       // A private channel's members join and leave it on their own.

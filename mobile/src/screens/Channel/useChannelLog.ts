@@ -192,6 +192,16 @@ export function useChannelLog(server: SavedServer, spaceId: string, channelId: s
     if (event.payload.case !== "ready") {
       dispatch({ type: "event", event });
       if (latest.current.log.needsCatchUp) void catchUp();
+      // A new role for the reader says nothing about what it permits; the
+      // header fetched again carries the space's my_permissions.
+      const { header } = latest.current;
+      if (
+        event.payload.case === "memberRoleChanged" &&
+        header &&
+        event.payload.value.spaceId === header.space.id &&
+        event.payload.value.userId === header.myUserId
+      )
+        void refreshHeader();
       return;
     }
     // The socket is back. A channel not yet open is opened again, since a

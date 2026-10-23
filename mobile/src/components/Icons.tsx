@@ -235,3 +235,62 @@ export function NumberedListIcon({ color, size = 20 }: IconProps) {
     </Format>
   );
 }
+
+// The message menu's, at the tab bar's 1.8 stroke as the menu mockup draws
+// them: a smiley for more reactions, a bubble with lines for the thread,
+// the reply arrow for a quote, the copy sheets, a pencil and a bin.
+export function SmileyIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M8.5 14a4 4 0 0 0 7 0M9 9.5h.01M15 9.5h.01" />
+    </Stroke>
+  );
+}
+
+export function ThreadIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <Path d="M8 9h8M8 13h5" />
+    </Stroke>
+  );
+}
+
+export function QuoteReplyIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M9 14L4 9l5-5" />
+      <Path d="M4 9h10a6 6 0 0 1 6 6v5" />
+    </Stroke>
+  );
+}
+
+export function CopyIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={9} y={9} width={12} height={12} rx={2} />
+      <Path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </Stroke>
+  );
+}
+
+export function PencilIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M12 20h9" />
+      <Path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    </Stroke>
+  );
+}
+
+export function TrashIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M3 6h18" />
+      <Path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <Path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <Path d="M10 11v6M14 11v6" />
+    </Stroke>
+  );
+}

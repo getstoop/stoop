@@ -1,7 +1,10 @@
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
+import { canDeleteAnyMessage } from "@stoop/core/permissions";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
+import * as Haptics from "expo-haptics";
 import { Stack, useIsFocused, useRouter } from "expo-router";
-import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -21,6 +24,7 @@ import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
 import Composer, { GAP, PILL } from "./Composer";
 import Divider from "./Divider";
+import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import { olderFits, useChannelLog } from "./useChannelLog";
 
@@ -30,8 +34,9 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // "New" line when there is one, and keeps the reader's marker at the
 // newest message while it is on screen. The composer floats over the
 // bottom of the list and rides up with the keyboard; what it sends
-// comes back as a row the same way an event does. What is held and what
-// each answer and event does to it is the channel log's
+// comes back as a row the same way an event does. A long press on a
+// message opens its menu over the channel (MessageMenu). What is held
+// and what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
 
@@ -59,6 +64,9 @@ export default function Channel({
   // avoiding view measures itself against its parent and needs that
   // offset to know how much of it the keyboard covers.
   const [top, setTop] = useState(0);
+  // The message whose menu is open, by id: it closes with the message if
+  // that is deleted, and with the channel if that goes.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const screen = useRef<ComponentRef<typeof View>>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
   // What this screen remembers about the channel shown: the marker it
@@ -70,6 +78,7 @@ export default function Channel({
     shownChannel.current = channelId;
     marked.current = "";
     landed.current = false;
+    if (menuFor) setMenuFor(null);
   }
 
   useEffect(() => {
@@ -80,6 +89,21 @@ export default function Channel({
   // The channel's shown rows, oldest first; the same array while nothing
   // shown changed.
   const messages = channelItems(log);
+
+  const openMenu = useCallback((message: Message) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setMenuFor(message.id);
+  }, []);
+  const closeMenu = useCallback(() => setMenuFor(null), []);
+  const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
+  // The menu closes without its own fade, by an abrupt unmount, when the
+  // message goes (deleted, or left as a placeholder) or the channel does;
+  // the id it held is let go too. A closing animation for these is a
+  // later slice's.
+  const menuGone = !!menuFor && (!menuMessage || menuMessage.deleted || !!outcome);
+  useEffect(() => {
+    if (menuGone) setMenuFor(null);
+  }, [menuGone]);
 
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.
@@ -183,6 +207,7 @@ export default function Channel({
                   myUserId={myUserId}
                   origin={server.origin}
                   token={token}
+                  onLongPress={openMenu}
                 />
               ) : (
                 <Divider label={item.label} fresh={item.kind === "new"} />
@@ -228,6 +253,16 @@ export default function Channel({
           </View>
         </View>
       </KeyboardAvoidingView>
+      {menuMessage && !menuMessage.deleted && (
+        <MessageMenu
+          message={menuMessage}
+          myUserId={myUserId}
+          canModerate={canDeleteAnyMessage(space)}
+          origin={server.origin}
+          token={token}
+          onClose={closeMenu}
+        />
+      )}
     </View>
   );
 }

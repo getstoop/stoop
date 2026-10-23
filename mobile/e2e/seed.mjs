@@ -84,6 +84,8 @@ const env = {
   SECOND_SERVER: BASE.replace("localhost", "127.0.0.1"),
   PASSWORD: s.password,
   MEMBER: `ada${s.suffix}`,
+  // A plain member of the space, who moderates nothing.
+  POSTER: `dee${s.suffix}`,
   OUTSIDER: `bea${s.suffix}`,
   NEWCOMER: `cleo${s.suffix}`,
   SPACE: space,
