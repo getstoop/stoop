@@ -94,7 +94,7 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-haptics`). While the keyboard is up a long press first puts it
   away (the list takes that first touch), and a second one opens the
   menu. A screen reader can't open it yet: an accessibility action on
-  the row is a follow-up. Seven of its items work. A quick reaction
+  the row is a follow-up. All eight of its items work. A quick reaction
   toggles itself on the message and closes the sheet, as web does it:
   the held row takes the reader's toggle at once (`core/reactions`
   `toggledReactions`, through the screen reducer's `reacted`, at the
@@ -176,8 +176,32 @@ import a screen; the screens themselves live in `src/screens`, so
   meanwhile leaves the field's words alone; saving then replaces it,
   last write wins, as on web. The list draws no reaction chips yet
   (that is the rich row's ticket), so a reaction shows only in the
-  sheet's highlight. Reply in thread is placed and inert: pressing it
-  only closes the sheet, until the step that gives it work.
+  sheet's highlight. Reply in thread opens the message's thread once
+  the sheet has gone (below), an empty one on a message that has none
+  yet, and its root's for a reply also sent to the channel.
+- A root with replies has a line under it, as the server summarises the
+  thread (`message.thread`; nothing is counted on the phone): the two
+  who replied last, "N replies" in the accent, an "N new" badge while
+  the reader has replies unread, and "Last reply" with its time on the
+  right (`src/screens/Channel/ThreadLine.tsx`). The line is one button
+  ("4 replies, 2 new, open the thread"), and a root deleted while its
+  replies live keeps it under its placeholder, as on web. It pushes the
+  thread (`s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]`,
+  `src/screens/Thread`) over the channel: "Thread" with the channel and
+  the space under it, the root at the top ruled off once nothing older
+  is left to load, "N replies" (or "No replies yet"), and the replies,
+  each time with its day and no day lines, as web's thread draws them.
+  It opens at the "New" line above the replies the reader hadn't read,
+  worked out once from the root's unread count as the thread opens
+  (`core/grouping` `firstUnreadReplyId`), and marks the thread read
+  (`MarkThreadRead`) while on screen with the app open, again for each
+  new reply; the count clears there and on the channel's line, and on
+  a ThreadRead from another device. The badge does not grow while the
+  channel is open: a new reply's event carries the shared half of the
+  summary only, and web's rule for adding to the reader's count stays
+  web's for now. Replying, Also send to the channel, the menu on a reply
+  and the mute bell are the next steps; the composer is left out until
+  it can send.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -224,11 +248,17 @@ The header's rules (a rename, the member count, the events that mean the
 channel is gone) are `core/channelHeader.ts`, and the screen's state
 over both (the header, why the channel can't be shown, the "New" line's
 marker) is `core/channelScreen.ts`, a reducer with its tests beside it.
-The screen's own part is small: `src/screens/Channel/useChannelLog.ts`
-makes the requests and dispatches each answer and event to it; the
-screen (`src/screens/Channel/index.tsx`) marks read and draws the rows
-`core/grouping.ts` groups (day lines, the "New" line, which message
-continues the one before). Sending is send-then-merge, as on web: the
+The screens' own part is small: `src/screens/Channel/channelEngine.ts`
+makes the requests and dispatches each answer and event to it, one per
+channel, shared by the channel screen and a thread screen pushed over
+it (`useChannelLog`, which holds it while a screen is mounted and lets
+it go with the last), so a reply, an edit or a read lands once for both;
+a thread screen opens its view on the thread's newest replies, with the
+root fetched when the channel's page doesn't hold it, pages older ones,
+and closes the view as it goes. The screens (`src/screens/Channel`,
+`src/screens/Thread`) mark read and draw the rows `core/grouping.ts`
+groups (day lines, the "New" line, which message continues the one
+before). Sending is send-then-merge, as on web: the
 composer clears the draft, awaits `SendMessage`, and the answer's row is
 dispatched as `sent` and merged by seq like an event's (the socket's
 copy usually lands first; either order leaves one row). There are no
@@ -336,7 +366,8 @@ what its menu offers as a member and as a moderator, pick a reaction
 from the emoji picker and copy a message's link, quote a message in a
 reply, cancel it, send it and see the quote go with its message, edit a
 message from its menu, cancel an edit and see Save refuse an emptied
-one (and keep a mention's token), add a second
+one (and keep a mention's token), open a thread from its replies line
+and from Reply in thread and read it while a reply arrives, add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and

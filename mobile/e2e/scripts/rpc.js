@@ -138,6 +138,10 @@ var steps = {
   ownerUnsays: function () {
     rpc("DeleteMessage", OWNER_TOKEN, { messageId: output.messageId });
   },
+  // In chapter-nine (thread.yaml): dee replies TEXT in ada's thread.
+  replyInThread: function () {
+    rpc("SendMessage", POSTER_TOKEN, { channelId: NINE_ID, content: TEXT, threadRootId: NINE_ROOT_ID });
+  },
   // bea (OUTSIDER_ID) in Book club as an admin, who moderates; already a
   // member when the invite flows ran first. Then back to a plain member,
   // as if demoted while she has a confirm open.

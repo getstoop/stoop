@@ -13,14 +13,17 @@ import {
 import {
   type ChannelLog,
   caughtUp,
+  closedThread,
   emptyLog,
   FROM_ANSWER,
   opened,
   paged,
   reconnected,
+  viewOf,
   withArrivals,
   withEvent,
   withPatch,
+  withThreadOverlay,
 } from "./channelLog";
 
 // A channel screen's state over its log: the log itself (channelLog owns
@@ -30,6 +33,15 @@ import {
 
 // Why the channel can't be shown.
 export type Outcome = "ended" | "gone" | "failed";
+
+// A thread a screen shows over the channel, by its root's id: held from
+// the screen's opening it to its closing, so a page that lands for a
+// thread since closed is nobody's. Gone is the thread's root (deleted,
+// or never there); the channel's own loss is the screen's outcome.
+export type ThreadScreen = {
+  outcome: "gone" | "failed" | null;
+  loadingOlder: boolean;
+};
 
 export type ChannelScreen = {
   log: ChannelLog;
@@ -42,6 +54,7 @@ export type ChannelScreen = {
   // the marker moves; null for no "New" line.
   newAfter: string | null;
   loadingOlder: boolean;
+  threads: Record<string, ThreadScreen>;
 };
 
 export type ScreenAction =
@@ -90,7 +103,33 @@ export type ScreenAction =
   // its own seq, gone from the list at once as the message_deleted that
   // follows makes it. A root with a thread summary is left to the
   // server's update for it, which fills the placeholder in.
-  | { type: "deleted"; messageId: string };
+  | { type: "deleted"; messageId: string }
+  // A thread screen opening (again, after a failure): its replies' first
+  // page is asked for.
+  | { type: "threadOpening"; rootId: string }
+  // The thread's newest page of replies, under the thread view's
+  // generation when it was asked for, with its root when that had to be
+  // fetched (not held from the channel's page), merged as an answer's row.
+  | {
+      type: "threadOpened";
+      rootId: string;
+      res: ListMessagesResponse;
+      generation: number;
+      root?: Message;
+    }
+  | { type: "threadFailed"; rootId: string; outcome: "gone" | "failed" }
+  | { type: "threadPagingOlder"; rootId: string }
+  | {
+      type: "threadPaged";
+      rootId: string;
+      res: ListMessagesResponse;
+      generation: number;
+    }
+  | { type: "threadPageFailed"; rootId: string }
+  // The thread screen has gone: the view goes with the rows only it kept.
+  | { type: "threadClosed"; rootId: string }
+  // The reader's own MarkThreadRead, answered: nothing in it is new.
+  | { type: "threadRead"; rootId: string };
 
 export const emptyScreen = (channelId: string): ChannelScreen => ({
   log: emptyLog(channelId),
@@ -99,6 +138,7 @@ export const emptyScreen = (channelId: string): ChannelScreen => ({
   token: "",
   newAfter: null,
   loadingOlder: false,
+  threads: {},
 });
 
 export function screenReducer(
@@ -148,7 +188,16 @@ export function screenReducer(
     case "event": {
       if (loses(state, action.event)) return { ...state, outcome: "gone" };
       const { header } = state;
-      const log = withEvent(state.log, action.event);
+      const payload = action.event.payload;
+      // Read on another device, or by this one's MarkThreadRead.
+      const log =
+        payload.case === "threadRead"
+          ? payload.value.channelId === state.log.channelId
+            ? withThreadOverlay(state.log, payload.value.rootMessageId, {
+                unreadCount: 0,
+              })
+            : state.log
+          : withEvent(state.log, action.event);
       const next = header ? withHeaderEvent(header, action.event) : header;
       if (log === state.log && next === header) return state;
       return { ...state, log, header: next };
@@ -177,7 +226,97 @@ export function screenReducer(
       );
       return log === state.log ? state : { ...state, log };
     }
+    case "threadOpening":
+      return withThread(state, action.rootId, {
+        outcome: null,
+        loadingOlder: state.threads[action.rootId]?.loadingOlder ?? false,
+      });
+    case "threadOpened": {
+      const thread = state.threads[action.rootId];
+      if (!thread || state.outcome === "gone" || state.outcome === "ended")
+        return state;
+      const held = action.root
+        ? withArrivals(state.log, [action.root], FROM_ANSWER)
+        : state.log;
+      const log = opened(held, {
+        rootId: action.rootId,
+        generation: action.generation,
+        res: action.res,
+      });
+      return withThread({ ...state, log }, action.rootId, {
+        ...thread,
+        outcome: null,
+      });
+    }
+    case "threadFailed": {
+      const thread = state.threads[action.rootId];
+      if (!thread) return state;
+      // As the channel's: what is on screen stays when the server can't
+      // be reached.
+      const view = viewOf(state.log, action.rootId);
+      if (action.outcome === "failed" && view && view.generation > 0)
+        return state;
+      return withThread(state, action.rootId, {
+        ...thread,
+        outcome: action.outcome,
+      });
+    }
+    case "threadPagingOlder": {
+      const thread = state.threads[action.rootId];
+      return thread
+        ? withThread(state, action.rootId, { ...thread, loadingOlder: true })
+        : state;
+    }
+    case "threadPaged": {
+      const thread = state.threads[action.rootId];
+      if (!thread) return state;
+      const log = paged(state.log, "older", {
+        rootId: action.rootId,
+        generation: action.generation,
+        res: action.res,
+      });
+      return withThread({ ...state, log }, action.rootId, {
+        ...thread,
+        loadingOlder: false,
+      });
+    }
+    case "threadPageFailed": {
+      const thread = state.threads[action.rootId];
+      return thread
+        ? withThread(state, action.rootId, { ...thread, loadingOlder: false })
+        : state;
+    }
+    case "threadClosed": {
+      if (!(action.rootId in state.threads)) return state;
+      const { [action.rootId]: _closed, ...threads } = state.threads;
+      return {
+        ...state,
+        log: closedThread(state.log, action.rootId),
+        threads,
+      };
+    }
+    case "threadRead": {
+      const log = withThreadOverlay(state.log, action.rootId, {
+        unreadCount: 0,
+      });
+      return log === state.log ? state : { ...state, log };
+    }
   }
+}
+
+function withThread(
+  state: ChannelScreen,
+  rootId: string,
+  thread: ThreadScreen,
+): ChannelScreen {
+  const held = state.threads[rootId];
+  if (
+    held &&
+    held.outcome === thread.outcome &&
+    held.loadingOlder === thread.loadingOlder
+  )
+    return state;
+  return { ...state, threads: { ...state.threads, [rootId]: thread } };
 }
 
 // Whether the event means the reader can no longer see the channel. With

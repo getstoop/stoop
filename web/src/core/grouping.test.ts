@@ -10,9 +10,11 @@ import {
 import {
   continues,
   firstNewMessageId,
+  firstUnreadReplyId,
   groupedRows,
   sameMinute,
   startsDay,
+  threadRows,
 } from "./grouping";
 
 const at = (time: string) => timestampFromDate(new Date(`2026-10-15T${time}`));
@@ -196,6 +198,69 @@ describe("groupedRows", () => {
       "01",
       "[New]",
       "02",
+    ]);
+  });
+});
+
+describe("firstUnreadReplyId", () => {
+  const reply = (id: string, authorId: string) =>
+    create(MessageSchema, { id, author: { id: authorId } });
+  const replies = [
+    reply("01", "dee"),
+    reply("02", "dee"),
+    reply("03", "me"),
+    reply("04", "dee"),
+  ];
+
+  it("counts back over others' replies, skipping the reader's own", () => {
+    expect(firstUnreadReplyId(replies, 1, "me")).toBe("04");
+    expect(firstUnreadReplyId(replies, 2, "me")).toBe("02");
+  });
+
+  it("is the oldest held reply by others when fewer are held", () => {
+    expect(firstUnreadReplyId(replies, 9, "me")).toBe("01");
+  });
+
+  it("is none when nothing is unread", () => {
+    expect(firstUnreadReplyId(replies, 0, "me")).toBeUndefined();
+    expect(firstUnreadReplyId([], 2, "me")).toBeUndefined();
+  });
+});
+
+describe("threadRows", () => {
+  const dated = (id: string, when: Date): Message =>
+    create(MessageSchema, {
+      id,
+      channelId: "c1",
+      author: { id: "dee" },
+      createdAt: timestampFromDate(when),
+    });
+  const drawn = (rows: ReturnType<typeof threadRows>) =>
+    rows.map((row) =>
+      row.kind === "message"
+        ? `${row.key}${row.continued ? " +" : ""}`
+        : `[${row.label}]`,
+    );
+
+  it("draws no day lines, runs a minute's replies on, and puts New above firstNewId", () => {
+    const replies = [
+      dated("01", new Date(2026, 9, 20, 9, 0)),
+      dated("02", new Date(2026, 9, 21, 9, 0)),
+      dated("03", new Date(2026, 9, 21, 9, 0, 30)),
+      dated("04", new Date(2026, 9, 21, 9, 0, 40)),
+    ];
+    expect(drawn(threadRows(replies, undefined))).toEqual([
+      "01",
+      "02",
+      "03 +",
+      "04 +",
+    ]);
+    expect(drawn(threadRows(replies, "03"))).toEqual([
+      "01",
+      "02",
+      "[New]",
+      "03",
+      "04 +",
     ]);
   });
 });

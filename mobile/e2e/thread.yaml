@@ -1,0 +1,106 @@
+appId: ${APP_ID}
+name: Open a thread from its replies line and from Reply in thread, and read it, kept live
+---
+# As ada in chapter-nine (seed.mjs): her thread has four replies by dee,
+# the last two unread, and dee's question after it has none yet. dee
+# replies once more from another device while ada reads.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapter-nine(, unread)?"
+    timeout: 15000
+- tapOn: "chapter-nine(, unread)?"
+- extendedWaitUntil:
+    visible: "chapter-nine, ${SPACE}, \\d+ members"
+    timeout: 15000
+# The root's replies line, as the server summarises the thread: one
+# button, read by its label.
+- extendedWaitUntil:
+    visible: "4 replies, 2 new, open the thread"
+    timeout: 10000
+- tapOn: "4 replies, 2 new, open the thread"
+# The thread over the channel: the root, its count, the replies, and the
+# New line above the two ada hadn't read.
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- assertVisible: "Finished chapter 9. No spoilers here, but I need to talk about it."
+- assertVisible: "4 replies"
+- assertVisible: "Two more pages and I'm there."
+- assertVisible: "Waiting. Very patiently."
+- assertVisible: "New messages"
+- assertVisible: "Same. Reading ahead was a mistake."
+- assertVisible: "The fire scene\\?\\? I had to put it down for a minute."
+# Live: dee's next reply lands, and the count with it.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: replyInThread
+      TEXT: Page 300 and I can't stop
+- extendedWaitUntil:
+    visible: "Page 300 and I can't stop"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "5 replies"
+    timeout: 10000
+# Back in the channel, read: no more new.
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "5 replies, open the thread"
+    timeout: 10000
+# The menu's Reply in thread, with the root's count, opens the same thread.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Finished chapter 9. No spoilers here, but I need to talk about it."
+- extendedWaitUntil:
+    visible: "Reply in thread, 5 replies"
+    timeout: 5000
+- tapOn: "Reply in thread, 5 replies"
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- assertVisible: "Page 300 and I can't stop"
+- tapOn: "Back"
+# And on a message with no thread yet, an empty one on it.
+- extendedWaitUntil:
+    visible: "Who's hosting Thursday\\?"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Who's hosting Thursday\\?"
+- extendedWaitUntil:
+    visible: "Reply in thread"
+    timeout: 5000
+- tapOn: "Reply in thread"
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- assertVisible: "Who's hosting Thursday\\?"
+- assertVisible: "No replies yet"
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "chapter-nine, ${SPACE}, \\d+ members"
+    timeout: 10000

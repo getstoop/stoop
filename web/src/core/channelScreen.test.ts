@@ -1,10 +1,14 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
+import {
+  type Message,
+  ThreadSummarySchema,
+} from "../gen/stoop/chat/v1/message_pb";
 import { ReactionSchema } from "../gen/stoop/chat/v1/reaction_pb";
 import { SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import type { ChannelHeader } from "./channelHeader";
-import { channelItems } from "./channelLog";
+import { channelItems, threadItems } from "./channelLog";
 import {
   CHANNEL,
   changes,
@@ -514,5 +518,176 @@ describe("the reader's own delete", () => {
     ).toBe(ready);
     const once = screenReducer(ready, deleted);
     expect(screenReducer(once, deleted)).toBe(once);
+  });
+});
+
+describe("a thread over the channel", () => {
+  const root = id(5);
+  const summary = () =>
+    create(ThreadSummarySchema, {
+      replyCount: 2,
+      unreadCount: 1,
+      participating: true,
+    });
+  const withSummary = rows(0, 10).map((row) =>
+    row.id === root ? { ...row, thread: summary() } : row,
+  );
+  const ready = run([opened(0, { rows: withSummary })]);
+  const reply = (index: number, seq: number) =>
+    message(`r${index}`, {
+      threadRootId: root,
+      inChannel: false,
+      seq: BigInt(seq),
+    });
+  const threadPage = (replies = [reply(1, 11), reply(2, 12)]) =>
+    page(replies, { hasOlder: false, channelSeq: 12 });
+  const openThread = (from = ready, init: { root?: Message } = {}) =>
+    run(
+      [
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          rootId: root,
+          generation: 0,
+          res: threadPage(),
+          ...init,
+        },
+      ],
+      from,
+    );
+
+  it("opens on its root and its replies, the channel's rows untouched", () => {
+    const state = openThread();
+    expect(ids(threadItems(state.log, root))).toEqual([root, "r1", "r2"]);
+    expect(shown(state)).toEqual(ids(rows(0, 10)));
+    expect(state.threads[root]).toEqual({ outcome: null, loadingOlder: false });
+  });
+
+  it("drops a page for a thread no screen has open", () => {
+    const state = screenReducer(ready, {
+      type: "threadOpened",
+      rootId: root,
+      generation: 0,
+      res: threadPage(),
+    });
+    expect(state).toBe(ready);
+    const closed = run(
+      [
+        { type: "threadOpening", rootId: root },
+        { type: "threadClosed", rootId: root },
+        {
+          type: "threadOpened",
+          rootId: root,
+          generation: 0,
+          res: threadPage(),
+        },
+      ],
+      ready,
+    );
+    expect(closed.log.threads[root]).toBeUndefined();
+    expect(closed.log.rows.has("r1")).toBe(false);
+  });
+
+  it("takes a fetched root it didn't hold, with the reader's half of its summary", () => {
+    const empty = run([opened(0, { rows: rows(0, 3) })]);
+    const fetched = message(root, { seq: 6n, thread: summary() });
+    const state = openThread(empty, { root: fetched });
+    expect(ids(threadItems(state.log, root))).toEqual([root, "r1", "r2"]);
+    expect(state.log.rows.get(root)?.thread?.unreadCount).toBe(1);
+  });
+
+  it("goes live, and closing it lets go of its replies but not the root the channel shows", () => {
+    const live = screenReducer(openThread(), {
+      type: "event",
+      event: event({ case: "messageCreated", value: reply(3, 13) }),
+    });
+    expect(ids(threadItems(live.log, root))).toEqual([root, "r1", "r2", "r3"]);
+    const closed = screenReducer(live, { type: "threadClosed", rootId: root });
+    expect(closed.threads[root]).toBeUndefined();
+    expect(closed.log.threads[root]).toBeUndefined();
+    expect(closed.log.rows.has("r3")).toBe(false);
+    expect(shown(closed)).toEqual(ids(rows(0, 10)));
+  });
+
+  it("pages older replies under the thread's generation", () => {
+    const state = run(
+      [
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          rootId: root,
+          generation: 0,
+          res: page([reply(2, 12)], { hasOlder: true, channelSeq: 12 }),
+        },
+        { type: "threadPagingOlder", rootId: root },
+      ],
+      ready,
+    );
+    expect(state.threads[root].loadingOlder).toBe(true);
+    const grown = screenReducer(state, {
+      type: "threadPaged",
+      rootId: root,
+      generation: state.log.threads[root].generation,
+      res: page([reply(1, 11)], { hasOlder: false }),
+    });
+    expect(ids(threadItems(grown.log, root))).toEqual([root, "r1", "r2"]);
+    expect(grown.threads[root].loadingOlder).toBe(false);
+    expect(grown.log.threads[root].hasOlder).toBe(false);
+  });
+
+  it("keeps what it shows when the server can't be reached, and says when its root is gone", () => {
+    const failed = run(
+      [
+        { type: "threadOpening", rootId: root },
+        { type: "threadFailed", rootId: root, outcome: "failed" },
+      ],
+      ready,
+    );
+    expect(failed.threads[root].outcome).toBe("failed");
+    expect(
+      screenReducer(failed, { type: "threadOpening", rootId: root }).threads[
+        root
+      ].outcome,
+    ).toBeNull();
+    const open = openThread();
+    expect(
+      screenReducer(open, {
+        type: "threadFailed",
+        rootId: root,
+        outcome: "failed",
+      }),
+    ).toBe(open);
+    expect(
+      screenReducer(open, {
+        type: "threadFailed",
+        rootId: root,
+        outcome: "gone",
+      }).threads[root].outcome,
+    ).toBe("gone");
+  });
+
+  it("clears its unread count when read, here or on another device", () => {
+    const read = screenReducer(openThread(), {
+      type: "threadRead",
+      rootId: root,
+    });
+    expect(read.log.rows.get(root)?.thread?.unreadCount).toBe(0);
+    const elsewhere = screenReducer(ready, {
+      type: "event",
+      event: event({
+        case: "threadRead",
+        value: { channelId: CHANNEL, rootMessageId: root },
+      }),
+    });
+    expect(elsewhere.log.rows.get(root)?.thread?.unreadCount).toBe(0);
+    expect(
+      screenReducer(ready, {
+        type: "event",
+        event: event({
+          case: "threadRead",
+          value: { channelId: "c2", rootMessageId: root },
+        }),
+      }),
+    ).toBe(ready);
   });
 });
