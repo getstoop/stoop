@@ -152,6 +152,10 @@ var steps = {
     output.replies = thread.replyCount || 0;
     output.muted = !!thread.muted;
   },
+  // ada's mute of it ended, so a flow starts from an unmuted thread.
+  unmuteThread: function () {
+    rpc("SetThreadMuted", OWNER_TOKEN, { messageId: NINE_ROOT_ID, muted: false });
+  },
   // ada replies TEXT in her own thread there, from another device.
   ownerRepliesInThread: function () {
     rpc("SendMessage", OWNER_TOKEN, { channelId: NINE_ID, content: TEXT, threadRootId: NINE_ROOT_ID });

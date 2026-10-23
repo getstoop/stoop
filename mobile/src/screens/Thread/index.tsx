@@ -153,18 +153,24 @@ export default function Thread({
     items: rows,
   });
   const { send, edit, muteThread } = engine;
-  // A mute asked for: the bell waits for the server's answer, as web's.
+  // A mute asked for: the bell waits for the server's answer, as web's,
+  // and a second tap meanwhile does nothing. Each tap turns over what
+  // the log holds as it lands, not what the header was drawn with.
   const [muting, setMuting] = useState(false);
+  const mutingNow = useRef(false);
   const { notify } = actions;
-  const toggleMute = useCallback(
-    (muted: boolean) => {
-      setMuting(true);
-      muteThread(rootId, muted)
-        .catch((err) => notify(muted ? "Couldn't mute the thread" : "Couldn't unmute the thread", errorText(err)))
-        .finally(() => setMuting(false));
-    },
-    [muteThread, rootId, notify],
-  );
+  const toggleMute = useCallback(() => {
+    if (mutingNow.current) return;
+    const muted = !engine.current().log.rows.get(rootId)?.thread?.muted;
+    mutingNow.current = true;
+    setMuting(true);
+    muteThread(rootId, muted)
+      .catch((err) => notify(muted ? "Couldn't mute the thread" : "Couldn't unmute the thread", errorText(err)))
+      .finally(() => {
+        mutingNow.current = false;
+        setMuting(false);
+      });
+  }, [engine, muteThread, rootId, notify]);
   const sendHere = useCallback(
     (content: string, replyToMessageId: string, alsoSend: boolean) =>
       send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend }),
@@ -172,8 +178,9 @@ export default function Thread({
   );
 
   // The header in every state, the channel once it is known, and the
-  // bell once the thread can be shown with a summary to mute.
-  const summary = !outcome && !thread?.outcome ? root?.thread : undefined;
+  // bell once the thread is on screen (with the dock, where a refusal
+  // is said) with a summary to mute.
+  const summary = !outcome && !thread?.outcome && decided ? root?.thread : undefined;
   const title = (
     <Stack.Screen
       options={{
@@ -185,7 +192,7 @@ export default function Thread({
                   muted={summary.muted}
                   channelMuted={header.channel.muted}
                   pending={muting}
-                  onPress={() => toggleMute(!summary.muted)}
+                  onPress={toggleMute}
                 />
               )
             : () => null,

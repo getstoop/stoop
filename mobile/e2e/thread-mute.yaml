@@ -4,7 +4,16 @@ name: Mute a thread, see a reply in it counted as nothing new, and unmute it
 # As ada in chapter-nine (seed.mjs), on her own thread, which she is in,
 # so a reply by dee would count as new. Muted, it counts nothing, and
 # her own reply from another device leaves it muted. What the server
-# holds is read over RPC (scripts/rpc.js threadState).
+# holds is read over RPC (scripts/rpc.js threadState). Her thread's line
+# is found by its count, since others in the channel read alike.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: unmuteThread
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: threadState
 - clearKeychain
 - launchApp:
     clearState: true
@@ -38,9 +47,9 @@ name: Mute a thread, see a reply in it counted as nothing new, and unmute it
     visible: "chapter-nine, ${SPACE}, \\d+ members"
     timeout: 15000
 - extendedWaitUntil:
-    visible: "\\d+ repl(y|ies)(, \\d+ new)?, open the thread"
+    visible: "${output.replies} replies(, \\d+ new)?, open the thread"
     timeout: 10000
-- tapOn: "\\d+ repl(y|ies)(, \\d+ new)?, open the thread"
+- tapOn: "${output.replies} replies(, \\d+ new)?, open the thread"
 - extendedWaitUntil:
     visible: "Thread, chapter-nine, ${SPACE}"
     timeout: 10000
@@ -75,7 +84,7 @@ name: Mute a thread, see a reply in it counted as nothing new, and unmute it
 - extendedWaitUntil:
     visible: "${output.replies} replies, open the thread"
     timeout: 10000
-- assertNotVisible: "\\d+ repl(y|ies), \\d+ new, open the thread"
+- assertNotVisible: "${output.replies} replies, \\d+ new, open the thread"
 # ada's own reply, from another device, leaves the thread muted.
 - runScript:
     file: scripts/rpc.js
