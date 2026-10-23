@@ -817,6 +817,54 @@ describe("a thread over the channel", () => {
     expect(named.namedIn).toEqual({});
   });
 
+  it("counts nothing while muted, here or on another device, and stays muted through a reply of the reader's", () => {
+    const muted = screenReducer(ready, {
+      type: "threadMuted",
+      rootId: root,
+      muted: true,
+    });
+    expect(muted.log.rows.get(root)?.thread).toMatchObject({
+      muted: true,
+      unreadCount: 0,
+    });
+    const quiet = run(
+      [
+        { type: "event", event: changed(3, "them", 11) },
+        { type: "event", event: changed(4, "me", 12) },
+      ],
+      muted,
+    );
+    expect(quiet.log.rows.get(root)?.thread).toMatchObject({
+      replyCount: 4,
+      muted: true,
+      unreadCount: 0,
+    });
+    const elsewhere = (muted: boolean, channelId = CHANNEL) =>
+      event({
+        case: "threadMuted",
+        value: { channelId, rootMessageId: root, muted },
+      });
+    const unmuted = screenReducer(quiet, {
+      type: "event",
+      event: elsewhere(false),
+    });
+    expect(unmuted.log.rows.get(root)?.thread?.muted).toBe(false);
+    const counted = screenReducer(unmuted, {
+      type: "event",
+      event: changed(5, "them", 13),
+    });
+    expect(counted.log.rows.get(root)?.thread?.unreadCount).toBe(1);
+    expect(
+      screenReducer(ready, { type: "event", event: elsewhere(true, "c2") }),
+    ).toBe(ready);
+    expect(
+      screenReducer(ready, {
+        type: "event",
+        event: elsewhere(true),
+      }).log.rows.get(root)?.thread,
+    ).toMatchObject({ muted: true, unreadCount: 0 });
+  });
+
   it("takes the reader's half from a page asked for again", () => {
     const read = screenReducer(ready, { type: "threadRead", rootId: root });
     const again = screenReducer(read, {

@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { namesMe, viewerHalfAfter } from "../core/threadUnread";
+import { mutedOverlay, namesMe, viewerHalfAfter } from "../core/threadUnread";
 import type { GetMeResponse } from "../gen/stoop/auth/v1/auth_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type {
@@ -62,7 +62,7 @@ export function applyThreadMuted(
   rootId: string,
   muted: boolean,
 ) {
-  patchThread(channelId, rootId, muted ? { muted, unreadCount: 0 } : { muted });
+  patchThread(channelId, rootId, mutedOverlay(muted));
   queryClient.invalidateQueries({ queryKey: ["threadMutes"] });
   queryClient.invalidateQueries({ queryKey: ["activity"] });
 }

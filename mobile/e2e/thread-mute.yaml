@@ -1,0 +1,114 @@
+appId: ${APP_ID}
+name: Mute a thread, see a reply in it counted as nothing new, and unmute it
+---
+# As ada in chapter-nine (seed.mjs), on her own thread, which she is in,
+# so a reply by dee would count as new. Muted, it counts nothing, and
+# her own reply from another device leaves it muted. What the server
+# holds is read over RPC (scripts/rpc.js threadState).
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapter-nine(, unread)?"
+    timeout: 15000
+- tapOn: "chapter-nine(, unread)?"
+- extendedWaitUntil:
+    visible: "chapter-nine, ${SPACE}, \\d+ members"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "\\d+ repl(y|ies)(, \\d+ new)?, open the thread"
+    timeout: 10000
+- tapOn: "\\d+ repl(y|ies)(, \\d+ new)?, open the thread"
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "Mute thread"
+    timeout: 10000
+- tapOn: "Mute thread"
+- extendedWaitUntil:
+    visible: "Unmute thread"
+    timeout: 10000
+# Saved on the server, not only drawn.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: threadState
+- assertTrue: ${output.muted}
+# Back in the channel, dee replies: the line takes the reply with no
+# "new" badge.
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "chapter-nine, ${SPACE}, \\d+ members"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: replyInThread
+      TEXT: Muted and still reading
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: threadState
+- extendedWaitUntil:
+    visible: "${output.replies} replies, open the thread"
+    timeout: 10000
+- assertNotVisible: "\\d+ repl(y|ies), \\d+ new, open the thread"
+# ada's own reply, from another device, leaves the thread muted.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: ownerRepliesInThread
+      TEXT: Still here, just quiet
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: threadState
+- assertTrue: ${output.muted}
+- extendedWaitUntil:
+    visible: "${output.replies} replies, open the thread"
+    timeout: 10000
+- tapOn: "${output.replies} replies, open the thread"
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- assertVisible: "Muted and still reading"
+- assertVisible: "Still here, just quiet"
+- extendedWaitUntil:
+    visible: "Unmute thread"
+    timeout: 10000
+- tapOn: "Unmute thread"
+- extendedWaitUntil:
+    visible: "Mute thread"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: threadState
+- assertTrue: ${!output.muted}
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "chapter-nine, ${SPACE}, \\d+ members"
+    timeout: 10000

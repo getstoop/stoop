@@ -96,6 +96,27 @@ describe("withHeaderEvent", () => {
     expect(updated.space.myPermissions).toEqual([Permission.MESSAGES_MODERATE]);
   });
 
+  it("follows the reader's mute of the channel, and not another's", () => {
+    const muted = withHeaderEvent(
+      header(),
+      event({
+        case: "channelMuted",
+        value: { spaceId: "s1", channelId: "c1", muted: true },
+      }),
+    );
+    expect(muted.channel.muted).toBe(true);
+    const held = header();
+    expect(
+      withHeaderEvent(
+        held,
+        event({
+          case: "channelMuted",
+          value: { spaceId: "s1", channelId: "c2", muted: true },
+        }),
+      ),
+    ).toBe(held);
+  });
+
   it("takes the reader's new role, and nobody else's", () => {
     const demoted = withHeaderEvent(
       header(),

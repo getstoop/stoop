@@ -54,3 +54,10 @@ export function viewerHalfAfter(
     ),
   };
 }
+
+// The reader's half once they mute or unmute the thread, here or on
+// another device: a muted thread counts nothing, and unmuting counts
+// only the replies that come after.
+export function mutedOverlay(muted: boolean): ThreadOverlay {
+  return muted ? { muted, unreadCount: 0 } : { muted };
+}

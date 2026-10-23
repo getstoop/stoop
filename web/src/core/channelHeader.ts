@@ -45,7 +45,8 @@ export function losesChannel(
 }
 
 // The header after a live event: a rename of the channel or its space, a
-// member coming or going, or the reader's own role changing. The same
+// member coming or going, the reader's own role changing, or their mute
+// of the channel (from another device too). The same
 // object when the event is about something else. A count is applied only as the event arrives; a header
 // fetched afterwards has counted the member already, so it replaces this
 // one rather than being patched.
@@ -87,6 +88,16 @@ export function withHeaderEvent(
       )
         return header;
       return { ...header, space: { ...space, myRole: payload.value.role } };
+    case "channelMuted":
+      if (
+        payload.value.channelId !== channel.id ||
+        payload.value.muted === channel.muted
+      )
+        return header;
+      return {
+        ...header,
+        channel: { ...channel, muted: payload.value.muted },
+      };
     case "memberJoined":
     case "memberRemoved":
       // A private channel's members join and leave it on their own.

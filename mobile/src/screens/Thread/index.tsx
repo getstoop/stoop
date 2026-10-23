@@ -6,6 +6,7 @@ import { Stack, useIsFocused, useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
+import { errorText } from "../../api/errors";
 import { threadMessageLink } from "../../api/shareLinks";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
@@ -19,6 +20,7 @@ import MessageRow from "../Channel/MessageRow";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
 import { useMessageActions } from "../Channel/useMessageActions";
+import MuteButton from "./MuteButton";
 import ThreadHead from "./ThreadHead";
 import ThreadTitle from "./ThreadTitle";
 
@@ -42,7 +44,9 @@ import ThreadTitle from "./ThreadTitle";
 // press on the root or a reply opens the channel's menu, with no Reply
 // in thread since everything here is in it already; Quote in reply and
 // Edit message act on this composer (useMessageActions, as the
-// channel's).
+// channel's). The header's bell mutes the thread, or unmutes it, as
+// web's thread panel does: once it has replies, and only where its
+// channel isn't muted, which silences it already.
 
 // How long after a failed read it is asked for again.
 const READ_RETRY_MS = 5000;
@@ -148,17 +152,44 @@ export default function Thread({
     list,
     items: rows,
   });
-  const { send, edit } = engine;
+  const { send, edit, muteThread } = engine;
+  // A mute asked for: the bell waits for the server's answer, as web's.
+  const [muting, setMuting] = useState(false);
+  const { notify } = actions;
+  const toggleMute = useCallback(
+    (muted: boolean) => {
+      setMuting(true);
+      muteThread(rootId, muted)
+        .catch((err) => notify(muted ? "Couldn't mute the thread" : "Couldn't unmute the thread", errorText(err)))
+        .finally(() => setMuting(false));
+    },
+    [muteThread, rootId, notify],
+  );
   const sendHere = useCallback(
     (content: string, replyToMessageId: string, alsoSend: boolean) =>
       send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend }),
     [send, rootId],
   );
 
-  // The header in every state, the channel once it is known.
+  // The header in every state, the channel once it is known, and the
+  // bell once the thread can be shown with a summary to mute.
+  const summary = !outcome && !thread?.outcome ? root?.thread : undefined;
   const title = (
     <Stack.Screen
-      options={{ headerTitle: () => <ThreadTitle channel={header?.channel} spaceName={header?.space.name ?? ""} /> }}
+      options={{
+        headerTitle: () => <ThreadTitle channel={header?.channel} spaceName={header?.space.name ?? ""} />,
+        headerRight:
+          header && summary
+            ? () => (
+                <MuteButton
+                  muted={summary.muted}
+                  channelMuted={header.channel.muted}
+                  pending={muting}
+                  onPress={() => toggleMute(!summary.muted)}
+                />
+              )
+            : () => null,
+      }}
     />
   );
   if (outcome === "ended") {
