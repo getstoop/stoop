@@ -2,6 +2,7 @@ import type {
   ListChangesResponse,
   ListMessagesResponse,
 } from "../gen/stoop/chat/v1/chat_pb";
+import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import {
   type ChannelHeader,
@@ -12,9 +13,11 @@ import {
   type ChannelLog,
   caughtUp,
   emptyLog,
+  FROM_ANSWER,
   opened,
   paged,
   reconnected,
+  withArrivals,
   withEvent,
 } from "./channelLog";
 
@@ -62,7 +65,16 @@ export type ScreenAction =
   | { type: "pageFailed" }
   | { type: "event"; event: ServerEvent }
   | { type: "caughtUp"; res: ListChangesResponse }
-  | { type: "reconnected" };
+  | { type: "reconnected" }
+  // The answer to the reader's own send: its row, merged by seq like an
+  // event's, as web's holdRow does while the view is live (this screen's
+  // always is). The socket's event usually lands first; either order
+  // leaves one row, since the server's whole row wins a tie with the
+  // event's copy (FROM_ANSWER). A row, not a page: it answers to no
+  // generation and no reconnect, so one that lands across a reconnect
+  // or a fresh open is merged all the same, and the catch-up the
+  // reconnect owes brings whatever was written around it.
+  | { type: "sent"; message: Message };
 
 export const emptyScreen = (channelId: string): ChannelScreen => ({
   log: emptyLog(channelId),
@@ -129,6 +141,10 @@ export function screenReducer(
       return { ...state, log: caughtUp(state.log, action.res) };
     case "reconnected":
       return { ...state, log: reconnected(state.log) };
+    case "sent": {
+      const log = withArrivals(state.log, [action.message], FROM_ANSWER);
+      return log === state.log ? state : { ...state, log };
+    }
   }
 }
 
