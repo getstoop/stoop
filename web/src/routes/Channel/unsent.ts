@@ -1,11 +1,10 @@
 import type { PendingAttachment } from "../../components/AttachmentStrip";
 
 // A refused send puts its text and files back in the composer, ahead of
-// anything added while the request was in flight.
+// anything added while the request was in flight. The text's rule is
+// core's (the phone's composer shares it); the files are web's alone.
 
-export function restoreDraft(sent: string, typedSince: string): string {
-  return typedSince.trim() ? `${sent}\n${typedSince}` : sent;
-}
+export { restoreDraft } from "../../core/unsent";
 
 export function restoreFiles(
   sent: PendingAttachment[],

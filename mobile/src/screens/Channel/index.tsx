@@ -1,14 +1,25 @@
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { Stack, useIsFocused, useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  FlatList,
+  KeyboardAvoidingView,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
+import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
+import Composer, { GAP, PILL } from "./Composer";
 import Divider from "./Divider";
 import MessageRow from "./MessageRow";
 import { olderFits, useChannelLog } from "./useChannelLog";
@@ -17,10 +28,12 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // older pages loading as the reader scrolls up, and the realtime socket
 // adding, changing and removing messages as they happen. It opens at the
 // "New" line when there is one, and keeps the reader's marker at the
-// newest message while it is on screen. Reading only: writing is the
-// next step. What is held and what each answer and event does to it is
-// the channel log's (core/channelLog, under core/channelScreen, through
-// useChannelLog); this screen marks read and draws.
+// newest message while it is on screen. The composer floats over the
+// bottom of the list and rides up with the keyboard; what it sends
+// comes back as a row the same way an event does. What is held and what
+// each answer and event does to it is the channel log's
+// (core/channelLog, under core/channelScreen, through useChannelLog);
+// this screen marks read and draws.
 
 export default function Channel({
   server,
@@ -36,9 +49,17 @@ export default function Channel({
   const router = useRouter();
   const focused = useIsFocused();
   const insets = useSafeAreaInsets();
-  const { state, older, retry } = useChannelLog(server, spaceId, channelId);
+  const keyboard = useKeyboardHeight();
+  const { state, older, retry, send } = useChannelLog(server, spaceId, channelId);
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
+  // The composer's height as drawn, for the list to clear.
+  const [composerHeight, setComposerHeight] = useState(PILL);
+  // Where the screen starts in the window (under the stack's header): the
+  // avoiding view measures itself against its parent and needs that
+  // offset to know how much of it the keyboard covers.
+  const [top, setTop] = useState(0);
+  const screen = useRef<ComponentRef<typeof View>>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
   // What this screen remembers about the channel shown: the marker it
   // moved and whether it has landed. Another channel starts afresh.
@@ -130,54 +151,74 @@ export default function Channel({
 
   const { space, channel, memberCount, myUserId } = header;
   const { hasOlder } = log.channel;
+  // The composer sits GAP above the home indicator, or above the keyboard
+  // while that is up (the avoiding view's padding ends at its top edge).
+  const composerBottom = keyboard > 0 ? GAP : insets.bottom + GAP;
 
   return (
-    <View style={styles.screen}>
+    <View
+      ref={screen}
+      style={styles.screen}
+      onLayout={() => screen.current?.measureInWindow((_windowX, windowY) => setTop(windowY))}
+    >
       <Stack.Screen
         options={{
           headerTitle: () => <ChannelTitle channel={channel} spaceName={space.name} memberCount={memberCount} />,
         }}
       />
-      <FlatList
-        ref={list}
-        inverted
-        data={items}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) =>
-          item.kind === "message" ? (
-            <MessageRow
-              message={item.message}
-              continued={item.continued}
-              myUserId={myUserId}
-              origin={server.origin}
-              token={token}
-            />
-          ) : (
-            <Divider label={item.label} fresh={item.kind === "new"} />
-          )
-        }
-        onEndReached={older}
-        onEndReachedThreshold={0.5}
-        onScrollToIndexFailed={({ index }) => {
-          // Rows not measured yet: get near, then try again once drawn.
-          list.current?.scrollToOffset({ offset: index * 60, animated: false });
-          setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
-        }}
-        // Drawn upside down, so the top padding is the bottom edge: clear of
-        // the home indicator until the composer sits there.
-        contentContainerStyle={[styles.content, { paddingTop: 12 + insets.bottom }]}
-        ListFooterComponent={
-          loadingOlder ? (
-            <ActivityIndicator style={styles.edge} color={theme.textMuted} />
-          ) : !hasOlder ? (
-            <Text style={styles.beginning}>
-              {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
-            </Text>
-          ) : !olderFits(log) ? (
-            <Text style={styles.beginning}>Showing the latest {messages.length.toLocaleString()} messages.</Text>
-          ) : undefined
-        }
-      />
+      <KeyboardAvoidingView style={styles.screen} behavior="padding" keyboardVerticalOffset={top}>
+        {/* The avoiding view pads its bottom for the keyboard; the composer
+            is placed from this view's bottom, which that padding moves. */}
+        <View style={styles.screen}>
+          <FlatList
+            ref={list}
+            inverted
+            data={items}
+            keyExtractor={(item) => item.key}
+            renderItem={({ item }) =>
+              item.kind === "message" ? (
+                <MessageRow
+                  message={item.message}
+                  continued={item.continued}
+                  myUserId={myUserId}
+                  origin={server.origin}
+                  token={token}
+                />
+              ) : (
+                <Divider label={item.label} fresh={item.kind === "new"} />
+              )
+            }
+            onEndReached={older}
+            onEndReachedThreshold={0.5}
+            onScrollToIndexFailed={({ index }) => {
+              // Rows not measured yet: get near, then try again once drawn.
+              list.current?.scrollToOffset({ offset: index * 60, animated: false });
+              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+            }}
+            keyboardDismissMode="interactive"
+            // Drawn upside down, so the top padding is the bottom edge: the
+            // list scrolls under the composer, and its newest message clears it.
+            contentContainerStyle={[styles.content, { paddingTop: 12 + composerHeight + composerBottom }]}
+            ListFooterComponent={
+              loadingOlder ? (
+                <ActivityIndicator style={styles.edge} color={theme.textMuted} />
+              ) : !hasOlder ? (
+                <Text style={styles.beginning}>
+                  {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
+                </Text>
+              ) : !olderFits(log) ? (
+                <Text style={styles.beginning}>Showing the latest {messages.length.toLocaleString()} messages.</Text>
+              ) : undefined
+            }
+          />
+          <View
+            style={[styles.composer, { bottom: composerBottom }]}
+            onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
+          >
+            <Composer key={channelId} channelName={channel.name} send={send} />
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -190,6 +231,11 @@ function makeStyles(theme: Theme) {
     },
     content: {
       paddingVertical: 12,
+    },
+    composer: {
+      position: "absolute",
+      left: 0,
+      right: 0,
     },
     center: {
       marginTop: 24,

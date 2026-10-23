@@ -47,6 +47,14 @@ var steps = {
   unsay: function () {
     rpc("DeleteMessage", POSTER_TOKEN, { messageId: output.messageId });
   },
+  // In CHANNEL_ID (send.yaml): how many of the newest page's messages
+  // read TEXT, as the server holds them.
+  count: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    var count = 0;
+    for (var i = 0; i < messages.length; i++) if (messages[i].content === TEXT) count++;
+    output.count = count;
+  },
 };
 
 // hasOwnProperty from the prototype, so a STEP like "toString" is unknown.
