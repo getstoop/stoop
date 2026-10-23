@@ -29,6 +29,7 @@ import {
   loadRoot,
   markThreadRead,
   PAGE,
+  type SendTo,
   sendMessage,
   toggleReaction,
 } from "../../api/messages";
@@ -474,18 +475,19 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       if (!mine.ended) dispatch({ type: "threadRead", rootId });
     },
 
-    // The reader's own message, quoting another when replyToMessageId
-    // names one: sent, then its answer merged like an event (the socket's
-    // copy usually lands first; the log keeps one row either way). Nothing
-    // is shown before the server answers. A refusal that means the channel
+    // The reader's own message, quoting another when `to` names one, and
+    // in a thread (the channel's timeline too, when asked) when it names
+    // that: sent, then its answer merged like an event (the socket's copy
+    // usually lands first; the log keeps one row either way). Nothing is
+    // shown before the server answers. A refusal that means the channel
     // is gone or the sign-in has ended shows as such, like any other
     // request's; every other failure is the caller's to show, and the
     // composer puts the draft and the quote back.
-    async send(content: string, replyToMessageId = "") {
+    async send(content: string, to: SendTo = {}) {
       const mine = life;
       let message: Message;
       try {
-        message = await sendMessage(server.origin, state.token, channelId, content, replyToMessageId);
+        message = await sendMessage(server.origin, state.token, channelId, content, to);
       } catch (err) {
         const outcome = outcomeOf(err);
         if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });

@@ -1,0 +1,199 @@
+appId: ${APP_ID}
+name: Reply in a thread, also to the channel, and edit, react and delete there
+---
+# As ada in chapter-nine (seed.mjs), on dee's question, whose thread is
+# still empty (thread.yaml only opened it).
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapter-nine(, unread)?"
+    timeout: 15000
+- tapOn: "chapter-nine(, unread)?"
+- extendedWaitUntil:
+    visible: "chapter-nine, ${SPACE}, \\d+ members"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: "Who's hosting Thursday\\?"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Who's hosting Thursday\\?"
+- extendedWaitUntil:
+    visible: "Reply in thread"
+    timeout: 5000
+- tapOn: "Reply in thread"
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- assertVisible: "No replies yet"
+# At rest the composer is a pill, "Reply in thread"; tapped, the card,
+# with Also send to the channel over the field, unchecked.
+- tapOn: "Reply in thread"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+# iOS reads the checkbox's state into its value, which Maestro matches
+# as text (its `checked` is always false there).
+- assertVisible: "Also send to #chapter-nine"
+- assertVisible:
+    id: "also-send"
+    text: "checkbox, unchecked"
+# A reply in the thread only: it lands here, the count with it, and the
+# channel's timeline has none of it.
+- inputText: "I can host"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "I can host"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "1 reply"
+    timeout: 10000
+- assertNotVisible: "Also sent to #chapter-nine"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${NINE_ID}
+      TEXT: I can host
+- assertTrue: ${output.count == 0}
+# Also sent to the channel: the label toggles it, the send clears it,
+# and the reply says where else it went.
+- tapOn: "Also send to #chapter-nine"
+- assertVisible:
+    id: "also-send"
+    text: "checkbox, checked"
+- inputText: "Bring snacks, everyone"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "Bring snacks, everyone"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "2 replies"
+    timeout: 10000
+- assertVisible:
+    id: "also-send"
+    text: "checkbox, unchecked"
+- assertVisible:
+    text: "Also sent to #chapter-nine"
+    below: "Bring snacks, everyone"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${NINE_ID}
+      TEXT: Bring snacks, everyone
+- assertTrue: ${output.count == 1}
+# In the channel: the root's line counts both, and the reply also sent
+# there says which thread it answers, a line that opens it.
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "2 replies, open the thread"
+    timeout: 10000
+- assertVisible: "Bring snacks, everyone"
+- assertNotVisible: "I can host"
+- assertVisible:
+    text: "replied to a thread: ${POSTER}, Who's hosting Thursday\\?, open the thread"
+    above: "Bring snacks, everyone"
+- tapOn: "replied to a thread: ${POSTER}, Who's hosting Thursday\\?, open the thread"
+- extendedWaitUntil:
+    visible: "Thread, chapter-nine, ${SPACE}"
+    timeout: 10000
+- assertVisible: "I can host"
+- assertVisible: "2 replies"
+# The menu on a reply: what the channel's offers, but Reply in thread,
+# since it is in the thread already. Edit message edits in this
+# composer.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "I can host"
+- extendedWaitUntil:
+    visible: "Quote in reply"
+    timeout: 5000
+- assertVisible: "Edit message"
+- assertVisible: "Delete message"
+- assertNotVisible: "Reply in thread"
+- tapOn: "Edit message"
+- extendedWaitUntil:
+    visible: "Editing message"
+    timeout: 5000
+- assertVisible:
+    id: "composer"
+    text: "I can host"
+- assertNotVisible:
+    id: "also-send"
+- inputText: " on Thursday"
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: "I can host on Thursday \\(edited\\)"
+    timeout: 10000
+# The keyboard put away first, so the next long press opens the menu.
+- tapOn: "2 replies"
+- extendedWaitUntil:
+    notVisible: "Send"
+    timeout: 5000
+# A quick reaction on the reply also sent to the channel.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Bring snacks, everyone"
+- extendedWaitUntil:
+    visible: "React with 👍"
+    timeout: 5000
+- tapOn: "React with 👍"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reactionCount
+      CHANNEL_ID: ${NINE_ID}
+      TEXT: Bring snacks, everyone
+      EMOJI: 👍
+      EXPECTED: 1
+- assertTrue: ${output.reactionCount == 1}
+# Deleted from its menu: gone here, and the count with it.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "I can host on Thursday.*"
+- extendedWaitUntil:
+    visible: "Delete message"
+    timeout: 5000
+- tapOn: "Delete message"
+- extendedWaitUntil:
+    visible: "Delete this message\\?"
+    timeout: 5000
+- tapOn: "Delete"
+- extendedWaitUntil:
+    notVisible: "I can host on Thursday.*"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "1 reply"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "1 reply, open the thread"
+    timeout: 10000

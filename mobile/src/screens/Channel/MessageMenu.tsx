@@ -41,7 +41,7 @@ import { useSheet } from "./useSheet";
 // toggle or a delete does to the log is the screen's (useChannelLog
 // react and remove), and so is saying when one is refused. Reply in
 // thread hands the message to the screen (onThread), which opens its
-// thread once the sheet has gone. Either sheet goes on a tap on the scrim, a swipe
+// thread once the sheet has gone; in a thread there is none. Either sheet goes on a tap on the scrim, a swipe
 // down, or Android's back (useSheet), and the picker's going closes the
 // menu with it; a sheet on its way out takes no more taps.
 
@@ -71,7 +71,8 @@ export default function MessageMenu({
   link: string;
   onReact: (emoji: string) => void;
   onCopyFailed: () => void;
-  onThread: () => void;
+  // Not in a thread, where every message is in it already.
+  onThread?: () => void;
   onQuote: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -128,7 +129,7 @@ export default function MessageMenu({
   };
   const thread = () => {
     if (closing()) return;
-    onThread();
+    onThread?.();
     dismiss();
   };
   const quote = () => {
@@ -162,18 +163,21 @@ export default function MessageMenu({
     lead?: boolean;
     danger?: boolean;
     onPress?: () => void;
-  }[] = [
-    {
+  }[] = [];
+  if (onThread) {
+    items.push({
       label: "Reply in thread",
       icon: <ThreadIcon color={theme.accent} />,
       note: replies > 0 ? `${replies} ${replies === 1 ? "reply" : "replies"}` : undefined,
       lead: true,
       onPress: thread,
-    },
+    });
+  }
+  items.push(
     { label: "Quote in reply", icon: <QuoteReplyIcon color={theme.textMuted} />, onPress: quote },
     { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
     { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} />, onPress: copyLink },
-  ];
+  );
   if (mine) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} />, onPress: edit });
   if (mine || canModerate) {
     items.push({

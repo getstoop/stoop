@@ -2,20 +2,9 @@ import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { canDeleteAnyMessage } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
-import * as Haptics from "expo-haptics";
 import { Stack, useIsFocused, useRouter } from "expo-router";
-import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  AppState,
-  FlatList,
-  KeyboardAvoidingView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { errorText } from "../../api/errors";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
@@ -23,13 +12,15 @@ import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
-import Composer, { type ComposerHandle, GAP, PILL } from "./Composer";
+import Composer from "./Composer";
+import ComposerDock from "./ComposerDock";
 import Divider from "./Divider";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import Unavailable from "./Unavailable";
 import { olderFits } from "./channelEngine";
 import { useChannelLog } from "./useChannelLog";
+import { useMessageActions } from "./useMessageActions";
 
 // A channel, pushed over its space: its messages newest at the bottom,
 // older pages loading as the reader scrolls up, and the realtime socket
@@ -51,16 +42,13 @@ import { useChannelLog } from "./useChannelLog";
 // one at a time between the two, so an edit begun drops a quote and a
 // quote picked ends an edit. A root's replies line, or Reply in thread
 // once the menu has gone, pushes the thread over the channel
-// (screens/Thread), which shares this screen's log. What is held and
+// (screens/Thread), which shares this screen's log, as does the line on
+// a reply also sent to the channel, which opens its thread on it. The
+// menu, the quote, the edit and the refusals are useMessageActions',
+// shared with the thread; the layout is ComposerDock's. What is held and
 // what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
-
-// How long a refusal's line stays.
-const NOTICE_MS = 4000;
-// How long after the keyboard is announced the list has made room for it
-// (iOS animates the two together, over about a quarter of a second).
-const KEYBOARD_SETTLE_MS = 350;
 
 export default function Channel({
   server,
@@ -75,41 +63,13 @@ export default function Channel({
   const styles = makeStyles(theme);
   const router = useRouter();
   const focused = useIsFocused();
-  const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
   const { state, engine } = useChannelLog(server, spaceId, channelId);
-  const { older, retry, send, react, remove, edit } = engine;
+  const { older, retry, send, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
-  // The composer's height as drawn, for the list to clear.
-  const [composerHeight, setComposerHeight] = useState(PILL);
-  // Where the screen starts in the window (under the stack's header): the
-  // avoiding view measures itself against its parent and needs that
-  // offset to know how much of it the keyboard covers.
-  const [top, setTop] = useState(0);
-  // The message whose menu is open, by id: it closes with the message if
-  // that is deleted, and with the channel if that goes.
-  const [menuFor, setMenuFor] = useState<string | null>(null);
-  // The message the composer is quoting, by id; the row itself is read
-  // from the log, so a deletion lets it go.
-  const [replyToId, setReplyToId] = useState<string | null>(null);
-  // The message the composer is editing, by id, held the same way; never
-  // both at once.
-  const [editingId, setEditingId] = useState<string | null>(null);
-  // Whether the composer opens once the menu has gone (a quote or an
-  // edit picked), and whether that row is still owed its scroll: once,
-  // as the keyboard first comes up for it, never again for a later
-  // keyboard.
-  const openComposer = useRef(false);
-  const scrollOnce = useRef(false);
   // The thread Reply in thread opens once the menu has gone, by its root.
   const threadAfterMenu = useRef<string | null>(null);
-  const composer = useRef<ComposerHandle>(null);
-  // What was refused, for a moment, with the server's reason when there
-  // is one: the latest replaces the one before it.
-  const [notice, setNotice] = useState<{ title: string; body?: string } | null>(null);
-  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const screen = useRef<ComponentRef<typeof View>>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
   // What this screen remembers about the channel shown: the marker it
   // moved and whether it has landed. Another channel starts afresh.
@@ -120,11 +80,6 @@ export default function Channel({
     shownChannel.current = channelId;
     marked.current = "";
     landed.current = false;
-    if (menuFor) setMenuFor(null);
-    if (replyToId) setReplyToId(null);
-    if (editingId) setEditingId(null);
-    openComposer.current = false;
-    scrollOnce.current = false;
     threadAfterMenu.current = null;
   }
 
@@ -137,11 +92,6 @@ export default function Channel({
   // shown changed.
   const messages = channelItems(log);
 
-  const openMenu = useCallback((message: Message) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setMenuFor(message.id);
-  }, []);
-  const closeMenu = useCallback(() => setMenuFor(null), []);
   // The thread pushed over the channel, by its root's id.
   // One at a time: a second tap before the first has covered the channel
   // pushes nothing; coming back to the channel lets the next go, as does
@@ -151,7 +101,7 @@ export default function Channel({
     if (focused) pushed.current = false;
   }, [focused]);
   const pushThread = useCallback(
-    (rootId: string) => {
+    (rootId: string, focusId?: string) => {
       if (pushed.current) return;
       pushed.current = true;
       setTimeout(() => {
@@ -159,113 +109,17 @@ export default function Channel({
       }, 1000);
       router.push({
         pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
-        params: { id: server.id, spaceId, channelId, rootId },
+        params: { id: server.id, spaceId, channelId, rootId, ...(focusId ? { focus: focusId } : {}) },
       });
     },
     [router, server.id, spaceId, channelId],
   );
   const openThread = useCallback((message: Message) => pushThread(message.id), [pushThread]);
-  const notify = useCallback((title: string, body?: string) => {
-    if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    setNotice({ title, body });
-    noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
-  }, []);
-  useEffect(
-    () => () => {
-      if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    },
-    [],
+  // A reply also sent here opens its thread on it.
+  const openOrigin = useCallback(
+    (message: Message) => pushThread(message.threadRootId, message.id),
+    [pushThread],
   );
-  const reactTo = useCallback(
-    (message: Message, emoji: string) => {
-      react(message, emoji).catch((err) => notify("Couldn't react", errorText(err)));
-    },
-    [react, notify],
-  );
-  const deleteMessage = useCallback(
-    (message: Message) => {
-      remove(message).catch((err) => notify("Couldn't delete the message", errorText(err)));
-    },
-    [remove, notify],
-  );
-  const linkNotCopied = useCallback(() => notify("Couldn't copy the link"), [notify]);
-  const quote = useCallback((message: Message) => {
-    setEditingId(null);
-    setReplyToId(message.id);
-    openComposer.current = true;
-    scrollOnce.current = true;
-  }, []);
-  const startEdit = useCallback((message: Message) => {
-    setReplyToId(null);
-    setEditingId(message.id);
-    openComposer.current = true;
-    scrollOnce.current = true;
-  }, []);
-  const endEdit = useCallback(() => setEditingId(null), []);
-  // A refused send's quote coming back: only onto the channel it was for,
-  // and not over an edit begun meanwhile.
-  const reply = useCallback(
-    (message: Message) => {
-      if (message.channelId === channelId && !editingId) setReplyToId(message.id);
-    },
-    [channelId, editingId],
-  );
-  const cancelReply = useCallback(() => setReplyToId(null), []);
-  const menuMessage = menuFor ? messages.find((message) => message.id === menuFor) : undefined;
-  // The menu closes without its own fade, by an abrupt unmount, when the
-  // message goes (deleted, or left as a placeholder) or the channel does;
-  // the id it held is let go too. A closing animation for these is a
-  // later slice's.
-  const menuGone = !!menuFor && (!menuMessage || menuMessage.deleted || !!outcome);
-  useEffect(() => {
-    if (menuGone) setMenuFor(null);
-  }, [menuGone]);
-  // The composer opens for a quote or an edit once the menu's modal is
-  // gone, so its field can take the keyboard.
-  useEffect(() => {
-    if (menuFor || !openComposer.current) return;
-    openComposer.current = false;
-    composer.current?.open();
-  }, [menuFor]);
-  // And Reply in thread pushes the thread then.
-  useEffect(() => {
-    const rootId = threadAfterMenu.current;
-    if (menuFor || !rootId) return;
-    threadAfterMenu.current = null;
-    pushThread(rootId);
-  }, [menuFor, pushThread]);
-  // The quote and the message being edited, as the log holds them; gone
-  // with the message.
-  const replyRow = replyToId ? log.rows.get(replyToId) : undefined;
-  const replyTo = replyRow && !replyRow.deleted ? replyRow : null;
-  const replyGone = !!replyToId && !replyTo;
-  useEffect(() => {
-    if (replyGone) setReplyToId(null);
-  }, [replyGone]);
-  const editRow = editingId ? log.rows.get(editingId) : undefined;
-  const editing = editRow && !editRow.deleted ? editRow : null;
-  const editGone = !!editingId && !editing;
-  useEffect(() => {
-    if (editGone) setEditingId(null);
-  }, [editGone]);
-  // The list makes room for the keyboard by shrinking from the bottom,
-  // and the card floats over its foot, so the quoted or edited row can
-  // end up under either: once the keyboard has settled, it is scrolled
-  // to the middle of what is left, whether or not it was in view (the
-  // list can't tell a row under the card from one in the clear). Once
-  // per pick: a later keyboard, with the reader scrolled away to read,
-  // leaves the list be.
-  const targetId = replyToId ?? editingId;
-  useEffect(() => {
-    if (!targetId || keyboard === 0 || !scrollOnce.current) return;
-    const timer = setTimeout(() => {
-      scrollOnce.current = false;
-      const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === targetId);
-      if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
-    }, KEYBOARD_SETTLE_MS);
-    return () => clearTimeout(timer);
-  }, [targetId, keyboard]);
-
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web.
   const newestId = messages.at(-1)?.id ?? "";
@@ -284,8 +138,28 @@ export default function Channel({
     () => (header ? groupedRows(messages, newAfter, header.myUserId).reverse() : []),
     [messages, newAfter, header],
   );
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
+  const actions = useMessageActions({
+    scope: channelId,
+    shown: messages,
+    log,
+    gone: !!outcome,
+    engine,
+    keyboard,
+    list,
+    items,
+  });
+  const { menuFor, menuMessage } = actions;
+  // And Reply in thread pushes the thread then.
+  useEffect(() => {
+    const rootId = threadAfterMenu.current;
+    if (menuFor || !rootId) return;
+    threadAfterMenu.current = null;
+    pushThread(rootId);
+  }, [menuFor, pushThread]);
+  const sendHere = useCallback(
+    (content: string, replyToMessageId: string) => send(content, { replyToMessageId }),
+    [send],
+  );
 
   // Opening lands on the "New" line, once.
   const newIndex = items.findIndex((item) => item.kind === "new");
@@ -322,25 +196,18 @@ export default function Channel({
 
   const { space, channel, memberCount, myUserId } = header;
   const { hasOlder } = log.channel;
-  // The composer sits GAP above the home indicator, or above the keyboard
-  // while that is up (the avoiding view's padding ends at its top edge).
-  const composerBottom = keyboard > 0 ? GAP : insets.bottom + GAP;
 
   return (
-    <View
-      ref={screen}
-      style={styles.screen}
-      onLayout={() => screen.current?.measureInWindow((_windowX, windowY) => setTop(windowY))}
-    >
+    <View style={styles.screen}>
       <Stack.Screen
         options={{
           headerTitle: () => <ChannelTitle channel={channel} spaceName={space.name} memberCount={memberCount} />,
         }}
       />
-      <KeyboardAvoidingView style={styles.screen} behavior="padding" keyboardVerticalOffset={top}>
-        {/* The avoiding view pads its bottom for the keyboard; the composer
-            is placed from this view's bottom, which that padding moves. */}
-        <View style={styles.screen}>
+      <ComposerDock
+        keyboard={keyboard}
+        notice={actions.notice}
+        list={(clearance) => (
           <FlatList
             ref={list}
             inverted
@@ -354,11 +221,10 @@ export default function Channel({
                   myUserId={myUserId}
                   origin={server.origin}
                   token={token}
-                  onLongPress={openMenu}
+                  onLongPress={actions.openMenu}
                   onOpenThread={openThread}
-                  target={
-                    item.message.id === replyToId ? "reply" : item.message.id === editingId ? "edit" : undefined
-                  }
+                  onOpenOrigin={openOrigin}
+                  target={actions.targetOf(item.message)}
                 />
               ) : (
                 <Divider label={item.label} fresh={item.kind === "new"} />
@@ -379,7 +245,7 @@ export default function Channel({
             keyboardDismissMode="on-drag"
             // Drawn upside down, so the top padding is the bottom edge: the
             // list scrolls under the composer, and its newest message clears it.
-            contentContainerStyle={[styles.content, { paddingTop: 12 + composerHeight + composerBottom }]}
+            contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
             // Rows in view stay put when that padding changes (the composer
             // growing a line) and when a row arrives, unless the reader is at
             // the newest edge, where the list follows it.
@@ -396,41 +262,23 @@ export default function Channel({
               ) : undefined
             }
           />
-          <View
-            style={[styles.composer, { bottom: composerBottom }]}
-            onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
-          >
-            <Composer
-              ref={composer}
-              key={channelId}
-              channelName={channel.name}
-              send={send}
-              edit={edit}
-              replyTo={replyTo}
-              onCancelReply={cancelReply}
-              onReply={reply}
-              editing={editing}
-              onEditDone={endEdit}
-            />
-          </View>
-          {notice && (
-            <View
-              style={[styles.toast, { bottom: composerBottom + composerHeight + GAP }]}
-              accessibilityRole="alert"
-              testID="channel-notice"
-              pointerEvents="none"
-            >
-              <Text style={styles.toastTitle}>{notice.title}</Text>
-              {notice.body && (
-                <Text style={styles.toastBody} numberOfLines={2}>
-                  {notice.body}
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-      {menuMessage && !menuMessage.deleted && (
+        )}
+        composer={
+          <Composer
+            ref={actions.composer}
+            key={channelId}
+            channelName={channel.name}
+            send={sendHere}
+            edit={edit}
+            replyTo={actions.replyTo}
+            onCancelReply={actions.cancelReply}
+            onReply={actions.reply}
+            editing={actions.editing}
+            onEditDone={actions.endEdit}
+          />
+        }
+      />
+      {menuMessage && (
         <MessageMenu
           message={menuMessage}
           myUserId={myUserId}
@@ -438,15 +286,15 @@ export default function Channel({
           origin={server.origin}
           token={token}
           link={messageLink(server.origin, spaceId, menuMessage)}
-          onReact={(emoji) => reactTo(menuMessage, emoji)}
-          onCopyFailed={linkNotCopied}
+          onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
+          onCopyFailed={actions.linkNotCopied}
           onThread={() => {
             threadAfterMenu.current = menuMessage.threadRootId || menuMessage.id;
           }}
-          onQuote={() => quote(menuMessage)}
-          onEdit={() => startEdit(menuMessage)}
-          onDelete={() => deleteMessage(menuMessage)}
-          onClose={closeMenu}
+          onQuote={() => actions.quote(menuMessage)}
+          onEdit={() => actions.startEdit(menuMessage)}
+          onDelete={() => actions.deleteMessage(menuMessage)}
+          onClose={actions.closeMenu}
         />
       )}
     </View>
@@ -462,11 +310,6 @@ function makeStyles(theme: Theme) {
     content: {
       paddingVertical: 12,
     },
-    composer: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-    },
     center: {
       marginTop: 24,
     },
@@ -478,29 +321,6 @@ function makeStyles(theme: Theme) {
       marginVertical: 16,
       color: theme.textMuted,
       fontSize: tokens.textUi,
-    },
-    toast: {
-      position: "absolute",
-      left: 16,
-      right: 16,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      gap: 2,
-      borderRadius: tokens.radiusMd,
-      backgroundColor: theme.panel,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.border,
-      boxShadow: theme.scheme === "dark" ? "0 6px 20px rgba(0, 0, 0, 0.35)" : "0 6px 20px rgba(30, 25, 20, 0.16)",
-    },
-    toastTitle: {
-      color: theme.danger,
-      fontSize: tokens.textUi,
-      fontWeight: "600",
-    },
-    toastBody: {
-      color: theme.text,
-      fontSize: tokens.textUi,
-      lineHeight: tokens.textUi * tokens.leadingUi,
     },
   });
 }

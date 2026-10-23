@@ -20,6 +20,7 @@ import { authorName } from "../../api/authors";
 import { errorText } from "../../api/errors";
 import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import AlsoSendRow from "./AlsoSendRow";
 import FormatRow from "./FormatRow";
 
 // Where a message is written: one control in two states. At rest it is a
@@ -43,6 +44,11 @@ import FormatRow from "./FormatRow";
 // A refusal puts the draft back ahead of anything typed since, with the
 // server's words under it, and the quote back unless another was picked
 // meanwhile (web's rule); pressing Send again is the retry.
+//
+// In a thread (`inThread`) the pill says "Reply in thread", and the card
+// has "Also send to #channel" over the field, a checkbox that sends the
+// reply to the channel's timeline as well. As on web it is cleared by
+// each send and set again by a refusal.
 //
 // A message being edited (`editing`, the screen's to hold, never
 // together with a quote) puts the composer in editing mode: the draft
@@ -76,7 +82,9 @@ export default forwardRef<
   ComposerHandle,
   {
     channelName: string;
-    send: (content: string, replyToMessageId: string) => Promise<void>;
+    // A thread's composer, with Also send to the channel.
+    inThread?: boolean;
+    send: (content: string, replyToMessageId: string, alsoSend: boolean) => Promise<void>;
     edit: (messageId: string, content: string) => Promise<void>;
     // The message being quoted, if any.
     replyTo: Message | null;
@@ -88,13 +96,17 @@ export default forwardRef<
     // Saved, or Cancel editing.
     onEditDone: () => void;
   }
->(function Composer({ channelName, send, edit, replyTo, onCancelReply, onReply, editing, onEditDone }, ref) {
+>(function Composer(
+  { channelName, inThread = false, send, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
+  ref,
+) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [draft, setDraft] = useState("");
   const [writing, setWriting] = useState(false);
   const [formatting, setFormatting] = useState(false);
   const [sending, setSending] = useState(false);
+  const [alsoSend, setAlsoSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   // The draft set aside while a message is edited, to come back after,
@@ -170,7 +182,7 @@ export default forwardRef<
     return () => sub.remove();
   }, []);
 
-  const placeholder = editing ? "Edit message" : `Message #${channelName}`;
+  const placeholder = editing ? "Edit message" : inThread ? "Reply in thread" : `Message #${channelName}`;
   const blank = isBlankMessage(draft);
   const quotedName = replyTo ? authorName(replyTo.author) : "";
 
@@ -216,13 +228,16 @@ export default forwardRef<
     sendingRef.current = true;
     const typed = draft;
     const quoted = replyTo;
+    const also = alsoSend;
     setDraft("");
     setError(null);
     setSending(true);
+    setAlsoSend(false);
     if (quoted) onCancelReply();
     try {
-      await send(typed.trim(), quoted?.id ?? "");
+      await send(typed.trim(), quoted?.id ?? "", also);
     } catch (err) {
+      setAlsoSend(also);
       if (editingShown.current !== null) {
         // An edit has begun meanwhile: the words go into the draft set
         // aside, and the reason waits with them for the edit to end.
@@ -310,6 +325,7 @@ export default forwardRef<
         </View>
         )
       )}
+      {inThread && !editing && <AlsoSendRow channelName={channelName} checked={alsoSend} onChange={setAlsoSend} />}
       <TextInput
         ref={input}
         testID="composer"

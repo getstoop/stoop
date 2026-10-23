@@ -135,20 +135,22 @@ export async function markThreadRead(origin: string, token: string, rootId: stri
   await chatClient(origin, token).markThreadRead({ messageId: rootId }, { timeoutMs: TIMEOUT_MS });
 }
 
+// Where a message goes besides its channel: quoting another of its
+// messages, into a thread, and with the thread also to the channel.
+export type SendTo = { replyToMessageId?: string; threadRootId?: string; alsoSendToChannel?: boolean };
+
 // The reader's own message. The answer is the row the server stamped,
 // for the screen to merge as it merges an event's (core/channelScreen
-// `sent`). Plain text into the channel, quoting another of its messages
-// when replyToMessageId names one; files and a thread come in later
-// steps.
+// `sent`). Plain text; files come in a later step.
 export async function sendMessage(
   origin: string,
   token: string,
   channelId: string,
   content: string,
-  replyToMessageId = "",
+  { replyToMessageId = "", threadRootId = "", alsoSendToChannel = false }: SendTo = {},
 ): Promise<Message> {
   const { message } = await chatClient(origin, token).sendMessage(
-    { channelId, content, replyToMessageId },
+    { channelId, content, replyToMessageId, threadRootId, alsoSendToChannel: !!threadRootId && alsoSendToChannel },
     { timeoutMs: TIMEOUT_MS },
   );
   if (!message) throw new Error("The server answered with nothing.");

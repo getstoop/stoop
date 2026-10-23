@@ -29,7 +29,11 @@ const GAP = 10;
 // opens the thread (onOpenThread); a root deleted while its thread has
 // replies stays as a placeholder with that line, which no long press
 // opens. In a thread (`withDay`) the time carries its day, as the card's
-// does. Reactions and previews come in later steps.
+// does. A reply also sent to the channel says, there, which thread it
+// answers ("↳ replied to a thread:", the root's author and first words,
+// as web's row has it), a line that opens the thread on it
+// (onOpenOrigin); in its thread it says where else it went
+// (`alsoSentTo`). Reactions and previews come in later steps.
 export default memo(function MessageRow({
   message,
   continued,
@@ -41,6 +45,8 @@ export default memo(function MessageRow({
   withDay = false,
   target,
   onOpenThread,
+  onOpenOrigin,
+  alsoSentTo,
 }: {
   message: Message;
   continued: boolean;
@@ -52,6 +58,9 @@ export default memo(function MessageRow({
   withDay?: boolean;
   target?: "reply" | "edit";
   onOpenThread?: (message: Message) => void;
+  onOpenOrigin?: (message: Message) => void;
+  // In its thread, a reply also sent to the channel: "#general".
+  alsoSentTo?: string;
 }) {
   const styles = makeStyles(useTheme());
   const thread =
@@ -77,6 +86,10 @@ export default memo(function MessageRow({
   // A quoted message since deleted comes with no author (and no preview;
   // core/channelLog withQuotesBlanked, as the server reads it).
   const quoted = message.replyTo;
+  // The thread a reply also sent here answers; its root, once deleted,
+  // with no author or preview either.
+  const answered = onOpenOrigin && message.threadRootId ? message.threadRoot : undefined;
+  const answeredName = answered?.author ? authorName(answered.author) : "";
   const body = (
     <>
       {message.content !== "" && (
@@ -87,6 +100,7 @@ export default memo(function MessageRow({
           📎 {file.name}
         </Text>
       ))}
+      {alsoSentTo && <Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
       {thread}
     </>
   );
@@ -121,6 +135,19 @@ export default memo(function MessageRow({
                 ) : (
                   "↳ Replying to a deleted message"
                 )}
+              </Text>
+            )}
+            {answered && (
+              <Text
+                style={styles.quote}
+                numberOfLines={1}
+                accessibilityRole="button"
+                accessibilityLabel={`replied to a thread: ${answeredName ? `${answeredName}, ` : ""}${answered.preview || "(message deleted)"}, open the thread`}
+                onPress={() => onOpenOrigin?.(message)}
+                onLongPress={hold}
+              >
+                ↳ replied to a thread: {answeredName !== "" && <Text style={styles.quotedName}>{answeredName}</Text>}{" "}
+                {answered.preview || "(message deleted)"}
               </Text>
             )}
             <View style={styles.byline}>

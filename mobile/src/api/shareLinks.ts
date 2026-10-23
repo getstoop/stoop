@@ -1,4 +1,4 @@
-import { messageLinkPath } from "@stoop/core/shareLinks";
+import { messageLinkPath, threadPath } from "@stoop/core/shareLinks";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 
 // The link to a message, with the path web builds for Copy link
@@ -14,4 +14,13 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 export function messageLink(origin: string, spaceId: string, message: Message): string {
   const { channelId, threadRootId, id, inChannel } = message;
   return origin.replace(/\/+$/, "") + messageLinkPath(spaceId, channelId, id, threadRootId, inChannel);
+}
+
+// The same from inside the thread, as web's thread view links its rows:
+// a reply, also sent to the channel or not, as the thread opened on it,
+// and the root as the channel around it.
+export function threadMessageLink(origin: string, spaceId: string, message: Message): string {
+  const { channelId, threadRootId, id } = message;
+  if (!threadRootId || threadRootId === id) return messageLink(origin, spaceId, message);
+  return origin.replace(/\/+$/, "") + threadPath(spaceId, channelId, threadRootId, id);
 }
