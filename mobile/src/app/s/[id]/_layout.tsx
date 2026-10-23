@@ -8,7 +8,7 @@ import { useTheme } from "../../../theme";
 // bar in the system's own apps, with room for the composer. What is
 // under it reads the server from CurrentServer: a screen reached by
 // pressing gets none of this layout's route params.
-export const unstable_settings = { initialRouteName: "(tabs)" };
+export const unstable_settings = { anchor: "(tabs)" };
 
 export default function ServerLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
