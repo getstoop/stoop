@@ -62,60 +62,72 @@ import a screen; the screens themselves live in `src/screens`, so
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs instead, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer.
-- The composer (`src/screens/Channel/Composer.tsx`) is one control in two
-  states: at rest a pill floating over the list, which scrolls under it;
-  tapped, a card above the keyboard with the field, Attach, Aa (the
+- The composer (`src/screens/Channel/Composer.tsx`) is one control in
+  two states: at rest a pill floating over the list, which scrolls under
+  it; tapped, a card above the keyboard with the field, Attach, Aa (the
   formatting row) and Send. Losing focus returns it to the pill with the
-  draft kept. On iOS 26 the surface is Liquid Glass (`expo-glass-effect`);
-  older iOS and Android draw it with the theme's panel and border under
-  a light shadow. Dragging the list puts the keyboard away (the card
-  follows the keyboard's hide event; tracking the finger needs
-  `react-native-keyboard-controller`, a follow-up). A message being
-  quoted (Quote in reply, below) is the card's first line under any
-  files (below), the reply strip: a small accent reply arrow, "Replying to NAME · " and the
-  first words of the message (`core/markdown` `plainText`, as the
-  server previews a reply; a file's name when it has none), on one
-  line, with a round Cancel reply at its right, which drops the quote
-  and keeps the draft; the pill shows the same arrow with "Replying to
-  NAME", or the draft, so the quote is seen with the keyboard down. The
-  eleven formats are placed for the step that gives them work.
-- Attach (the + in the pill or the card) puts the keyboard away and opens
-  the app's own sheet (`src/screens/Channel/AttachSheet.tsx`), drawn as
-  the message menu's is, with Photo library (the camera and files are
-  the next step). That opens the system's picker (`expo-image-picker`,
-  a native module, so a build on the phone needs `make mobile-ios`
-  again; PHPicker on iOS, which asks for no permission) once the sheet's
+  draft kept. On iOS 26 the surface is Liquid Glass
+  (`expo-glass-effect`); older iOS and Android draw it with the theme's
+  panel and border under a light shadow. Dragging the list puts the
+  keyboard away (the card follows the keyboard's hide event; tracking
+  the finger needs `react-native-keyboard-controller`, a follow-up). A
+  message being quoted (Quote in reply, below) is the card's first line
+  under any files (below), the reply strip: a small accent reply arrow,
+  "Replying to NAME · " and the first words of the message
+  (`core/markdown` `plainText`, as the server previews a reply; a file's
+  name when it has none), on one line, with a round Cancel reply at its
+  right, which drops the quote and keeps the draft; the pill shows the
+  same arrow with "Replying to NAME", or the draft, so the quote is seen
+  with the keyboard down. The eleven formats are placed for the step
+  that gives them work.
+- Attach (the + in the pill or the card) puts the keyboard away and
+  opens the app's own sheet (`src/screens/Channel/AttachSheet.tsx`),
+  drawn as the message menu's is, with Photo library, Camera and Files.
+  Each opens its system picker (`src/screens/Channel/pickers.ts`;
+  `expo-image-picker` and `expo-document-picker`, native modules, so a
+  build on the phone needs `make mobile-ios` again) once the sheet's
   modal has gone, since a picker presented over it would go with it (or
-  after a second, should iOS never say so).
-  Several can be picked, up to the room left of ten. iPhone photos are
-  HEIC, which the server can't sniff, so the picker is asked for its
-  most compatible form and hands over a JPEG; a video goes as the
-  library has it, and nothing is stripped from either (where a photo
-  was taken goes if the phone puts it in). The card comes back with
-  the files along its top (`AttachmentStrip.tsx`): a photo as a 64pt
-  thumbnail, a video as a play mark with its length, a spinner over
-  each while it uploads, and a remove × on each. Each uploads as it is
-  picked (`src/api/files.ts`: `POST /files/upload` with the bearer
-  token, through the three-slot queue web uses, `core/attachments`),
-  as a multipart part React Native's networking streams from disk:
-  the global `fetch` is Expo's, which refuses such a part, so this one
-  request is an `XMLHttpRequest` with credentials off
-  (`api/fetch.ts` `uploadWithoutCookies`, which settles on every
-  ending, a timeout and an abort included, so its upload slot always
-  comes back). A file over the server's cap (`GetInstanceStatus`
-  `max_upload_bytes`, read as the screen opens), or an empty one, fails
-  before uploading; a failure turns the item into a red chip with
-  the reason ("Too big — 100 MB max", or the server's words), removed by
-  hand, with no retry. Send waits, dimmed and labelled "Send, waiting
-  for uploads", while any uploads; failed ones are left out, and a
-  message may be files alone. With the keyboard down the pill shows a
-  paperclip and the count before the draft. A refused send puts the
-  files back with the draft, ahead of any picked since
-  (`core/attachments` `restoreFiles`, which web runs too); leaving the
-  channel or the thread drops them, stopping any upload still going (as
-  removing one does), and a picker answering after that is ignored; and while a message is edited they
-  are out of sight and Attach is dimmed. A sent file shows in the row
-  as "📎 name" for now; drawing it inline is its own step.
+  after a second, should iOS never say so). Photo library is PHPicker on
+  iOS, which asks for no permission: several can be picked, up to the
+  room left of ten. iPhone photos are HEIC, which the server can't
+  sniff, so the picker is asked for its most compatible form and hands
+  over a JPEG; that form covers the whole selection, so an HEVC video
+  may come as H.264 (accepted, as it plays in every browser), and
+  nothing is stripped from either (where a photo was taken goes if the
+  phone puts it in). Camera asks for the camera first and, refused, says
+  "Stoop doesn't have permission to use the camera." in the card,
+  nothing more; the microphone is the system's to ask for as a video
+  starts recording. It takes one photo, as a JPEG, or one video, as
+  recorded (no export preset). The simulator's camera opens but takes
+  nothing, so only the refusal is tested there. Files is the system's
+  document picker, several at once (the first that fit are kept, as the
+  library's room is), each copied to the app's cache for the upload to
+  read; it needs no iCloud entitlement. The card comes back with the
+  files along its top (`AttachmentStrip.tsx`): a photo as a 64pt
+  thumbnail, a video as a play mark with its length, any other file as a
+  chip with its name and size, a spinner over each thumbnail while it
+  uploads, and a remove × on each. Each uploads as it is picked
+  (`src/api/files.ts`: `POST /files/upload` with the bearer token,
+  through the three-slot queue web uses, `core/attachments`), as a
+  multipart part React Native's networking streams from disk: the global
+  `fetch` is Expo's, which refuses such a part, so this one request is
+  an `XMLHttpRequest` with credentials off (`api/fetch.ts`
+  `uploadWithoutCookies`, which settles on every ending, a timeout and
+  an abort included, so its upload slot always comes back). A file over
+  the server's cap (`GetInstanceStatus` `max_upload_bytes`, read as the
+  screen opens), or an empty one, fails before uploading; a failure
+  turns the item into a red chip with the reason ("Too big — 100 MB
+  max", or the server's words), removed by hand, with no retry. Send
+  waits, dimmed and labelled "Send, waiting for uploads", while any
+  uploads; failed ones are left out, and a message may be files alone.
+  With the keyboard down the pill shows a paperclip and the count before
+  the draft. A refused send puts the files back with the draft, ahead of
+  any picked since (`core/attachments` `restoreFiles`, which web runs
+  too); leaving the channel or the thread drops them, stopping any
+  upload still going (as removing one does), and a picker answering
+  after that is ignored; and while a message is edited they are out of
+  sight and Attach is dimmed. A sent file shows in the row as "📎 name"
+  for now; drawing it inline is its own step.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions
@@ -452,7 +464,10 @@ thread and see a reply in it counted as nothing new, attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it
-again from the pill, and send it with words and then alone, add a second
+again from the pill, and send it with words and then alone, see the
+camera refused (denied as the flow launches the app), and send a PDF
+picked through Files from On My iPhone (`e2e/media`, which
+`scripts/mobile-e2e.sh` copies there), add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and

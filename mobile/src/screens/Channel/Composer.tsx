@@ -37,8 +37,9 @@ import { useAttachments } from "./useAttachments";
 // step that gives them work.
 //
 // Attach, in either state, puts the keyboard away and opens the attach
-// sheet (AttachSheet); the photo library picked there opens the system's
-// picker once the sheet has gone, and the card comes back with what was
+// sheet (AttachSheet); the photo library, the camera or files picked
+// there opens that system picker once the sheet has gone (pickers.ts),
+// and the card comes back with what was
 // picked along its top (AttachmentStrip), each uploading as it arrives
 // (useAttachments). Send waits, dimmed and saying so to a screen reader,
 // while any is uploading; one that failed is left out of the send, and a

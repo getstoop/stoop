@@ -305,14 +305,23 @@ export function TrashIcon({ color, size = 22 }: IconProps) {
 }
 
 // Attachments, as the attaching mockups draw them: the sheet's photo
-// library, a file, the play mark on a video's thumbnail, and the pill's
-// paperclip.
+// library, camera and files, the play mark on a video's thumbnail, and
+// the pill's paperclip.
 export function PhotoIcon({ color, size = 22 }: IconProps) {
   return (
     <Stroke color={color} size={size}>
       <Rect x={3} y={3} width={18} height={18} rx={2} />
       <Circle cx={8.5} cy={8.5} r={1.5} />
       <Path d="M21 15l-5-5L5 21" />
+    </Stroke>
+  );
+}
+
+export function CameraIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <Circle cx={12} cy={13} r={4} />
     </Stroke>
   );
 }

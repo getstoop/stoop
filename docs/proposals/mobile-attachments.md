@@ -1,7 +1,8 @@
 # Sending attachments from the phone app
 
 Status: draft 2026-10-24; the operator's open questions answered the
-same day (Decisions); Split step 1 built (branch mobile-attach-photos).
+same day (Decisions); Split step 1 built (#549), step 2 built (branch
+mobile-attach-camera-files).
 Design: canvas artboards "8c · Attach sheet" and "8c · Channel,
 attaching" (states: uploading, ready, one failed, keyboard down).
 

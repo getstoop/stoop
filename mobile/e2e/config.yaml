@@ -21,4 +21,4 @@ executionOrder:
     - "Open a thread from its replies line and from Reply in thread, and read it, kept live"
     - "Reply in a thread, also to the channel, and edit, react and delete there"
     - "Mute a thread, see a reply in it counted as nothing new, and unmute it"
-    - "Attach a photo from the library, see it in the card and the pill, and send it"
+    - "Attach from the library, the camera and files, see it in the card and the pill, and send it"

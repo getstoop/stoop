@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PhotoIcon } from "../../components/Icons";
+import { CameraIcon, FileIcon, PhotoIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { useSheet } from "./useSheet";
 
 // Where the composer's Attach (the + in the pill or the card) picks files
 // from: a sheet over a scrim, drawn as the message menu's is (useSheet),
-// with the photo library; the camera and files come with the step that
-// gives them work. A pick closes the sheet and is handed over (onClose)
-// once it has gone: on iOS once the modal itself is dismissed, since a
-// picker presented over it would be dismissed with it, or after a
-// moment should that never be said, so a pick is never lost and the
-// sheet never stays up. A tap on the scrim, a swipe down or Android's
-// back closes it with nothing.
+// with the photo library, the camera and files. A pick closes the sheet
+// and is handed over (onClose) once it has gone: on iOS once the modal
+// itself is dismissed, since a picker presented over it would be
+// dismissed with it, or after a moment should that never be said, so a
+// pick is never lost and the sheet never stays up. A tap on the scrim, a
+// swipe down or Android's back closes it with nothing.
 
-export type AttachSource = "library";
+export type AttachSource = "library" | "camera" | "files";
+
+const ITEMS = [
+  { source: "library", label: "Photo library", Icon: PhotoIcon },
+  { source: "camera", label: "Camera", Icon: CameraIcon },
+  { source: "files", label: "Files", Icon: FileIcon },
+] as const;
 
 // How long iOS gets to say the modal has gone before it is taken as gone.
 const DISMISS_FALLBACK_MS = 1000;
@@ -88,15 +93,18 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
           {...panHandlers}
         >
           <View style={styles.handle} />
-          <Pressable
-            accessibilityRole="menuitem"
-            accessibilityLabel="Photo library"
-            onPress={() => pick("library")}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-          >
-            <PhotoIcon color={theme.textMuted} />
-            <Text style={styles.label}>Photo library</Text>
-          </Pressable>
+          {ITEMS.map(({ source, label, Icon }) => (
+            <Pressable
+              key={source}
+              accessibilityRole="menuitem"
+              accessibilityLabel={label}
+              onPress={() => pick(source)}
+              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+            >
+              <Icon color={theme.textMuted} />
+              <Text style={styles.label}>{label}</Text>
+            </Pressable>
+          ))}
         </Animated.View>
       </View>
     </Modal>
