@@ -133,6 +133,7 @@ const env = {
   OWNER_TOKEN: ada,
   POSTER_TOKEN: dee,
   CHAPTERS_ID: chapters.channel.id,
+  RANDOM_ID: s.channels.random,
   NINE_ID: nine.channel.id,
   NINE_ROOT_ID: root.id,
   INVITE_LINK: s.invite.url,

@@ -1,3 +1,8 @@
+import {
+  MAX_ATTACHMENT_BYTES,
+  type UploadedFile,
+  uploadSlots,
+} from "../core/attachments";
 import { filesClient } from "./clients";
 import { serverUrl } from "./origin";
 
@@ -36,35 +41,20 @@ export async function readImageFile(file: File): Promise<Uint8Array> {
 
 // ---- Message attachments (STOOP-42) ----
 
-export const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
-export const MAX_ATTACHMENTS = 10;
+// The limits, the upload-slot queue and the display helpers are shared
+// with the phone app (core/attachments).
+export {
+  formatBytes,
+  isInlineImage,
+  isPlayableAudio,
+  isPlayableVideo,
+  MAX_ATTACHMENT_BYTES,
+  MAX_ATTACHMENTS,
+  MAX_PARALLEL_UPLOADS,
+  type UploadedFile,
+} from "../core/attachments";
 
-export type UploadedFile = {
-  id: string;
-  name: string;
-  contentType: string;
-  size: number;
-};
-
-// The server admits this many uploads per account at once
-// (files.MaxInflightUploads) and refuses the next; a message may carry
-// ten, so the rest wait their turn here.
-export const MAX_PARALLEL_UPLOADS = 3;
-let uploading = 0;
-const queued: (() => void)[] = [];
-
-async function withUploadSlot<T>(fn: () => Promise<T>): Promise<T> {
-  if (uploading >= MAX_PARALLEL_UPLOADS) {
-    await new Promise<void>((next) => queued.push(next));
-  }
-  uploading++;
-  try {
-    return await fn();
-  } finally {
-    uploading--;
-    queued.shift()?.();
-  }
-}
+const withUploadSlot = uploadSlots();
 
 // Uploads one file for a channel as a multipart form
 export async function uploadAttachment(
@@ -99,33 +89,4 @@ export async function uploadAttachment(
     throw new Error(message);
   }
   return (await res.json()) as UploadedFile;
-}
-
-// Raster types the server will serve inline; everything else downloads.
-export function isInlineImage(contentType: string): boolean {
-  return ["image/png", "image/jpeg", "image/gif", "image/webp"].includes(
-    contentType,
-  );
-}
-
-// Media types the server serves inline for playback
-export function isPlayableVideo(contentType: string): boolean {
-  return ["video/mp4", "video/webm", "video/quicktime"].includes(contentType);
-}
-
-export function isPlayableAudio(contentType: string): boolean {
-  return [
-    "audio/mpeg",
-    "audio/mp4",
-    "audio/wave",
-    "audio/ogg",
-    "application/ogg",
-  ].includes(contentType);
-}
-
-export function formatBytes(n: number | bigint): string {
-  const b = Number(n);
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(b < 10240 ? 1 : 0)} KB`;
-  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }

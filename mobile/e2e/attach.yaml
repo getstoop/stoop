@@ -1,0 +1,161 @@
+appId: ${APP_ID}
+name: Attach a photo from the library, see it in the card and the pill, and send it
+---
+# A photo of our own in the simulator's library, dated 2099 in its EXIF
+# so the system picker names it by that date (and lists it first),
+# whatever else the library holds. Each run adds one more copy.
+- addMedia:
+    - media/trail-map.jpg
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "random(, unread)?"
+    timeout: 15000
+- tapOn: "random(, unread)?"
+- extendedWaitUntil:
+    visible: "random, ${SPACE}, \\d+ members"
+    timeout: 15000
+# Attach in the card opens the app's own sheet: the photo library, and
+# nothing yet that does nothing.
+- tapOn: "Message #random"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+- tapOn: "Attach files"
+- extendedWaitUntil:
+    visible: "Photo library"
+    timeout: 5000
+- assertNotVisible: "Camera"
+- assertNotVisible: "Files"
+# The system's picker, once the sheet has gone: our photo, then Add.
+- tapOn: "Photo library"
+- extendedWaitUntil:
+    visible: "Add"
+    timeout: 10000
+- tapOn:
+    text: "Photo, January 0?1, 2099.*"
+    index: 0
+- tapOn: "Add"
+# The card comes back with the photo along its top, uploading, then
+# ready under its own name (a label with no "uploading" in it).
+- extendedWaitUntil:
+    visible:
+      id: "attachment-strip"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "trail-map.jpg"
+    timeout: 15000
+- assertVisible: "Send"
+# Removed by hand, the strip goes with it.
+- tapOn: "Remove trail-map.jpg"
+- assertNotVisible:
+    id: "attachment-strip"
+# From the pill this time: put the keyboard away, then Attach there.
+- tapOn: "Halfway through, no spoilers please"
+- extendedWaitUntil:
+    notVisible:
+      id: "composer"
+    timeout: 5000
+- tapOn: "Attach files"
+- extendedWaitUntil:
+    visible: "Photo library"
+    timeout: 5000
+- tapOn: "Photo library"
+- extendedWaitUntil:
+    visible: "Add"
+    timeout: 10000
+- tapOn:
+    text: "Photo, January 0?1, 2099.*"
+    index: 0
+- tapOn: "Add"
+- extendedWaitUntil:
+    visible: "trail-map.jpg"
+    timeout: 15000
+# With the keyboard down the pill says a file is held, before the words.
+- tapOn: "Halfway through, no spoilers please"
+- extendedWaitUntil:
+    notVisible:
+      id: "composer"
+    timeout: 5000
+- assertVisible:
+    id: "attachment-count"
+- assertVisible: "1 file attached, Message #random"
+# Words and the photo go as one message; the row shows the file by name.
+- tapOn: "1 file attached, Message #random"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+- inputText: "The trail map"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "The trail map"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "📎 trail-map.jpg"
+    timeout: 10000
+- assertNotVisible:
+    id: "attachment-strip"
+# The server holds it as a JPEG it sniffed, claimed by that message.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: attached
+      CHANNEL_ID: ${RANDOM_ID}
+      TEXT: The trail map
+      WORDLESS: "no"
+- assertTrue: ${output.attached == "trail-map.jpg image/jpeg"}
+# A message may be a file alone: with the field empty, Send sends it.
+- tapOn: "Attach files"
+- extendedWaitUntil:
+    visible: "Photo library"
+    timeout: 5000
+- tapOn: "Photo library"
+- extendedWaitUntil:
+    visible: "Add"
+    timeout: 10000
+- tapOn:
+    text: "Photo, January 0?1, 2099.*"
+    index: 0
+- tapOn: "Add"
+- extendedWaitUntil:
+    visible: "trail-map.jpg"
+    timeout: 15000
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible:
+      text: "📎 trail-map.jpg"
+      index: 1
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: attached
+      CHANNEL_ID: ${RANDOM_ID}
+      TEXT: ""
+      WORDLESS: "yes"
+- assertTrue: ${output.attached == "trail-map.jpg image/jpeg"}

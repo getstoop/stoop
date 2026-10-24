@@ -142,20 +142,33 @@ export async function setThreadMuted(origin: string, token: string, rootId: stri
 
 // Where a message goes besides its channel: quoting another of its
 // messages, into a thread, and with the thread also to the channel.
-export type SendTo = { replyToMessageId?: string; threadRootId?: string; alsoSendToChannel?: boolean };
+export type SendTo = {
+  replyToMessageId?: string;
+  threadRootId?: string;
+  alsoSendToChannel?: boolean;
+  // Files uploaded for it (api/files), claimed by the send.
+  attachmentIds?: string[];
+};
 
 // The reader's own message. The answer is the row the server stamped,
 // for the screen to merge as it merges an event's (core/channelScreen
-// `sent`). Plain text; files come in a later step.
+// `sent`).
 export async function sendMessage(
   origin: string,
   token: string,
   channelId: string,
   content: string,
-  { replyToMessageId = "", threadRootId = "", alsoSendToChannel = false }: SendTo = {},
+  { replyToMessageId = "", threadRootId = "", alsoSendToChannel = false, attachmentIds = [] }: SendTo = {},
 ): Promise<Message> {
   const { message } = await chatClient(origin, token).sendMessage(
-    { channelId, content, replyToMessageId, threadRootId, alsoSendToChannel: !!threadRootId && alsoSendToChannel },
+    {
+      channelId,
+      content,
+      replyToMessageId,
+      threadRootId,
+      alsoSendToChannel: !!threadRootId && alsoSendToChannel,
+      attachmentIds,
+    },
     { timeoutMs: TIMEOUT_MS },
   );
   if (!message) throw new Error("The server answered with nothing.");

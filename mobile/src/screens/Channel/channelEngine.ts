@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { UploadedFile } from "@stoop/core/attachments";
 import {
   type ChannelLog,
   channelItems,
@@ -15,6 +16,7 @@ import type { ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { AppState } from "react-native";
+import { type LocalFile, uploadAttachment } from "../../api/files";
 import {
   ChannelGone,
   deleteMessage,
@@ -623,6 +625,13 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         throw err;
       }
       if (!mine.ended) dispatch({ type: "sent", message });
+    },
+
+    // A file picked in the composer, uploaded for this channel (api/files)
+    // for a send to claim by id, stopped by the signal. Nothing reaches the
+    // log; a refusal is the composer's to show on the file.
+    upload(file: LocalFile, signal?: AbortSignal): Promise<UploadedFile> {
+      return uploadAttachment(server.origin, state.token, channelId, file, signal);
     },
   };
   return self;

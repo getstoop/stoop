@@ -303,3 +303,50 @@ export function TrashIcon({ color, size = 22 }: IconProps) {
     </Stroke>
   );
 }
+
+// Attachments, as the attaching mockups draw them: the sheet's photo
+// library, a file, the play mark on a video's thumbnail, and the pill's
+// paperclip.
+export function PhotoIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={3} y={3} width={18} height={18} rx={2} />
+      <Circle cx={8.5} cy={8.5} r={1.5} />
+      <Path d="M21 15l-5-5L5 21" />
+    </Stroke>
+  );
+}
+
+export function FileIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <Path d="M14 2v6h6" />
+    </Stroke>
+  );
+}
+
+export function PlayIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M8 5v14l11-7z" />
+    </Svg>
+  );
+}
+
+export function PaperclipIcon({ color, size = 14 }: IconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M21.4 11.6l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5" />
+    </Svg>
+  );
+}
