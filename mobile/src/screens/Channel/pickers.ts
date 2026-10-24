@@ -10,8 +10,10 @@ import type { PendingFile } from "./useAttachments";
 // The photo library is PHPicker on iOS, which asks for no permission,
 // with several picked at once up to the room left. iPhone photos are
 // HEIC, which the server can't sniff, so it is asked for its most
-// compatible form and hands over a JPEG; what the phone puts in the file
-// (where a photo was taken among it) is sent as it gives it.
+// compatible form and hands over a JPEG; that covers the whole selection,
+// so an HEVC video may come as H.264 (accepted: it plays in every
+// browser). What the phone puts in the file (where a photo was taken
+// among it) is sent as it gives it.
 //
 // The camera takes one photo or video. It asks for the camera first and
 // says plainly when that is refused; the microphone is the system's to

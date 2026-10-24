@@ -90,8 +90,9 @@ import a screen; the screens themselves live in `src/screens`, so
   on iOS, which asks for no permission: several can be picked, up to
   the room left of ten. iPhone photos are HEIC, which the server can't
   sniff, so the picker is asked for its most compatible form and hands
-  over a JPEG; a video goes as the library has it, and nothing is
-  stripped from either (where a photo was taken goes if the phone puts
+  over a JPEG; that form covers the whole selection, so an HEVC video
+  may come as H.264 (accepted, as it plays in every browser), and
+  nothing is stripped from either (where a photo was taken goes if the phone puts
   it in). Camera asks for the camera first and, refused, says "Stoop
   doesn't have permission to use the camera." in the card, nothing
   more; the microphone is the system's to ask for as a video starts
