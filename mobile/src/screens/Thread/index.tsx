@@ -1,17 +1,25 @@
 import { isShown, threadItems } from "@stoop/core/channelLog";
 import { firstUnreadReplyId, type GroupedRow, threadRows } from "@stoop/core/grouping";
+import { canDeleteAnyMessage } from "@stoop/core/permissions";
+import { threadRepliesClosed } from "@stoop/core/threadReplies";
 import { Stack, useIsFocused, useRouter } from "expo-router";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
+import { threadMessageLink } from "../../api/shareLinks";
+import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
+import Composer from "../Channel/Composer";
+import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
+import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
+import { useMessageActions } from "../Channel/useMessageActions";
+import ThreadHead from "./ThreadHead";
 import ThreadTitle from "./ThreadTitle";
 
 // A thread, pushed over its channel: the root at the top, ruled off, how
@@ -24,7 +32,17 @@ import ThreadTitle from "./ThreadTitle";
 // line above the replies the reader hadn't read (the root's unread
 // count, as the server gave it when the thread opened) and marks the
 // thread read while it is on screen with the app open, again for each
-// new reply. Replying, and the menu on a reply, are the next step's.
+// new reply; opened from a reply also sent to the channel (`focusId`),
+// it lands on that reply instead, when it is among the replies loaded.
+// The composer replies in the thread, and to the channel as well when
+// asked (Composer `inThread`); a deleted root or an announcement channel
+// takes no replies, and a line says so in its place, as on web (with no
+// Quote in reply or Edit message in its menu, and a quote or an edit
+// begun dropped as it closes; web edits inline there, this screen not yet). A long
+// press on the root or a reply opens the channel's menu, with no Reply
+// in thread since everything here is in it already; Quote in reply and
+// Edit message act on this composer (useMessageActions, as the
+// channel's).
 
 // How long after a failed read it is asked for again.
 const READ_RETRY_MS = 5000;
@@ -34,17 +52,19 @@ export default function Thread({
   spaceId,
   channelId,
   rootId,
+  focusId,
 }: {
   server: SavedServer;
   spaceId: string;
   channelId: string;
   rootId: string;
+  focusId?: string;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
   const focused = useIsFocused();
-  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
   const { state, engine } = useChannelLog(server, spaceId, channelId, rootId);
   const { log, header, outcome, token, threads } = state;
   const thread = threads[rootId];
@@ -102,13 +122,38 @@ export default function Thread({
     [decided, replies, firstNew],
   );
 
-  // Opening lands on the "New" line, once.
-  const newIndex = rows.findIndex((row) => row.kind === "new");
+  // Opening lands on the reply it was opened on, or else the "New" line,
+  // once.
+  const focusIndex = focusId ? rows.findIndex((row) => row.kind === "message" && row.message.id === focusId) : -1;
+  const landIndex = focusIndex >= 0 ? focusIndex : rows.findIndex((row) => row.kind === "new");
   useEffect(() => {
     if (landed.current || rows.length === 0) return;
     landed.current = true;
-    if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
-  }, [rows.length, newIndex]);
+    if (landIndex > 0) list.current?.scrollToIndex({ index: landIndex, viewPosition: 0.5, animated: false });
+  }, [rows.length, landIndex]);
+
+  const shown = useMemo(() => (root ? [root, ...replies] : replies), [root, replies]);
+  // Why the thread takes no replies, if it doesn't: then there is no
+  // composer, and nothing to quote or edit into.
+  const closed = header ? threadRepliesClosed(header.channel, root) : null;
+  const actions = useMessageActions({
+    scope: rootId,
+    shown,
+    log,
+    gone: !!outcome,
+    engine,
+    keyboard,
+    focused,
+    composing: !closed,
+    list,
+    items: rows,
+  });
+  const { send, edit } = engine;
+  const sendHere = useCallback(
+    (content: string, replyToMessageId: string, alsoSend: boolean) =>
+      send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend }),
+    [send, rootId],
+  );
 
   // The header in every state, the channel once it is known.
   const title = (
@@ -168,65 +213,104 @@ export default function Thread({
     );
   }
 
-  const { myUserId } = header;
+  const { space, channel, myUserId } = header;
   // The root heads the list once nothing older is left to load, or none
   // fits.
   const atTop = !view?.hasOlder || !olderFits(log, rootId);
+  const { menuMessage } = actions;
 
   return (
     <Screen title={title}>
-      <FlatList
-        ref={list}
-        inverted
-        data={rows}
-        keyExtractor={(row) => row.key}
-        renderItem={({ item }) =>
-          item.kind === "message" ? (
-            <MessageRow
-              message={item.message}
-              continued={item.continued}
-              myUserId={myUserId}
-              origin={server.origin}
-              token={token}
-              withDay
-            />
-          ) : (
-            <Divider label={item.label} fresh={item.kind === "new"} />
-          )
-        }
-        onEndReached={() => engine.olderReplies(rootId)}
-        onEndReachedThreshold={0.5}
-        onScrollToIndexFailed={({ index }) => {
-          // Rows not measured yet: get near, then try again once drawn.
-          list.current?.scrollToOffset({ offset: index * 60, animated: false });
-          setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
-        }}
-        // Drawn upside down, so the top padding is the bottom edge.
-        contentContainerStyle={[styles.content, { paddingTop: 12 + insets.bottom }]}
-        maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
-        ListFooterComponent={
-          thread?.loadingOlder ? (
-            <ActivityIndicator style={styles.edge} color={theme.textMuted} />
-          ) : atTop ? (
-            <View>
-              <View style={styles.root}>
+      <ComposerDock
+        keyboard={keyboard}
+        notice={actions.notice}
+        list={(clearance) => (
+          <FlatList
+            ref={list}
+            inverted
+            data={rows}
+            keyExtractor={(row) => row.key}
+            renderItem={({ item }) =>
+              item.kind === "message" ? (
                 <MessageRow
-                  message={root}
-                  continued={false}
+                  message={item.message}
+                  continued={item.continued}
                   myUserId={myUserId}
                   origin={server.origin}
                   token={token}
+                  onLongPress={actions.openMenu}
+                  target={actions.targetOf(item.message)}
+                  alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
                   withDay
                 />
-              </View>
-              <View style={styles.rule} />
-              <Text style={styles.count}>
-                {replyCount === 0 ? "No replies yet" : `${replyCount} ${replyCount === 1 ? "reply" : "replies"}`}
-              </Text>
-            </View>
-          ) : undefined
+              ) : (
+                <Divider label={item.label} fresh={item.kind === "new"} />
+              )
+            }
+            onEndReached={() => engine.olderReplies(rootId)}
+            onEndReachedThreshold={0.5}
+            onScrollToIndexFailed={({ index }) => {
+              // Rows not measured yet: get near, then try again once drawn.
+              list.current?.scrollToOffset({ offset: index * 60, animated: false });
+              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+            }}
+            // As the channel's: on a drag, the card following the keyboard.
+            keyboardDismissMode="on-drag"
+            // Drawn upside down, so the top padding is the bottom edge.
+            contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
+            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
+            ListFooterComponent={
+              thread?.loadingOlder ? (
+                <ActivityIndicator style={styles.edge} color={theme.textMuted} />
+              ) : atTop ? (
+                <ThreadHead
+                  root={root}
+                  myUserId={myUserId}
+                  origin={server.origin}
+                  token={token}
+                  onLongPress={actions.openMenu}
+                  target={actions.targetOf(root)}
+                />
+              ) : undefined
+            }
+          />
+        )}
+        composer={
+          closed ? (
+            <Text style={styles.closed}>{closed}</Text>
+          ) : (
+            <Composer
+              ref={actions.composer}
+              key={rootId}
+              channelName={channel.name}
+              inThread
+              send={sendHere}
+              edit={edit}
+              replyTo={actions.replyTo}
+              onCancelReply={actions.cancelReply}
+              onReply={actions.reply}
+              editing={actions.editing}
+              onEditDone={actions.endEdit}
+            />
+          )
         }
       />
+      {menuMessage && (
+        <MessageMenu
+          message={menuMessage}
+          myUserId={myUserId}
+          canModerate={canDeleteAnyMessage(space)}
+          origin={server.origin}
+          token={token}
+          link={threadMessageLink(server.origin, spaceId, menuMessage)}
+          onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
+          onCopyFailed={actions.linkNotCopied}
+          onQuote={closed ? undefined : () => actions.quote(menuMessage)}
+          onEdit={closed ? undefined : () => actions.startEdit(menuMessage)}
+          onDelete={() => actions.deleteMessage(menuMessage)}
+          onClose={actions.closeMenu}
+        />
+      )}
     </Screen>
   );
 }
@@ -257,21 +341,12 @@ function makeStyles(theme: Theme) {
     edge: {
       marginVertical: 16,
     },
-    root: {
-      paddingBottom: 12,
-    },
-    rule: {
+    closed: {
       marginHorizontal: 16,
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: theme.border,
-    },
-    count: {
-      marginHorizontal: 16,
-      marginTop: 12,
-      marginBottom: 4,
+      paddingVertical: 8,
       color: theme.textMuted,
-      fontSize: tokens.textSm,
-      fontWeight: "600",
+      fontSize: tokens.textUi,
+      lineHeight: tokens.textUi * tokens.leadingUi,
     },
   });
 }

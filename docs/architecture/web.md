@@ -360,6 +360,9 @@ with web). `scripts/check-core.mjs` refuses any import from outside
 - `threadUnread.ts` — the reader's half of a thread summary as replies
   arrive (`viewerHalfAfter`, `namesMe`): web's `api/threads.ts` and the
   mobile app's screen reducer both move the unread count with it.
+- `threadReplies.ts` — why a thread takes no new replies (a deleted root,
+  an announcement channel), in the words web's thread panel and the
+  mobile app's thread screen show in place of the composer.
 - `author.ts` — who a message is shown as being from: the member as the
   members list has them now, over the row's embedded author.
 - `grouping.ts` — where a day line goes, which message continues the one

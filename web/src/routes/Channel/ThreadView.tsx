@@ -9,7 +9,7 @@ import {
   useThreadItems,
   useView,
 } from "../../api/channelLog";
-import { channelNameText, isAnnouncement } from "../../api/channels";
+import { channelNameText } from "../../api/channels";
 import { chatClient } from "../../api/clients";
 import {
   dmIsGroup,
@@ -39,7 +39,8 @@ import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
 import { Tooltip } from "../../components/Tooltip";
 import { isShown } from "../../core/channelLog";
-import { canDeleteAnyMessage, canPost } from "../../core/permissions";
+import { canDeleteAnyMessage } from "../../core/permissions";
+import { threadRepliesClosed } from "../../core/threadReplies";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
@@ -120,10 +121,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
     );
   }
 
-  const canReply = canPost(space, channel) && !isAnnouncement(channel);
-  const closedNote = rootMessage?.deleted
-    ? "The message this thread started from was deleted, so it takes no new replies."
-    : "Replies are closed in announcement channels.";
+  const closedNote = threadRepliesClosed(channel, rootMessage);
   const canModerate = !isDM && !!space && canDeleteAnyMessage(space);
   const deleteThread = async () => {
     const ok = await confirm({
@@ -249,7 +247,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
         </>
       }
       footer={
-        canReply && !rootMessage?.deleted ? (
+        !closedNote ? (
           <Composer
             channelId={channelId}
             channelName={channelName}

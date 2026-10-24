@@ -19,3 +19,4 @@ executionOrder:
     - "Add a server, sign in, see Spaces, change the theme, sign out"
     - "Open a space and see its channels, with what is waiting in each, kept live"
     - "Open a thread from its replies line and from Reply in thread, and read it, kept live"
+    - "Reply in a thread, also to the channel, and edit, react and delete there"
