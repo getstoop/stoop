@@ -40,6 +40,7 @@ import { PaperclipIcon, SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
+import { restoreFiles } from "../../core/attachments";
 import { isBlankMessage } from "../../core/markdown";
 import {
   candidateMention,
@@ -52,9 +53,9 @@ import {
 } from "../../core/mentions";
 import { messagePreview } from "../../core/messagePreview";
 import { canMentionEntireChannel } from "../../core/permissions";
+import { restoreDraft } from "../../core/unsent";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
-import { restoreDraft, restoreFiles } from "./unsent";
 
 export function Composer({
   channelId,
