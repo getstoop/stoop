@@ -7,9 +7,10 @@ import { uploadWithoutCookies } from "./fetch";
 // multipart form with the channel and one file part, under the session's
 // bearer token (docs/architecture/files.md → Two upload paths). The
 // answer is an unclaimed file that SendMessage claims by id. The file
-// part is the file's local uri, streamed from disk by React Native's
-// networking (api/fetch uploadWithoutCookies), so nothing is held in
-// memory here.
+// part is the file's local uri, read by React Native's networking
+// (api/fetch uploadWithoutCookies), so the bytes never pass through JS:
+// Android streams them from disk, iOS holds the built body in native
+// memory while it sends.
 
 const TIMEOUT_MS = 10000;
 

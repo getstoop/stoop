@@ -10,9 +10,10 @@ export function fetchWithoutCookies(input: RequestInfo | URL, init?: RequestInit
 
 // A multipart upload with a file part, the one request fetch can't make
 // here: React Native's FormData takes a file as its local uri, which its
-// networking streams from disk, but the global fetch is Expo's, which
-// refuses such a part (expo/fetch convertFormData) and would otherwise
-// need the whole file read into memory first. So XMLHttpRequest, still
+// networking reads natively (streamed from disk on Android, built into
+// one body in native memory on iOS), but the global fetch is Expo's,
+// which refuses such a part (expo/fetch convertFormData) and would
+// otherwise need the whole file read into JS first. So XMLHttpRequest, still
 // React Native's networking, with credentials off: on both platforms no
 // cookie is sent or kept (HTTPShouldHandleCookies off on iOS, a cookie
 // jar that holds none on Android). Answers the status and the body.
