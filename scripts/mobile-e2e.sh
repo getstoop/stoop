@@ -8,7 +8,8 @@
 #   scripts/mobile-e2e.sh mobile/e2e/sign-in.yaml  just that one
 # Needs bin/stoop from `make build`, Docker for the dev Postgres, Maestro,
 # and the app installed on a booted iOS simulator (mobile/README.md →
-# Tests). STOOP_MOBILE_E2E_PORT picks another port than 8093.
+# Tests). STOOP_MOBILE_E2E_PORT picks another port than 8093, and
+# STOOP_MOBILE_E2E_SIM a simulator by UDID rather than the first booted.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -28,6 +29,13 @@ if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >&2
   exit 1
 fi
+
+# The simulator the flows drive and the attach flow's file is put on,
+# named to Maestro too, so a second booted simulator or a phone plugged
+# in is never the one used.
+SIM=${STOOP_MOBILE_E2E_SIM:-$(xcrun simctl list devices booted |
+  grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' | head -n 1)}
+[ -n "$SIM" ] || { echo "no booted simulator; see mobile/README.md → Tests" >&2; exit 1; }
 
 # The app's bundle ID: a developer build's own from mobile/.env.local, as
 # app.config.js reads it, else the app's.
@@ -71,7 +79,7 @@ done <"$SEEDED"
 
 # A file in the simulator's Files app, On My iPhone, for the attach flow
 # to pick through the document picker. Copied over each run.
-files=$(xcrun simctl get_app_container booted com.apple.DocumentsApp groups |
+files=$(xcrun simctl get_app_container "$SIM" com.apple.DocumentsApp groups |
   sed -n 's/^group\.com\.apple\.FileProvider\.LocalStorage[[:space:]]*//p')
 if [ -n "$files" ]; then
   mkdir -p "$files/File Provider Storage"
@@ -79,8 +87,8 @@ if [ -n "$files" ]; then
 fi
 
 status=0
-maestro test mobile/e2e/setup || status=$?
+maestro --device "$SIM" test mobile/e2e/setup || status=$?
 # shellcheck disable=SC2086 # FLOWS is a list of paths
-[ $status -ne 0 ] || maestro test "$@" $FLOWS || status=$?
+[ $status -ne 0 ] || maestro --device "$SIM" test "$@" $FLOWS || status=$?
 [ $status -eq 0 ] || echo "server log: $LOG" >&2
 exit $status

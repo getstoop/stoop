@@ -7,12 +7,12 @@ import { useSheet } from "./useSheet";
 
 // Where the composer's Attach (the + in the pill or the card) picks files
 // from: a sheet over a scrim, drawn as the message menu's is (useSheet),
-// with the photo library, the camera and files. A pick closes the sheet and is handed over (onClose)
-// once it has gone: on iOS once the modal itself is dismissed, since a
-// picker presented over it would be dismissed with it, or after a
-// moment should that never be said, so a pick is never lost and the
-// sheet never stays up. A tap on the scrim, a swipe down or Android's
-// back closes it with nothing.
+// with the photo library, the camera and files. A pick closes the sheet
+// and is handed over (onClose) once it has gone: on iOS once the modal
+// itself is dismissed, since a picker presented over it would be
+// dismissed with it, or after a moment should that never be said, so a
+// pick is never lost and the sheet never stays up. A tap on the scrim, a
+// swipe down or Android's back closes it with nothing.
 
 export type AttachSource = "library" | "camera" | "files";
 

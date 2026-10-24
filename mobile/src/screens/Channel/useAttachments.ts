@@ -4,7 +4,7 @@ import { Keyboard } from "react-native";
 import { errorText } from "../../api/errors";
 import type { LocalFile } from "../../api/files";
 import type { AttachSource } from "./AttachSheet";
-import { type Picked, pickFrom } from "./pickers";
+import { type Picked, type PickResult, pickFrom } from "./pickers";
 
 // The files a composer holds for its next message, as web's composer
 // holds them: each uploads as it is picked, through the app's one queue
@@ -106,7 +106,9 @@ export function useAttachments(
       setNotice(`At most ${MAX_ATTACHMENTS} files per message`);
       return true;
     }
-    let result: Awaited<ReturnType<typeof pickFrom>>;
+    // A new pick starts clean: an earlier refusal is not this one's.
+    setNotice(null);
+    let result: PickResult;
     try {
       result = await pickFrom(source, room);
     } catch (err) {
