@@ -18,8 +18,9 @@ export type LocalFile = { uri: string; name: string; type: string };
 
 // One queue for the app: the server's allowance is per account, and a
 // thread's composer and the channel's upload as the same person. An
-// upload stopped (signal) while it waits for a slot never starts, and
-// one stopped while running gives its slot back as it ends.
+// upload stopped (signal) while it waits for a slot never starts: it
+// still waits its turn, then gives the slot straight back. One stopped
+// while running gives its slot back as it ends.
 const withUploadSlot = uploadSlots();
 
 export async function uploadAttachment(
