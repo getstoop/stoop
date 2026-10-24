@@ -95,12 +95,14 @@ type Lifetime = {
   // opened again while it was out) is dropped whichever lands first,
   // its failure too.
   opens: number;
-  catchingUp: boolean;
+  // The catch-up running, which a later ask waits on rather than
+  // starting another.
+  catchingUp: Promise<void> | null;
   // Ends a catch-up's wait before a retry early, when the socket is back.
   wake: (() => void) | null;
 };
 
-const newLifetime = (): Lifetime => ({ ended: false, opens: 0, catchingUp: false, wake: null });
+const newLifetime = (): Lifetime => ({ ended: false, opens: 0, catchingUp: null, wake: null });
 
 export type ChannelEngine = ReturnType<typeof createEngine>;
 
@@ -177,42 +179,45 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   // sheet, keeps them), so the run ends and the Ready on coming back
   // starts another. A refusal that means the channel is gone or the
   // sign-in has ended shows as such.
-  async function catchUp() {
+  function catchUp(): Promise<void> {
     const mine = life;
-    if (mine.catchingUp) return;
-    mine.catchingUp = true;
+    if (!mine.catchingUp) {
+      mine.catchingUp = runCatchUp(mine).finally(() => {
+        mine.catchingUp = null;
+      });
+    }
+    return mine.catchingUp;
+  }
+
+  async function runCatchUp(mine: Lifetime) {
     let delay = RETRY_BASE_MS;
-    try {
-      for (;;) {
-        // Before the channel's own page a thread's may have positioned
-        // the log, so the session is looked up when the header has none.
-        const session = await token();
-        const { log } = state;
-        if (mine.ended || !session || !log.needsCatchUp || !hasPage(log)) return;
-        if (AppState.currentState === "background") return;
-        try {
-          let since = log.seq;
-          for (;;) {
-            const res = await loadChanges(server.origin, session, channelId, since);
-            if (mine.ended) return;
-            dispatch({ type: "caughtUp", res });
-            if (!res.hasMore || res.messages.length === 0) break;
-            since = nextSince(since, res);
-          }
-          delay = RETRY_BASE_MS;
-        } catch (err) {
-          if (mine.ended || final(err)) return;
-          const outcome = outcomeOf(err);
-          if (outcome !== "failed") {
-            dispatch({ type: "failed", outcome });
-            return;
-          }
-          await rest(mine, delay);
-          delay = Math.min(delay * 2, RETRY_CAP_MS);
+    for (;;) {
+      // Before the channel's own page a thread's may have positioned
+      // the log, so the session is looked up when the header has none.
+      const session = await token();
+      const { log } = state;
+      if (mine.ended || !session || !log.needsCatchUp || !hasPage(log)) return;
+      if (AppState.currentState === "background") return;
+      try {
+        let since = log.seq;
+        for (;;) {
+          const res = await loadChanges(server.origin, session, channelId, since);
+          if (mine.ended) return;
+          dispatch({ type: "caughtUp", res });
+          if (!res.hasMore || res.messages.length === 0) break;
+          since = nextSince(since, res);
         }
+        delay = RETRY_BASE_MS;
+      } catch (err) {
+        if (mine.ended || final(err)) return;
+        const outcome = outcomeOf(err);
+        if (outcome !== "failed") {
+          dispatch({ type: "failed", outcome });
+          return;
+        }
+        await rest(mine, delay);
+        delay = Math.min(delay * 2, RETRY_CAP_MS);
       }
-    } finally {
-      mine.catchingUp = false;
     }
   }
 
@@ -294,12 +299,17 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     const generation = viewOf(state.log, rootId)?.generation ?? 0;
     const held = state.log.rows.has(rootId);
     try {
-      const [res, root] = await Promise.all([
+      const [res, fetched] = await Promise.all([
         loadReplies(server.origin, session, channelId, rootId),
         held ? undefined : loadRoot(server.origin, session, channelId, rootId),
       ]);
       if (stale()) return;
-      if (!held && !root && !state.log.rows.has(rootId)) {
+      // A held root the log let go of meanwhile (pruned at its cap) is
+      // asked for after all.
+      const root =
+        held && !state.log.rows.has(rootId) ? await loadRoot(server.origin, session, channelId, rootId) : fetched;
+      if (stale()) return;
+      if (!root && !state.log.rows.has(rootId)) {
         dispatch({ type: "threadFailed", rootId, outcome: "gone" });
         return;
       }
