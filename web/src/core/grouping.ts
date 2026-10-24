@@ -97,3 +97,40 @@ export function groupedRows(
   });
   return rows;
 }
+
+// Where a thread's "New" line goes: above the oldest of its unread
+// replies, which are the newest `unread` replies by others (the server's
+// count, ThreadSummary.unread_count). Above the oldest held reply by
+// others when fewer are held; none when nothing is unread.
+export function firstUnreadReplyId(
+  replies: Message[],
+  unread: number,
+  myUserId: string,
+): string | undefined {
+  if (unread <= 0) return undefined;
+  const others = replies.filter(
+    (reply) => !reply.deleted && reply.author?.id !== myUserId,
+  );
+  return others[Math.max(0, others.length - unread)]?.id;
+}
+
+// A thread's replies for a list, oldest first, by a thread's rules: no
+// day lines (each reply's time carries its day), and the "New" line above
+// firstNewId.
+export function threadRows(
+  replies: Message[],
+  firstNewId: string | undefined,
+): GroupedRow[] {
+  const rows: GroupedRow[] = [];
+  replies.forEach((reply, index) => {
+    if (reply.id === firstNewId)
+      rows.push({ kind: "new", key: `new-${reply.id}`, label: "New" });
+    rows.push({
+      kind: "message",
+      key: reply.id,
+      message: reply,
+      continued: continues(reply, replies[index - 1], firstNewId, true),
+    });
+  });
+  return rows;
+}

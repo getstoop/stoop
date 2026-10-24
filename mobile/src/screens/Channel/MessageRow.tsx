@@ -8,6 +8,7 @@ import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
 import { type Theme, tokens, useTheme } from "../../theme";
 import MessageText from "./MessageText";
+import ThreadLine from "./ThreadLine";
 
 const AVATAR = 36;
 const GAP = 10;
@@ -24,9 +25,11 @@ const GAP = 10;
 // on it opens the message menu (MessageMenu), which draws the row again
 // as a card: the mockup's 12px inset, no tint or ring, and the day with
 // the time, since the list's day lines are not there to carry it. A
-// root deleted while its thread has replies stays as a placeholder,
-// which no press opens. Reactions, previews and threads come in later
-// steps.
+// root with replies has the thread's line under it (ThreadLine), which
+// opens the thread (onOpenThread); a root deleted while its thread has
+// replies stays as a placeholder with that line, which no long press
+// opens. In a thread (`withDay`) the time carries its day, as the card's
+// does. Reactions and previews come in later steps.
 export default memo(function MessageRow({
   message,
   continued,
@@ -35,7 +38,9 @@ export default memo(function MessageRow({
   token,
   onLongPress,
   card = false,
+  withDay = false,
   target,
+  onOpenThread,
 }: {
   message: Message;
   continued: boolean;
@@ -44,14 +49,21 @@ export default memo(function MessageRow({
   token: string;
   onLongPress?: (message: Message) => void;
   card?: boolean;
+  withDay?: boolean;
   target?: "reply" | "edit";
+  onOpenThread?: (message: Message) => void;
 }) {
   const styles = makeStyles(useTheme());
+  const thread =
+    !card && onOpenThread && message.thread && message.thread.replyCount > 0 ? (
+      <ThreadLine thread={message.thread} origin={origin} token={token} onPress={() => onOpenThread(message)} />
+    ) : null;
 
   if (message.deleted) {
     return (
       <View style={[styles.row, styles.indent]}>
         <Text style={styles.placeholder}>Original message deleted</Text>
+        {thread}
       </View>
     );
   }
@@ -75,6 +87,7 @@ export default memo(function MessageRow({
           📎 {file.name}
         </Text>
       ))}
+      {thread}
     </>
   );
 
@@ -115,7 +128,7 @@ export default memo(function MessageRow({
                 {name}
                 {author?.deleted && <Text style={styles.muted}> (deleted)</Text>}
               </Text>
-              {created && <Text style={styles.time}>{when(created, card)}</Text>}
+              {created && <Text style={styles.time}>{when(created, card || withDay)}</Text>}
             </View>
             {body}
           </View>
@@ -125,10 +138,10 @@ export default memo(function MessageRow({
   );
 });
 
-// The time, as the list shows it under its day lines; on the card the
-// day too, as web's thread shows a reply's.
-function when(created: Date, card: boolean): string {
-  if (!card || sameDay(created, new Date())) {
+// The time, as the list shows it under its day lines; on the card and in
+// a thread the day too, as web's thread shows a reply's.
+function when(created: Date, withDay: boolean): string {
+  if (!withDay || sameDay(created, new Date())) {
     return created.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
   return dayAndTime(created);

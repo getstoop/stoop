@@ -1,10 +1,14 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
+import {
+  type Message,
+  ThreadSummarySchema,
+} from "../gen/stoop/chat/v1/message_pb";
 import { ReactionSchema } from "../gen/stoop/chat/v1/reaction_pb";
 import { SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import type { ChannelHeader } from "./channelHeader";
-import { channelItems } from "./channelLog";
+import { channelItems, threadItems } from "./channelLog";
 import {
   CHANNEL,
   changes,
@@ -514,5 +518,311 @@ describe("the reader's own delete", () => {
     ).toBe(ready);
     const once = screenReducer(ready, deleted);
     expect(screenReducer(once, deleted)).toBe(once);
+  });
+});
+
+describe("a thread over the channel", () => {
+  const root = id(5);
+  const summary = () =>
+    create(ThreadSummarySchema, {
+      replyCount: 2,
+      unreadCount: 1,
+      participating: true,
+    });
+  const withSummary = rows(0, 10).map((row) =>
+    row.id === root ? { ...row, thread: summary() } : row,
+  );
+  const ready = run([opened(0, { rows: withSummary })]);
+  const reply = (index: number, seq: number) =>
+    message(`r${index}`, {
+      threadRootId: root,
+      inChannel: false,
+      seq: BigInt(seq),
+    });
+  const threadPage = (replies = [reply(1, 11), reply(2, 12)]) =>
+    page(replies, { hasOlder: false, channelSeq: 12 });
+  const openThread = (from = ready, init: { root?: Message } = {}) =>
+    run(
+      [
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          epoch: 1,
+          rootId: root,
+          generation: 0,
+          res: threadPage(),
+          ...init,
+        },
+      ],
+      from,
+    );
+
+  it("opens on its root and its replies, the channel's rows untouched", () => {
+    const state = openThread();
+    expect(ids(threadItems(state.log, root))).toEqual([root, "r1", "r2"]);
+    expect(shown(state)).toEqual(ids(rows(0, 10)));
+    expect(state.threads[root]).toEqual({
+      outcome: null,
+      loadingOlder: false,
+      epoch: 1,
+    });
+  });
+
+  it("drops a page for a thread no screen has open", () => {
+    const state = screenReducer(ready, {
+      type: "threadOpened",
+      epoch: 1,
+      rootId: root,
+      generation: 0,
+      res: threadPage(),
+    });
+    expect(state).toBe(ready);
+    const closed = run(
+      [
+        { type: "threadOpening", rootId: root },
+        { type: "threadClosed", rootId: root },
+        {
+          type: "threadOpened",
+          epoch: 1,
+          rootId: root,
+          generation: 0,
+          res: threadPage(),
+        },
+      ],
+      ready,
+    );
+    expect(closed.log.threads[root]).toBeUndefined();
+    expect(closed.log.rows.has("r1")).toBe(false);
+  });
+
+  it("takes a fetched root it didn't hold, with the reader's half of its summary", () => {
+    const empty = run([opened(0, { rows: rows(0, 3) })]);
+    const fetched = message(root, { seq: 6n, thread: summary() });
+    const state = openThread(empty, { root: fetched });
+    expect(ids(threadItems(state.log, root))).toEqual([root, "r1", "r2"]);
+    expect(state.log.rows.get(root)?.thread?.unreadCount).toBe(1);
+  });
+
+  it("goes live, and closing it lets go of its replies but not the root the channel shows", () => {
+    const live = screenReducer(openThread(), {
+      type: "event",
+      event: event({ case: "messageCreated", value: reply(3, 13) }),
+    });
+    expect(ids(threadItems(live.log, root))).toEqual([root, "r1", "r2", "r3"]);
+    const closed = screenReducer(live, { type: "threadClosed", rootId: root });
+    expect(closed.threads[root]).toBeUndefined();
+    expect(closed.log.threads[root]).toBeUndefined();
+    expect(closed.log.rows.has("r3")).toBe(false);
+    expect(shown(closed)).toEqual(ids(rows(0, 10)));
+  });
+
+  it("pages older replies under the thread's generation", () => {
+    const state = run(
+      [
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          epoch: 1,
+          rootId: root,
+          generation: 0,
+          res: page([reply(2, 12)], { hasOlder: true, channelSeq: 12 }),
+        },
+        { type: "threadPagingOlder", rootId: root },
+      ],
+      ready,
+    );
+    expect(state.threads[root].loadingOlder).toBe(true);
+    const grown = screenReducer(state, {
+      type: "threadPaged",
+      epoch: 1,
+      rootId: root,
+      generation: state.log.threads[root].generation,
+      res: page([reply(1, 11)], { hasOlder: false }),
+    });
+    expect(ids(threadItems(grown.log, root))).toEqual([root, "r1", "r2"]);
+    expect(grown.threads[root].loadingOlder).toBe(false);
+    expect(grown.log.threads[root].hasOlder).toBe(false);
+  });
+
+  it("keeps what it shows when the server can't be reached, and says when its root is gone", () => {
+    const failed = run(
+      [
+        { type: "threadOpening", rootId: root },
+        { type: "threadFailed", rootId: root, outcome: "failed" },
+      ],
+      ready,
+    );
+    expect(failed.threads[root].outcome).toBe("failed");
+    expect(
+      screenReducer(failed, { type: "threadOpening", rootId: root }).threads[
+        root
+      ].outcome,
+    ).toBeNull();
+    const open = openThread();
+    expect(
+      screenReducer(open, {
+        type: "threadFailed",
+        rootId: root,
+        outcome: "failed",
+      }),
+    ).toBe(open);
+    expect(
+      screenReducer(open, {
+        type: "threadFailed",
+        rootId: root,
+        outcome: "gone",
+      }).threads[root].outcome,
+    ).toBe("gone");
+  });
+
+  it("clears its unread count when read, here or on another device", () => {
+    const read = screenReducer(openThread(), {
+      type: "threadRead",
+      rootId: root,
+    });
+    expect(read.log.rows.get(root)?.thread?.unreadCount).toBe(0);
+    const elsewhere = screenReducer(ready, {
+      type: "event",
+      event: event({
+        case: "threadRead",
+        value: { channelId: CHANNEL, rootMessageId: root },
+      }),
+    });
+    expect(elsewhere.log.rows.get(root)?.thread?.unreadCount).toBe(0);
+    expect(
+      screenReducer(ready, {
+        type: "event",
+        event: event({
+          case: "threadRead",
+          value: { channelId: "c2", rootMessageId: root },
+        }),
+      }),
+    ).toBe(ready);
+  });
+
+  it("drops an older page asked for before the thread closed and opened again", () => {
+    // Opened (epoch 1) with older replies; a page goes out; the screen
+    // leaves and a new one opens the thread again (epoch 2) on a fresh
+    // view at the same generation. The old page must not land.
+    const first = run(
+      [
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          rootId: root,
+          epoch: 1,
+          generation: 0,
+          res: page([reply(2, 12)], { hasOlder: true, channelSeq: 12 }),
+        },
+      ],
+      ready,
+    );
+    const generation = first.log.threads[root].generation;
+    const again = run(
+      [
+        { type: "threadClosed", rootId: root },
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          rootId: root,
+          epoch: 2,
+          generation: 0,
+          res: page([reply(4, 14)], { hasOlder: true, channelSeq: 14 }),
+        },
+      ],
+      first,
+    );
+    expect(again.threads[root].epoch).toBe(2);
+    expect(again.log.threads[root].generation).toBe(generation);
+    const late = screenReducer(again, {
+      type: "threadPaged",
+      rootId: root,
+      epoch: 1,
+      generation,
+      res: page([reply(1, 11)], { hasOlder: false }),
+    });
+    expect(late).toBe(again);
+    expect(late.log.threads[root].hasOlder).toBe(true);
+  });
+
+  const changed = (replyCount: number, lastBy: string, seq: number) =>
+    event({
+      case: "threadChanged",
+      value: {
+        channelId: CHANNEL,
+        rootMessageId: root,
+        seq: BigInt(seq),
+        thread: { replyCount: replyCount, recentAuthors: [{ id: lastBy }] },
+      },
+    });
+
+  it("counts a reply by someone else in a thread the reader is in, not their own", () => {
+    const more = screenReducer(ready, {
+      type: "event",
+      event: changed(3, "them", 11),
+    });
+    expect(more.log.rows.get(root)?.thread).toMatchObject({
+      replyCount: 3,
+      unreadCount: 2,
+      participating: true,
+    });
+    const mine = screenReducer(more, {
+      type: "event",
+      event: changed(4, "me", 12),
+    });
+    expect(mine.log.rows.get(root)?.thread?.unreadCount).toBe(2);
+    // The same event again is stale: counted once.
+    expect(
+      screenReducer(mine, { type: "event", event: changed(4, "me", 12) }),
+    ).toBe(mine);
+  });
+
+  it("counts the reader in when a reply names them", () => {
+    const outside = run([
+      opened(0, {
+        rows: rows(0, 10).map((row) =>
+          row.id === root
+            ? { ...row, thread: create(ThreadSummarySchema, { replyCount: 2 }) }
+            : row,
+        ),
+      }),
+    ]);
+    const unnamed = screenReducer(outside, {
+      type: "event",
+      event: changed(3, "them", 11),
+    });
+    expect(unnamed.log.rows.get(root)?.thread?.unreadCount).toBe(0);
+    const named = run(
+      [
+        {
+          type: "event",
+          event: event({
+            case: "messageCreated",
+            value: message("r9", {
+              threadRootId: root,
+              inChannel: false,
+              seq: 11n,
+              mentionUserIds: ["me"],
+            }),
+          }),
+        },
+        { type: "event", event: changed(3, "them", 12) },
+      ],
+      outside,
+    );
+    expect(named.log.rows.get(root)?.thread).toMatchObject({
+      participating: true,
+      unreadCount: 1,
+    });
+    expect(named.namedIn).toEqual({});
+  });
+
+  it("takes the reader's half from a page asked for again", () => {
+    const read = screenReducer(ready, { type: "threadRead", rootId: root });
+    const again = screenReducer(read, {
+      type: "refreshed",
+      res: page(withSummary, { channelSeq: 10 }),
+    });
+    expect(again.log.rows.get(root)?.thread?.unreadCount).toBe(1);
   });
 });

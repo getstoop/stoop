@@ -10,7 +10,6 @@ import {
   AppState,
   FlatList,
   KeyboardAvoidingView,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -28,7 +27,9 @@ import Composer, { type ComposerHandle, GAP, PILL } from "./Composer";
 import Divider from "./Divider";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
-import { olderFits, useChannelLog } from "./useChannelLog";
+import Unavailable from "./Unavailable";
+import { olderFits } from "./channelEngine";
+import { useChannelLog } from "./useChannelLog";
 
 // A channel, pushed over its space: its messages newest at the bottom,
 // older pages loading as the reader scrolls up, and the realtime socket
@@ -48,10 +49,12 @@ import { olderFits, useChannelLog } from "./useChannelLog";
 // message itself (deleted, or left as a placeholder), silently. Edit
 // message holds the message the same way, for the composer to edit;
 // one at a time between the two, so an edit begun drops a quote and a
-// quote picked ends an edit. What is held and what each answer and
-// event does to it is the channel log's (core/channelLog, under
-// core/channelScreen, through useChannelLog); this screen marks read
-// and draws.
+// quote picked ends an edit. A root's replies line, or Reply in thread
+// once the menu has gone, pushes the thread over the channel
+// (screens/Thread), which shares this screen's log. What is held and
+// what each answer and event does to it is the channel log's
+// (core/channelLog, under core/channelScreen, through useChannelLog);
+// this screen marks read and draws.
 
 // How long a refusal's line stays.
 const NOTICE_MS = 4000;
@@ -74,7 +77,8 @@ export default function Channel({
   const focused = useIsFocused();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
-  const { state, older, retry, send, react, remove, edit } = useChannelLog(server, spaceId, channelId);
+  const { state, engine } = useChannelLog(server, spaceId, channelId);
+  const { older, retry, send, react, remove, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
   const [active, setActive] = useState(AppState.currentState === "active");
   // The composer's height as drawn, for the list to clear.
@@ -98,6 +102,8 @@ export default function Channel({
   // keyboard.
   const openComposer = useRef(false);
   const scrollOnce = useRef(false);
+  // The thread Reply in thread opens once the menu has gone, by its root.
+  const threadAfterMenu = useRef<string | null>(null);
   const composer = useRef<ComposerHandle>(null);
   // What was refused, for a moment, with the server's reason when there
   // is one: the latest replaces the one before it.
@@ -119,6 +125,7 @@ export default function Channel({
     if (editingId) setEditingId(null);
     openComposer.current = false;
     scrollOnce.current = false;
+    threadAfterMenu.current = null;
   }
 
   useEffect(() => {
@@ -135,6 +142,29 @@ export default function Channel({
     setMenuFor(message.id);
   }, []);
   const closeMenu = useCallback(() => setMenuFor(null), []);
+  // The thread pushed over the channel, by its root's id.
+  // One at a time: a second tap before the first has covered the channel
+  // pushes nothing; coming back to the channel lets the next go, as does
+  // a second gone by, should the push have gone nowhere.
+  const pushed = useRef(false);
+  useEffect(() => {
+    if (focused) pushed.current = false;
+  }, [focused]);
+  const pushThread = useCallback(
+    (rootId: string) => {
+      if (pushed.current) return;
+      pushed.current = true;
+      setTimeout(() => {
+        pushed.current = false;
+      }, 1000);
+      router.push({
+        pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
+        params: { id: server.id, spaceId, channelId, rootId },
+      });
+    },
+    [router, server.id, spaceId, channelId],
+  );
+  const openThread = useCallback((message: Message) => pushThread(message.id), [pushThread]);
   const notify = useCallback((title: string, body?: string) => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     setNotice({ title, body });
@@ -197,6 +227,13 @@ export default function Channel({
     openComposer.current = false;
     composer.current?.open();
   }, [menuFor]);
+  // And Reply in thread pushes the thread then.
+  useEffect(() => {
+    const rootId = threadAfterMenu.current;
+    if (menuFor || !rootId) return;
+    threadAfterMenu.current = null;
+    pushThread(rootId);
+  }, [menuFor, pushThread]);
   // The quote and the message being edited, as the log holds them; gone
   // with the message.
   const replyRow = replyToId ? log.rows.get(replyToId) : undefined;
@@ -258,37 +295,21 @@ export default function Channel({
     if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
   }, [items.length, newIndex]);
 
-  if (outcome) {
+  if (outcome === "ended") {
     return (
-      <View style={styles.screen}>
-        <View style={styles.notice} accessibilityRole="alert">
-          {outcome === "ended" && (
-            <>
-              <Text style={styles.body}>Your sign-in to {server.name} has ended. Sign in again to carry on.</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.replace({ pathname: "/sign-in", params: { server: server.origin } })}
-                style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-              >
-                <Text style={styles.buttonLabel}>Sign in again</Text>
-              </Pressable>
-            </>
-          )}
-          {outcome === "gone" && <Text style={styles.body}>This channel isn't available any more.</Text>}
-          {outcome === "failed" && (
-            <>
-              <Text style={styles.body}>Couldn't reach {hostOf(server.origin)}.</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={retry}
-                style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-              >
-                <Text style={styles.buttonLabel}>Try again</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-      </View>
+      <Unavailable
+        message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
+        action={{
+          label: "Sign in again",
+          onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+        }}
+      />
+    );
+  }
+  if (outcome === "gone") return <Unavailable message="This channel isn't available any more." />;
+  if (outcome === "failed") {
+    return (
+      <Unavailable message={`Couldn't reach ${hostOf(server.origin)}.`} action={{ label: "Try again", onPress: retry }} />
     );
   }
   if (!header) {
@@ -334,6 +355,7 @@ export default function Channel({
                   origin={server.origin}
                   token={token}
                   onLongPress={openMenu}
+                  onOpenThread={openThread}
                   target={
                     item.message.id === replyToId ? "reply" : item.message.id === editingId ? "edit" : undefined
                   }
@@ -418,6 +440,9 @@ export default function Channel({
           link={messageLink(server.origin, spaceId, menuMessage)}
           onReact={(emoji) => reactTo(menuMessage, emoji)}
           onCopyFailed={linkNotCopied}
+          onThread={() => {
+            threadAfterMenu.current = menuMessage.threadRootId || menuMessage.id;
+          }}
           onQuote={() => quote(menuMessage)}
           onEdit={() => startEdit(menuMessage)}
           onDelete={() => deleteMessage(menuMessage)}
@@ -453,31 +478,6 @@ function makeStyles(theme: Theme) {
       marginVertical: 16,
       color: theme.textMuted,
       fontSize: tokens.textUi,
-    },
-    notice: {
-      gap: 12,
-      marginTop: 8,
-      paddingHorizontal: 20,
-    },
-    body: {
-      color: theme.text,
-      fontSize: tokens.textBody,
-      lineHeight: tokens.textBody * tokens.leadingBody,
-    },
-    button: {
-      height: 50,
-      borderRadius: tokens.radiusMd,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.accent,
-    },
-    pressed: {
-      opacity: 0.85,
-    },
-    buttonLabel: {
-      color: theme.onAccent,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
     },
     toast: {
       position: "absolute",

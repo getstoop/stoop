@@ -4,7 +4,10 @@ import type {
 } from "../gen/stoop/chat/v1/chat_pb";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import type { Reaction } from "../gen/stoop/chat/v1/reaction_pb";
-import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
+import type {
+  ServerEvent,
+  ThreadChanged,
+} from "../gen/stoop/realtime/v1/realtime_pb";
 import {
   type ChannelHeader,
   losesChannel,
@@ -13,15 +16,20 @@ import {
 import {
   type ChannelLog,
   caughtUp,
+  closedThread,
   emptyLog,
   FROM_ANSWER,
   opened,
   paged,
   reconnected,
+  refreshed,
+  viewOf,
   withArrivals,
   withEvent,
   withPatch,
+  withThreadOverlay,
 } from "./channelLog";
+import { namesMe, viewerHalfAfter } from "./threadUnread";
 
 // A channel screen's state over its log: the log itself (channelLog owns
 // every rule about the rows), the header beside it (channelHeader), and
@@ -30,6 +38,19 @@ import {
 
 // Why the channel can't be shown.
 export type Outcome = "ended" | "gone" | "failed";
+
+// A thread a screen shows over the channel, by its root's id: held from
+// the screen's opening it to its closing, so a page that lands for a
+// thread since closed is nobody's. Gone is the thread's root (deleted,
+// or never there); the channel's own loss is the screen's outcome.
+export type ThreadScreen = {
+  outcome: "gone" | "failed" | null;
+  loadingOlder: boolean;
+  // Which opening of the thread this is: a page asked for under an
+  // earlier one (the thread closed and opened again since, its view's
+  // generation counting afresh) is dropped.
+  epoch: number;
+};
 
 export type ChannelScreen = {
   log: ChannelLog;
@@ -42,6 +63,12 @@ export type ChannelScreen = {
   // the marker moves; null for no "New" line.
   newAfter: string | null;
   loadingOlder: boolean;
+  threads: Record<string, ThreadScreen>;
+  // The last thread opening's epoch.
+  threadEpoch: number;
+  // Threads a reply has named the reader in since its summary last moved
+  // (core/threadUnread namesMe): its ThreadChanged counts them in.
+  namedIn: Record<string, true>;
 };
 
 export type ScreenAction =
@@ -67,6 +94,11 @@ export type ScreenAction =
   | { type: "pageFailed" }
   | { type: "event"; event: ServerEvent }
   | { type: "caughtUp"; res: ListChangesResponse }
+  // A view's newest page asked for again after a reconnect's catch-up, or
+  // a thread's root around itself: merged, the range and the position
+  // left alone (channelLog refreshed), so the reader's half of a thread
+  // summary changed elsewhere meanwhile is taken.
+  | { type: "refreshed"; res: ListMessagesResponse }
   | { type: "reconnected" }
   // The answer to the reader's own send, or to their reaction toggle:
   // its row, merged by seq like an event's, as web's holdRow does while
@@ -90,7 +122,35 @@ export type ScreenAction =
   // its own seq, gone from the list at once as the message_deleted that
   // follows makes it. A root with a thread summary is left to the
   // server's update for it, which fills the placeholder in.
-  | { type: "deleted"; messageId: string };
+  | { type: "deleted"; messageId: string }
+  // A thread screen opening (again, after a failure): its replies' first
+  // page is asked for.
+  | { type: "threadOpening"; rootId: string }
+  // The thread's newest page of replies, under the thread view's
+  // generation when it was asked for, with its root when that had to be
+  // fetched (not held from the channel's page), merged as an answer's row.
+  | {
+      type: "threadOpened";
+      rootId: string;
+      epoch: number;
+      res: ListMessagesResponse;
+      generation: number;
+      root?: Message;
+    }
+  | { type: "threadFailed"; rootId: string; outcome: "gone" | "failed" }
+  | { type: "threadPagingOlder"; rootId: string }
+  | {
+      type: "threadPaged";
+      rootId: string;
+      epoch: number;
+      res: ListMessagesResponse;
+      generation: number;
+    }
+  | { type: "threadPageFailed"; rootId: string }
+  // The thread screen has gone: the view goes with the rows only it kept.
+  | { type: "threadClosed"; rootId: string }
+  // The reader's own MarkThreadRead, answered: nothing in it is new.
+  | { type: "threadRead"; rootId: string };
 
 export const emptyScreen = (channelId: string): ChannelScreen => ({
   log: emptyLog(channelId),
@@ -99,6 +159,9 @@ export const emptyScreen = (channelId: string): ChannelScreen => ({
   token: "",
   newAfter: null,
   loadingOlder: false,
+  threads: {},
+  threadEpoch: 0,
+  namedIn: {},
 });
 
 export function screenReducer(
@@ -148,15 +211,37 @@ export function screenReducer(
     case "event": {
       if (loses(state, action.event)) return { ...state, outcome: "gone" };
       const { header } = state;
+      const payload = action.event.payload;
+      // Read on another device, or by this one's MarkThreadRead.
+      if (payload.case === "threadRead") {
+        if (payload.value.channelId !== state.log.channelId) return state;
+        const log = withThreadOverlay(state.log, payload.value.rootMessageId, {
+          unreadCount: 0,
+        });
+        return log === state.log ? state : { ...state, log };
+      }
+      if (payload.case === "threadChanged")
+        return withThreadChanged(state, action.event, payload.value);
       const log = withEvent(state.log, action.event);
       const next = header ? withHeaderEvent(header, action.event) : header;
-      if (log === state.log && next === header) return state;
-      return { ...state, log, header: next };
+      const named =
+        payload.case === "messageCreated" &&
+        payload.value.channelId === state.log.channelId &&
+        namesMe(payload.value, header?.myUserId)
+          ? { ...state.namedIn, [payload.value.threadRootId]: true as const }
+          : state.namedIn;
+      if (log === state.log && next === header && named === state.namedIn)
+        return state;
+      return { ...state, log, header: next, namedIn: named };
     }
     case "caughtUp":
       return { ...state, log: caughtUp(state.log, action.res) };
     case "reconnected":
       return { ...state, log: reconnected(state.log) };
+    case "refreshed": {
+      const log = refreshed(state.log, action.res);
+      return log === state.log ? state : { ...state, log };
+    }
     case "sent": {
       // Another channel's row is nobody's here, as with an event.
       if (action.message.channelId !== state.log.channelId) return state;
@@ -177,7 +262,139 @@ export function screenReducer(
       );
       return log === state.log ? state : { ...state, log };
     }
+    case "threadOpening": {
+      const held = state.threads[action.rootId];
+      if (held)
+        return withThread(state, action.rootId, { ...held, outcome: null });
+      const epoch = state.threadEpoch + 1;
+      return withThread({ ...state, threadEpoch: epoch }, action.rootId, {
+        outcome: null,
+        loadingOlder: false,
+        epoch,
+      });
+    }
+    case "threadOpened": {
+      const thread = state.threads[action.rootId];
+      if (
+        thread?.epoch !== action.epoch ||
+        state.outcome === "gone" ||
+        state.outcome === "ended"
+      )
+        return state;
+      const held = action.root
+        ? withArrivals(state.log, [action.root], FROM_ANSWER)
+        : state.log;
+      const log = opened(held, {
+        rootId: action.rootId,
+        generation: action.generation,
+        res: action.res,
+      });
+      return withThread({ ...state, log }, action.rootId, {
+        ...thread,
+        outcome: null,
+      });
+    }
+    case "threadFailed": {
+      const thread = state.threads[action.rootId];
+      if (!thread) return state;
+      // As the channel's: what is on screen stays when the server can't
+      // be reached.
+      const view = viewOf(state.log, action.rootId);
+      if (action.outcome === "failed" && view && view.generation > 0)
+        return state;
+      return withThread(state, action.rootId, {
+        ...thread,
+        outcome: action.outcome,
+      });
+    }
+    case "threadPagingOlder": {
+      const thread = state.threads[action.rootId];
+      return thread
+        ? withThread(state, action.rootId, { ...thread, loadingOlder: true })
+        : state;
+    }
+    case "threadPaged": {
+      const thread = state.threads[action.rootId];
+      if (thread?.epoch !== action.epoch) return state;
+      const log = paged(state.log, "older", {
+        rootId: action.rootId,
+        generation: action.generation,
+        res: action.res,
+      });
+      return withThread({ ...state, log }, action.rootId, {
+        ...thread,
+        loadingOlder: false,
+      });
+    }
+    case "threadPageFailed": {
+      const thread = state.threads[action.rootId];
+      return thread
+        ? withThread(state, action.rootId, { ...thread, loadingOlder: false })
+        : state;
+    }
+    case "threadClosed": {
+      if (!(action.rootId in state.threads)) return state;
+      const { [action.rootId]: _closed, ...threads } = state.threads;
+      return {
+        ...state,
+        log: closedThread(state.log, action.rootId),
+        threads,
+      };
+    }
+    case "threadRead": {
+      const log = withThreadOverlay(state.log, action.rootId, {
+        unreadCount: 0,
+      });
+      return log === state.log ? state : { ...state, log };
+    }
   }
+}
+
+function withThread(
+  state: ChannelScreen,
+  rootId: string,
+  thread: ThreadScreen,
+): ChannelScreen {
+  const held = state.threads[rootId];
+  if (
+    held &&
+    held.outcome === thread.outcome &&
+    held.loadingOlder === thread.loadingOlder &&
+    held.epoch === thread.epoch
+  )
+    return state;
+  return { ...state, threads: { ...state.threads, [rootId]: thread } };
+}
+
+// A new shared summary for a root: the log takes it at the event's seq,
+// keeping the reader's half (channelLog withEvent), then that half moves
+// on by web's rule (core/threadUnread). An event the log did not apply
+// (stale, or the root not held) changes nothing, so a catch-up's copy of
+// the root is never counted twice.
+function withThreadChanged(
+  state: ChannelScreen,
+  event: ServerEvent,
+  change: ThreadChanged,
+): ChannelScreen {
+  const { rootMessageId: rootId, thread: next } = change;
+  const root = state.log.rows.get(rootId);
+  let log = withEvent(state.log, event);
+  const after = log.rows.get(rootId);
+  if (root && after && after !== root && next) {
+    log = withThreadOverlay(
+      log,
+      rootId,
+      viewerHalfAfter(
+        root,
+        next,
+        state.header?.myUserId,
+        !!state.namedIn[rootId],
+      ),
+    );
+  }
+  const { [rootId]: _counted, ...namedIn } = state.namedIn;
+  if (log === state.log && !(rootId in state.namedIn)) return state;
+  return { ...state, log, namedIn };
 }
 
 // Whether the event means the reader can no longer see the channel. With

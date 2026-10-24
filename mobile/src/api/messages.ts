@@ -8,8 +8,8 @@ import { authClient, chatClient } from "./clients";
 // mentions them), and the pages and changes of its channel log
 // (core/channelLog): the newest page on opening, older pages as the
 // reader scrolls up, and ListChanges from the position held after a
-// reconnect or a gap in the events), the reader's own message, and what
-// the message menu does to one.
+// reconnect or a gap in the events), a thread's replies and its root,
+// the reader's own message, and what the message menu does to one.
 
 const TIMEOUT_MS = 10000;
 export const PAGE = 50;
@@ -66,6 +66,52 @@ export function loadOlder(
   return chatClient(origin, token).listMessages({ channelId, beforeId, limit: PAGE }, { timeoutMs: TIMEOUT_MS });
 }
 
+// A thread's replies: its newest page, or the page before beforeId. The
+// root is not among them.
+export function loadReplies(
+  origin: string,
+  token: string,
+  channelId: string,
+  rootId: string,
+  beforeId = "",
+): Promise<ListMessagesResponse> {
+  return chatClient(origin, token).listMessages(
+    { channelId, threadId: rootId, beforeId, limit: PAGE },
+    { timeoutMs: TIMEOUT_MS },
+  );
+}
+
+// The channel's newest page, asked for again after a reconnect.
+export function loadPage(origin: string, token: string, channelId: string): Promise<ListMessagesResponse> {
+  return chatClient(origin, token).listMessages({ channelId, limit: PAGE }, { timeoutMs: TIMEOUT_MS });
+}
+
+// The page of one around a message: a thread's root, which a thread's
+// own pages never list.
+export function loadAround(
+  origin: string,
+  token: string,
+  channelId: string,
+  messageId: string,
+): Promise<ListMessagesResponse> {
+  return chatClient(origin, token).listMessages(
+    { channelId, aroundId: messageId, limit: 1 },
+    { timeoutMs: TIMEOUT_MS },
+  );
+}
+
+// A thread's root, for a thread opened with the channel's page not
+// holding it; undefined when the server has no such message.
+export async function loadRoot(
+  origin: string,
+  token: string,
+  channelId: string,
+  rootId: string,
+): Promise<Message | undefined> {
+  const { messages } = await loadAround(origin, token, channelId, rootId);
+  return messages.find((message) => message.id === rootId);
+}
+
 // One page of the channel's changes above a log position.
 export function loadChanges(
   origin: string,
@@ -82,6 +128,11 @@ export function loadChanges(
 // Moves the reader's marker in the channel up to messageId.
 export async function markRead(origin: string, token: string, channelId: string, messageId: string): Promise<void> {
   await chatClient(origin, token).markChannelRead({ channelId, messageId }, { timeoutMs: TIMEOUT_MS });
+}
+
+// Moves the reader's marker in a thread to its newest reply.
+export async function markThreadRead(origin: string, token: string, rootId: string): Promise<void> {
+  await chatClient(origin, token).markThreadRead({ messageId: rootId }, { timeoutMs: TIMEOUT_MS });
 }
 
 // The reader's own message. The answer is the row the server stamped,

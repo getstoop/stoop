@@ -1,5 +1,5 @@
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { sessionToken } from "../api/servers";
 import { useServers } from "../servers";
@@ -11,6 +11,7 @@ import { applyVoiceEvent, type VoiceRoster } from "./voice";
 const VoiceContext = createContext<Record<string, VoiceRoster | undefined>>({});
 
 type Listener = (event: ServerEvent) => void;
+export type Subscribe = (serverId: string, listener: Listener) => () => void;
 // By server ID: what each screen listening there is handed, every event.
 type Listeners = Map<string, Set<Listener>>;
 const ListenersContext = createContext<Listeners>(new Map());
@@ -89,18 +90,28 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
 // screen is mounted. Ready counts too: it follows a reconnect, after
 // which anything loaded before may have missed something.
 export function useServerEvents(serverId: string, onEvent: Listener) {
-  const listeners = useContext(ListenersContext);
+  const subscribe = useEventSubscription();
   const latest = useRef(onEvent);
   latest.current = onEvent;
-  useEffect(() => {
-    const listener: Listener = (event) => latest.current(event);
-    const forServer = listeners.get(serverId) ?? new Set<Listener>();
-    listeners.set(serverId, forServer);
-    forServer.add(listener);
-    return () => {
-      forServer.delete(listener);
-    };
-  }, [listeners, serverId]);
+  useEffect(() => subscribe(serverId, (event) => latest.current(event)), [subscribe, serverId]);
+}
+
+// The same outside a component's lifetime: what listens for as long as
+// it needs (a channel's log, which more than one screen holds) subscribes
+// with this and is handed the way to stop.
+export function useEventSubscription(): Subscribe {
+  const listeners = useContext(ListenersContext);
+  return useCallback(
+    (serverId: string, listener: Listener) => {
+      const forServer = listeners.get(serverId) ?? new Set<Listener>();
+      listeners.set(serverId, forServer);
+      forServer.add(listener);
+      return () => {
+        forServer.delete(listener);
+      };
+    },
+    [listeners],
+  );
 }
 
 // Who is in voice on a server, or undefined while that isn't known.

@@ -6,8 +6,10 @@
 // mentions ada in general, posts in random, and off-topic is muted by
 // ada. dee has written more than a page in chapters, the last two since
 // ada read it. ada is also in Climbing crew, unread, and Garden swap,
-// muted. bea has an account but no space; cleo has neither and arrives
-// through the invite.
+// muted. In chapter-nine ada started a thread that dee has replied to
+// four times, the last two since ada read it, and dee's question after it
+// has no thread yet; ada has read the channel. bea has an account but no
+// space; cleo has neither and arrives through the invite.
 
 import { BASE, seed } from "../../web/e2e/seed.mjs";
 
@@ -67,6 +69,39 @@ for (let n = 1; n <= CHAPTERS; n++) {
   }
 }
 
+const nine = await rpc(
+  "chat.v1.ChatService/CreateChannel",
+  { spaceId: s.space.id, name: "chapter-nine", kind: "CHANNEL_KIND_TEXT" },
+  ada,
+);
+const { message: root } = await rpc(
+  "chat.v1.ChatService/SendMessage",
+  { channelId: nine.channel.id, content: "Finished chapter 9. No spoilers here, but I need to talk about it." },
+  ada,
+);
+const replies = [
+  "Two more pages and I'm there.",
+  "Waiting. Very patiently.",
+  "Same. Reading ahead was a mistake.",
+  "The fire scene?? I had to put it down for a minute.",
+];
+for (const [n, content] of replies.entries()) {
+  const { message } = await rpc(
+    "chat.v1.ChatService/SendMessage",
+    { channelId: nine.channel.id, content, threadRootId: root.id },
+    dee,
+  );
+  if (n === 1) {
+    await rpc("chat.v1.ChatService/MarkThreadRead", { messageId: root.id, replyId: message.id }, ada);
+  }
+}
+const { message: question } = await rpc(
+  "chat.v1.ChatService/SendMessage",
+  { channelId: nine.channel.id, content: "Who's hosting Thursday?" },
+  dee,
+);
+await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: nine.channel.id, messageId: question.id }, ada);
+
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);
 await rpc(
@@ -98,6 +133,8 @@ const env = {
   OWNER_TOKEN: ada,
   POSTER_TOKEN: dee,
   CHAPTERS_ID: chapters.channel.id,
+  NINE_ID: nine.channel.id,
+  NINE_ROOT_ID: root.id,
   INVITE_LINK: s.invite.url,
   // What the web's open-in-app page fires for that invite.
   OPEN_LINK: `stoop://open?${new URLSearchParams({ server: BASE, path })}`,
