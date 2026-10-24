@@ -10,10 +10,15 @@ import { useSheet } from "./useSheet";
 // with the photo library; the camera and files come with the step that
 // gives them work. A pick closes the sheet and is handed over (onClose)
 // once it has gone: on iOS once the modal itself is dismissed, since a
-// picker presented over it would be dismissed with it. A tap on the
-// scrim, a swipe down or Android's back closes it with nothing.
+// picker presented over it would be dismissed with it, or after a
+// moment should that never be said, so a pick is never lost and the
+// sheet never stays up. A tap on the scrim, a swipe down or Android's
+// back closes it with nothing.
 
 export type AttachSource = "library";
+
+// How long iOS gets to say the modal has gone before it is taken as gone.
+const DISMISS_FALLBACK_MS = 1000;
 
 export default function AttachSheet({ onClose }: { onClose: (source: AttachSource | null) => void }) {
   const theme = useTheme();
@@ -29,10 +34,21 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
     handed.current = true;
     onClose(picked.current);
   }, [onClose]);
+  const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closed = useCallback(() => {
-    if (Platform.OS === "ios") setVisible(false);
-    else gone();
+    if (Platform.OS !== "ios") {
+      gone();
+      return;
+    }
+    setVisible(false);
+    fallback.current = setTimeout(gone, DISMISS_FALLBACK_MS);
   }, [gone]);
+  useEffect(
+    () => () => {
+      if (fallback.current) clearTimeout(fallback.current);
+    },
+    [],
+  );
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, closed);
 
   useEffect(() => {

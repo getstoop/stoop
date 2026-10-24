@@ -20,19 +20,12 @@ import {
 import { authorName } from "../../api/authors";
 import { errorText } from "../../api/errors";
 import type { LocalFile } from "../../api/files";
-import {
-  CheckIcon,
-  CloseIcon,
-  PaperclipIcon,
-  PencilIcon,
-  PlusIcon,
-  QuoteReplyIcon,
-  SendIcon,
-} from "../../components/Icons";
+import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import AlsoSendRow from "./AlsoSendRow";
+import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
-import AttachSheet, { type AttachSource } from "./AttachSheet";
+import AttachSheet from "./AttachSheet";
 import FormatRow from "./FormatRow";
 import { useAttachments } from "./useAttachments";
 
@@ -110,7 +103,7 @@ export default forwardRef<
     inThread?: boolean;
     send: (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => Promise<void>;
     // A picked file, uploaded for this channel; and the server's cap on one.
-    upload: (file: LocalFile) => Promise<UploadedFile>;
+    upload: (file: LocalFile, signal: AbortSignal) => Promise<UploadedFile>;
     maxUploadBytes: number;
     edit: (messageId: string, content: string) => Promise<void>;
     // The message being quoted, if any.
@@ -124,19 +117,7 @@ export default forwardRef<
     onEditDone: () => void;
   }
 >(function Composer(
-  {
-    channelName,
-    inThread = false,
-    send,
-    upload,
-    maxUploadBytes,
-    edit,
-    replyTo,
-    onCancelReply,
-    onReply,
-    editing,
-    onEditDone,
-  },
+  { channelName, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
   ref,
 ) {
   const theme = useTheme();
@@ -147,10 +128,8 @@ export default forwardRef<
   const [sending, setSending] = useState(false);
   const [alsoSend, setAlsoSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const attachments = useAttachments(upload, maxUploadBytes);
-  // The attach sheet is up; and whether the card was, to come back to.
-  const [attaching, setAttaching] = useState(false);
-  const cardBefore = useRef(false);
+  // The files held, and the attach sheet; back to the card after a pick.
+  const attachments = useAttachments(upload, maxUploadBytes, () => openCard());
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   // The draft set aside while a message is edited, to come back after,
   // and a send's refusal that waits with it.
@@ -219,20 +198,6 @@ export default forwardRef<
     const sub = Keyboard.addListener("keyboardDidHide", () => input.current?.blur());
     return () => sub.remove();
   }, []);
-
-  // The sheet over a screen with the keyboard away, so the field gives
-  // the card up (onBlur) and gets it back with focus after the picker,
-  // when there is something to show or the card was up before.
-  const openAttach = () => {
-    cardBefore.current = writing;
-    Keyboard.dismiss();
-    setAttaching(true);
-  };
-  const attachClosed = async (source: AttachSource | null) => {
-    setAttaching(false);
-    const shown = source === "library" && (await attachments.pickPhotos());
-    if (shown || cardBefore.current) openCard();
-  };
 
   const placeholder = editing ? "Edit message" : inThread ? "Reply in thread" : `Message #${channelName}`;
   const blank = isBlankMessage(draft);
@@ -315,7 +280,8 @@ export default forwardRef<
 
   const raised = glass ? styles.glassRaised : styles.raised;
   const waiting = attachments.uploading && !editing;
-  const sheet = attaching && <AttachSheet onClose={attachClosed} />;
+  const openAttach = () => attachments.openSheet(writing);
+  const sheet = attachments.attaching && <AttachSheet onClose={attachments.sheetClosed} />;
 
   if (!writing) {
     const shownText = editing ? "Editing message" : draft || (replyTo ? `Replying to ${quotedName}` : placeholder);
@@ -331,12 +297,7 @@ export default forwardRef<
             onPress={() => setWriting(true)}
             style={styles.prompt}
           >
-            {files.length > 0 && (
-              <View style={[styles.count, raised]} testID="attachment-count">
-                <PaperclipIcon color={theme.text} />
-                <Text style={styles.countText}>{files.length}</Text>
-              </View>
-            )}
+            {files.length > 0 && <AttachmentCount count={files.length} style={raised} />}
             {editing ? (
               <PencilIcon color={theme.accent} size={16} />
             ) : (
@@ -641,19 +602,6 @@ function makeStyles(theme: Theme) {
     // On glass a solid disc reads as a hole: the mockup's translucent one.
     glassRaised: {
       backgroundColor: theme.scheme === "dark" ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.06)",
-    },
-    count: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 3,
-      height: 26,
-      paddingHorizontal: 8,
-      borderRadius: tokens.radiusPill,
-    },
-    countText: {
-      color: theme.text,
-      fontSize: 13,
-      fontWeight: "600",
     },
     failed: {
       marginRight: 4,

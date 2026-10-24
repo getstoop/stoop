@@ -31,7 +31,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Stoop lets you pick photos and videos to send in a message."
+          "photosPermission": "Stoop lets you pick photos and videos to send in a message.",
+          "cameraPermission": "Stoop uses the camera to take photos and videos to send in a message.",
+          "microphonePermission": "Stoop uses the microphone to record sound with the videos you send in a message."
         }
       ]
     ]

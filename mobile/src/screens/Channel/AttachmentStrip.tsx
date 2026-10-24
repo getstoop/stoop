@@ -32,6 +32,7 @@ export default function AttachmentStrip({
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="always"
       contentContainerStyle={styles.strip}
+      accessibilityRole="list"
       accessibilityLabel="Attached files"
       testID="attachment-strip"
     >

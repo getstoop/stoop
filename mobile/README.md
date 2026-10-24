@@ -85,7 +85,8 @@ import a screen; the screens themselves live in `src/screens`, so
   the next step). That opens the system's picker (`expo-image-picker`,
   a native module, so a build on the phone needs `make mobile-ios`
   again; PHPicker on iOS, which asks for no permission) once the sheet's
-  modal has gone, since a picker presented over it would go with it.
+  modal has gone, since a picker presented over it would go with it (or
+  after a second, should iOS never say so).
   Several can be picked, up to the room left of ten. iPhone photos are
   HEIC, which the server can't sniff, so the picker is asked for its
   most compatible form and hands over a JPEG; a video goes as the
@@ -99,9 +100,11 @@ import a screen; the screens themselves live in `src/screens`, so
   as a multipart part React Native's networking streams from disk:
   the global `fetch` is Expo's, which refuses such a part, so this one
   request is an `XMLHttpRequest` with credentials off
-  (`api/fetch.ts` `uploadWithoutCookies`). A file over the server's cap
-  (`GetInstanceStatus` `max_upload_bytes`, read as the screen opens)
-  fails before uploading; a failure turns the item into a red chip with
+  (`api/fetch.ts` `uploadWithoutCookies`, which settles on every
+  ending, a timeout and an abort included, so its upload slot always
+  comes back). A file over the server's cap (`GetInstanceStatus`
+  `max_upload_bytes`, read as the screen opens), or an empty one, fails
+  before uploading; a failure turns the item into a red chip with
   the reason ("Too big — 100 MB max", or the server's words), removed by
   hand, with no retry. Send waits, dimmed and labelled "Send, waiting
   for uploads", while any uploads; failed ones are left out, and a
@@ -109,7 +112,8 @@ import a screen; the screens themselves live in `src/screens`, so
   paperclip and the count before the draft. A refused send puts the
   files back with the draft, ahead of any picked since
   (`core/attachments` `restoreFiles`, which web runs too); leaving the
-  channel or the thread drops them, and while a message is edited they
+  channel or the thread drops them, stopping any upload still going (as
+  removing one does), and a picker answering after that is ignored; and while a message is edited they
   are out of sight and Attach is dimmed. A sent file shows in the row
   as "📎 name" for now; drawing it inline is its own step.
 - A long press on a message opens its menu

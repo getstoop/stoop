@@ -628,10 +628,10 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     },
 
     // A file picked in the composer, uploaded for this channel (api/files)
-    // for a send to claim by id. Nothing reaches the log; a refusal is the
-    // composer's to show on the file.
-    upload(file: LocalFile): Promise<UploadedFile> {
-      return uploadAttachment(server.origin, state.token, channelId, file);
+    // for a send to claim by id, stopped by the signal. Nothing reaches the
+    // log; a refusal is the composer's to show on the file.
+    upload(file: LocalFile, signal?: AbortSignal): Promise<UploadedFile> {
+      return uploadAttachment(server.origin, state.token, channelId, file, signal);
     },
   };
   return self;
