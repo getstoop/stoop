@@ -233,7 +233,9 @@ import a screen; the screens themselves live in `src/screens`, so
   words, as web's row has it, which pushes the thread landing on that
   reply when it is among the newest replies loaded (otherwise the
   thread opens as usual). The bell at the right of the thread's header
-  mutes it (Mute thread, then Unmute thread under the slashed bell), as
+  mutes it (Mute thread, then Unmute thread under the slashed bell; on
+  iOS a bar button item with the system's `bell` and `bell.slash`, drawn
+  as the back button is, Liquid Glass from iOS 26), as
   web's thread panel does: `SetThreadMuted`, awaited with the bell
   dimmed, then the root's summary muted with its count cleared
   (`core/threadUnread` `mutedOverlay`, which web runs too), so a reply

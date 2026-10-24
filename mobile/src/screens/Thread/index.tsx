@@ -4,7 +4,7 @@ import { canDeleteAnyMessage } from "@stoop/core/permissions";
 import { threadRepliesClosed } from "@stoop/core/threadReplies";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
 import { errorText } from "../../api/errors";
 import { threadMessageLink } from "../../api/shareLinks";
@@ -21,6 +21,7 @@ import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
 import { useMessageActions } from "../Channel/useMessageActions";
 import MuteButton from "./MuteButton";
+import { muteItem } from "./muteItem";
 import ThreadHead from "./ThreadHead";
 import ThreadTitle from "./ThreadTitle";
 
@@ -181,21 +182,17 @@ export default function Thread({
   // bell once the thread is on screen (with the dock, where a refusal
   // is said) with a summary to mute.
   const summary = !outcome && !thread?.outcome && decided ? root?.thread : undefined;
+  const mute =
+    header && summary
+      ? { muted: summary.muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
+      : undefined;
   const title = (
     <Stack.Screen
       options={{
         headerTitle: () => <ThreadTitle channel={header?.channel} spaceName={header?.space.name ?? ""} />,
-        headerRight:
-          header && summary
-            ? () => (
-                <MuteButton
-                  muted={summary.muted}
-                  channelMuted={header.channel.muted}
-                  pending={muting}
-                  onPress={toggleMute}
-                />
-              )
-            : () => null,
+        ...(Platform.OS === "ios"
+          ? { unstable_headerRightItems: () => (mute ? [muteItem(mute)] : []) }
+          : { headerRight: () => (mute ? <MuteButton {...mute} /> : null) }),
       }}
     />
   );
