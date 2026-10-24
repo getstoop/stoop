@@ -33,9 +33,13 @@ fi
 # The simulator the flows drive and the attach flow's file is put on,
 # named to Maestro too, so a second booted simulator or a phone plugged
 # in is never the one used.
-SIM=${STOOP_MOBILE_E2E_SIM:-$(xcrun simctl list devices booted |
-  grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' | head -n 1)}
-[ -n "$SIM" ] || { echo "no booted simulator; see mobile/README.md → Tests" >&2; exit 1; }
+BOOTED=$(xcrun simctl list devices booted |
+  awk '/^-- /{ios = /^-- iOS /} ios' |
+  grep -oE '[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12}' || true)
+SIM=${STOOP_MOBILE_E2E_SIM:-$(printf '%s\n' "$BOOTED" | head -n 1)}
+[ -n "$SIM" ] || { echo "no booted iOS simulator; see mobile/README.md → Tests" >&2; exit 1; }
+printf '%s\n' "$BOOTED" | grep -qxF -e "$SIM" ||
+  { echo "$SIM is not a booted iOS simulator" >&2; exit 1; }
 
 # The app's bundle ID: a developer build's own from mobile/.env.local, as
 # app.config.js reads it, else the app's.
