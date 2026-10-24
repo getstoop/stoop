@@ -29,7 +29,7 @@ import {
   withPatch,
   withThreadOverlay,
 } from "./channelLog";
-import { namesMe, viewerHalfAfter } from "./threadUnread";
+import { mutedOverlay, namesMe, viewerHalfAfter } from "./threadUnread";
 
 // A channel screen's state over its log: the log itself (channelLog owns
 // every rule about the rows), the header beside it (channelHeader), and
@@ -150,7 +150,10 @@ export type ScreenAction =
   // The thread screen has gone: the view goes with the rows only it kept.
   | { type: "threadClosed"; rootId: string }
   // The reader's own MarkThreadRead, answered: nothing in it is new.
-  | { type: "threadRead"; rootId: string };
+  | { type: "threadRead"; rootId: string }
+  // The reader's own SetThreadMuted, answered (the ThreadMuted event
+  // that follows says the same).
+  | { type: "threadMuted"; rootId: string; muted: boolean };
 
 export const emptyScreen = (channelId: string): ChannelScreen => ({
   log: emptyLog(channelId),
@@ -219,6 +222,16 @@ export function screenReducer(
           unreadCount: 0,
         });
         return log === state.log ? state : { ...state, log };
+      }
+      // Muted or unmuted on another device, or by this one's
+      // SetThreadMuted.
+      if (payload.case === "threadMuted") {
+        if (payload.value.channelId !== state.log.channelId) return state;
+        return withMuted(
+          state,
+          payload.value.rootMessageId,
+          payload.value.muted,
+        );
       }
       if (payload.case === "threadChanged")
         return withThreadChanged(state, action.event, payload.value);
@@ -347,7 +360,18 @@ export function screenReducer(
       });
       return log === state.log ? state : { ...state, log };
     }
+    case "threadMuted":
+      return withMuted(state, action.rootId, action.muted);
   }
+}
+
+function withMuted(
+  state: ChannelScreen,
+  rootId: string,
+  muted: boolean,
+): ChannelScreen {
+  const log = withThreadOverlay(state.log, rootId, mutedOverlay(muted));
+  return log === state.log ? state : { ...state, log };
 }
 
 function withThread(

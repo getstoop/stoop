@@ -135,6 +135,11 @@ export async function markThreadRead(origin: string, token: string, rootId: stri
   await chatClient(origin, token).markThreadRead({ messageId: rootId }, { timeoutMs: TIMEOUT_MS });
 }
 
+// The reader's own mute of a thread, or its end.
+export async function setThreadMuted(origin: string, token: string, rootId: string, muted: boolean): Promise<void> {
+  await chatClient(origin, token).setThreadMuted({ messageId: rootId, muted }, { timeoutMs: TIMEOUT_MS });
+}
+
 // Where a message goes besides its channel: quoting another of its
 // messages, into a thread, and with the thread also to the channel.
 export type SendTo = { replyToMessageId?: string; threadRootId?: string; alsoSendToChannel?: boolean };

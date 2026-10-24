@@ -142,6 +142,24 @@ var steps = {
   replyInThread: function () {
     rpc("SendMessage", POSTER_TOKEN, { channelId: NINE_ID, content: TEXT, threadRootId: NINE_ROOT_ID });
   },
+  // ada's thread there as the server tells her of it (thread-mute.yaml):
+  // its reply count, and whether she has it muted.
+  threadState: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: NINE_ID, aroundId: NINE_ROOT_ID, limit: 1 }).messages || [];
+    var thread = null;
+    for (var i = 0; i < messages.length; i++) if (messages[i].id === NINE_ROOT_ID) thread = messages[i].thread || {};
+    if (!thread) throw new Error("no root " + NINE_ROOT_ID);
+    output.replies = thread.replyCount || 0;
+    output.muted = !!thread.muted;
+  },
+  // ada's mute of it ended, so a flow starts from an unmuted thread.
+  unmuteThread: function () {
+    rpc("SetThreadMuted", OWNER_TOKEN, { messageId: NINE_ROOT_ID, muted: false });
+  },
+  // ada replies TEXT in her own thread there, from another device.
+  ownerRepliesInThread: function () {
+    rpc("SendMessage", OWNER_TOKEN, { channelId: NINE_ID, content: TEXT, threadRootId: NINE_ROOT_ID });
+  },
   // bea (OUTSIDER_ID) in Book club as an admin, who moderates; already a
   // member when the invite flows ran first. Then back to a plain member,
   // as if demoted while she has a confirm open.

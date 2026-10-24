@@ -31,6 +31,7 @@ import {
   PAGE,
   type SendTo,
   sendMessage,
+  setThreadMuted,
   toggleReaction,
 } from "../../api/messages";
 import { sessionToken } from "../../api/servers";
@@ -503,6 +504,24 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       const mine = life;
       await markThreadRead(server.origin, await token(), rootId);
       if (!mine.ended) dispatch({ type: "threadRead", rootId });
+    },
+
+    // The reader's own mute of the thread, or its end, as web sets it:
+    // SetThreadMuted, then the root's summary muted (its count cleared)
+    // or not (core/channelScreen `threadMuted`; the ThreadMuted event
+    // that follows says the same). Nothing changes before the server
+    // answers. A refusal is the caller's to show, and nothing once the
+    // log has gone; one that means the sign-in has ended shows as such.
+    async muteThread(rootId: string, muted: boolean) {
+      const mine = life;
+      try {
+        await setThreadMuted(server.origin, await token(), rootId, muted);
+      } catch (err) {
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (!mine.ended) dispatch({ type: "threadMuted", rootId, muted });
     },
 
     // The reader's own message, quoting another when `to` names one, and

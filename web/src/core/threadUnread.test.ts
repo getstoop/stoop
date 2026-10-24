@@ -5,7 +5,7 @@ import {
   MessageSchema,
   ThreadSummarySchema,
 } from "../gen/stoop/chat/v1/message_pb";
-import { namesMe, viewerHalfAfter } from "./threadUnread";
+import { mutedOverlay, namesMe, viewerHalfAfter } from "./threadUnread";
 
 const root = (init: MessageInitShape<typeof MessageSchema> = {}) => {
   const made = create(MessageSchema, init);
@@ -107,5 +107,12 @@ describe("namesMe", () => {
       namesMe(create(MessageSchema, { mentionUserIds: ["me"] }), "me"),
     ).toBe(false);
     expect(namesMe(create(MessageSchema, reply), undefined)).toBe(false);
+  });
+});
+
+describe("mutedOverlay", () => {
+  it("clears the count on muting and leaves it on unmuting", () => {
+    expect(mutedOverlay(true)).toEqual({ muted: true, unreadCount: 0 });
+    expect(mutedOverlay(false)).toEqual({ muted: false });
   });
 });

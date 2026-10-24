@@ -232,7 +232,19 @@ import a screen; the screens themselves live in `src/screens`, so
   byline, "↳ replied to a thread:" with the root's author and first
   words, as web's row has it, which pushes the thread landing on that
   reply when it is among the newest replies loaded (otherwise the
-  thread opens as usual). The mute bell is the next step.
+  thread opens as usual). The bell at the right of the thread's header
+  mutes it (Mute thread, then Unmute thread under the slashed bell; on
+  iOS a bar button item with the system's `bell` and `bell.slash`, drawn
+  as the back button is, Liquid Glass from iOS 26), as
+  web's thread panel does: `SetThreadMuted`, awaited with the bell
+  dimmed, then the root's summary muted with its count cleared
+  (`core/threadUnread` `mutedOverlay`, which web runs too), so a reply
+  there counts as nothing new until it is unmuted (replying leaves it
+  muted); a refusal leaves it as it was and says so over the composer.
+  Another device's mute arrives as ThreadMuted and lands the same way.
+  As on web the bell shows once the thread has replies, and under a
+  muted channel it shows the thread muted by its channel and does
+  nothing (the header follows ChannelMuted for that).
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -399,7 +411,8 @@ reply, cancel it, send it and see the quote go with its message, edit a
 message from its menu, cancel an edit and see Save refuse an emptied
 one (and keep a mention's token), open a thread from its replies line
 and from Reply in thread and read it while a reply arrives, reply in a
-thread, also to the channel, and edit, react and delete there, add a second
+thread, also to the channel, and edit, react and delete there, mute a
+thread and see a reply in it counted as nothing new, add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and
