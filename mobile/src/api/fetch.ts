@@ -18,9 +18,12 @@ export function fetchWithoutCookies(input: RequestInfo | URL, init?: RequestInit
 // jar that holds none on Android). Answers the status and the body.
 // Settles once on every ending, so a caller holding an upload slot
 // always gets it back: an answer, a network failure, the platform's
-// timeout (iOS ends a silent request after about a minute; Android never
-// does, which the server's own 30 s idle limit covers), or the signal
-// aborting it, which rejects with an AbortError.
+// timeout, the signal aborting it (an AbortError), or the watchdog. No
+// fixed deadline, since a large file on a slow line may rightly take
+// minutes; instead the request is ended once nothing has moved for
+// IDLE_MS, neither bytes going up nor an answer coming back. Android
+// sets no timeout of its own, and the server's 30 s idle limit only
+// helps while its answer can still reach the phone.
 export function uploadWithoutCookies(
   url: string,
   form: FormData,
@@ -34,13 +37,24 @@ export function uploadWithoutCookies(
     }
     const request = new XMLHttpRequest();
     let settled = false;
+    let idle: ReturnType<typeof setTimeout> | undefined;
     const abort = () => request.abort();
     const settle = (end: () => void) => {
       if (settled) return;
       settled = true;
+      clearTimeout(idle);
       signal?.removeEventListener("abort", abort);
       end();
     };
+    const moved = () => {
+      clearTimeout(idle);
+      idle = setTimeout(() => {
+        settle(() => reject(new Error("The upload stopped arriving; try again")));
+        request.abort();
+      }, IDLE_MS);
+    };
+    request.upload.onprogress = moved;
+    request.onprogress = moved;
     request.onload = () => settle(() => resolve({ status: request.status, body: request.responseText }));
     request.onerror = () => settle(() => reject(new Error("Network request failed")));
     request.ontimeout = () => settle(() => reject(new Error("The upload timed out")));
@@ -50,7 +64,10 @@ export function uploadWithoutCookies(
     request.withCredentials = false;
     for (const [name, value] of Object.entries(headers)) request.setRequestHeader(name, value);
     request.send(form);
+    moved();
   });
 }
+
+const IDLE_MS = 60_000;
 
 const aborted = () => Object.assign(new Error("The upload was stopped"), { name: "AbortError" });
