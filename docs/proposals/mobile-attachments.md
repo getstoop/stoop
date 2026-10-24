@@ -58,13 +58,17 @@ inline and opening files is the next step, its own PR (see Later).
   config. Multiple selection on, capped at the room left of 10.
 - **iPhone photos are HEIC.** The server's sniffer doesn't know HEIC, so
   it would store `application/octet-stream` and web would show a download
-  card. The picker is asked for JPEG (it converts on export); videos keep
-  `.mov`, which the server already sniffs, and are sent as picked (no
-  export preset). Metadata goes as the phone gives it (Decisions).
-- **Upload**: `mobile/src/api/files.ts`, RN `fetch` with a `FormData`
-  file part `{uri, name, type}`, the bearer header, and
-  `fetchWithoutCookies`. A spinner, not a progress bar: RN `fetch` gives
-  no upload progress, and a progress bar is a later nicety.
+  card. The picker is asked for its compatible representation, so
+  photos arrive as JPEG; the setting covers the whole selection, so an
+  HEVC video may arrive as H.264 (Decisions). Videos keep `.mov`, which
+  the server already sniffs, with no export preset. Metadata goes as the
+  phone gives it (Decisions).
+- **Upload**: `mobile/src/api/files.ts`, a `FormData` file part
+  `{uri, name, type}` with the bearer header. As built it is an
+  `XMLHttpRequest` with `withCredentials = false` (`uploadWithoutCookies`
+  in `api/fetch.ts`), not `fetch`: SDK 58's fetch refuses a uri file
+  part, and its only other route reads the whole file into memory. A
+  spinner, not a progress bar, which is a later nicety.
 - **Shared code**: move web's pure pieces to `@stoop/core/attachments`:
   the limits (`MAX_ATTACHMENTS`, `MAX_PARALLEL_UPLOADS`, the default
   byte cap), the upload-slot queue, `restoreFiles`, `formatBytes` and the
@@ -103,5 +107,10 @@ inline and opening files is the next step, its own PR (see Later).
   413 if it slips past; either way the item turns red and is removed by
   hand. Chunked uploads come later as their own work, so nothing here is
   shaped around them or would need undoing for them.
+- **Videos from the library may be converted to H.264.** The picker's
+  compatible mode, which gives JPEG photos, applies to videos too, and
+  iOS may transcode HEVC on the way out. Accepted: H.264 plays in every
+  browser, HEVC only in Safari. The cost is the phone's transcode time
+  and sometimes a larger file. Camera captures are sent as recorded.
 - **Android stays unverified** until there is a test device. It is drawn
   the same, with tokens and no glass, as the rest of the composer.
