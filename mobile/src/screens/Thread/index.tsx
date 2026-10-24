@@ -7,6 +7,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
 import { errorText } from "../../api/errors";
+import { useUploadCap } from "../../api/files";
 import { threadMessageLink } from "../../api/shareLinks";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
@@ -70,6 +71,7 @@ export default function Thread({
   const router = useRouter();
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
+  const maxUploadBytes = useUploadCap(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId, rootId);
   const { log, header, outcome, token, threads } = state;
   const thread = threads[rootId];
@@ -173,8 +175,8 @@ export default function Thread({
       });
   }, [engine, muteThread, rootId, notify]);
   const sendHere = useCallback(
-    (content: string, replyToMessageId: string, alsoSend: boolean) =>
-      send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend }),
+    (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) =>
+      send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend, attachmentIds }),
     [send, rootId],
   );
 
@@ -320,6 +322,8 @@ export default function Thread({
               channelName={channel.name}
               inThread
               send={sendHere}
+              upload={engine.upload}
+              maxUploadBytes={maxUploadBytes}
               edit={edit}
               replyTo={actions.replyTo}
               onCancelReply={actions.cancelReply}

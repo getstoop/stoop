@@ -132,6 +132,23 @@ var steps = {
       while (Date.now() < until) {}
     }
   },
+  // In CHANNEL_ID (attach.yaml): the files on the newest page's messages
+  // reading TEXT, or with no words at all when WORDLESS is "yes", as the
+  // server holds them: "name type" for each, joined by commas, the
+  // messages' lists by semicolons.
+  attached: function () {
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    var lists = [];
+    for (var i = 0; i < messages.length; i++) {
+      var content = messages[i].content || "";
+      if (WORDLESS === "yes" ? content !== "" : content !== TEXT) continue;
+      var files = messages[i].attachments || [];
+      var names = [];
+      for (var j = 0; j < files.length; j++) names.push(files[j].name + " " + files[j].contentType);
+      lists.push(names.join(","));
+    }
+    output.attached = lists.join(";");
+  },
   // The message `say` or `repliesTo` found, deleted by ada, who moderates
   // the space, as if from another device while its author has the confirm
   // open; or ada's own reply, once the flow has seen it.

@@ -71,15 +71,47 @@ import a screen; the screens themselves live in `src/screens`, so
   a light shadow. Dragging the list puts the keyboard away (the card
   follows the keyboard's hide event; tracking the finger needs
   `react-native-keyboard-controller`, a follow-up). A message being
-  quoted (Quote in reply, below) is the card's first line, the reply
-  strip: a small accent reply arrow, "Replying to NAME · " and the
+  quoted (Quote in reply, below) is the card's first line under any
+  files (below), the reply strip: a small accent reply arrow, "Replying to NAME · " and the
   first words of the message (`core/markdown` `plainText`, as the
   server previews a reply; a file's name when it has none), on one
   line, with a round Cancel reply at its right, which drops the quote
   and keeps the draft; the pill shows the same arrow with "Replying to
-  NAME", or the draft, so the quote is seen with the keyboard down. Only
-  Send does anything yet: Attach and the eleven formats are placed for
-  the steps that give them work.
+  NAME", or the draft, so the quote is seen with the keyboard down. The
+  eleven formats are placed for the step that gives them work.
+- Attach (the + in the pill or the card) puts the keyboard away and opens
+  the app's own sheet (`src/screens/Channel/AttachSheet.tsx`), drawn as
+  the message menu's is, with Photo library (the camera and files are
+  the next step). That opens the system's picker (`expo-image-picker`,
+  a native module, so a build on the phone needs `make mobile-ios`
+  again; PHPicker on iOS, which asks for no permission) once the sheet's
+  modal has gone, since a picker presented over it would go with it.
+  Several can be picked, up to the room left of ten. iPhone photos are
+  HEIC, which the server can't sniff, so the picker is asked for its
+  most compatible form and hands over a JPEG; a video goes as the
+  library has it, and nothing is stripped from either (where a photo
+  was taken goes if the phone puts it in). The card comes back with
+  the files along its top (`AttachmentStrip.tsx`): a photo as a 64pt
+  thumbnail, a video as a play mark with its length, a spinner over
+  each while it uploads, and a remove × on each. Each uploads as it is
+  picked (`src/api/files.ts`: `POST /files/upload` with the bearer
+  token, through the three-slot queue web uses, `core/attachments`),
+  as a multipart part React Native's networking streams from disk:
+  the global `fetch` is Expo's, which refuses such a part, so this one
+  request is an `XMLHttpRequest` with credentials off
+  (`api/fetch.ts` `uploadWithoutCookies`). A file over the server's cap
+  (`GetInstanceStatus` `max_upload_bytes`, read as the screen opens)
+  fails before uploading; a failure turns the item into a red chip with
+  the reason ("Too big — 100 MB max", or the server's words), removed by
+  hand, with no retry. Send waits, dimmed and labelled "Send, waiting
+  for uploads", while any uploads; failed ones are left out, and a
+  message may be files alone. With the keyboard down the pill shows a
+  paperclip and the count before the draft. A refused send puts the
+  files back with the draft, ahead of any picked since
+  (`core/attachments` `restoreFiles`, which web runs too); leaving the
+  channel or the thread drops them, and while a message is edited they
+  are out of sight and Attach is dimmed. A sent file shows in the row
+  as "📎 name" for now; drawing it inline is its own step.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions
@@ -412,7 +444,11 @@ message from its menu, cancel an edit and see Save refuse an emptied
 one (and keep a mention's token), open a thread from its replies line
 and from Reply in thread and read it while a reply arrives, reply in a
 thread, also to the channel, and edit, react and delete there, mute a
-thread and see a reply in it counted as nothing new, add a second
+thread and see a reply in it counted as nothing new, attach a photo
+from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
+its EXIF so the picker's label finds it, added to the simulator's
+library by the flow, a copy each run), remove it, pick it
+again from the pill, and send it with words and then alone, add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and
@@ -427,7 +463,9 @@ flow has ada write in chapters, message-actions has dee write there
 reply there (and delete the reply) and dee post and delete "Going
 once", and edit has ada write there over RPC and delete what she wrote,
 which the channel flow needs unread for ada with dee's first
-notes alone, so the channel flow goes first.
+notes alone, so the channel flow goes first. The attach flow has ada
+read and write in random, which the space-channels flow needs unread,
+so it goes last.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on

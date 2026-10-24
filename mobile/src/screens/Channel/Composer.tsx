@@ -1,3 +1,4 @@
+import type { UploadedFile } from "@stoop/core/attachments";
 import { editableText, withTokensRestored } from "@stoop/core/editableText";
 import { isBlankMessage } from "@stoop/core/markdown";
 import { messagePreview } from "@stoop/core/messagePreview";
@@ -18,17 +19,39 @@ import {
 } from "react-native";
 import { authorName } from "../../api/authors";
 import { errorText } from "../../api/errors";
-import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
+import type { LocalFile } from "../../api/files";
+import {
+  CheckIcon,
+  CloseIcon,
+  PaperclipIcon,
+  PencilIcon,
+  PlusIcon,
+  QuoteReplyIcon,
+  SendIcon,
+} from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import AlsoSendRow from "./AlsoSendRow";
+import AttachmentStrip from "./AttachmentStrip";
+import AttachSheet, { type AttachSource } from "./AttachSheet";
 import FormatRow from "./FormatRow";
+import { useAttachments } from "./useAttachments";
 
 // Where a message is written: one control in two states. At rest it is a
 // pill floating over the list, Attach and "Message #channel"; tapped, it
 // becomes a card above the keyboard, the text on top and under it
 // Attach, Aa (which opens the formatting row) and Send. Losing focus
-// returns it to the pill, the draft kept. Only Send does anything yet:
-// Attach and the formats are placed for the steps that give them work.
+// returns it to the pill, the draft kept. The formats are placed for the
+// step that gives them work.
+//
+// Attach, in either state, puts the keyboard away and opens the attach
+// sheet (AttachSheet); the photo library picked there opens the system's
+// picker once the sheet has gone, and the card comes back with what was
+// picked along its top (AttachmentStrip), each uploading as it arrives
+// (useAttachments). Send waits, dimmed and saying so to a screen reader,
+// while any is uploading; one that failed is left out of the send, and a
+// message may be files alone. With the keyboard down the pill shows a
+// paperclip and how many files are held, before the draft. A refused
+// send puts its files back with the draft, ahead of any picked since.
 //
 // A message being quoted (`replyTo`, the screen's to hold) is the card's
 // first line, the reply strip: "Replying to NAME · the first words", and
@@ -38,8 +61,8 @@ import FormatRow from "./FormatRow";
 // the card up with the field focused, as a quote picked from the
 // message menu does once the menu has gone.
 //
-// Sending is send-then-merge, never a pending row: the draft and the
-// quote are cleared as Send is pressed and the row appears when the
+// Sending is send-then-merge, never a pending row: the draft, the files
+// and the quote are cleared as Send is pressed and the row appears when the
 // server answers (or its event lands first; core/channelScreen `sent`).
 // A refusal puts the draft back ahead of anything typed since, with the
 // server's words under it, and the quote back unless another was picked
@@ -55,7 +78,8 @@ import FormatRow from "./FormatRow";
 // is set aside, the field holds the message's words (its mention and
 // channel tokens as the @handle and #name they show as; core/editableText),
 // the strip says "Editing message" with Cancel editing, Attach is dimmed
-// since an edit changes words only, and Send is Save; the pill says
+// and the files held are out of sight, since an edit changes words only,
+// and Send is Save; the pill says
 // "Editing message" under the pencil while the keyboard is down. Save
 // puts the tokens back for the handles the original had and sends
 // EditMessage; the answer merges like a send's. Words unchanged end the
@@ -84,7 +108,10 @@ export default forwardRef<
     channelName: string;
     // A thread's composer, with Also send to the channel.
     inThread?: boolean;
-    send: (content: string, replyToMessageId: string, alsoSend: boolean) => Promise<void>;
+    send: (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => Promise<void>;
+    // A picked file, uploaded for this channel; and the server's cap on one.
+    upload: (file: LocalFile) => Promise<UploadedFile>;
+    maxUploadBytes: number;
     edit: (messageId: string, content: string) => Promise<void>;
     // The message being quoted, if any.
     replyTo: Message | null;
@@ -97,7 +124,19 @@ export default forwardRef<
     onEditDone: () => void;
   }
 >(function Composer(
-  { channelName, inThread = false, send, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
+  {
+    channelName,
+    inThread = false,
+    send,
+    upload,
+    maxUploadBytes,
+    edit,
+    replyTo,
+    onCancelReply,
+    onReply,
+    editing,
+    onEditDone,
+  },
   ref,
 ) {
   const theme = useTheme();
@@ -108,6 +147,10 @@ export default forwardRef<
   const [sending, setSending] = useState(false);
   const [alsoSend, setAlsoSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const attachments = useAttachments(upload, maxUploadBytes);
+  // The attach sheet is up; and whether the card was, to come back to.
+  const [attaching, setAttaching] = useState(false);
+  const cardBefore = useRef(false);
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   // The draft set aside while a message is edited, to come back after,
   // and a send's refusal that waits with it.
@@ -153,20 +196,15 @@ export default forwardRef<
   // honour autoFocus on a field mounted as a modal goes; or focused again
   // if it is already up.
   const focusWanted = useRef(false);
-  useImperativeHandle(
-    ref,
-    () => ({
-      open: () => {
-        if (writing) {
-          input.current?.focus();
-          return;
-        }
-        focusWanted.current = true;
-        setWriting(true);
-      },
-    }),
-    [writing],
-  );
+  const openCard = () => {
+    if (writing) {
+      input.current?.focus();
+      return;
+    }
+    focusWanted.current = true;
+    setWriting(true);
+  };
+  useImperativeHandle(ref, () => ({ open: openCard }), [writing]);
   useEffect(() => {
     if (!writing || !focusWanted.current) return;
     focusWanted.current = false;
@@ -182,8 +220,23 @@ export default forwardRef<
     return () => sub.remove();
   }, []);
 
+  // The sheet over a screen with the keyboard away, so the field gives
+  // the card up (onBlur) and gets it back with focus after the picker,
+  // when there is something to show or the card was up before.
+  const openAttach = () => {
+    cardBefore.current = writing;
+    Keyboard.dismiss();
+    setAttaching(true);
+  };
+  const attachClosed = async (source: AttachSource | null) => {
+    setAttaching(false);
+    const shown = source === "library" && (await attachments.pickPhotos());
+    if (shown || cardBefore.current) openCard();
+  };
+
   const placeholder = editing ? "Edit message" : inThread ? "Reply in thread" : `Message #${channelName}`;
   const blank = isBlankMessage(draft);
+  const files = editing ? [] : attachments.files;
   const quotedName = replyTo ? authorName(replyTo.author) : "";
 
   // Save: the words as typed with the tokens put back by the content the
@@ -224,20 +277,25 @@ export default forwardRef<
       await save(editing);
       return;
     }
-    if (blank) return;
+    // Uploads in flight are waited for (Send is dimmed meanwhile); failed
+    // files are left out.
+    if (attachments.uploading || (blank && !attachments.ready)) return;
     sendingRef.current = true;
     const typed = draft;
     const quoted = replyTo;
     const also = alsoSend;
+    const held = attachments.take();
+    const attachmentIds = held.flatMap((file) => (file.fileId ? [file.fileId] : []));
     setDraft("");
     setError(null);
     setSending(true);
     setAlsoSend(false);
     if (quoted) onCancelReply();
     try {
-      await send(typed.trim(), quoted?.id ?? "", also);
+      await send(blank ? "" : typed.trim(), quoted?.id ?? "", also, attachmentIds);
     } catch (err) {
       setAlsoSend(also);
+      attachments.restore(held);
       if (editingShown.current !== null) {
         // An edit has begun meanwhile: the words go into the draft set
         // aside, and the reason waits with them for the edit to end.
@@ -256,121 +314,154 @@ export default forwardRef<
   };
 
   const raised = glass ? styles.glassRaised : styles.raised;
+  const waiting = attachments.uploading && !editing;
+  const sheet = attaching && <AttachSheet onClose={attachClosed} />;
 
   if (!writing) {
+    const shownText = editing ? "Editing message" : draft || (replyTo ? `Replying to ${quotedName}` : placeholder);
     return (
-      <Surface glass={glass} style={styles.pill}>
-        <Round label="Attach files" disabled={!!editing} style={raised}>
-          <PlusIcon color={theme.text} size={22} />
-        </Round>
-        <Pressable accessibilityRole="button" onPress={() => setWriting(true)} style={styles.prompt}>
-          {editing ? (
-            <PencilIcon color={theme.accent} size={16} />
-          ) : (
-            replyTo && <QuoteReplyIcon color={theme.accent} size={16} />
-          )}
-          <Text numberOfLines={1} style={draft || replyTo || editing ? styles.draft : styles.placeholder}>
-            {editing ? "Editing message" : draft || (replyTo ? `Replying to ${quotedName}` : placeholder)}
-          </Text>
-        </Pressable>
-        {/* A send that failed after the field lost focus: the reason waits in
-            the card, so the pill says there is one. */}
-        {error && <Text style={styles.failed}>{editing ? "Couldn't save" : "Couldn't send"}</Text>}
-      </Surface>
+      <>
+        <Surface glass={glass} style={styles.pill}>
+          <Round label="Attach files" disabled={!!editing} onPress={openAttach} style={raised}>
+            <PlusIcon color={theme.text} size={22} />
+          </Round>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={files.length > 0 ? `${fileCount(files.length)} attached, ${shownText}` : undefined}
+            onPress={() => setWriting(true)}
+            style={styles.prompt}
+          >
+            {files.length > 0 && (
+              <View style={[styles.count, raised]} testID="attachment-count">
+                <PaperclipIcon color={theme.text} />
+                <Text style={styles.countText}>{files.length}</Text>
+              </View>
+            )}
+            {editing ? (
+              <PencilIcon color={theme.accent} size={16} />
+            ) : (
+              replyTo && <QuoteReplyIcon color={theme.accent} size={16} />
+            )}
+            <Text numberOfLines={1} style={draft || replyTo || editing ? styles.draft : styles.placeholder}>
+              {shownText}
+            </Text>
+          </Pressable>
+          {/* A send that failed after the field lost focus: the reason waits in
+              the card, so the pill says there is one. */}
+          {error && <Text style={styles.failed}>{editing ? "Couldn't save" : "Couldn't send"}</Text>}
+        </Surface>
+        {sheet}
+      </>
     );
   }
 
   return (
-    <Surface glass={glass} style={styles.card}>
-      {editing ? (
-        <View style={styles.reply}>
-          <PencilIcon color={theme.accent} size={16} />
-          <Text numberOfLines={1} style={styles.editingText} testID="edit-strip">
-            Editing message
+    <>
+      <Surface glass={glass} style={styles.card}>
+        {files.length > 0 && <AttachmentStrip files={files} raised={raised} onRemove={attachments.remove} />}
+        {attachments.notice && !editing && (
+          <Text style={styles.error} accessibilityRole="alert">
+            {attachments.notice}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Cancel editing"
-            accessibilityState={{ disabled: sending }}
-            disabled={sending}
-            onPress={onEditDone}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.cancel,
-              raised,
-              sending && roundStyles.disabled,
-              pressed && roundStyles.down,
-            ]}
-          >
-            <CloseIcon color={theme.text} />
-          </Pressable>
-        </View>
-      ) : (
-        replyTo && (
-        <View style={styles.reply}>
-          <QuoteReplyIcon color={theme.accent} size={16} />
-          <Text numberOfLines={1} style={styles.replyText} testID="reply-strip">
-            Replying to <Text style={styles.replyName}>{quotedName}</Text> · {messagePreview(replyTo)}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Cancel reply"
-            onPress={onCancelReply}
-            // Drawn at 32; a 44 touch target.
-            hitSlop={6}
-            style={({ pressed }) => [styles.cancel, raised, pressed && roundStyles.down]}
-          >
-            <CloseIcon color={theme.text} />
-          </Pressable>
-        </View>
-        )
-      )}
-      {inThread && !editing && <AlsoSendRow channelName={channelName} checked={alsoSend} onChange={setAlsoSend} />}
-      <TextInput
-        ref={input}
-        testID="composer"
-        autoFocus
-        multiline
-        value={draft}
-        onChangeText={setDraft}
-        onBlur={() => setWriting(false)}
-        placeholder={placeholder}
-        placeholderTextColor={theme.textMuted}
-        accessibilityLabel={placeholder}
-        style={styles.field}
-      />
-      {error && (
-        <Text style={styles.error} accessibilityRole="alert">
-          {error}
-        </Text>
-      )}
-      {formatting && <FormatRow />}
-      <View style={styles.buttons}>
-        <Round label="Attach files" disabled={!!editing} style={raised}>
-          <PlusIcon color={theme.text} size={22} />
-        </Round>
-        <Round
-          label="Formatting"
-          pressed={formatting}
-          onPress={() => setFormatting((open) => !open)}
-          style={formatting && styles.toggled}
-        >
-          <Text style={styles.aa}>Aa</Text>
-        </Round>
-        <View style={styles.spacer} />
-        {editing ? (
-          <Round label="Save" disabled={sending} onPress={submit} style={styles.send}>
-            {sending ? <ActivityIndicator color={theme.onAccent} /> : <CheckIcon color={theme.onAccent} size={20} />}
-          </Round>
-        ) : (
-          <Round label="Send" disabled={blank || sending} onPress={submit} style={styles.send}>
-            {sending ? <ActivityIndicator color={theme.onAccent} /> : <SendIcon color={theme.onAccent} />}
-          </Round>
         )}
-      </View>
-    </Surface>
+        {editing ? (
+          <View style={styles.reply}>
+            <PencilIcon color={theme.accent} size={16} />
+            <Text numberOfLines={1} style={styles.editingText} testID="edit-strip">
+              Editing message
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel editing"
+              accessibilityState={{ disabled: sending }}
+              disabled={sending}
+              onPress={onEditDone}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.cancel,
+                raised,
+                sending && roundStyles.disabled,
+                pressed && roundStyles.down,
+              ]}
+            >
+              <CloseIcon color={theme.text} />
+            </Pressable>
+          </View>
+        ) : (
+          replyTo && (
+          <View style={styles.reply}>
+            <QuoteReplyIcon color={theme.accent} size={16} />
+            <Text numberOfLines={1} style={styles.replyText} testID="reply-strip">
+              Replying to <Text style={styles.replyName}>{quotedName}</Text> · {messagePreview(replyTo)}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+              onPress={onCancelReply}
+              // Drawn at 32; a 44 touch target.
+              hitSlop={6}
+              style={({ pressed }) => [styles.cancel, raised, pressed && roundStyles.down]}
+            >
+              <CloseIcon color={theme.text} />
+            </Pressable>
+          </View>
+          )
+        )}
+        {inThread && !editing && <AlsoSendRow channelName={channelName} checked={alsoSend} onChange={setAlsoSend} />}
+        <TextInput
+          ref={input}
+          testID="composer"
+          autoFocus
+          multiline
+          value={draft}
+          onChangeText={setDraft}
+          onBlur={() => setWriting(false)}
+          placeholder={placeholder}
+          placeholderTextColor={theme.textMuted}
+          accessibilityLabel={placeholder}
+          style={styles.field}
+        />
+        {error && (
+          <Text style={styles.error} accessibilityRole="alert">
+            {error}
+          </Text>
+        )}
+        {formatting && <FormatRow />}
+        <View style={styles.buttons}>
+          <Round label="Attach files" disabled={!!editing} onPress={openAttach} style={raised}>
+            <PlusIcon color={theme.text} size={22} />
+          </Round>
+          <Round
+            label="Formatting"
+            pressed={formatting}
+            onPress={() => setFormatting((open) => !open)}
+            style={formatting && styles.toggled}
+          >
+            <Text style={styles.aa}>Aa</Text>
+          </Round>
+          <View style={styles.spacer} />
+          {editing ? (
+            <Round label="Save" disabled={sending} onPress={submit} style={styles.send}>
+              {sending ? <ActivityIndicator color={theme.onAccent} /> : <CheckIcon color={theme.onAccent} size={20} />}
+            </Round>
+          ) : (
+            <Round
+              label={waiting ? "Send, waiting for uploads" : "Send"}
+              disabled={(blank && !attachments.ready) || sending || waiting}
+              onPress={submit}
+              style={styles.send}
+            >
+              {sending ? <ActivityIndicator color={theme.onAccent} /> : <SendIcon color={theme.onAccent} />}
+            </Round>
+          )}
+        </View>
+      </Surface>
+      {sheet}
+    </>
   );
 });
+
+const fileCount = (count: number) => (count === 1 ? "1 file" : `${count} files`);
 
 // The composer's surface: Liquid Glass where iOS has it, else drawn with
 // the theme's panel and border under a light shadow, as the composing
@@ -550,6 +641,19 @@ function makeStyles(theme: Theme) {
     // On glass a solid disc reads as a hole: the mockup's translucent one.
     glassRaised: {
       backgroundColor: theme.scheme === "dark" ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.06)",
+    },
+    count: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+      height: 26,
+      paddingHorizontal: 8,
+      borderRadius: tokens.radiusPill,
+    },
+    countText: {
+      color: theme.text,
+      fontSize: 13,
+      fontWeight: "600",
     },
     failed: {
       marginRight: 4,

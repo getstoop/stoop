@@ -5,6 +5,7 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
+import { useUploadCap } from "../../api/files";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
@@ -64,6 +65,7 @@ export default function Channel({
   const router = useRouter();
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
+  const maxUploadBytes = useUploadCap(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId);
   const { older, retry, send, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
@@ -158,7 +160,8 @@ export default function Channel({
     pushThread(rootId);
   }, [menuFor, pushThread]);
   const sendHere = useCallback(
-    (content: string, replyToMessageId: string) => send(content, { replyToMessageId }),
+    (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) =>
+      send(content, { replyToMessageId, attachmentIds }),
     [send],
   );
 
@@ -270,6 +273,8 @@ export default function Channel({
             key={channelId}
             channelName={channel.name}
             send={sendHere}
+            upload={engine.upload}
+            maxUploadBytes={maxUploadBytes}
             edit={edit}
             replyTo={actions.replyTo}
             onCancelReply={actions.cancelReply}
