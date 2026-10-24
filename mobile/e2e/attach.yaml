@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Attach a photo from the library, see it in the card and the pill, and send it
+name: Attach from the library, the camera and files, see it in the card and the pill, and send it
 ---
 # A photo of our own in the simulator's library, dated 2099 in its EXIF
 # so the system picker names it by that date (and lists it first),
@@ -7,8 +7,12 @@ name: Attach a photo from the library, see it in the card and the pill, and send
 - addMedia:
     - media/trail-map.jpg
 - clearKeychain
+# The camera refused, so its path is the refusal (the simulator's camera
+# takes no picture to go further with).
 - launchApp:
     clearState: true
+    permissions:
+      camera: deny
 - tapOn: "Add a server"
 - tapOn:
     id: "server-address"
@@ -38,8 +42,8 @@ name: Attach a photo from the library, see it in the card and the pill, and send
 - extendedWaitUntil:
     visible: "random, ${SPACE}, \\d+ members"
     timeout: 15000
-# Attach in the card opens the app's own sheet: the photo library, and
-# nothing yet that does nothing.
+# Attach in the card opens the app's own sheet: the photo library, the
+# camera and files.
 - tapOn: "Message #random"
 - extendedWaitUntil:
     visible:
@@ -49,8 +53,8 @@ name: Attach a photo from the library, see it in the card and the pill, and send
 - extendedWaitUntil:
     visible: "Photo library"
     timeout: 5000
-- assertNotVisible: "Camera"
-- assertNotVisible: "Files"
+- assertVisible: "Camera"
+- assertVisible: "Files"
 # The system's picker, once the sheet has gone: our photo, then Add.
 - tapOn: "Photo library"
 - extendedWaitUntil:
@@ -159,3 +163,47 @@ name: Attach a photo from the library, see it in the card and the pill, and send
       TEXT: ""
       WORDLESS: "yes"
 - assertTrue: ${output.attached == "trail-map.jpg image/jpeg"}
+# The camera, refused, says so in the card and does nothing more.
+- tapOn: "Attach files"
+- extendedWaitUntil:
+    visible: "Camera"
+    timeout: 5000
+- tapOn: "Camera"
+- extendedWaitUntil:
+    visible: "Stoop doesn't have permission to use the camera."
+    timeout: 10000
+- assertNotVisible:
+    id: "attachment-strip"
+# Files: the system's document picker, at the PDF the runner put in On
+# My iPhone (scripts/mobile-e2e.sh). It comes back as a chip, sent by
+# name with words.
+- tapOn: "Attach files"
+- extendedWaitUntil:
+    visible: "Files"
+    timeout: 5000
+- tapOn: "Files"
+- extendedWaitUntil:
+    visible: "Browse"
+    timeout: 10000
+- tapOn: "Browse"
+- tapOn: "On My iPhone"
+- tapOn:
+    id: "trail-notes, pdf"
+- tapOn: "Open"
+- extendedWaitUntil:
+    visible: "trail-notes.pdf"
+    timeout: 15000
+- assertNotVisible: "Stoop doesn't have permission to use the camera."
+- inputText: "Notes for the trail"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "📎 trail-notes.pdf"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: attached
+      CHANNEL_ID: ${RANDOM_ID}
+      TEXT: Notes for the trail
+      WORDLESS: "no"
+- assertTrue: ${output.attached == "trail-notes.pdf application/pdf"}

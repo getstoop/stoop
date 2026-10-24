@@ -81,20 +81,30 @@ import a screen; the screens themselves live in `src/screens`, so
   eleven formats are placed for the step that gives them work.
 - Attach (the + in the pill or the card) puts the keyboard away and opens
   the app's own sheet (`src/screens/Channel/AttachSheet.tsx`), drawn as
-  the message menu's is, with Photo library (the camera and files are
-  the next step). That opens the system's picker (`expo-image-picker`,
-  a native module, so a build on the phone needs `make mobile-ios`
-  again; PHPicker on iOS, which asks for no permission) once the sheet's
+  the message menu's is, with Photo library, Camera and Files. Each
+  opens its system picker (`src/screens/Channel/pickers.ts`;
+  `expo-image-picker` and `expo-document-picker`, native modules, so a
+  build on the phone needs `make mobile-ios` again) once the sheet's
   modal has gone, since a picker presented over it would go with it (or
-  after a second, should iOS never say so).
-  Several can be picked, up to the room left of ten. iPhone photos are
-  HEIC, which the server can't sniff, so the picker is asked for its
-  most compatible form and hands over a JPEG; a video goes as the
-  library has it, and nothing is stripped from either (where a photo
-  was taken goes if the phone puts it in). The card comes back with
-  the files along its top (`AttachmentStrip.tsx`): a photo as a 64pt
-  thumbnail, a video as a play mark with its length, a spinner over
-  each while it uploads, and a remove × on each. Each uploads as it is
+  after a second, should iOS never say so). Photo library is PHPicker
+  on iOS, which asks for no permission: several can be picked, up to
+  the room left of ten. iPhone photos are HEIC, which the server can't
+  sniff, so the picker is asked for its most compatible form and hands
+  over a JPEG; a video goes as the library has it, and nothing is
+  stripped from either (where a photo was taken goes if the phone puts
+  it in). Camera asks for the camera first and, refused, says "Stoop
+  doesn't have permission to use the camera." in the card, nothing
+  more; the microphone is the system's to ask for as a video starts
+  recording. It takes one photo, as a JPEG, or one video, as recorded
+  (no export preset). The simulator's camera opens but takes nothing,
+  so only the refusal is tested there. Files is the system's document picker, several at once (the
+  first that fit are kept, as the library's room is), each copied to
+  the app's cache for the upload to read; it needs no iCloud
+  entitlement. The card comes back with the files along its top
+  (`AttachmentStrip.tsx`): a photo as a 64pt thumbnail, a video as a
+  play mark with its length, any other file as a chip with its name
+  and size, a spinner over each thumbnail while it uploads, and a
+  remove × on each. Each uploads as it is
   picked (`src/api/files.ts`: `POST /files/upload` with the bearer
   token, through the three-slot queue web uses, `core/attachments`),
   as a multipart part React Native's networking streams from disk:
@@ -113,8 +123,8 @@ import a screen; the screens themselves live in `src/screens`, so
   files back with the draft, ahead of any picked since
   (`core/attachments` `restoreFiles`, which web runs too); leaving the
   channel or the thread drops them, stopping any upload still going (as
-  removing one does), and a picker answering after that is ignored; and while a message is edited they
-  are out of sight and Attach is dimmed. A sent file shows in the row
+  removing one does), and a picker answering after that is ignored; and
+  while a message is edited they are out of sight and Attach is dimmed. A sent file shows in the row
   as "📎 name" for now; drawing it inline is its own step.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
@@ -452,7 +462,10 @@ thread and see a reply in it counted as nothing new, attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it
-again from the pill, and send it with words and then alone, add a second
+again from the pill, and send it with words and then alone, see the
+camera refused (denied as the flow launches the app), and send a PDF
+picked through Files from On My iPhone (`e2e/media`, which
+`scripts/mobile-e2e.sh` copies there), add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
 pasted invite link, and

@@ -1,10 +1,10 @@
 import { formatBytes, MAX_ATTACHMENTS, restoreFiles, type UploadedFile } from "@stoop/core/attachments";
-import * as ImagePicker from "expo-image-picker";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard } from "react-native";
 import { errorText } from "../../api/errors";
 import type { LocalFile } from "../../api/files";
 import type { AttachSource } from "./AttachSheet";
+import { type Picked, pickFrom } from "./pickers";
 
 // The files a composer holds for its next message, as web's composer
 // holds them: each uploads as it is picked, through the app's one queue
@@ -20,16 +20,11 @@ import type { AttachSource } from "./AttachSheet";
 //
 // It also runs the attach sheet for the composer: Attach puts the
 // keyboard away and raises it (`attaching`, the composer's to draw);
-// once it has gone, a pick opens the picker, and `reopen` (the card with
+// once it has gone, the item picked opens its system picker (pickers.ts:
+// the photo library, the camera or files), and `reopen` (the card with
 // focus) is called when there is something to show or the card was up
-// before.
-//
-// The photo library is the system's picker (PHPicker on iOS, which asks
-// for no permission), with several picked at once up to the room left
-// of ten. iPhone photos are HEIC, which the server can't sniff, so the
-// picker is asked for its most compatible form and hands over a JPEG;
-// what the phone puts in the file (where a photo was taken among it) is
-// sent as it gives it.
+// before. A picker's refusal, such as the camera not allowed, is said
+// in the card as too many files are.
 
 export type PendingFile = {
   key: string;
@@ -80,7 +75,7 @@ export function useAttachments(
     };
   }, []);
 
-  const add = (picked: Omit<PendingFile, "key">[]) => {
+  const add = (picked: Picked[]) => {
     const room = MAX_ATTACHMENTS - latest.current.length;
     setNotice(picked.length > room ? `At most ${MAX_ATTACHMENTS} files per message` : null);
     for (const file of picked.slice(0, Math.max(0, room))) {
@@ -105,28 +100,23 @@ export function useAttachments(
   };
 
   // Whether it left anything to show: files picked, or why none were.
-  const pickPhotos = async (): Promise<boolean> => {
+  const pick = async (source: AttachSource): Promise<boolean> => {
     const room = MAX_ATTACHMENTS - latest.current.length;
     if (room <= 0) {
       setNotice(`At most ${MAX_ATTACHMENTS} files per message`);
       return true;
     }
-    let result: ImagePicker.ImagePickerResult;
+    let result: Awaited<ReturnType<typeof pickFrom>>;
     try {
-      result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images", "videos"],
-        allowsMultipleSelection: true,
-        selectionLimit: room,
-        orderedSelection: true,
-        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-      });
+      result = await pickFrom(source, room);
     } catch (err) {
       if (!mounted.current) return false;
       setNotice(errorText(err));
       return true;
     }
-    if (!mounted.current || result.canceled || result.assets.length === 0) return false;
-    add(result.assets.map(fromAsset));
+    if (!mounted.current || !result) return false;
+    if ("refused" in result) setNotice(result.refused);
+    else add(result.picked);
     return true;
   };
 
@@ -160,7 +150,7 @@ export function useAttachments(
   };
   const sheetClosed = async (source: AttachSource | null) => {
     setAttaching(false);
-    const shown = source === "library" && (await pickPhotos());
+    const shown = source !== null && (await pick(source));
     if (mounted.current && (shown || cardBefore.current)) reopenLatest.current();
   };
 
@@ -176,22 +166,6 @@ export function useAttachments(
     take,
     restore,
   };
-}
-
-// A picked photo or video as the composer holds it. The picker names it
-// as the library does (IMG_2041.jpg); an asset without a name is named
-// for its type.
-function fromAsset(asset: ImagePicker.ImagePickerAsset): Omit<PendingFile, "key"> {
-  const kind = asset.type === "video" ? "video" : asset.type === "image" ? "image" : "file";
-  const type = asset.mimeType ?? (kind === "video" ? "video/quicktime" : kind === "image" ? "image/jpeg" : "");
-  const name = asset.fileName || `${kind === "video" ? "video" : "photo"}.${extension(type)}`;
-  return { uri: asset.uri, name, type, kind, size: asset.fileSize, duration: asset.duration ?? undefined };
-}
-
-function extension(type: string) {
-  if (type === "video/quicktime") return "mov";
-  if (type === "image/jpeg") return "jpg";
-  return type.split("/")[1] || "bin";
 }
 
 // "100 MB" for a cap in whole megabytes, as the server words it.

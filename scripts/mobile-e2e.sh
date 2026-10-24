@@ -69,6 +69,15 @@ while IFS= read -r line; do
   set -- "$@" -e "$line"
 done <"$SEEDED"
 
+# A file in the simulator's Files app, On My iPhone, for the attach flow
+# to pick through the document picker. Copied over each run.
+files=$(xcrun simctl get_app_container booted com.apple.DocumentsApp groups |
+  sed -n 's/^group\.com\.apple\.FileProvider\.LocalStorage[[:space:]]*//p')
+if [ -n "$files" ]; then
+  mkdir -p "$files/File Provider Storage"
+  cp mobile/e2e/media/trail-notes.pdf "$files/File Provider Storage/"
+fi
+
 status=0
 maestro test mobile/e2e/setup || status=$?
 # shellcheck disable=SC2086 # FLOWS is a list of paths

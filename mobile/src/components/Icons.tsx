@@ -305,8 +305,8 @@ export function TrashIcon({ color, size = 22 }: IconProps) {
 }
 
 // Attachments, as the attaching mockups draw them: the sheet's photo
-// library, a file, the play mark on a video's thumbnail, and the pill's
-// paperclip.
+// library, camera and files, the play mark on a video's thumbnail, and
+// the pill's paperclip.
 export function PhotoIcon({ color, size = 22 }: IconProps) {
   return (
     <Stroke color={color} size={size}>
@@ -348,5 +348,14 @@ export function PaperclipIcon({ color, size = 14 }: IconProps) {
     >
       <Path d="M21.4 11.6l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5" />
     </Svg>
+  );
+}
+
+export function CameraIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <Circle cx={12} cy={13} r={4} />
+    </Stroke>
   );
 }
