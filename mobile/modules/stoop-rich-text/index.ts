@@ -31,6 +31,9 @@ export type RichDoc = {
   spoilerPad: number;
   radius: number;
   label: string;
+  // False in the message menu's card: covered spoilers take no tap and
+  // the paragraph offers no reveal.
+  revealable: boolean;
 };
 
 export type RichTextProps = ViewProps & {

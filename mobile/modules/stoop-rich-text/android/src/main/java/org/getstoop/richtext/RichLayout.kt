@@ -3,6 +3,10 @@ package org.getstoop.richtext
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Rect
+import android.graphics.Region
+import android.graphics.RegionIterator
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
@@ -12,8 +16,6 @@ import android.text.Spanned
 import android.text.StaticLayout
 import android.text.TextDirectionHeuristics
 import android.text.TextPaint
-import android.text.style.LineHeightSpan
-import android.text.style.MetricAffectingSpan
 import expo.modules.kotlin.types.ColorCompat
 import java.util.BitSet
 import java.util.concurrent.ConcurrentHashMap
@@ -21,89 +23,6 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-
-// A run's look: its size, face, colour and lines.
-internal class RunStyle(
-  private val sizePx: Float,
-  private val typeface: Typeface,
-  private val color: Int,
-  private val underline: Boolean,
-  private val strike: Boolean,
-) : MetricAffectingSpan() {
-  val metrics: Paint.FontMetrics by lazy {
-    TextPaint(Paint.ANTI_ALIAS_FLAG).also { updateMeasureState(it) }.fontMetrics
-  }
-
-  override fun updateMeasureState(paint: TextPaint) {
-    paint.textSize = sizePx
-    paint.typeface = typeface
-  }
-
-  override fun updateDrawState(paint: TextPaint) {
-    updateMeasureState(paint)
-    paint.color = color
-    paint.isUnderlineText = underline
-    paint.isStrikeThruText = strike
-  }
-}
-
-// A box's padding: a no-break space sized so its advance is the pad. A
-// no-break space glues to what follows and what precedes it (Unicode line
-// breaking, class GL), so the pad never wraps away from its box, while a
-// break after an ordinary space before the box stays allowed. At a line's
-// start the pad is the indent a browser gives an inline box's padding.
-internal class PadSpace(private val sizePx: Float) : MetricAffectingSpan() {
-  override fun updateMeasureState(paint: TextPaint) {
-    paint.textSize = sizePx
-    paint.typeface = Typeface.DEFAULT
-  }
-
-  override fun updateDrawState(paint: TextPaint) {
-    updateMeasureState(paint)
-    paint.color = Color.TRANSPARENT
-    paint.isUnderlineText = false
-    paint.isStrikeThruText = false
-  }
-}
-
-// Every line exactly the doc's line height, the body font centred in it,
-// as React Native and our iOS view do, whatever the line holds (emoji,
-// code, a pad's large space).
-internal class FixedLineHeight(
-  private val height: Int,
-  private val ascent: Float,
-  private val descent: Float,
-) : LineHeightSpan {
-  override fun chooseHeight(
-    text: CharSequence,
-    start: Int,
-    end: Int,
-    spanstartv: Int,
-    lineHeight: Int,
-    fm: Paint.FontMetricsInt,
-  ) {
-    val above = (height - (descent - ascent)) / 2f
-    val top = (ascent - above).roundToInt()
-    fm.ascent = top
-    fm.top = top
-    fm.descent = top + height
-    fm.bottom = top + height
-  }
-}
-
-// Marks on the words, read back for taps and the screen reader.
-internal class LinkMark(val id: Int, val url: String)
-
-internal class CoveredMark(val id: Int)
-
-// A rounded box behind [start, end), its pads included.
-internal class Box(val start: Int, val end: Int, val color: Int, val spoiler: Boolean)
-
-// A link or channel pill's words, for its screen reader element.
-internal class LinkInfo(val id: Int, val url: String, val hidden: Boolean, val start: Int) {
-  var end = start
-  val label = StringBuilder()
-}
 
 // The paragraph laid out at a width in pixels: the same code measures (the
 // module's measure function, on the JS thread) and draws (RichTextView).
@@ -117,6 +36,11 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
   // How far outside a character a tap still counts: past the widest pad.
   private val slop: Float
   private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+  // Scratch for segments(), on the view's thread only.
+  private val selection = Path()
+  private val region = Region()
+  private val everywhere = Region(-100_000, -100_000, 100_000, 100_000)
+  private val piece = Rect()
 
   private data class BoxKey(val id: Int, val color: Int, val pad: Float)
 
@@ -248,20 +172,27 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
     layout.draw(canvas)
   }
 
-  // A range's part on each line it is on: (line, left, right). A part cut
-  // by a wrap ends at the line's last visible character.
+  // A range's parts on each line it is on: (line, left, right). A part cut
+  // by a wrap ends at the line's last visible character. The parts come
+  // from the layout's selection path, which follows bidi order: words in
+  // right-to-left script (Hebrew, Arabic) get their box too, and a range
+  // that bidi splits on its line gets one part per piece, never one box
+  // over the words between them.
   private fun segments(start: Int, end: Int, each: (line: Int, left: Float, right: Float, from: Int) -> Unit) {
     if (end <= start) return
     val first = layout.getLineForOffset(start)
     val last = layout.getLineForOffset(end - 1)
     for (line in first..last) {
-      val lineEnd = layout.getLineEnd(line)
       val from = max(start, layout.getLineStart(line))
-      val to = min(end, lineEnd)
+      val to = min(end, layout.getLineVisibleEnd(line))
       if (to <= from) continue
-      val left = layout.getPrimaryHorizontal(from)
-      val right = if (to == lineEnd && line < layout.lineCount - 1) layout.getLineRight(line) else layout.getPrimaryHorizontal(to)
-      if (right > left) each(line, left, right, from)
+      selection.reset()
+      layout.getSelectionPath(from, to, selection)
+      region.setPath(selection, everywhere)
+      val pieces = RegionIterator(region)
+      while (pieces.next(piece)) {
+        if (piece.right > piece.left) each(line, piece.left.toFloat(), piece.right.toFloat(), from)
+      }
     }
   }
 

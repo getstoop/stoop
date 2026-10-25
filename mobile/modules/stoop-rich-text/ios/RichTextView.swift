@@ -109,6 +109,7 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
   }
 
   private func reveal(_ id: Int) {
+    guard doc?.revealable ?? false else { return }
     revealing = true
     onReveal(["id": id])
   }
@@ -126,6 +127,8 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
     guard let layout = currentLayout(), let index = layout.characterIndex(at: point) else { return nil }
     let storage = layout.storage
     if let id = storage.attribute(.stoopCovered, at: index, effectiveRange: nil) as? Int {
+      // Covered words are no link either, so in the card they take nothing.
+      guard doc?.revealable ?? false else { return nil }
       return .reveal(id)
     }
     if let link = storage.attribute(.stoopLink, at: index, effectiveRange: nil) as? LinkBox {

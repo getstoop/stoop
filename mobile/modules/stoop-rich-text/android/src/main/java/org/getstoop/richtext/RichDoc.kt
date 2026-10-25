@@ -50,4 +50,8 @@ class RichDoc : Record {
   // The paragraph as a screen reader says it (covered spoilers as
   // "spoiler, double tap to reveal").
   @Field val label: String = ""
+
+  // Whether a covered spoiler can be revealed here: not in the message
+  // menu's card, which taps nothing.
+  @Field val revealable: Boolean = true
 }

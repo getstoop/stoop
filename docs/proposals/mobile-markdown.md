@@ -146,7 +146,10 @@ and no Markdown library. Rules follow web's `MessageBody`:
      reveal keeps the reader on the message and reads it again. On
      Android these are `ExploreByTouchHelper` virtual nodes in the same
      order; the paragraph is clickable (TalkBack's double tap) only while
-     something in it is covered.
+     something in it is covered, and never in the menu's card. A link's
+     element is keyed by an id from its node's path in the parse, so a
+     reveal or the channel list arriving doesn't move a screen reader's
+     focus.
 6. **Anything without the module** draws the paragraph with nested
    React Native `<Text>`, as one wrapping paragraph, its pills flat
    (nested text takes no padding or rounded corners). `MessageBody`
@@ -225,4 +228,6 @@ marks), one assertion proved to bite, and the operator's phone check.
   `measureContent` lays the runs out at the width Yoga gives it, so the
   per-place insets and the `onLayout` correction go away.
 - **Right-to-left text**: the view lays out and indents left to right
-  only.
+  only. Words in a right-to-left script still get their boxes (on
+  Android one per bidi piece of a box on its line), but a box's pad can
+  land on the wrong side of it.

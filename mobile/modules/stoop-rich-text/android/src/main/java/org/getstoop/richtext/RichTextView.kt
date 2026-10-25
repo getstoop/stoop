@@ -72,7 +72,13 @@ class RichTextView(context: Context, appContext: AppContext) : ExpoView(context,
     currentLayout()?.draw(canvas)
   }
 
+  // False in the message menu's card: covered spoilers stay covered and
+  // take no touch.
+  internal val revealable: Boolean
+    get() = doc?.revealable ?: false
+
   internal fun reveal(id: Int) {
+    if (!revealable) return
     revealing = true
     onReveal(mapOf("id" to id))
   }
@@ -93,7 +99,10 @@ class RichTextView(context: Context, appContext: AppContext) : ExpoView(context,
   private fun target(x: Float, y: Float): Target? {
     val layout = currentLayout() ?: return null
     val index = layout.characterAt(x, y) ?: return null
-    layout.text.getSpans(index, index + 1, CoveredMark::class.java).firstOrNull()?.let { return Target.Reveal(it.id) }
+    layout.text.getSpans(index, index + 1, CoveredMark::class.java).firstOrNull()?.let {
+      // Covered words are no link either, so in the card they take nothing.
+      return if (revealable) Target.Reveal(it.id) else null
+    }
     layout.text.getSpans(index, index + 1, LinkMark::class.java).firstOrNull()?.let { return Target.Link(it.url) }
     return null
   }

@@ -190,6 +190,25 @@ describe("buildDoc: links", () => {
     expect(runWith(doc, "a.example").linkId).not.toBe(runWith(doc, "b.example").linkId);
   });
 
+  it("keeps a link's id when a reveal adds a link before it", () => {
+    const content = "||[a](https://a.example)|| then https://b.example";
+    const covered = build(content).doc;
+    const revealed = build(content, { revealed: ["0.0"] }).doc;
+    expect(runWith(covered, "a").link).toBeUndefined();
+    expect(runWith(revealed, "a").link).toBe("https://a.example");
+    expect(runWith(revealed, "b.example").linkId).toBe(runWith(covered, "b.example").linkId);
+    expect(runWith(revealed, "a").linkId).not.toBe(runWith(revealed, "b.example").linkId);
+  });
+
+  it("keeps a link's id when the channel list arrives", () => {
+    const content = `<#${RANDOM}:random> and https://b.example`;
+    const before = build(content, { links: null }).doc;
+    const after = build(content).doc;
+    expect(runWith(before, "random").link).toBeUndefined();
+    expect(runWith(after, "#random").link).toBe(`channel:${RANDOM}`);
+    expect(runWith(after, "b.example").linkId).toBe(runWith(before, "b.example").linkId);
+  });
+
   it("links nothing in the compact card", () => {
     const { doc } = build(`[docs](https://example.com) in <#${RANDOM}:random>`, { compact: true });
     expect(doc.runs.every((run) => run.link === undefined)).toBe(true);

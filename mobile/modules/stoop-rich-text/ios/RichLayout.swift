@@ -41,6 +41,9 @@ struct RichDoc: Record {
   // The paragraph as a screen reader says it (covered spoilers as
   // "spoiler, double tap to reveal").
   @Field var label: String = ""
+  // False in the message menu's card: covered spoilers take no tap and the
+  // paragraph offers no reveal.
+  @Field var revealable: Bool = true
 }
 
 // A rounded box drawn behind a range, `pad` wider at each end: equal by

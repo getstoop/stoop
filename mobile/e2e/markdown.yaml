@@ -48,6 +48,11 @@ name: Read messages in Markdown, reveal a spoiler and open a channel from its li
 # in a link's words too, where the link is not read out as them.
 - assertVisible: "Read the spoiler, double tap to reveal ending later"
 - assertNotVisible: ".*burnt.*"
+# That link is no element of its own: its words around the cover would be
+# read as the link, with nothing where the spoiler is.
+- assertNotVisible: "the\\s*"
+- assertNotVisible: "\\s*ending"
+- assertNotVisible: "the\\s+ending"
 - assertVisible: "spoiler, double tap to reveal"
 - assertNotVisible: ".*oldest tree.*"
 - waitForAnimationToEnd:

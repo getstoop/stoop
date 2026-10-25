@@ -21,6 +21,9 @@ internal class RichAccessibility(private val view: RichTextView) : ExploreByTouc
     return layout.links
       .filter { !it.hidden }
       .map { Node(it.id + 1, it.url, it.label.toString(), layout.lineRects(it.start, it.end)) }
+      // Words with no width on any line (only spaces at a wrap) are no
+      // node: there is nothing to touch.
+      .filter { it.rects.isNotEmpty() }
   }
 
   override fun getVirtualViewAt(x: Float, y: Float): Int {
@@ -45,7 +48,7 @@ internal class RichAccessibility(private val view: RichTextView) : ExploreByTouc
       node.isScreenReaderFocusable = true
       // Double tap reveals the first covered spoiler; with none covered
       // the paragraph is no control.
-      if (layout?.firstCovered() != null) {
+      if (view.revealable && layout?.firstCovered() != null) {
         node.isClickable = true
         node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
       }
@@ -78,6 +81,7 @@ internal class RichAccessibility(private val view: RichTextView) : ExploreByTouc
     if (id == PARAGRAPH) {
       // Nothing covered: nothing happens, rather than a tap on whatever
       // the paragraph's middle holds.
+      if (!view.revealable) return false
       view.currentLayout()?.firstCovered()?.let { view.reveal(it) }
       return true
     }
