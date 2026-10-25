@@ -2,7 +2,7 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { describe, expect, it } from "vitest";
 import { markdown, themes } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
-import { type Parsed, parse } from "./lines";
+import { firstCovered, type Parsed, parse } from "./lines";
 import { type BuildInput, buildDoc } from "./native";
 
 const theme = themes.daylight;
@@ -215,6 +215,39 @@ describe("buildDoc: channel links", () => {
     const words = runWith(build(`in <#${RANDOM}:old-name>`, { links: null }).doc, "#old-name");
     expect(words.fill).toBeUndefined();
     expect(words.link).toBeUndefined();
+  });
+});
+
+describe("buildDoc: code blocks", () => {
+  it("keeps a code block's @here literal, even when the message carried @here", () => {
+    const { doc } = build("```\nping @here\n```\n@here", { mentionsHere: true });
+    const pills = doc.runs.filter((run) => run.fill !== undefined);
+    expect(pills.map((run) => run.text)).toEqual(["@here"]);
+    expect(runWith(doc, "ping @here").fill).toBeUndefined();
+  });
+});
+
+describe("buildDoc: the label", () => {
+  it("says a channel link as the screen shows it, its current name", () => {
+    const { doc } = build(`in <#${RANDOM}:old-name> ||burnt||`);
+    expect(runWith(doc, "#random").link).toBe(`channel:${RANDOM}`);
+    expect(doc.label).toBe(`in #random ${COVER}`);
+  });
+
+  it("says a channel the screen doesn't list by its saved name", () => {
+    const { doc } = build(`in <#${RANDOM}:old-name> ||burnt||`, { links: null });
+    expect(doc.label).toBe(`in #old-name ${COVER}`);
+  });
+});
+
+describe("firstCovered", () => {
+  const covered = (revealed: string[]) => (path: string) => !revealed.includes(path);
+
+  it("finds the first covered spoiler, in a link's words too", () => {
+    const { lines } = parse("one ||two|| [three ||four||](https://example.com)");
+    expect(firstCovered(lines, covered([]))).toBe("0.1");
+    expect(firstCovered(lines, covered(["0.1"]))).toBe("0.3.1");
+    expect(firstCovered(lines, covered(["0.1", "0.3.1"]))).toBeUndefined();
   });
 });
 

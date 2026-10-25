@@ -1,6 +1,5 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { clusters, splitEmoji } from "@stoop/core/emojiText";
-import type { Inline } from "@stoop/core/markdown";
 import { type MentionRef, mentionText, splitEveryone } from "@stoop/core/mentions";
 import { Fragment, type ReactNode, useContext, useMemo, useState } from "react";
 import { Linking, Text } from "react-native";
@@ -8,13 +7,14 @@ import { richText } from "../../../modules/stoop-rich-text";
 import { useTheme } from "../../theme";
 import { ChannelLinksContext } from "./channelLinks";
 import type { BodyPlace } from "./insets";
-import { anyCovered, coveredIn, linePath, nodePath, parse, spoken } from "./lines";
+import { anyCovered, coveredIn, firstCovered, linePath, mentionWords, type Node, nodePath, parse, spoken } from "./lines";
 import NativeBody from "./NativeBody";
 import Spoiler from "./Spoiler";
 import { decoration, makeStyles } from "./styles";
 
 const COVER = "spoiler, double tap to reveal";
 const NO_PATHS: ReadonlySet<string> = new Set();
+const ACTIVATE = [{ name: "activate" }];
 const EM_SPACE = " ";
 
 // Where a node is drawn: under a covered spoiler (plain words, nothing
@@ -132,10 +132,12 @@ function ReactNativeBody({
     );
   };
 
-  const draw = (nodes: Inline[], parent: string, context: Context): ReactNode =>
+  const draw = (nodes: Node[], parent: string, context: Context): ReactNode =>
     nodes.map((node, index) => {
       const at = nodePath(parent, index);
       switch (node.type) {
+        case "literal":
+          return <Fragment key={at}>{node.text}</Fragment>;
         case "text":
           return <Fragment key={at}>{words(node.text, at, context)}</Fragment>;
         case "code":
@@ -221,11 +223,24 @@ function ReactNativeBody({
   const { lines, emojiOnly } = parsed;
   // Said in place of a covered spoiler's words; the words alone otherwise.
   const label = anyCovered(lines, isCovered)
-    ? `${spoken(lines, isCovered, compact ? "spoiler" : COVER)}${edited ? " (edited)" : ""}`
+    ? `${spoken(lines, isCovered, compact ? "spoiler" : COVER, (ref) => mentionWords(ref, links?.channels))}${edited ? " (edited)" : ""}`
     : undefined;
+  // Activating the message (a screen reader's double tap, the "activate"
+  // action on both platforms: Text takes no onAccessibilityTap) reveals
+  // its first covered spoiler, as the label says; with none covered it
+  // does nothing, rather than tapping the paragraph's middle, maybe a link.
+  const activate = () => {
+    const path = firstCovered(lines, isCovered);
+    if (path !== undefined) reveal(path);
+  };
 
   return (
-    <Text style={[styles.text, emojiOnly && styles.emojiOnly]} accessibilityLabel={label}>
+    <Text
+      style={[styles.text, emojiOnly && styles.emojiOnly]}
+      accessibilityLabel={label}
+      accessibilityActions={compact ? undefined : ACTIVATE}
+      onAccessibilityAction={compact ? undefined : (event) => event.nativeEvent.actionName === "activate" && activate()}
+    >
       {lines.map((line, index) => (
         <Fragment key={linePath(index)}>
           {index > 0 && "\n"}

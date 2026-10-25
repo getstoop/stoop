@@ -1,5 +1,4 @@
 import { clusters, splitEmoji } from "@stoop/core/emojiText";
-import type { Inline } from "@stoop/core/markdown";
 import { type MentionRef, mentionText, splitEveryone } from "@stoop/core/mentions";
 import type { RichDoc, RichRun } from "../../../modules/stoop-rich-text";
 import type { Theme } from "../../theme";
@@ -7,7 +6,7 @@ import type { Theme } from "../../theme";
 // file needs no React Native and its tests run in Node.
 import { markdown, tokens } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
-import { anyCovered, coveredIn, linePath, nodePath, type Parsed, spoken } from "./lines";
+import { anyCovered, coveredIn, linePath, mentionWords, type Node, nodePath, type Parsed, spoken } from "./lines";
 
 // A message as the styled runs our TextKit view draws (NativeBody,
 // modules/stoop-rich-text), from the same parser tree and by the same
@@ -98,10 +97,12 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
     pill(mentionText(ref), context, ref.kind === "person" && ref.id === myUserId);
   };
 
-  const draw = (nodes: Inline[], parent: string, context: Context) => {
+  const draw = (nodes: Node[], parent: string, context: Context) => {
     nodes.forEach((node, index) => {
       const at = nodePath(parent, index);
       switch (node.type) {
+        case "literal":
+          return push(node.text, context);
         case "text":
           if (context.covered) return push(coverText(node.text), context);
           for (const part of splitEveryone(node.text, input.mentionsEntireChannel, input.mentionsHere)) {
@@ -175,7 +176,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
   }
 
   const label = anyCovered(parsed.lines, isCovered)
-    ? `${spoken(parsed.lines, isCovered, input.cover)}${input.edited ? " (edited)" : ""}`
+    ? `${spoken(parsed.lines, isCovered, input.cover, (ref) => mentionWords(ref, links?.channels))}${input.edited ? " (edited)" : ""}`
     : runs.map((run) => run.text).join("");
 
   return {

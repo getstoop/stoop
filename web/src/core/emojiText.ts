@@ -20,10 +20,14 @@ export function clusters(s: string): string[] {
   return s.match(CLUSTER) ?? [];
 }
 
-const graphemes = (s: string): string[] =>
-  segmenter
-    ? Array.from(segmenter.segment(s), ({ segment }) => segment)
-    : clusters(s);
+// One at a time, so a caller can stop at the first that settles it.
+function* graphemes(s: string): Generator<string> {
+  if (segmenter) {
+    for (const { segment } of segmenter.segment(s)) yield segment;
+  } else {
+    for (const match of s.matchAll(CLUSTER)) yield match[0];
+  }
+}
 
 const isEmoji = (g: string) =>
   /\p{Extended_Pictographic}/u.test(g) ||
