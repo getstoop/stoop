@@ -260,22 +260,22 @@
 }
 
 .mention {
-  color: var(--accent);
-  font-weight: 600;
-  background: var(--accent-soft);
+  color: var(--md-mention-color);
+  font-weight: var(--md-mention-weight);
+  background: var(--md-mention-bg);
   border-radius: var(--radius-sm);
-  padding: 0 4px;
+  padding: 0 var(--md-mention-pad-x);
 }
 
 .message-content.emoji-only > .md-lines {
-  font-size: 2em;
+  font-size: calc(var(--md-emoji-only-scale) * 1em);
   line-height: var(--leading-tight);
 }
 
 /* Emoji among words, a little larger than the text without raising the
    line. Large emoji keep their own size. */
 .emoji {
-  font-size: 1.4em;
+  font-size: calc(var(--md-emoji-scale) * 1em);
   line-height: 1;
   vertical-align: -0.1em;
 }
@@ -287,7 +287,7 @@
 button.mention {
   border: 0;
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--md-mention-weight);
   line-height: inherit;
   cursor: pointer;
 }
@@ -297,8 +297,8 @@ button.mention:hover {
 }
 
 .mention.me {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--md-mention-me-bg);
+  color: var(--md-mention-me-color);
 }
 
 /* The person, bot or group glyph (Icons.tsx), in the pill's own colour. */

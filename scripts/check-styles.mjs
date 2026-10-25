@@ -22,6 +22,8 @@ const CAPS_SHEETS = new Set(["base.css", "controls.css"]);
 const SHADOW_SHEETS = new Set(["surfaces.css"]);
 
 const isVar = (v) => /^var\(--[a-z-]+\)$/.test(v);
+// A size named as a ratio of the text's (markdown.css's -scale values).
+const isScaled = (v) => /^calc\(var\(--[a-z-]+-scale\) \* 1em\)$/.test(v);
 const checks = {
   "border-radius": (v) =>
     v.split(/\s+/).every((t) => isVar(t) || t === "0" || t === "50%" || t === "inherit")
@@ -29,10 +31,11 @@ const checks = {
       : "border-radius must be a --radius token, 0, 50% or inherit",
   "font-family": (v) => (FONTS.has(v) ? null : "font-family must be --font-ui, --font-mono or inherit"),
   "font-size": (v, file) =>
-    isVar(v) || /^[\d.]+(em|%)$/.test(v) || v === "inherit" || (file === "mobile.css" && v === "16px")
+    isVar(v) || isScaled(v) || /^[\d.]+(em|%)$/.test(v) || v === "inherit" || (file === "mobile.css" && v === "16px")
       ? null
       : "font-size must be a --text token (or em/%; 16px only in mobile.css)",
-  "font-weight": (v) => (WEIGHTS.has(v) ? null : "font-weight must be 400, 600 or 700"),
+  "font-weight": (v) =>
+    WEIGHTS.has(v) || /^var\(--[a-z-]+-weight\)$/.test(v) ? null : "font-weight must be 400, 600 or 700",
   "line-height": (v) =>
     /^var\(--leading-[a-z]+\)$/.test(v) || LEADING.has(v)
       ? null
@@ -87,6 +90,9 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".css")).sort()) {
     const problems = [];
     if (checks[decl.prop]) problems.push(checks[decl.prop](value, file));
     if (decl.prop === "gap" || decl.prop.startsWith("padding")) problems.push(spacing(value));
+    // A named value is held to the rule of the property it stands for.
+    if (/^--[a-z-]+-(pad-[xy]|margin-[xy]|indent)$/.test(decl.prop)) problems.push(spacing(value));
+    if (/^--[a-z-]+-weight$/.test(decl.prop)) problems.push(checks["font-weight"](value));
     problems.push(colour(value));
     for (const p of problems.filter(Boolean)) {
       if (escaped) continue;

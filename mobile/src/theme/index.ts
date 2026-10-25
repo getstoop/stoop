@@ -1,8 +1,8 @@
 import { useContext } from "react";
-import { themeList, themes, tokens } from "./generated";
+import { markdown, themeList, themes, tokens } from "./generated";
 import ThemeProvider, { type Theme, ThemeContext, type ThemeName } from "./ThemeProvider";
 
-export { ThemeProvider, themeList, themes, tokens };
+export { markdown, ThemeProvider, themeList, themes, tokens };
 export type { Theme, ThemeName };
 
 function useThemeState() {

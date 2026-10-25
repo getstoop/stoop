@@ -1,36 +1,86 @@
 /* ---- Rendered Markdown in messages. ---- */
 
+/* The values the rules below draw with, named once so the phone app
+   draws the same: scripts/gen-mobile-theme.mjs copies this block into
+   mobile/src/theme/generated.ts (make mobile-theme). Each value is a px
+   size, a plain number (a -scale multiplies the text's size) or a theme
+   colour as var(--token); anything else fails the generator. Colours
+   resolve where declared, so the block repeats on every theme scope, as
+   tokens.css's tints do. */
+:root,
+[data-theme] {
+  --md-code-pad-x: 4px;
+  --md-code-bg: var(--raised);
+  --md-code-scale: 0.9;
+
+  --md-pre-margin-y: 4px;
+  --md-pre-pad-y: 8px;
+  --md-pre-pad-x: 12px;
+  --md-pre-border-width: 1px;
+  --md-pre-border-color: var(--border);
+  --md-pre-bg: var(--raised);
+  --md-pre-scale: 0.9;
+
+  --md-quote-bar-width: 3px;
+  --md-quote-bar-color: var(--border);
+  --md-quote-color: var(--text-muted);
+  --md-quote-pad-y: 2px;
+  --md-quote-pad-x: 12px;
+  --md-quote-margin-y: 2px;
+
+  --md-list-indent: 24px;
+  --md-list-margin-y: 2px;
+
+  --md-spoiler-bg: var(--raised);
+  --md-spoiler-pad-x: 4px;
+
+  --md-link-color: var(--accent);
+
+  /* The mention pill (messages.css); me: one naming the reader. */
+  --md-mention-bg: var(--accent-soft);
+  --md-mention-color: var(--accent);
+  --md-mention-pad-x: 4px;
+  --md-mention-weight: 600;
+  --md-mention-me-bg: var(--accent);
+  --md-mention-me-color: var(--on-accent);
+
+  /* Emoji among words (messages.css), and a message that is only emoji,
+     against the text size. */
+  --md-emoji-scale: 1.4;
+  --md-emoji-only-scale: 2;
+}
+
 .md-code {
-  padding: 0 4px;
+  padding: 0 var(--md-code-pad-x);
   border-radius: var(--radius-sm);
-  background: var(--raised);
+  background: var(--md-code-bg);
   font-family: var(--font-mono);
-  font-size: 0.9em;
+  font-size: calc(var(--md-code-scale) * 1em);
 }
 
 .md-pre {
   max-width: 100%;
-  margin: 4px 0;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
+  margin: var(--md-pre-margin-y) 0;
+  padding: var(--md-pre-pad-y) var(--md-pre-pad-x);
+  border: var(--md-pre-border-width) solid var(--md-pre-border-color);
   border-radius: var(--radius);
-  background: var(--raised);
+  background: var(--md-pre-bg);
   font-family: var(--font-mono);
-  font-size: 0.9em;
+  font-size: calc(var(--md-pre-scale) * 1em);
   overflow-x: auto;
   white-space: pre;
 }
 
 .md-quote {
   display: block;
-  margin: 2px 0;
-  padding: 2px 12px;
-  border-left: 3px solid var(--border);
-  color: var(--text-muted);
+  margin: var(--md-quote-margin-y) 0;
+  padding: var(--md-quote-pad-y) var(--md-quote-pad-x);
+  border-left: var(--md-quote-bar-width) solid var(--md-quote-bar-color);
+  color: var(--md-quote-color);
 }
 
 .md-link {
-  color: var(--accent);
+  color: var(--md-link-color);
   text-decoration: underline;
   overflow-wrap: anywhere;
 }
@@ -39,8 +89,8 @@
    document, and a bulleted line shouldn't push its neighbours apart. */
 .md-list {
   display: block;
-  margin: 2px 0;
-  padding-left: 24px;
+  margin: var(--md-list-margin-y) 0;
+  padding-left: var(--md-list-indent);
 }
 
 .md-list .md-list {
@@ -55,10 +105,10 @@
    leaves ghosts of long words, so the block covers it too and only
    lifts once revealed. */
 .md-spoiler {
-  padding: 0 4px;
+  padding: 0 var(--md-spoiler-pad-x);
   border: 0;
   border-radius: var(--radius-sm);
-  background: var(--raised);
+  background: var(--md-spoiler-bg);
   color: transparent;
   font: inherit;
   text-align: inherit;
@@ -78,7 +128,7 @@
 }
 
 .md-spoiler.revealed {
-  background: var(--raised);
+  background: var(--md-spoiler-bg);
   color: inherit;
   cursor: default;
 }
