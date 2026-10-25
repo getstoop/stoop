@@ -49,14 +49,17 @@ export function spoken(lines: Inline[][], isCovered: (path: string) => boolean, 
   return lines.map((line, index) => walk(line, linePath(index))).join("\n");
 }
 
+// Whether any spoiler among these nodes, at parent, is still covered.
+export function coveredIn(nodes: Inline[], parent: string, isCovered: (path: string) => boolean): boolean {
+  return nodes.some((node, index) => {
+    const path = nodePath(parent, index);
+    if (node.type === "spoiler") return isCovered(path) || coveredIn(node.children, path, isCovered);
+    if (node.type === "link") return !!node.label && coveredIn(node.label, path, isCovered);
+    return "children" in node && coveredIn(node.children, path, isCovered);
+  });
+}
+
 // Whether any spoiler in the message is still covered.
 export function anyCovered(lines: Inline[][], isCovered: (path: string) => boolean): boolean {
-  const walk = (nodes: Inline[], parent: string): boolean =>
-    nodes.some((node, index) => {
-      const path = nodePath(parent, index);
-      if (node.type === "spoiler") return isCovered(path) || walk(node.children, path);
-      if (node.type === "link") return !!node.label && walk(node.label, path);
-      return "children" in node && walk(node.children, path);
-    });
-  return lines.some((line, index) => walk(line, linePath(index)));
+  return lines.some((line, index) => coveredIn(line, linePath(index), isCovered));
 }

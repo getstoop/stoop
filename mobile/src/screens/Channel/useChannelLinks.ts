@@ -6,9 +6,10 @@ import type { ChannelLinks } from "../../components/MessageBody/channelLinks";
 import type { SavedServer } from "../../servers";
 
 // What a channel link in a message opens, for the channel and thread
-// screens' MessageBody: the space's channels the header was fetched with,
-// each pushed as its channel screen. A link to the channel shown opens
-// nothing; from its thread, it goes back to the channel.
+// screens' MessageBody: the space's channels the header holds, each
+// pushed as its channel screen; none from a private channel, as on web.
+// A link to the channel shown opens nothing; from its thread, it goes
+// back to the channel.
 export function useChannelLinks(
   server: SavedServer,
   spaceId: string,
@@ -17,7 +18,7 @@ export function useChannelLinks(
   inThread = false,
 ): ChannelLinks | null {
   const router = useRouter();
-  const channels = header?.channels;
+  const channels = header && !header.channel.private ? header.channels : undefined;
   return useMemo(() => {
     if (!channels) return null;
     const open = (channel: Channel) => {

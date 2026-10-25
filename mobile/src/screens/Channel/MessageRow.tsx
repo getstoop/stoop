@@ -96,7 +96,7 @@ export default memo(function MessageRow({
         <MessageBody
           content={message.content}
           myUserId={myUserId}
-          edited={!!message.editedAt}
+          editedAt={message.editedAt}
           mentionsEntireChannel={message.mentionsEntireChannel}
           mentionsHere={message.mentionsHere}
           onLongPress={hold}

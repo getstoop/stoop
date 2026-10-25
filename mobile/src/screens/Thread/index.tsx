@@ -339,22 +339,24 @@ export default function Thread({
           )
         }
       />
-      {menuMessage && (
-        <MessageMenu
-          message={menuMessage}
-          myUserId={myUserId}
-          canModerate={canDeleteAnyMessage(space)}
-          origin={server.origin}
-          token={token}
-          link={threadMessageLink(server.origin, spaceId, menuMessage)}
-          onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
-          onCopyFailed={actions.linkNotCopied}
-          onQuote={closed ? undefined : () => actions.quote(menuMessage)}
-          onEdit={closed ? undefined : () => actions.startEdit(menuMessage)}
-          onDelete={() => actions.deleteMessage(menuMessage)}
-          onClose={actions.closeMenu}
-        />
-      )}
+      <ChannelLinksContext.Provider value={links}>
+        {menuMessage && (
+          <MessageMenu
+            message={menuMessage}
+            myUserId={myUserId}
+            canModerate={canDeleteAnyMessage(space)}
+            origin={server.origin}
+            token={token}
+            link={threadMessageLink(server.origin, spaceId, menuMessage)}
+            onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
+            onCopyFailed={actions.linkNotCopied}
+            onQuote={closed ? undefined : () => actions.quote(menuMessage)}
+            onEdit={closed ? undefined : () => actions.startEdit(menuMessage)}
+            onDelete={() => actions.deleteMessage(menuMessage)}
+            onClose={actions.closeMenu}
+          />
+        )}
+      </ChannelLinksContext.Provider>
     </Screen>
   );
 }

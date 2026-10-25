@@ -44,14 +44,17 @@ name: Read messages in Markdown, reveal a spoiler and open a channel from its li
 - assertVisible: "#random"
 # The emoji-only message.
 - assertVisible: "🌳🍂"
-# The spoiler is covered, its words not read out, until a tap reveals it.
+# A spoiler is covered, its words not read out, until a tap reveals it;
+# in a link's words too, where the link is not read out as them.
+- assertVisible: "Read the spoiler, double tap to reveal ending later"
+- assertNotVisible: ".*burnt.*"
 - assertVisible: "spoiler, double tap to reveal"
 - assertNotVisible: ".*oldest tree.*"
 - waitForAnimationToEnd:
     timeout: 3000
 - tapOn: "spoiler, double tap to reveal"
 - extendedWaitUntil:
-    visible: "The narrator was the oldest tree in the forest all along, and nobody guessed it 🍂"
+    visible: "The narrator was the oldest tree 🍂"
     timeout: 5000
 - assertNotVisible: "spoiler, double tap to reveal"
 # The channel link opens random.

@@ -105,8 +105,9 @@ await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: nine.channel.id, m
 
 // In formatting, ada's own messages in Markdown, all read by her: every
 // inline mark with a link, a channel link to random, @here and dee
-// mentioned, emoji among the words; a message that is one long spoiler;
-// and one of only emoji (markdown.yaml).
+// mentioned, emoji among the words; a link whose words hide a spoiler; a
+// message that is one spoiler, a line long, so a tap on the middle of the
+// message lands on it; and one of only emoji (markdown.yaml).
 const formatting = await rpc(
   "chat.v1.ChatService/CreateChannel",
   { spaceId: s.space.id, name: "formatting", kind: "CHANNEL_KIND_TEXT" },
@@ -116,7 +117,8 @@ const formatted = [
   "**Bold** *italic* __underline__ ~~strike~~ `code` and [the docs](https://example.com), " +
     `over in <#${s.channels.random}:random> for @here and <@u:${s.ids.dee}:dee${s.suffix}>, ` +
     "with a tree 🌳 among the words of a line long enough to wrap",
-  "||The narrator was the oldest tree in the forest all along, and nobody guessed it 🍂||",
+  "Read [the ||burnt|| ending](https://example.com) later",
+  "||The narrator was the oldest tree 🍂||",
   "🌳🍂",
 ];
 let lastFormatted;

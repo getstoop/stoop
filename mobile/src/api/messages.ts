@@ -1,5 +1,5 @@
 import type { ChannelHeader } from "@stoop/core/channelHeader";
-import { linkableChannels, NO_CHANNELS } from "@stoop/core/mentions";
+import { linkableChannels } from "@stoop/core/mentions";
 import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { authClient, chatClient } from "./clients";
@@ -40,9 +40,7 @@ export async function loadHeader(
   const memberCount = channel.private
     ? (await chat.listChannelMembers({ channelId }, options)).userIds.length
     : (await chat.listMembers({ spaceId }, options)).members.length;
-  // A private channel's links stay text, as on web.
-  const linkable = channel.private ? NO_CHANNELS : linkableChannels(channels);
-  return { space, channel, memberCount, myUserId: user.id, channels: linkable };
+  return { space, channel, memberCount, myUserId: user.id, channels: linkableChannels(channels) };
 }
 
 // The header and the newest page together, for opening.

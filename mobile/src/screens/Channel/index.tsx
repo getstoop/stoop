@@ -289,31 +289,33 @@ export default function Channel({
           />
         }
       />
-      {menuMessage && (
-        <MessageMenu
-          message={menuMessage}
-          myUserId={myUserId}
-          canModerate={canDeleteAnyMessage(space)}
-          origin={server.origin}
-          token={token}
-          link={messageLink(server.origin, spaceId, menuMessage)}
-          onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
-          onCopyFailed={actions.linkNotCopied}
-          onThread={
-            // As web's: where the reader may start one, and not on a reply
-            // also sent here, which is in a thread already.
-            canStartThreads(space, channel) && !menuMessage.threadRootId
-              ? () => {
-                  threadAfterMenu.current = menuMessage.id;
-                }
-              : undefined
-          }
-          onQuote={() => actions.quote(menuMessage)}
-          onEdit={() => actions.startEdit(menuMessage)}
-          onDelete={() => actions.deleteMessage(menuMessage)}
-          onClose={actions.closeMenu}
-        />
-      )}
+      <ChannelLinksContext.Provider value={links}>
+        {menuMessage && (
+          <MessageMenu
+            message={menuMessage}
+            myUserId={myUserId}
+            canModerate={canDeleteAnyMessage(space)}
+            origin={server.origin}
+            token={token}
+            link={messageLink(server.origin, spaceId, menuMessage)}
+            onReact={(emoji) => actions.reactTo(menuMessage, emoji)}
+            onCopyFailed={actions.linkNotCopied}
+            onThread={
+              // As web's: where the reader may start one, and not on a reply
+              // also sent here, which is in a thread already.
+              canStartThreads(space, channel) && !menuMessage.threadRootId
+                ? () => {
+                    threadAfterMenu.current = menuMessage.id;
+                  }
+                : undefined
+            }
+            onQuote={() => actions.quote(menuMessage)}
+            onEdit={() => actions.startEdit(menuMessage)}
+            onDelete={() => actions.deleteMessage(menuMessage)}
+            onClose={actions.closeMenu}
+          />
+        )}
+      </ChannelLinksContext.Provider>
     </View>
   );
 }
