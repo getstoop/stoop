@@ -11,6 +11,7 @@ export default function ThreadHead({
   origin,
   token,
   onLongPress,
+  onReact,
   target,
 }: {
   root: Message;
@@ -18,6 +19,7 @@ export default function ThreadHead({
   origin: string;
   token: string;
   onLongPress: (message: Message) => void;
+  onReact: (message: Message, emoji: string) => void;
   target?: "reply" | "edit";
 }) {
   const styles = makeStyles(useTheme());
@@ -32,6 +34,7 @@ export default function ThreadHead({
           origin={origin}
           token={token}
           onLongPress={onLongPress}
+          onReact={onReact}
           target={target}
           withDay
         />

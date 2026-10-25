@@ -280,6 +280,7 @@ export default function Thread({
                     origin={server.origin}
                     token={token}
                     onLongPress={actions.openMenu}
+                    onReact={actions.reactTo}
                     target={actions.targetOf(item.message)}
                     alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
                     withDay
@@ -310,6 +311,7 @@ export default function Thread({
                     origin={server.origin}
                     token={token}
                     onLongPress={actions.openMenu}
+                    onReact={actions.reactTo}
                     target={actions.targetOf(root)}
                   />
                 ) : undefined

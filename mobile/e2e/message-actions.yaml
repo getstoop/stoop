@@ -5,8 +5,7 @@ name: React to a message from its menu, copy its words, and delete it
 # first notes in it: dee's messages below would already be there (only
 # dee writes here; ada deletes one of them, and bea reads). Alphabetical
 # order carries that today, and puts this flow before message-menu.yaml,
-# which minds nothing done here. The list draws no reaction chips yet,
-# so a reaction shows in the sheet's highlight and on the server.
+# which minds nothing done here.
 # As dee, a plain member, in chapters, where every note is dee's own.
 - clearKeychain
 - launchApp:
@@ -40,8 +39,10 @@ name: React to a message from its menu, copy its words, and delete it
 - extendedWaitUntil:
     visible: "chapters, ${SPACE}, \\d+ members"
     timeout: 15000
-# A quick reaction: the sheet closes, the server has it, and the sheet
-# opened again shows it filled. Before each long press the list settles.
+# A quick reaction: the sheet closes, the server has it, its chip shows
+# under the message as the reader's, and the sheet opened again (by a
+# long press on the chip, which is the row's) shows it filled. Before
+# each long press the list settles.
 - waitForAnimationToEnd:
     timeout: 3000
 - longPressOn: "Chapter 55 notes"
@@ -64,6 +65,57 @@ name: React to a message from its menu, copy its words, and delete it
       EMOJI: 👍
       EXPECTED: 1
 - assertTrue: ${output.reactionCount == 1}
+- extendedWaitUntil:
+    visible:
+      text: "👍 1 reaction, including yours"
+      selected: true
+    timeout: 5000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "👍 1 reaction, including yours"
+- extendedWaitUntil:
+    visible:
+      text: "React with 👍"
+      selected: true
+    timeout: 5000
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+# The sheet's modal stays until its slide and fade end, taking taps.
+- waitForAnimationToEnd:
+    timeout: 3000
+# The chip tapped takes it away, and with it the chip.
+- tapOn: "👍 1 reaction, including yours"
+- extendedWaitUntil:
+    notVisible: "👍 \\d+ reactions?.*"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: reactionCount
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: Chapter 55 notes
+      EMOJI: 👍
+      EXPECTED: 0
+- assertTrue: ${output.reactionCount == 0}
+# Given again from the menu, then taken away there by its filled button:
+# the chip goes with it.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible:
+      text: "React with 👍"
+      selected: false
+    timeout: 5000
+- tapOn: "React with 👍"
+- extendedWaitUntil:
+    visible:
+      text: "👍 1 reaction, including yours"
+      selected: true
+    timeout: 5000
 - waitForAnimationToEnd:
     timeout: 3000
 - longPressOn: "Chapter 55 notes"
@@ -72,10 +124,12 @@ name: React to a message from its menu, copy its words, and delete it
       text: "React with 👍"
       selected: true
     timeout: 5000
-# Tapped again, it is taken away.
 - tapOn: "React with 👍"
 - extendedWaitUntil:
     notVisible: "Quote in reply"
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible: "👍 \\d+ reactions?.*"
     timeout: 5000
 - runScript:
     file: scripts/rpc.js
