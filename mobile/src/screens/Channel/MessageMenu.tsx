@@ -283,6 +283,7 @@ function makeStyles(theme: Theme) {
     above: {
       flex: 1,
       justifyContent: "flex-end",
+      // Counted in the card's BODY_INSETS (components/MessageBody/insets.ts).
       paddingHorizontal: 16,
       paddingBottom: 12,
     },

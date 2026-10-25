@@ -444,11 +444,20 @@ From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
 generation) and gitignored. Native settings go in `app.json` or a config
 plugin, never into those folders by hand.
 
+`modules/stoop-rich-text` is native code of our own: a local Expo module,
+iOS only for now, that draws a message's paragraph
+(`docs/proposals/mobile-markdown.md` → Tech). Expo links it on its own;
+a change to its Swift needs a native rebuild, not only Metro.
+
 After the first install, `make mobile-metro` (or `pnpm start` in
 `mobile/`) serves JavaScript to a build already on the phone, with no
 native rebuild.
 
 ## Tests
+
+The app's pure logic that needs no React Native (`MessageBody/native.ts`)
+has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,

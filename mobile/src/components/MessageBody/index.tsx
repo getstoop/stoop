@@ -4,9 +4,12 @@ import type { Inline } from "@stoop/core/markdown";
 import { type MentionRef, mentionText, splitEveryone } from "@stoop/core/mentions";
 import { Fragment, type ReactNode, useContext, useMemo, useState } from "react";
 import { Linking, Text } from "react-native";
+import { richText } from "../../../modules/stoop-rich-text";
 import { useTheme } from "../../theme";
 import { ChannelLinksContext } from "./channelLinks";
+import type { BodyPlace } from "./insets";
 import { anyCovered, coveredIn, linePath, nodePath, parse, spoken } from "./lines";
+import NativeBody from "./NativeBody";
 import Spoiler from "./Spoiler";
 import { decoration, makeStyles } from "./styles";
 
@@ -41,15 +44,12 @@ const coverText = (text: string) =>
 // on anything tappable reaches the row's, since a touch there never
 // reaches the row. `compact` (the message menu's card) taps nothing and
 // reveals nothing.
-export default function MessageBody({
-  content,
-  myUserId,
-  editedAt,
-  mentionsEntireChannel,
-  mentionsHere,
-  onLongPress,
-  compact = false,
-}: {
+//
+// On iOS our own TextKit view draws them (NativeBody), for web's rounded,
+// padded pills; elsewhere React Native's Text does (ReactNativeBody), with
+// flat pills, until the Android view lands. `place` names where the
+// message is drawn, for NativeBody's measure (insets.ts).
+type Props = {
   content: string;
   myUserId: string;
   editedAt?: Timestamp;
@@ -57,7 +57,22 @@ export default function MessageBody({
   mentionsHere: boolean;
   onLongPress?: () => void;
   compact?: boolean;
-}) {
+  place: BodyPlace;
+};
+
+export default function MessageBody(props: Props) {
+  return richText ? <NativeBody native={richText} {...props} /> : <ReactNativeBody {...props} />;
+}
+
+function ReactNativeBody({
+  content,
+  myUserId,
+  editedAt,
+  mentionsEntireChannel,
+  mentionsHere,
+  onLongPress,
+  compact = false,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const links = useContext(ChannelLinksContext);

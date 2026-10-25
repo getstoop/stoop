@@ -3,7 +3,9 @@
 Status: draft 2026-10-24, shape agreed with the operator the same day
 (Decisions). Step 1 (shared values + drift check) built on branch
 `mobile-markdown-values`, not yet merged; step 2 (inline marks) built on
-`mobile-markdown-inline`, stacked on it, not yet merged. Plane STOOP-517, under STOOP-518 (timeline parity with web).
+`mobile-markdown-native`, stacked on it, not yet merged: on iOS our own
+TextKit view draws the paragraph, on Android React Native's `Text` until
+the Android view lands. Plane STOOP-517, under STOOP-518 (timeline parity with web).
 Design: no new artboards. The look is web's, carried over through shared
 values (step 1), and checked on the phone.
 
@@ -103,10 +105,35 @@ and no Markdown library. Rules follow web's `MessageBody`:
    uses the platform fonts, as the generator already does).
 4. **Component**: `mobile/src/components/MessageBody/` (it is reused
    beyond the channel screen), replacing `screens/Channel/MessageText.tsx`.
-   Inline content renders as nested `<Text>` (so it wraps as one
-   paragraph); blocks are `<View>`s. A code block is a horizontal
-   `ScrollView`. A spoiler's revealed state is local to the component.
-   Parsing is memoised per message content.
+   Blocks are `<View>`s; a code block is a horizontal `ScrollView`. A
+   spoiler's revealed state is local to the component. Parsing is
+   memoised per message content.
+5. **The paragraph on iOS: our own TextKit view.** A local Expo module,
+   `mobile/modules/stoop-rich-text` (iOS only, `platforms: ["apple"]`, so
+   Android's autolinking leaves it out). JS turns the parser's tree into
+   styled runs (`MessageBody/native.ts`, unit-tested with web's Vitest):
+   the marks resolved, never Markdown. The view draws them with a TextKit
+   1 layout manager that paints web's rounded, padded boxes behind pills,
+   inline code and spoilers; a line that starts with a box is indented by
+   its padding, as a browser does. Covered spoilers are drawn clear on
+   their fill, as on web, and never reach a screen reader.
+   - **Height:** a synchronous JSI function, `measure(doc, width)`, lays
+     the runs out at the width the row will give them before the first
+     render, so the row is the right height at once. That width is the
+     window's less a per-place inset listed in
+     `MessageBody/insets.ts` (the channel or thread row, the menu's
+     card); a new place that draws messages adds its inset there. If the
+     guess is wrong, `onLayout` reports the real width and the row is
+     measured again (one jump).
+   - **Touch:** a tap recognizer opens links and channel pills and
+     reveals covered spoilers; a long press stays the row's `Pressable`.
+   - **Accessibility:** the paragraph is one element read as the
+     message's label (covered spoilers as "spoiler, double tap to
+     reveal"), plus a link element for each link and channel pill.
+6. **Android and anything without the module** draws the paragraph with
+   nested React Native `<Text>`, as one wrapping paragraph, its pills
+   flat (nested text takes no padding or rounded corners). `MessageBody`
+   picks the renderer by whether the native module is there.
 
 ## Split
 
@@ -145,6 +172,13 @@ marks), one assertion proved to bite, and the operator's phone check.
   CSS-to-React-Native translator (operator, 2026-10-24).
 - **Split**: shared values → inline → blocks → extras (operator,
   2026-10-24).
+- **Message text on iOS is drawn by our own native view**
+  (`mobile/modules/stoop-rich-text`, TextKit) for web-style pills
+  (operator, 2026-10-24), after trying inline Views (VoiceOver can't
+  reach links) and react-native-enriched-markdown (square pills, read
+  covered spoilers aloud, long press on links broken). Android uses the
+  React Native renderer until its native half lands. The same engine is
+  meant to carry the rich editor later.
 
 ## Later
 
@@ -155,3 +189,11 @@ marks), one assertion proved to bite, and the operator's phone check.
 - **Rich editor**: its own proposal (native, markers hidden).
 - **Received attachments inline**: step 3 of
   [mobile-attachments](mobile-attachments.md).
+- **The Android native view**: the same runs drawn by a Kotlin view, so
+  Android gets the padded, rounded pills too and drops the React Native
+  renderer.
+- **Measure in a Fabric ShadowNode**: a custom shadow node whose
+  `measureContent` lays the runs out at the width Yoga gives it, so the
+  per-place insets and the `onLayout` correction go away.
+- **Right-to-left text**: the view lays out and indents left to right
+  only.

@@ -10,6 +10,8 @@ import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ThreadLine from "./ThreadLine";
 
+// The row's widths around the words are repeated in BODY_INSETS
+// (components/MessageBody/insets.ts); a change here changes them there.
 const AVATAR = 36;
 const GAP = 10;
 
@@ -101,6 +103,7 @@ export default memo(function MessageRow({
           mentionsHere={message.mentionsHere}
           onLongPress={hold}
           compact={card}
+          place={card ? "menuCard" : "row"}
         />
       )}
       {message.attachments.map((file) => (

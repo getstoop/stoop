@@ -328,8 +328,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: mobile/pnpm-lock.yaml
+          cache-dependency-path: |
+            mobile/pnpm-lock.yaml
+            web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # The app's unit tests take Vitest's types from web's install
+      # (mobile/tsconfig.json); they run in the Web job.
+      - run: pnpm install --frozen-lockfile
+        working-directory: web
       - run: pnpm typecheck
 
   # Skipped per step rather than per job: a matrix job skipped at job
