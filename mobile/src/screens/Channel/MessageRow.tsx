@@ -8,6 +8,7 @@ import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
 import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
+import Reactions from "./Reactions";
 import ThreadLine from "./ThreadLine";
 
 // The row's widths around the words are repeated in BODY_INSETS
@@ -35,7 +36,10 @@ const GAP = 10;
 // answers ("↳ replied to a thread:", the root's author and first words,
 // as web's row has it), a line that opens the thread on it
 // (onOpenOrigin); in its thread it says where else it went
-// (`alsoSentTo`). Reactions and previews come in later steps.
+// (`alsoSentTo`). Its reactions are chips under its words and files,
+// over the thread's line (Reactions), each toggling the reader's own
+// (onReact); not on the card, nor on a placeholder. Link previews come
+// in a later step.
 export default memo(function MessageRow({
   message,
   continued,
@@ -48,6 +52,7 @@ export default memo(function MessageRow({
   target,
   onOpenThread,
   onOpenOrigin,
+  onReact,
   alsoSentTo,
 }: {
   message: Message;
@@ -61,6 +66,8 @@ export default memo(function MessageRow({
   target?: "reply" | "edit";
   onOpenThread?: (message: Message) => void;
   onOpenOrigin?: (message: Message) => void;
+  // A chip tapped: the reader's own reaction with its emoji, toggled.
+  onReact?: (message: Message, emoji: string) => void;
   // In its thread, a reply also sent to the channel: "#general".
   alsoSentTo?: string;
 }) {
@@ -112,6 +119,7 @@ export default memo(function MessageRow({
         </Text>
       ))}
       {alsoSentTo && <Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
+      {!card && onReact && <Reactions message={message} myUserId={myUserId} onReact={onReact} onLongPress={hold} />}
       {thread}
     </>
   );
