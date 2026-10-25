@@ -101,7 +101,7 @@ lint:
 	golangci-lint run
 	golangci-lint run --config .golangci-names.yml --new-from-merge-base origin/main
 	scripts/compose-check.sh
-	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles && pnpm check:fields && pnpm check:core
+	cd web && pnpm lint && pnpm typecheck && pnpm check:themes && pnpm check:styles && pnpm check:tsx-styles && pnpm check:fields && pnpm check:core && pnpm check:mobile-theme
 	$(MAKE) mobile-typecheck
 
 test:
@@ -143,8 +143,9 @@ mobile-android:
 mobile-metro:
 	cd mobile && pnpm install --frozen-lockfile && pnpm start
 
-## mobile-theme: regenerate mobile/src/theme/generated.ts from web's themes
-## and tokens (scripts/gen-mobile-theme.mjs)
+## mobile-theme: regenerate mobile/src/theme/generated.ts from web's themes,
+## tokens and Markdown values (scripts/gen-mobile-theme.mjs); lint fails
+## when it is out of date
 mobile-theme:
 	node scripts/gen-mobile-theme.mjs
 

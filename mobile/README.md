@@ -360,11 +360,15 @@ pressing Send again is the retry.
 ## Themes
 
 The app wears the web app's themes. `src/theme/generated.ts` is written
-from `web/src/themes.css`, `web/src/tokens.css` and the theme list in
-`web/src/api/theme.ts` (names, tiers, blurbs) by `make mobile-theme`;
-never edit it by hand. Screens read colours through `useTheme()` and sizes
-from `tokens`, the same names as the CSS custom properties in camel case
-(`--text-muted` is `textMuted`).
+from `web/src/themes.css`, `web/src/tokens.css`, the theme list in
+`web/src/api/theme.ts` (names, tiers, blurbs) and the `--md-*` block at
+the top of `web/src/styles/markdown.css` by `make mobile-theme`; never
+edit it by hand (`make lint` and CI fail when it is out of date). Screens
+read colours through `useTheme()` and sizes from `tokens`, the same names
+as the CSS custom properties in camel case (`--text-muted` is
+`textMuted`). Message Markdown draws with `markdown`: sizes in px, a
+`-scale` as a multiple of the text size, and a colour as the theme key to
+look up (`markdown.quoteColor` is `"textMuted"`).
 
 `ThemeProvider`, around the whole app in `src/app/_layout.tsx`,
 holds the current theme, Brownstone to start, and sets the status bar to

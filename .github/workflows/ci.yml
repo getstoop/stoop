@@ -303,6 +303,7 @@ jobs:
       - run: pnpm check:tsx-styles
       - run: pnpm check:fields
       - run: pnpm check:core
+      - run: pnpm check:mobile-theme
       - run: pnpm test
       - run: pnpm build
       - run: pnpm build-storybook
