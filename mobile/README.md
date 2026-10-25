@@ -465,8 +465,9 @@ sign in and see the Spaces tab's badges, open a space and see what is
 waiting in each of its channels, read a channel from its "New" line back
 to its first message while messages arrive, change and go, write in a
 channel and see the message land once, react to a message from its
-menu, copy its words and delete it, long-press a message and see
-what its menu offers as a member and as a moderator, pick a reaction
+menu, see its chip under the message and take it back from the chip,
+copy its words and delete it, long-press a message and see what its
+menu offers as a member and as a moderator, pick a reaction
 from the emoji picker and copy a message's link, quote a message in a
 reply, cancel it, send it and see the quote go with its message, edit a
 message from its menu, cancel an edit and see Save refuse an emptied
