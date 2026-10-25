@@ -14,7 +14,11 @@
       // web/src/gen upward and finds web's copy, and the two copies'
       // types do not match; metro.config.js does the same for the bundle.
       "@bufbuild/protobuf": ["./node_modules/@bufbuild/protobuf/dist/esm"],
-      "@bufbuild/protobuf/*": ["./node_modules/@bufbuild/protobuf/dist/esm/*"]
+      "@bufbuild/protobuf/*": ["./node_modules/@bufbuild/protobuf/dist/esm/*"],
+      // The app's unit tests run with web's Vitest (web/vitest.config.ts),
+      // so its types come from web's install (`make mobile-typecheck`
+      // installs it first).
+      "vitest": ["../web/node_modules/vitest"]
     }
   },
   // All of web/src/core, not only what the app imports so far, so lint

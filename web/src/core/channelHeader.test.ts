@@ -1,7 +1,7 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
-import { ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
+import { ChannelKind, ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
 import { SpaceRole, SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ServerEvent,
@@ -12,6 +12,7 @@ import {
   losesChannel,
   withHeaderEvent,
 } from "./channelHeader";
+import { linkableChannels, NO_CHANNELS } from "./mentions";
 
 const event = (
   payload: MessageInitShape<typeof ServerEventSchema>["payload"],
@@ -22,6 +23,7 @@ const header = (init: Partial<ChannelHeader> = {}): ChannelHeader => ({
   channel: create(ChannelSchema, { id: "c1", name: "general" }),
   memberCount: 3,
   myUserId: "me",
+  channels: NO_CHANNELS,
   ...init,
 });
 
@@ -72,6 +74,83 @@ describe("withHeaderEvent", () => {
     );
     expect(moved.space.name).toBe("The Yard");
     expect(moved.channel.name).toBe("lobby");
+  });
+
+  it("keeps the channels a link opens current", () => {
+    const text = (id: string, name: string, more = {}) =>
+      create(ChannelSchema, {
+        id,
+        spaceId: "s1",
+        name,
+        kind: ChannelKind.TEXT,
+        ...more,
+      });
+    const start = header({
+      channels: linkableChannels([text("c1", "general"), text("c2", "books")]),
+    });
+    const names = (held: ChannelHeader) =>
+      [...held.channels.values()].map((channel) => channel.name);
+
+    const made = withHeaderEvent(
+      start,
+      event({ case: "channelCreated", value: text("c3", "random") }),
+    );
+    expect(names(made)).toEqual(["general", "books", "random"]);
+
+    const renamed = withHeaderEvent(
+      made,
+      event({ case: "channelUpdated", value: text("c2", "novels") }),
+    );
+    expect(names(renamed)).toEqual(["general", "novels", "random"]);
+
+    // Made private, it is no longer one a link opens.
+    const closed = withHeaderEvent(
+      renamed,
+      event({
+        case: "channelUpdated",
+        value: text("c3", "random", { private: true }),
+      }),
+    );
+    expect(names(closed)).toEqual(["general", "novels"]);
+
+    const deleted = withHeaderEvent(
+      closed,
+      event({
+        case: "channelDeleted",
+        value: { spaceId: "s1", channelId: "c2" },
+      }),
+    );
+    expect(names(deleted)).toEqual(["general"]);
+
+    // The shown channel, made private: its own entry goes, and the
+    // header says it is private, which is what its reader checks.
+    const own = withHeaderEvent(
+      deleted,
+      event({
+        case: "channelUpdated",
+        value: text("c1", "general", { private: true }),
+      }),
+    );
+    expect(own.channel.private).toBe(true);
+    expect(names(own)).toEqual([]);
+
+    // Another space's channels and a voice channel change nothing.
+    const elsewhere = withHeaderEvent(
+      start,
+      event({
+        case: "channelCreated",
+        value: text("c9", "elsewhere", { spaceId: "s2" }),
+      }),
+    );
+    expect(elsewhere).toBe(start);
+    const voice = withHeaderEvent(
+      start,
+      event({
+        case: "channelCreated",
+        value: text("c8", "lounge", { kind: ChannelKind.VOICE }),
+      }),
+    );
+    expect(voice).toBe(start);
   });
 
   it("keeps the reader's role and permissions through a space update", () => {

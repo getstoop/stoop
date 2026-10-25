@@ -25,6 +25,7 @@ import {
   type ScreenAction,
   screenReducer,
 } from "./channelScreen";
+import { NO_CHANNELS } from "./mentions";
 
 const header = (init: Partial<ChannelHeader> = {}): ChannelHeader => ({
   space: create(SpaceSchema, { id: "s1", name: "The Porch" }),
@@ -35,6 +36,7 @@ const header = (init: Partial<ChannelHeader> = {}): ChannelHeader => ({
   }),
   memberCount: 3,
   myUserId: "me",
+  channels: NO_CHANNELS,
   ...init,
 });
 

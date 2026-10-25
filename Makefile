@@ -150,8 +150,10 @@ mobile-theme:
 	node scripts/gen-mobile-theme.mjs
 
 ## mobile-typecheck: tsc over mobile/, with the web code it shares
-## (web/src/core, web/src/gen); part of lint
+## (web/src/core, web/src/gen); part of lint. Installs web too: the app's
+## unit tests take Vitest's types from there.
 mobile-typecheck:
+	cd web && pnpm install --frozen-lockfile --silent
 	cd mobile && pnpm install --frozen-lockfile --silent && pnpm exec tsc --noEmit
 
 ## mobile-sim: a release build onto the iPhone simulator, for the flows

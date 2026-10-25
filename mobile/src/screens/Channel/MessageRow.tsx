@@ -6,11 +6,13 @@ import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
+import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
-import MessageText from "./MessageText";
 import Reactions from "./Reactions";
 import ThreadLine from "./ThreadLine";
 
+// The row's widths around the words are repeated in BODY_INSETS
+// (components/MessageBody/insets.ts); a change here changes them there.
 const AVATAR = 36;
 const GAP = 10;
 
@@ -100,7 +102,16 @@ export default memo(function MessageRow({
   const body = (
     <>
       {message.content !== "" && (
-        <MessageText content={message.content} myUserId={myUserId} edited={!!message.editedAt} onLongPress={hold} />
+        <MessageBody
+          content={message.content}
+          myUserId={myUserId}
+          editedAt={message.editedAt}
+          mentionsEntireChannel={message.mentionsEntireChannel}
+          mentionsHere={message.mentionsHere}
+          onLongPress={hold}
+          compact={card}
+          place={card ? "menuCard" : "row"}
+        />
       )}
       {message.attachments.map((file) => (
         <Text key={file.fileId} style={styles.file} numberOfLines={1}>

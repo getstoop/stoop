@@ -113,19 +113,38 @@ export const NO_CHANNELS: MentionChannels = new Map();
 
 const TOKEN_NAME = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
+const linkable = (channel: Channel) =>
+  !channel.private &&
+  channel.kind === ChannelKind.TEXT &&
+  TOKEN_NAME.test(channel.name);
+
 export function linkableChannels(
   channels: Channel[] | undefined,
 ): MentionChannels {
   return new Map(
-    channels
-      ?.filter(
-        (channel) =>
-          !channel.private &&
-          channel.kind === ChannelKind.TEXT &&
-          TOKEN_NAME.test(channel.name),
-      )
-      .map((channel) => [channel.id, channel]),
+    channels?.filter(linkable).map((channel) => [channel.id, channel]),
   );
+}
+
+// The channels after one was made or changed: in while it is linkable,
+// out once it isn't. The same map when that changes nothing.
+export function withLinkableChannel(
+  channels: MentionChannels,
+  channel: Channel,
+): MentionChannels {
+  if (linkable(channel)) return new Map(channels).set(channel.id, channel);
+  return withoutChannel(channels, channel.id);
+}
+
+// The channels after one was deleted.
+export function withoutChannel(
+  channels: MentionChannels,
+  channelId: string,
+): MentionChannels {
+  if (!channels.has(channelId)) return channels;
+  const out = new Map(channels);
+  out.delete(channelId);
+  return out;
 }
 
 // The channel a fully typed #name names, if any.
