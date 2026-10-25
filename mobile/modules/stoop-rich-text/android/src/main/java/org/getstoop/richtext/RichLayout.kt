@@ -20,6 +20,7 @@ import expo.modules.kotlin.types.ColorCompat
 import java.util.BitSet
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -39,7 +40,7 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
   // Scratch for segments(), on the view's thread only.
   private val selection = Path()
   private val region = Region()
-  private val everywhere = Region(-100_000, -100_000, 100_000, 100_000)
+  private val clip = Region()
   private val piece = Rect()
 
   private data class BoxKey(val id: Int, val color: Int, val pad: Float)
@@ -48,7 +49,7 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
     val textColor = doc.textColor?.let { ColorCompat.toArgb(it) } ?: Color.BLACK
     val spoilerPad = doc.spoilerPad.toFloat() * density
     var widestPad = doc.spoilerPad
-    val linksById = HashMap<Int, LinkInfo>()
+    val linksById = HashMap<Pair<Int, String>, LinkInfo>()
 
     var spoiler: BoxKey? = null
     var spoilerStart = 0
@@ -124,8 +125,13 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
       val linkId = run.linkId
       if (url != null && linkId != null) {
         text.setSpan(LinkMark(linkId, url), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        val link = linksById.getOrPut(linkId) {
-          LinkInfo(linkId, url, run.linkHidden == true, start).also { links.add(it) }
+        // Runs of one link share its id and URL. Two links whose hashed
+        // ids collide (native.ts linkId) stay two links: keyed by both,
+        // and the later one's node takes the next free id.
+        val link = linksById.getOrPut(linkId to url) {
+          var nodeId: Int = linkId
+          while (links.any { it.id == nodeId }) nodeId = (nodeId + 1) and 0x3fffffff
+          LinkInfo(nodeId, url, run.linkHidden == true, start).also { links.add(it) }
         }
         link.end = end
         link.label.append(run.text)
@@ -177,7 +183,10 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
   // from the layout's selection path, which follows bidi order: words in
   // right-to-left script (Hebrew, Arabic) get their box too, and a range
   // that bidi splits on its line gets one part per piece, never one box
-  // over the words between them.
+  // over the words between them. Each line's parts are clipped to that
+  // line's text: where a range wraps mid-word, its end on the line is the
+  // next line's start, and the selection path then adds a filler from the
+  // line's text to the view's edge.
   private fun segments(start: Int, end: Int, each: (line: Int, left: Float, right: Float, from: Int) -> Unit) {
     if (end <= start) return
     val first = layout.getLineForOffset(start)
@@ -188,7 +197,13 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
       if (to <= from) continue
       selection.reset()
       layout.getSelectionPath(from, to, selection)
-      region.setPath(selection, everywhere)
+      clip.set(
+        floor(layout.getLineLeft(line)).toInt(),
+        layout.getLineTop(line),
+        ceil(layout.getLineRight(line)).toInt(),
+        layout.getLineBottom(line),
+      )
+      region.setPath(selection, clip)
       val pieces = RegionIterator(region)
       while (pieces.next(piece)) {
         if (piece.right > piece.left) each(line, piece.left.toFloat(), piece.right.toFloat(), from)
