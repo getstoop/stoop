@@ -309,8 +309,8 @@ jobs:
       - run: pnpm build-storybook
 
   # The phone app shares web/src/core and web/src/gen as source, so a web
-  # change can break it; typechecking it needs only Node. Building it
-  # needs Xcode or the Android SDK and stays a local job (mobile/README.md).
+  # change can break it; typechecking it needs only Node. Compiling its
+  # native code is the hand-run mobile-native.yml workflow, not part of CI.
   mobile:
     name: Mobile typecheck
     needs: changes
