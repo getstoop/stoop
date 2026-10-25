@@ -129,7 +129,9 @@ and no Markdown library. Rules follow web's `MessageBody`:
      reveals covered spoilers; a long press stays the row's `Pressable`.
    - **Accessibility:** the paragraph is one element read as the
      message's label (covered spoilers as "spoiler, double tap to
-     reveal"), plus a link element for each link and channel pill.
+     reveal"), after a link element for each link and channel pill over
+     its words on each line (first, so touching a link finds it). A
+     reveal keeps the reader on the message and reads it again.
 6. **Android and anything without the module** draws the paragraph with
    nested React Native `<Text>`, as one wrapping paragraph, its pills
    flat (nested text takes no padding or rounded corners). `MessageBody`

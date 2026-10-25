@@ -2,7 +2,7 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { describe, expect, it } from "vitest";
 import { markdown, themes } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
-import { parse } from "./lines";
+import { type Parsed, parse } from "./lines";
 import { type BuildInput, buildDoc } from "./native";
 
 const theme = themes.daylight;
@@ -89,6 +89,51 @@ describe("buildDoc: spoilers", () => {
     expect(doc.label).toBe("the burnt ending");
   });
 
+  // Our parser closes a spoiler at the first || (`||a ||b|| c||` is two
+  // spoilers), so the tree is built by hand: the runs don't count on it.
+  const nested: Parsed = {
+    emojiOnly: false,
+    lines: [
+      [
+        {
+          type: "spoiler",
+          children: [
+            { type: "text", text: "a " },
+            { type: "spoiler", children: [{ type: "text", text: "b" }] },
+            { type: "text", text: " c" },
+          ],
+        },
+      ],
+    ],
+  };
+
+  it("gives a spoiler inside a covered one the outer's id, so a tap reveals the outer", () => {
+    const { doc, spoilers } = build("", { parsed: nested });
+    expect(spoilers).toEqual(["0.0", "0.0.1"]);
+    expect(doc.runs.map((run) => [run.text, run.spoiler, run.covered])).toEqual([
+      ["a ", 0, true],
+      ["b", 0, true],
+      [" c", 0, true],
+    ]);
+    expect(doc.label).toBe(COVER);
+  });
+
+  it("covers the inner spoiler on its own once the outer is revealed", () => {
+    const { doc } = build("", { parsed: nested, revealed: ["0.0"] });
+    expect(doc.runs.map((run) => [run.text, run.spoiler, run.covered])).toEqual([
+      ["a ", 0, undefined],
+      ["b", 1, true],
+      [" c", 0, undefined],
+    ]);
+    expect(doc.label).toBe(`a ${COVER} c`);
+  });
+
+  it("reads both spoilers once both are revealed", () => {
+    const { doc } = build("", { parsed: nested, revealed: ["0.0", "0.0.1"] });
+    expect(doc.runs.every((run) => !run.covered)).toBe(true);
+    expect(doc.label).toBe("a b c");
+  });
+
   it("keeps every spoiler covered in the compact card, read as 'spoiler'", () => {
     const { doc } = build("Read ||burnt|| ending", { compact: true, isCovered: () => true, cover: "spoiler" });
     expect(doc.label).toBe("Read spoiler ending");
@@ -170,6 +215,15 @@ describe("buildDoc: channel links", () => {
     const words = runWith(build(`in <#${RANDOM}:old-name>`, { links: null }).doc, "#old-name");
     expect(words.fill).toBeUndefined();
     expect(words.link).toBeUndefined();
+  });
+});
+
+describe("buildDoc: padding", () => {
+  it("pads each box by its own value", () => {
+    const { doc } = build(`\`code\` <@u:${DEE}:dee>`);
+    expect(runWith(doc, "code").fillPad).toBe(markdown.codePadX);
+    expect(runWith(doc, "@dee").fillPad).toBe(markdown.mentionPadX);
+    expect(doc.spoilerPad).toBe(markdown.spoilerPadX);
   });
 });
 

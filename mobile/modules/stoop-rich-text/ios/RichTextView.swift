@@ -2,20 +2,39 @@ import ExpoModulesCore
 import UIKit
 
 // The paragraph's element for a screen reader: the whole view, read as the
-// doc's label; double tap reveals the first covered spoiler.
+// doc's label; double tap reveals the first covered spoiler. With none
+// covered a double tap does nothing, rather than iOS tapping the
+// element's middle, which may be a link.
 final class ParagraphElement: UIAccessibilityElement {
-  var onActivate: (() -> Bool)?
-  override func accessibilityActivate() -> Bool {
-    onActivate?() ?? false
-  }
-}
-
-// A link or channel pill's element: its words, over its rects.
-final class LinkElement: UIAccessibilityElement {
   var onActivate: (() -> Void)?
+
   override func accessibilityActivate() -> Bool {
     onActivate?()
     return true
+  }
+}
+
+// A link or channel pill's element: its words, over its rect on each line
+// (the path, in screen space, worked out when asked: the view may have
+// scrolled), so a link that wraps covers its words and not both lines.
+final class LinkElement: UIAccessibilityElement {
+  var onActivate: (() -> Void)?
+  weak var view: UIView?
+  var rects: [CGRect] = []
+
+  override func accessibilityActivate() -> Bool {
+    onActivate?()
+    return true
+  }
+
+  override var accessibilityPath: UIBezierPath? {
+    get {
+      guard let view = view else { return nil }
+      let path = UIBezierPath()
+      for rect in rects { path.append(UIBezierPath(rect: rect)) }
+      return UIAccessibility.convertToScreenCoordinates(path, in: view)
+    }
+    set {}
   }
 }
 
@@ -39,6 +58,11 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
   }
 
   private var layout: RichLayout?
+  // The layout the accessibility elements were built from.
+  private var accessible: RichLayout?
+  // A reveal was asked for: once its doc arrives, a screen reader stays
+  // on the message and reads the words revealed.
+  private var revealing = false
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -59,9 +83,11 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
     addGestureRecognizer(tap)
   }
 
+  // Laid out again at any other width, however small the difference, so
+  // a line is never cut off at a fractional width.
   private func currentLayout() -> RichLayout? {
     guard let doc = doc, bounds.width > 0 else { return nil }
-    if let layout = layout, abs(layout.width - bounds.width) < 0.5 {
+    if let layout = layout, layout.width == bounds.width {
       return layout
     }
     let fresh = RichLayout(doc: doc, width: bounds.width)
@@ -71,12 +97,20 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    rebuildAccessibility()
+    let current = currentLayout()
+    if current !== accessible {
+      rebuildAccessibility()
+    }
     setNeedsDisplay()
   }
 
   override func draw(_ rect: CGRect) {
     currentLayout()?.draw()
+  }
+
+  private func reveal(_ id: Int) {
+    revealing = true
+    onReveal(["id": id])
   }
 
   // MARK: Touch
@@ -117,7 +151,7 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
   @objc private func tapped(_ recognizer: UITapGestureRecognizer) {
     guard recognizer.state == .ended else { return }
     switch target(at: recognizer.location(in: self)) {
-    case .reveal(let id): onReveal(["id": id])
+    case .reveal(let id): reveal(id)
     case .link(let url): onPressLink(["url": url])
     case nil: break
     }
@@ -125,33 +159,40 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
 
   // MARK: Accessibility
 
+  // A link element for each link and channel pill, then the paragraph.
+  // Touching a point finds the first element there, so the links come
+  // first or a touch on one would find the paragraph; swiping meets them
+  // before the paragraph too.
   private func rebuildAccessibility() {
-    guard let doc = doc, let layout = currentLayout() else {
+    accessible = layout
+    guard let doc = doc, let layout = layout else {
       accessibilityElements = nil
       return
     }
+    let storage = layout.storage
+    let whole = NSRange(location: 0, length: storage.length)
+
     let paragraph = ParagraphElement(accessibilityContainer: self)
     paragraph.accessibilityLabel = doc.label
     paragraph.accessibilityTraits = .staticText
     paragraph.accessibilityFrameInContainerSpace = bounds
-    let storage = layout.storage
     paragraph.onActivate = { [weak self] in
       var first: Int?
-      storage.enumerateAttribute(.stoopCovered, in: NSRange(location: 0, length: storage.length)) { value, _, stop in
+      storage.enumerateAttribute(.stoopCovered, in: whole) { value, _, stop in
         if let id = value as? Int { first = id; stop.pointee = true }
       }
-      guard let id = first else { return false }
-      self?.onReveal(["id": id])
-      return true
+      if let id = first { self?.reveal(id) }
     }
-    var elements: [Any] = [paragraph]
+    var elements: [Any] = []
 
-    storage.enumerateAttribute(.stoopLink, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+    storage.enumerateAttribute(.stoopLink, in: whole) { value, range, _ in
       guard let link = value as? LinkBox, !link.hidden else { return }
       let rects = layout.rects(forCharacterRange: range)
       guard var frame = rects.first else { return }
       for rect in rects.dropFirst() { frame = frame.union(rect) }
       let element = LinkElement(accessibilityContainer: self)
+      element.view = self
+      element.rects = rects
       element.accessibilityLabel = storage.attributedSubstring(from: range).string
       element.accessibilityTraits = .link
       element.accessibilityFrameInContainerSpace = frame
@@ -159,6 +200,11 @@ final class RichTextView: ExpoView, UIGestureRecognizerDelegate {
       element.onActivate = { [weak self] in self?.onPressLink(["url": url]) }
       elements.append(element)
     }
-    accessibilityElements = elements
+    accessibilityElements = elements + [paragraph]
+
+    if revealing {
+      revealing = false
+      UIAccessibility.post(notification: .layoutChanged, argument: paragraph)
+    }
   }
 }

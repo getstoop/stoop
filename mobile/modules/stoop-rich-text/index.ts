@@ -16,6 +16,7 @@ export type RichRun = {
   linkHidden?: boolean;
   fill?: string;
   fillId?: number;
+  fillPad?: number;
   spoiler?: number;
   covered?: boolean;
   spoilerFill?: string;
@@ -26,7 +27,7 @@ export type RichDoc = {
   lineHeight: number;
   bodySize: number;
   textColor: string;
-  padX: number;
+  spoilerPad: number;
   radius: number;
   label: string;
 };

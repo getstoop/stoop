@@ -1,6 +1,6 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { useContext, useMemo, useState } from "react";
-import { Linking, PixelRatio, useWindowDimensions } from "react-native";
+import { Linking, useWindowDimensions } from "react-native";
 import type { richText } from "../../../modules/stoop-rich-text";
 import { useTheme } from "../../theme";
 import { ChannelLinksContext } from "./channelLinks";
@@ -60,11 +60,11 @@ export default function NativeBody({
         links,
         compact,
         edited,
-        fontScale: PixelRatio.getFontScale(),
+        fontScale: window.fontScale,
         isCovered: (path) => compact || !shown.has(path),
         cover: compact ? "spoiler" : COVER,
       }),
-    [parsed, theme, myUserId, mentionsEntireChannel, mentionsHere, links, compact, edited, shown],
+    [parsed, theme, myUserId, mentionsEntireChannel, mentionsHere, links, compact, edited, shown, window.fontScale],
   );
   const height = useMemo(() => native.measure(doc, width), [native, doc, width]);
 
@@ -80,7 +80,7 @@ export default function NativeBody({
       style={{ height }}
       onLayout={(event) => {
         const actual = event.nativeEvent.layout.width;
-        if (Math.abs(actual - width) >= 0.5) setLaidOut(actual);
+        if (actual !== width) setLaidOut(actual);
       }}
       onReveal={
         compact

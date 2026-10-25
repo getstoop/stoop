@@ -18,11 +18,14 @@ struct RichRun: Record {
   @Field var link: String?
   @Field var linkId: Int?
   @Field var linkHidden: Bool = false
-  // A rounded, padded fill behind the run: a pill or inline code. Runs of
-  // one pill share fillId.
+  // A rounded, padded fill behind the run: a pill or inline code, padded
+  // fillPad at each end. Runs of one pill share fillId.
   @Field var fill: UIColor?
   @Field var fillId: Int?
-  // Under a spoiler: its id, whether it is covered, and its fill.
+  @Field var fillPad: Double = 4
+  // Under a spoiler: its id (while covered, the outermost covered one's,
+  // so a tap anywhere on the cover reveals it), whether it is covered,
+  // and its fill.
   @Field var spoiler: Int?
   @Field var covered: Bool = false
   @Field var spoilerFill: UIColor?
@@ -32,26 +35,29 @@ struct RichDoc: Record {
   @Field var runs: [RichRun] = []
   @Field var lineHeight: Double = 21.75
   @Field var bodySize: Double = 15
-  @Field var textColor: UIColor = .label
-  @Field var padX: Double = 4
+  @Field(.required) var textColor: UIColor?
+  @Field var spoilerPad: Double = 4
   @Field var radius: Double = 4
   // The paragraph as a screen reader says it (covered spoilers as
   // "spoiler, double tap to reveal").
   @Field var label: String = ""
 }
 
-// A rounded box drawn behind a range: equal by id, so the storage keeps
-// one attribute run across the JS runs of one pill.
+// A rounded box drawn behind a range, `pad` wider at each end: equal by
+// value, so the storage keeps one attribute run across the JS runs of one
+// pill.
 final class FillBox: NSObject {
   let id: Int
   let color: UIColor
-  init(id: Int, color: UIColor) {
+  let pad: CGFloat
+  init(id: Int, color: UIColor, pad: CGFloat) {
     self.id = id
     self.color = color
+    self.pad = pad
   }
   override func isEqual(_ object: Any?) -> Bool {
     guard let other = object as? FillBox else { return false }
-    return other.id == id && other.color == color
+    return other.id == id && other.color == color && other.pad == pad
   }
   override var hash: Int { id }
 }
@@ -84,11 +90,10 @@ extension NSAttributedString.Key {
 
 // Draws the rounded boxes: spoiler fills first, pills and code on top,
 // each the run font's content height (ascender to descender, as CSS draws
-// an inline background) and padX wider on each end. The padding's room
+// an inline background) and its pad wider on each end. The padding's room
 // is kerning on the character before a box (or, at a line's start, the
 // container's indent) and on its last character.
 final class RichLayoutManager: NSLayoutManager {
-  var padX: CGFloat = 4
   var radius: CGFloat = 4
 
   override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
@@ -99,7 +104,7 @@ final class RichLayoutManager: NSLayoutManager {
       storage.enumerateAttribute(key, in: chars) { value, range, _ in
         guard let box = value as? FillBox else { return }
         box.color.setFill()
-        for rect in boxRects(forCharacterRange: range, in: container) {
+        for rect in boxRects(forCharacterRange: range, pad: box.pad, in: container) {
           UIBezierPath(roundedRect: rect.offsetBy(dx: origin.x, dy: origin.y), cornerRadius: radius).fill()
         }
       }
@@ -107,7 +112,7 @@ final class RichLayoutManager: NSLayoutManager {
   }
 
   // One rect per line the range is on.
-  func boxRects(forCharacterRange range: NSRange, in container: NSTextContainer) -> [CGRect] {
+  func boxRects(forCharacterRange range: NSRange, pad: CGFloat, in container: NSTextContainer) -> [CGRect] {
     guard let storage = textStorage else { return [] }
     let glyphs = glyphRange(forCharacterRange: range, actualCharacterRange: nil)
     var rects: [CGRect] = []
@@ -119,9 +124,9 @@ final class RichLayoutManager: NSLayoutManager {
       let font = storage.attribute(.font, at: charIndex, effectiveRange: nil) as? UIFont ?? UIFont.systemFont(ofSize: 15)
       // location(forGlyphAt:) already carries the baseline offset.
       let baseline = fragment.minY + self.location(forGlyphAt: part.location).y
-      // The box starts padX before its first glyph when it starts on this
+      // The box starts pad before its first glyph when it starts on this
       // line; its last character's kerning is already inside the bounds.
-      if part.location == glyphs.location { bounds.origin.x -= self.padX; bounds.size.width += self.padX }
+      if part.location == glyphs.location { bounds.origin.x -= pad; bounds.size.width += pad }
       bounds.origin.y = baseline - font.ascender
       bounds.size.height = font.ascender - font.descender
       rects.append(bounds)
@@ -135,8 +140,6 @@ final class RichLayoutManager: NSLayoutManager {
 // than hanging into it. A box carried over from the line before starts
 // flush, as a browser slices one.
 final class RichTextContainer: NSTextContainer {
-  var padX: CGFloat = 4
-
   override var isSimpleRectangularTextContainer: Bool { false }
 
   override func lineFragmentRect(
@@ -148,22 +151,24 @@ final class RichTextContainer: NSTextContainer {
     var rect = super.lineFragmentRect(
       forProposedRect: proposedRect, at: characterIndex,
       writingDirection: baseWritingDirection, remaining: remainingRect)
-    if let storage = layoutManager?.textStorage, startsBox(storage, at: characterIndex) {
-      rect.origin.x += padX
-      rect.size.width -= padX
+    if let storage = layoutManager?.textStorage {
+      let indent = startingPad(storage, at: characterIndex)
+      rect.origin.x += indent
+      rect.size.width -= indent
     }
     return rect
   }
 
-  private func startsBox(_ storage: NSTextStorage, at index: Int) -> Bool {
-    guard index < storage.length else { return false }
+  // The widest pad of the boxes that start at a character.
+  private func startingPad(_ storage: NSTextStorage, at index: Int) -> CGFloat {
+    guard index < storage.length else { return 0 }
+    var pad: CGFloat = 0
     for key in [NSAttributedString.Key.stoopSpoiler, .stoopFill] {
       guard let box = storage.attribute(key, at: index, effectiveRange: nil) as? FillBox else { continue }
-      if index == 0 { return true }
-      let before = storage.attribute(key, at: index - 1, effectiveRange: nil) as? FillBox
-      if before != box { return true }
+      let before = index == 0 ? nil : storage.attribute(key, at: index - 1, effectiveRange: nil) as? FillBox
+      if before != box { pad = max(pad, box.pad) }
     }
-    return false
+    return pad
   }
 }
 
@@ -174,18 +179,17 @@ final class RichLayout {
   let manager: RichLayoutManager
   let container: RichTextContainer
   let width: CGFloat
-  private let padX: CGFloat
+  // How far outside a glyph a tap still counts: past the widest box's pad.
+  private let slop: CGFloat
 
   init(doc: RichDoc, width: CGFloat) {
     self.width = width
-    padX = CGFloat(doc.padX)
+    slop = CGFloat(doc.runs.reduce(doc.spoilerPad) { max($0, $1.fillPad) }) + 2
     storage = NSTextStorage(attributedString: RichLayout.attributed(doc))
     manager = RichLayoutManager()
-    manager.padX = padX
     manager.radius = CGFloat(doc.radius)
     manager.usesFontLeading = false
     container = RichTextContainer(size: CGSize(width: max(1, width), height: .greatestFiniteMagnitude))
-    container.padX = padX
     container.lineFragmentPadding = 0
     manager.addTextContainer(container)
     storage.addLayoutManager(manager)
@@ -209,13 +213,13 @@ final class RichLayout {
     let glyph = manager.glyphIndex(for: point, in: container, fractionOfDistanceThroughGlyph: &fraction)
     guard glyph < manager.numberOfGlyphs else { return nil }
     let rect = manager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
-    guard rect.insetBy(dx: -padX - 2, dy: -2).contains(point) else { return nil }
+    guard rect.insetBy(dx: -slop, dy: -2).contains(point) else { return nil }
     return manager.characterIndexForGlyph(at: glyph)
   }
 
-  // Rects, in view space, for a character range.
+  // Rects, in view space, for a character range: one per line.
   func rects(forCharacterRange range: NSRange) -> [CGRect] {
-    manager.boxRects(forCharacterRange: range, in: container)
+    manager.boxRects(forCharacterRange: range, pad: 0, in: container)
   }
 
   static func font(_ run: RichRun) -> UIFont {
@@ -247,20 +251,23 @@ final class RichLayout {
     // the body font, one offset for the whole paragraph.
     let body = UIFont.systemFont(ofSize: CGFloat(doc.bodySize))
     let baselineOffset = max(0, (lineHeight - body.lineHeight) / 2)
-    let padX = CGFloat(doc.padX)
 
     for run in doc.runs {
       var attrs: [NSAttributedString.Key: Any] = [
         .font: font(run),
         .paragraphStyle: paragraph,
         .baselineOffset: baselineOffset,
-        .foregroundColor: run.covered ? UIColor.clear : (run.color ?? doc.textColor),
       ]
+      if let color = run.covered ? UIColor.clear : (run.color ?? doc.textColor) {
+        attrs[.foregroundColor] = color
+      }
       if run.underline { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
       if run.strike { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-      if let fill = run.fill, let id = run.fillId { attrs[.stoopFill] = FillBox(id: id, color: fill) }
+      if let fill = run.fill, let id = run.fillId {
+        attrs[.stoopFill] = FillBox(id: id, color: fill, pad: CGFloat(run.fillPad))
+      }
       if let id = run.spoiler, let fill = run.spoilerFill {
-        attrs[.stoopSpoiler] = FillBox(id: id, color: fill)
+        attrs[.stoopSpoiler] = FillBox(id: id, color: fill, pad: CGFloat(doc.spoilerPad))
         if run.covered { attrs[.stoopCovered] = id }
       }
       if let link = run.link, let id = run.linkId {
@@ -275,15 +282,15 @@ final class RichLayout {
     let text = out.string as NSString
     for key in [NSAttributedString.Key.stoopSpoiler, .stoopFill] {
       out.enumerateAttribute(key, in: whole) { value, range, _ in
-        guard value != nil else { return }
+        guard let box = value as? FillBox else { return }
         if range.location > 0, text.character(at: range.location - 1) != 10 {
           let before = text.rangeOfComposedCharacterSequence(at: range.location - 1)
           let kern = (out.attribute(.kern, at: before.location, effectiveRange: nil) as? CGFloat) ?? 0
-          out.addAttribute(.kern, value: kern + padX, range: before)
+          out.addAttribute(.kern, value: kern + box.pad, range: before)
         }
         let last = text.rangeOfComposedCharacterSequence(at: NSMaxRange(range) - 1)
         let kern = (out.attribute(.kern, at: last.location, effectiveRange: nil) as? CGFloat) ?? 0
-        out.addAttribute(.kern, value: kern + padX, range: last)
+        out.addAttribute(.kern, value: kern + box.pad, range: last)
       }
     }
     return out

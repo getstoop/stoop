@@ -84,6 +84,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       color: theme[me ? markdown.mentionMeColor : markdown.mentionColor],
       fill: theme[me ? markdown.mentionMeBg : markdown.mentionBg],
       fillId: nextFill++,
+      fillPad: markdown.mentionPadX,
       ...(link ? { link: link.url, linkId: link.id, linkHidden: undefined } : {}),
     });
 
@@ -115,6 +116,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
             size: size * markdown.codeScale,
             fill: theme[markdown.codeBg],
             fillId: nextFill++,
+            fillPad: markdown.codePadX,
           });
         case "mention":
           if (context.covered) return push(coverText(mentionText(node.mention)), context);
@@ -147,12 +149,14 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
           const covered = context.covered || isCovered(at);
           const id = spoilers.length;
           spoilers.push(at);
-          // Under a cover, nothing is a link.
+          // Under a cover, nothing is a link. A spoiler inside a covered
+          // one is part of its cover: its words carry the outer id, so a
+          // tap on them reveals what covers them.
           return draw(node.children, at, {
             ...context,
             covered,
             link: covered ? undefined : context.link,
-            spoiler: { id, covered },
+            spoiler: context.spoiler?.covered ? context.spoiler : { id, covered },
           });
         }
         default:
@@ -180,7 +184,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       lineHeight,
       bodySize: size,
       textColor: theme.text,
-      padX: markdown.mentionPadX,
+      spoilerPad: markdown.spoilerPadX,
       radius: tokens.radiusSm,
       label,
     },

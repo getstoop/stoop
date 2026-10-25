@@ -16,7 +16,8 @@
       "@bufbuild/protobuf": ["./node_modules/@bufbuild/protobuf/dist/esm"],
       "@bufbuild/protobuf/*": ["./node_modules/@bufbuild/protobuf/dist/esm/*"],
       // The app's unit tests run with web's Vitest (web/vitest.config.ts),
-      // so its types come from web's install, which `make lint` makes first.
+      // so its types come from web's install (`make mobile-typecheck`
+      // installs it first).
       "vitest": ["../web/node_modules/vitest"]
     }
   },
