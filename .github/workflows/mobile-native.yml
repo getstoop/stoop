@@ -4,28 +4,22 @@ name: Mobile native build
 # iOS, including our own module (mobile/modules/stoop-rich-text). Run by
 # hand, not on every pull request: the iOS job needs a macOS runner.
 #
-#   gh workflow run mobile-native.yml -f branch=<branch>
+#   gh workflow run mobile-native.yml --ref <branch>
 #
-# or Actions → Mobile native build → Run workflow. Both jobs are debug
-# builds, which skip bundling the JavaScript; nothing is signed or kept.
+# or Actions → Mobile native build → Run workflow, picking the branch in
+# "Use workflow from". The run is on that branch, so its caches are that
+# branch's: a build of a branch never writes a cache main reads. Both jobs
+# are debug builds, which skip bundling the JavaScript; nothing is signed
+# or kept.
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: Branch, tag or commit to build
-        type: string
-        required: true
-        default: main
 
 permissions:
   contents: read
 
-# No caches: the run checks out whatever branch it is given, and a cache it
-# saved would be read by builds of main. Every run starts cold.
-
 # A second run for the same branch replaces the first.
 concurrency:
-  group: mobile-native-${{ inputs.branch }}
+  group: mobile-native-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,18 +32,19 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.branch }}
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+          cache: pnpm
+          cache-dependency-path: mobile/pnpm-lock.yaml
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: 17
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec expo prebuild --platform android --clean
       # The runner's SDK is used as is; Gradle fetches the NDK and platform
@@ -70,14 +65,19 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.branch }}
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 11
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+          cache: pnpm
+          cache-dependency-path: mobile/pnpm-lock.yaml
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('mobile/pnpm-lock.yaml') }}
+          restore-keys: pods-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       # Prebuild runs pod install.
       - run: pnpm exec expo prebuild --platform ios --clean

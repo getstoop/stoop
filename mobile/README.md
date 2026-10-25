@@ -456,10 +456,11 @@ simulator (`xcodebuild`, unsigned), from a fresh prebuild. Run it on a
 branch that changes native code, a module or the Expo SDK:
 
 ```sh
-gh workflow run mobile-native.yml -f branch=<branch>
+gh workflow run mobile-native.yml --ref <branch>
 ```
 
-or from the Actions tab (Mobile native build → Run workflow), and
+or from the Actions tab (Mobile native build → Run workflow, the branch
+in "Use workflow from"), and
 follow it with `gh run watch`.
 
 After the first install, `make mobile-metro` (or `pnpm start` in
