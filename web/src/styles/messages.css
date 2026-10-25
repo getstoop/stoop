@@ -275,7 +275,7 @@
 /* Emoji among words, a little larger than the text without raising the
    line. Large emoji keep their own size. */
 .emoji {
-  font-size: 1.4em;
+  font-size: calc(var(--md-emoji-scale) * 1em);
   line-height: 1;
   vertical-align: -0.1em;
 }

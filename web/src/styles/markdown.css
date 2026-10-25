@@ -26,8 +26,10 @@
   --md-quote-color: var(--text-muted);
   --md-quote-pad-y: 2px;
   --md-quote-pad-x: 12px;
+  --md-quote-margin-y: 2px;
 
   --md-list-indent: 24px;
+  --md-list-margin-y: 2px;
 
   --md-spoiler-bg: var(--raised);
   --md-spoiler-pad-x: 4px;
@@ -42,7 +44,9 @@
   --md-mention-me-bg: var(--accent);
   --md-mention-me-color: var(--on-accent);
 
-  /* A message that is only emoji, against the text size. */
+  /* Emoji among words (messages.css), and a message that is only emoji,
+     against the text size. */
+  --md-emoji-scale: 1.4;
   --md-emoji-only-scale: 2;
 }
 
@@ -69,7 +73,7 @@
 
 .md-quote {
   display: block;
-  margin: 2px 0;
+  margin: var(--md-quote-margin-y) 0;
   padding: var(--md-quote-pad-y) var(--md-quote-pad-x);
   border-left: var(--md-quote-bar-width) solid var(--md-quote-bar-color);
   color: var(--md-quote-color);
@@ -85,7 +89,7 @@
    document, and a bulleted line shouldn't push its neighbours apart. */
 .md-list {
   display: block;
-  margin: 2px 0;
+  margin: var(--md-list-margin-y) 0;
   padding-left: var(--md-list-indent);
 }
 

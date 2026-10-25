@@ -92,20 +92,33 @@ if (themeList.length !== Object.keys(themes).length) {
 }
 
 // The values message Markdown is drawn with: the first block of
-// markdown.css, every name in it --md-*.
-const mdBlock = read("web/src/styles/markdown.css").match(/:root,\s*\[data-theme\]\s*\{([^}]*)\}/);
+// markdown.css, every name in it --md-*, and no --md-* named anywhere
+// else (a value outside the block would never reach the app).
+const uncomment = (css) => css.replace(/\/\*[\s\S]*?\*\//g, "");
+const markdownCss = uncomment(read("web/src/styles/markdown.css"));
+const mdBlock = markdownCss.match(/:root,\s*\[data-theme\]\s*\{([^}]*)\}/);
 if (!mdBlock) throw new Error("markdown.css has no :root, [data-theme] block");
+for (const [file, css] of [
+  ["markdown.css", markdownCss.replace(mdBlock[0], "")],
+  ["messages.css", uncomment(read("web/src/styles/messages.css"))],
+]) {
+  const stray = css.match(/--md-[a-z0-9-]+\s*:/);
+  if (stray) throw new Error(`${file}: ${stray[0]} is declared outside markdown.css's --md-* block`);
+}
+const colour = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\))$/i;
 const markdown = {};
-for (const [k, v] of declarations(mdBlock[1].replace(/\/\*[\s\S]*?\*\//g, ""))) {
+for (const [k, v] of declarations(mdBlock[1])) {
   if (!k.startsWith("md-")) throw new Error(`markdown.css: --${k} is not an --md-* name`);
   const key = camel(k.slice(3));
-  const number = v.match(/^([0-9.]+)(px)?$/);
+  const number = v.match(/^(\d*\.?\d+)(px)?$/);
   const ref = v.match(/^var\(--([a-z-]+)\)$/);
   if (number) {
     markdown[key] = Number(number[1]);
   } else if (ref) {
     for (const [name, theme] of Object.entries(themes)) {
-      if (!(camel(ref[1]) in theme)) throw new Error(`markdown.css: --${k} names --${ref[1]}, which ${name} lacks`);
+      if (!colour.test(theme[camel(ref[1])] ?? "")) {
+        throw new Error(`markdown.css: --${k} names --${ref[1]}, which is not a colour in ${name}`);
+      }
     }
     markdown[key] = camel(ref[1]);
   } else {

@@ -814,7 +814,9 @@ export const markdown = {
   "quoteColor": "textMuted",
   "quotePadY": 2,
   "quotePadX": 12,
+  "quoteMarginY": 2,
   "listIndent": 24,
+  "listMarginY": 2,
   "spoilerBg": "raised",
   "spoilerPadX": 4,
   "linkColor": "accent",
@@ -824,5 +826,6 @@ export const markdown = {
   "mentionWeight": 600,
   "mentionMeBg": "accent",
   "mentionMeColor": "onAccent",
+  "emojiScale": 1.4,
   "emojiOnlyScale": 2
 } as const;
