@@ -8,7 +8,7 @@ import { markdown, tokens } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
 import { anyCovered, coveredIn, linePath, mentionWords, type Node, nodePath, type Parsed, spoken } from "./lines";
 
-// A message as the styled runs our TextKit view draws (NativeBody,
+// A message as the styled runs our native view draws (NativeBody,
 // modules/stoop-rich-text), from the same parser tree and by the same
 // rules as ReactNativeBody (index.tsx): the view gets the marks resolved,
 // never Markdown.

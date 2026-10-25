@@ -11,8 +11,9 @@ import { buildDoc } from "./native";
 const COVER = "spoiler, double tap to reveal";
 const NO_PATHS: ReadonlySet<string> = new Set();
 
-// MessageBody drawn by our TextKit view (modules/stoop-rich-text), which
-// gives pills, code and spoilers web's rounded, padded boxes. The words
+// MessageBody drawn by our native view (modules/stoop-rich-text: TextKit
+// on iOS, a StaticLayout on Android), which gives pills, code and
+// spoilers web's rounded, padded boxes. The words
 // are measured synchronously at the width the row will give them (the
 // window's less the place's inset, insets.ts), so the row renders at its
 // height the first time; onLayout corrects that width when it was wrong.

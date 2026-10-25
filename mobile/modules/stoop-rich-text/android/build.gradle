@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'org.getstoop'
+version = '0.0.1'
+
+android {
+  namespace "org.getstoop.richtext"
+  defaultConfig {
+    versionCode 1
+    versionName "0.0.1"
+  }
+}
+
+dependencies {
+  // React Native itself, already in the app, for androidx's
+  // ExploreByTouchHelper (customview), which it brings and uses.
+  implementation 'com.facebook.react:react-android'
+}
