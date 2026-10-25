@@ -1,6 +1,7 @@
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
+import type { MentionChannels } from "./mentions";
 
 // The header a channel screen shows beside its messages, and what a
 // realtime event does to it. The mobile app's channel screen holds one
@@ -8,12 +9,15 @@ import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 // its query cache.
 
 // The channel and its space for the title, how many can read it (the
-// space's members, or a private channel's), and who is reading.
+// space's members, or a private channel's), who is reading, and the
+// channels a channel link in a message may open (linkableChannels: none
+// in a private channel), as the header was fetched.
 export type ChannelHeader = {
   space: Space;
   channel: Channel;
   memberCount: number;
   myUserId: string;
+  channels: MentionChannels;
 };
 
 // Whether an event means the reader can no longer see the channel: it, or

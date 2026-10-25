@@ -6,8 +6,8 @@ import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
+import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
-import MessageText from "./MessageText";
 import ThreadLine from "./ThreadLine";
 
 const AVATAR = 36;
@@ -93,7 +93,15 @@ export default memo(function MessageRow({
   const body = (
     <>
       {message.content !== "" && (
-        <MessageText content={message.content} myUserId={myUserId} edited={!!message.editedAt} onLongPress={hold} />
+        <MessageBody
+          content={message.content}
+          myUserId={myUserId}
+          edited={!!message.editedAt}
+          mentionsEntireChannel={message.mentionsEntireChannel}
+          mentionsHere={message.mentionsHere}
+          onLongPress={hold}
+          compact={card}
+        />
       )}
       {message.attachments.map((file) => (
         <Text key={file.fileId} style={styles.file} numberOfLines={1}>

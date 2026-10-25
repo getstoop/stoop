@@ -9,6 +9,7 @@ import { useUploadCap } from "../../api/files";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
+import { ChannelLinksContext } from "../../components/MessageBody/channelLinks";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -20,6 +21,7 @@ import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import Unavailable from "./Unavailable";
 import { olderFits } from "./channelEngine";
+import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
 import { useMessageActions } from "./useMessageActions";
 
@@ -152,6 +154,7 @@ export default function Channel({
     items,
   });
   const { menuFor, menuMessage } = actions;
+  const links = useChannelLinks(server, spaceId, channelId, header);
   // And Reply in thread pushes the thread then.
   useEffect(() => {
     const rootId = threadAfterMenu.current;
@@ -212,60 +215,62 @@ export default function Channel({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <FlatList
-            ref={list}
-            inverted
-            data={items}
-            keyExtractor={(item) => item.key}
-            renderItem={({ item }) =>
-              item.kind === "message" ? (
-                <MessageRow
-                  message={item.message}
-                  continued={item.continued}
-                  myUserId={myUserId}
-                  origin={server.origin}
-                  token={token}
-                  onLongPress={actions.openMenu}
-                  onOpenThread={openThread}
-                  onOpenOrigin={openOrigin}
-                  target={actions.targetOf(item.message)}
-                />
-              ) : (
-                <Divider label={item.label} fresh={item.kind === "new"} />
-              )
-            }
-            onEndReached={older}
-            onEndReachedThreshold={0.5}
-            onScrollToIndexFailed={({ index }) => {
-              // Rows not measured yet: get near, then try again once drawn.
-              list.current?.scrollToOffset({ offset: index * 60, animated: false });
-              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
-            }}
-            // On a drag, not interactively: the card follows the keyboard's
-            // hide event, which iOS posts only at the end of an interactive
-            // drag, so the card would float over an empty strip while the
-            // keyboard followed the finger. Following it needs
-            // react-native-keyboard-controller, a follow-up.
-            keyboardDismissMode="on-drag"
-            // Drawn upside down, so the top padding is the bottom edge: the
-            // list scrolls under the composer, and its newest message clears it.
-            contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
-            // Rows in view stay put when that padding changes (the composer
-            // growing a line) and when a row arrives, unless the reader is at
-            // the newest edge, where the list follows it.
-            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
-            ListFooterComponent={
-              loadingOlder ? (
-                <ActivityIndicator style={styles.edge} color={theme.textMuted} />
-              ) : !hasOlder ? (
-                <Text style={styles.beginning}>
-                  {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
-                </Text>
-              ) : !olderFits(log) ? (
-                <Text style={styles.beginning}>Showing the latest {messages.length.toLocaleString()} messages.</Text>
-              ) : undefined
-            }
-          />
+          <ChannelLinksContext.Provider value={links}>
+            <FlatList
+              ref={list}
+              inverted
+              data={items}
+              keyExtractor={(item) => item.key}
+              renderItem={({ item }) =>
+                item.kind === "message" ? (
+                  <MessageRow
+                    message={item.message}
+                    continued={item.continued}
+                    myUserId={myUserId}
+                    origin={server.origin}
+                    token={token}
+                    onLongPress={actions.openMenu}
+                    onOpenThread={openThread}
+                    onOpenOrigin={openOrigin}
+                    target={actions.targetOf(item.message)}
+                  />
+                ) : (
+                  <Divider label={item.label} fresh={item.kind === "new"} />
+                )
+              }
+              onEndReached={older}
+              onEndReachedThreshold={0.5}
+              onScrollToIndexFailed={({ index }) => {
+                // Rows not measured yet: get near, then try again once drawn.
+                list.current?.scrollToOffset({ offset: index * 60, animated: false });
+                setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+              }}
+              // On a drag, not interactively: the card follows the keyboard's
+              // hide event, which iOS posts only at the end of an interactive
+              // drag, so the card would float over an empty strip while the
+              // keyboard followed the finger. Following it needs
+              // react-native-keyboard-controller, a follow-up.
+              keyboardDismissMode="on-drag"
+              // Drawn upside down, so the top padding is the bottom edge: the
+              // list scrolls under the composer, and its newest message clears it.
+              contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
+              // Rows in view stay put when that padding changes (the composer
+              // growing a line) and when a row arrives, unless the reader is at
+              // the newest edge, where the list follows it.
+              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
+              ListFooterComponent={
+                loadingOlder ? (
+                  <ActivityIndicator style={styles.edge} color={theme.textMuted} />
+                ) : !hasOlder ? (
+                  <Text style={styles.beginning}>
+                    {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
+                  </Text>
+                ) : !olderFits(log) ? (
+                  <Text style={styles.beginning}>Showing the latest {messages.length.toLocaleString()} messages.</Text>
+                ) : undefined
+              }
+            />
+          </ChannelLinksContext.Provider>
         )}
         composer={
           <Composer

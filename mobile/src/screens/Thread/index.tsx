@@ -9,6 +9,7 @@ import { hostOf } from "../../api/probe";
 import { errorText } from "../../api/errors";
 import { useUploadCap } from "../../api/files";
 import { threadMessageLink } from "../../api/shareLinks";
+import { ChannelLinksContext } from "../../components/MessageBody/channelLinks";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -18,6 +19,7 @@ import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
 import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
+import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
 import { useMessageActions } from "../Channel/useMessageActions";
@@ -156,6 +158,7 @@ export default function Thread({
     items: rows,
   });
   const { send, edit, muteThread } = engine;
+  const links = useChannelLinks(server, spaceId, channelId, header, true);
   // A mute asked for: the bell waits for the server's answer, as web's,
   // and a second tap meanwhile does nothing. Each tap turns over what
   // the log holds as it lands, not what the header was drawn with.
@@ -262,55 +265,57 @@ export default function Thread({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <FlatList
-            ref={list}
-            inverted
-            data={rows}
-            keyExtractor={(row) => row.key}
-            renderItem={({ item }) =>
-              item.kind === "message" ? (
-                <MessageRow
-                  message={item.message}
-                  continued={item.continued}
-                  myUserId={myUserId}
-                  origin={server.origin}
-                  token={token}
-                  onLongPress={actions.openMenu}
-                  target={actions.targetOf(item.message)}
-                  alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
-                  withDay
-                />
-              ) : (
-                <Divider label={item.label} fresh={item.kind === "new"} />
-              )
-            }
-            onEndReached={() => engine.olderReplies(rootId)}
-            onEndReachedThreshold={0.5}
-            onScrollToIndexFailed={({ index }) => {
-              // Rows not measured yet: get near, then try again once drawn.
-              list.current?.scrollToOffset({ offset: index * 60, animated: false });
-              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
-            }}
-            // As the channel's: on a drag, the card following the keyboard.
-            keyboardDismissMode="on-drag"
-            // Drawn upside down, so the top padding is the bottom edge.
-            contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
-            ListFooterComponent={
-              thread?.loadingOlder ? (
-                <ActivityIndicator style={styles.edge} color={theme.textMuted} />
-              ) : atTop ? (
-                <ThreadHead
-                  root={root}
-                  myUserId={myUserId}
-                  origin={server.origin}
-                  token={token}
-                  onLongPress={actions.openMenu}
-                  target={actions.targetOf(root)}
-                />
-              ) : undefined
-            }
-          />
+          <ChannelLinksContext.Provider value={links}>
+            <FlatList
+              ref={list}
+              inverted
+              data={rows}
+              keyExtractor={(row) => row.key}
+              renderItem={({ item }) =>
+                item.kind === "message" ? (
+                  <MessageRow
+                    message={item.message}
+                    continued={item.continued}
+                    myUserId={myUserId}
+                    origin={server.origin}
+                    token={token}
+                    onLongPress={actions.openMenu}
+                    target={actions.targetOf(item.message)}
+                    alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
+                    withDay
+                  />
+                ) : (
+                  <Divider label={item.label} fresh={item.kind === "new"} />
+                )
+              }
+              onEndReached={() => engine.olderReplies(rootId)}
+              onEndReachedThreshold={0.5}
+              onScrollToIndexFailed={({ index }) => {
+                // Rows not measured yet: get near, then try again once drawn.
+                list.current?.scrollToOffset({ offset: index * 60, animated: false });
+                setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+              }}
+              // As the channel's: on a drag, the card following the keyboard.
+              keyboardDismissMode="on-drag"
+              // Drawn upside down, so the top padding is the bottom edge.
+              contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
+              ListFooterComponent={
+                thread?.loadingOlder ? (
+                  <ActivityIndicator style={styles.edge} color={theme.textMuted} />
+                ) : atTop ? (
+                  <ThreadHead
+                    root={root}
+                    myUserId={myUserId}
+                    origin={server.origin}
+                    token={token}
+                    onLongPress={actions.openMenu}
+                    target={actions.targetOf(root)}
+                  />
+                ) : undefined
+              }
+            />
+          </ChannelLinksContext.Provider>
         )}
         composer={
           closed ? (

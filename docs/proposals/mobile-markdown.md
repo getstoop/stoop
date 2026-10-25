@@ -2,7 +2,8 @@
 
 Status: draft 2026-10-24, shape agreed with the operator the same day
 (Decisions). Step 1 (shared values + drift check) built on branch
-`mobile-markdown-values`, not yet merged. Plane STOOP-517, under STOOP-518 (timeline parity with web).
+`mobile-markdown-values`, not yet merged; step 2 (inline marks) built on
+`mobile-markdown-inline`, stacked on it, not yet merged. Plane STOOP-517, under STOOP-518 (timeline parity with web).
 Design: no new artboards. The look is web's, carried over through shared
 values (step 1), and checked on the phone.
 

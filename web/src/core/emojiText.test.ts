@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emojiOnly, splitEmoji } from "./emojiText";
+import { clusters, emojiOnly, splitEmoji } from "./emojiText";
 
 describe("emojiOnly", () => {
   it("takes emoji with spaces between them", () => {
@@ -38,5 +38,25 @@ describe("splitEmoji", () => {
       { text: " work ", emoji: false },
       { text: "🇳🇿", emoji: true },
     ]);
+  });
+});
+
+describe("clusters", () => {
+  // The app's split, without Intl.Segmenter, agrees with it here.
+  it("splits as the segmenter does", () => {
+    const segmenter = new Intl.Segmenter(undefined, {
+      granularity: "grapheme",
+    });
+    for (const sample of [
+      "nice 🎉👍🏽 work 🇳🇿",
+      "👩‍👩‍👧‍👦🇳🇿1️⃣ #️⃣",
+      "❤️ \u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F} 🧑🏾‍🚀",
+      "café ok",
+      "plain words 123",
+    ]) {
+      expect(clusters(sample)).toEqual(
+        Array.from(segmenter.segment(sample), ({ segment }) => segment),
+      );
+    }
   });
 });

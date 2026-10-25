@@ -9,7 +9,8 @@
 // muted. In chapter-nine ada started a thread that dee has replied to
 // four times, the last two since ada read it, and dee's question after it
 // has no thread yet; ada has read the channel. bea has an account but no
-// space; cleo has neither and arrives through the invite.
+// space; cleo has neither and arrives through the invite. formatting
+// holds ada's messages in Markdown, read.
 
 import { BASE, seed } from "../../web/e2e/seed.mjs";
 
@@ -101,6 +102,33 @@ const { message: question } = await rpc(
   dee,
 );
 await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: nine.channel.id, messageId: question.id }, ada);
+
+// In formatting, ada's own messages in Markdown, all read by her: every
+// inline mark with a link, a channel link to random, @here and dee
+// mentioned, emoji among the words; a message that is one long spoiler;
+// and one of only emoji (markdown.yaml).
+const formatting = await rpc(
+  "chat.v1.ChatService/CreateChannel",
+  { spaceId: s.space.id, name: "formatting", kind: "CHANNEL_KIND_TEXT" },
+  ada,
+);
+const formatted = [
+  "**Bold** *italic* __underline__ ~~strike~~ `code` and [the docs](https://example.com), " +
+    `over in <#${s.channels.random}:random> for @here and <@u:${s.ids.dee}:dee${s.suffix}>, ` +
+    "with a tree 🌳 among the words of a line long enough to wrap",
+  "||The narrator was the oldest tree in the forest all along, and nobody guessed it 🍂||",
+  "🌳🍂",
+];
+let lastFormatted;
+for (const content of formatted) {
+  const sent = await rpc("chat.v1.ChatService/SendMessage", { channelId: formatting.channel.id, content }, ada);
+  lastFormatted = sent.message;
+}
+await rpc(
+  "chat.v1.ChatService/MarkChannelRead",
+  { channelId: formatting.channel.id, messageId: lastFormatted.id },
+  ada,
+);
 
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);

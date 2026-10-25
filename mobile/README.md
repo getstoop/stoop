@@ -464,7 +464,9 @@ message from its menu, cancel an edit and see Save refuse an emptied
 one (and keep a mention's token), open a thread from its replies line
 and from Reply in thread and read it while a reply arrives, reply in a
 thread, also to the channel, and edit, react and delete there, mute a
-thread and see a reply in it counted as nothing new, attach a photo
+thread and see a reply in it counted as nothing new, read messages in
+Markdown (the marks, a spoiler revealed on a tap, a channel link that
+opens the channel, an emoji-only message), attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it
@@ -486,9 +488,9 @@ flow has ada write in chapters, message-actions has dee write there
 reply there (and delete the reply) and dee post and delete "Going
 once", and edit has ada write there over RPC and delete what she wrote,
 which the channel flow needs unread for ada with dee's first
-notes alone, so the channel flow goes first. The attach flow has ada
-read and write in random, which the space-channels flow needs unread,
-so it goes last.
+notes alone, so the channel flow goes first. The Markdown flow opens
+random from a channel link and the attach flow has ada read and write
+there, which the space-channels flow needs unread, so they go last.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on

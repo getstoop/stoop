@@ -12,6 +12,7 @@ import {
   losesChannel,
   withHeaderEvent,
 } from "./channelHeader";
+import { NO_CHANNELS } from "./mentions";
 
 const event = (
   payload: MessageInitShape<typeof ServerEventSchema>["payload"],
@@ -22,6 +23,7 @@ const header = (init: Partial<ChannelHeader> = {}): ChannelHeader => ({
   channel: create(ChannelSchema, { id: "c1", name: "general" }),
   memberCount: 3,
   myUserId: "me",
+  channels: NO_CHANNELS,
   ...init,
 });
 

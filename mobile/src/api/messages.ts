@@ -1,11 +1,12 @@
 import type { ChannelHeader } from "@stoop/core/channelHeader";
+import { linkableChannels, NO_CHANNELS } from "@stoop/core/mentions";
 import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { authClient, chatClient } from "./clients";
 
 // A channel's screen: the channel and its space for the title, how many
 // people can read it, who is reading (for the "New" line and what
-// mentions them), and the pages and changes of its channel log
+// mentions them), the space's channels a message's channel link opens, and the pages and changes of its channel log
 // (core/channelLog): the newest page on opening, older pages as the
 // reader scrolls up, and ListChanges from the position held after a
 // reconnect or a gap in the events), a thread's replies and its root,
@@ -39,7 +40,9 @@ export async function loadHeader(
   const memberCount = channel.private
     ? (await chat.listChannelMembers({ channelId }, options)).userIds.length
     : (await chat.listMembers({ spaceId }, options)).members.length;
-  return { space, channel, memberCount, myUserId: user.id };
+  // A private channel's links stay text, as on web.
+  const linkable = channel.private ? NO_CHANNELS : linkableChannels(channels);
+  return { space, channel, memberCount, myUserId: user.id, channels: linkable };
 }
 
 // The header and the newest page together, for opening.

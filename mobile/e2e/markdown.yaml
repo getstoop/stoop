@@ -1,0 +1,77 @@
+appId: ${APP_ID}
+name: Read messages in Markdown, reveal a spoiler and open a channel from its link
+---
+# formatting (seed.mjs): ada's marks message, her long spoiler and her
+# emoji-only message, all read. A message's words are one element read as
+# a whole; its links are elements of their own.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "formatting"
+    timeout: 15000
+- tapOn: "formatting"
+- extendedWaitUntil:
+    visible: "formatting, ${SPACE}, \\d+ members"
+    timeout: 15000
+# The marks drawn, not their markers: the words read without a * or a
+# backtick, the mentions and the channel link as their names.
+- assertVisible: "Bold italic underline strike code and the docs, over in #random for @here and @${POSTER}, with a tree 🌳 among the words of a line long enough to wrap"
+# The link and the channel link are links of their own.
+- assertVisible: "the docs"
+- assertVisible: "#random"
+# The emoji-only message.
+- assertVisible: "🌳🍂"
+# The spoiler is covered, its words not read out, until a tap reveals it.
+- assertVisible: "spoiler, double tap to reveal"
+- assertNotVisible: ".*oldest tree.*"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn: "spoiler, double tap to reveal"
+- extendedWaitUntil:
+    visible: "The narrator was the oldest tree in the forest all along, and nobody guessed it 🍂"
+    timeout: 5000
+- assertNotVisible: "spoiler, double tap to reveal"
+# The channel link opens random.
+- tapOn: "#random"
+- extendedWaitUntil:
+    visible: "random, ${SPACE}, \\d+ members"
+    timeout: 15000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "formatting, ${SPACE}, \\d+ members"
+    timeout: 15000
+# A long press on a link is the row's: the message menu opens, not the link.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "the docs"
+- extendedWaitUntil:
+    visible: "Quote in reply"
+    timeout: 5000
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
