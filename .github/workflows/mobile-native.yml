@@ -20,10 +20,16 @@ on:
 permissions:
   contents: read
 
+# A second run for the same branch replaces the first.
+concurrency:
+  group: mobile-native-${{ inputs.branch }}
+  cancel-in-progress: true
+
 jobs:
   android:
     name: Android compile
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: mobile
@@ -43,9 +49,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      # Writes its cache only on a run dispatched from main (the default
-      # for gh workflow run); other runs read it.
+      # Only a build of main writes the Gradle cache; building another
+      # branch reads it.
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: ${{ inputs.branch != 'main' }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec expo prebuild --platform android --clean
       # The runner's SDK is used as is; Gradle fetches the NDK and platform
@@ -60,6 +68,7 @@ jobs:
     # A standard hosted label only: larger macOS runners are billed even
     # on public repositories.
     runs-on: macos-26
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
