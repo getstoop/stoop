@@ -228,6 +228,7 @@ export default function Channel({
                   onLongPress={actions.openMenu}
                   onOpenThread={openThread}
                   onOpenOrigin={openOrigin}
+                  onReact={actions.reactTo}
                   target={actions.targetOf(item.message)}
                 />
               ) : (
