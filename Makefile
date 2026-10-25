@@ -122,8 +122,9 @@ migrate-new:
 
 # ---- Phone app -------------------------------------------------------------
 # mobile/ (README there). Kept out of test and build: they need Xcode or
-# the Android SDK, and CI has neither yet. Lint typechecks it, which needs
-# only Node: it shares web/src/core and web/src/gen as source.
+# the Android SDK. Lint typechecks it, which needs only Node: it shares
+# web/src/core and web/src/gen as source. The native compile runs in
+# GitHub Actions by hand (.github/workflows/mobile-native.yml).
 
 ## mobile-prebuild: regenerate mobile/ios and mobile/android from app.json
 ## (both are generated and gitignored)

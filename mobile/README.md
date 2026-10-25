@@ -450,6 +450,19 @@ draws a message's paragraph (`docs/proposals/mobile-markdown.md` →
 Tech). Expo links it on its own; a change to its Swift or Kotlin needs a
 native rebuild, not only Metro.
 
+CI typechecks the app but does not compile its native code. A workflow
+run by hand does: debug builds for Android (Gradle) and the iOS
+simulator (`xcodebuild`, unsigned), from a fresh prebuild. Run it on a
+branch that changes native code, a module or the Expo SDK:
+
+```sh
+gh workflow run mobile-native.yml --ref <branch>
+```
+
+or from the Actions tab (Mobile native build → Run workflow, the branch
+in "Use workflow from"), and
+follow it with `gh run watch`.
+
 After the first install, `make mobile-metro` (or `pnpm start` in
 `mobile/`) serves JavaScript to a build already on the phone, with no
 native rebuild.
