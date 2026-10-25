@@ -1,5 +1,6 @@
 // How much narrower than the window a message's words are, in each place
-// that draws a message. On iOS the words are measured before they are laid
+// that draws a message. Where our native view draws them (NativeBody, on
+// iOS and Android) the words are measured before they are laid
 // out (NativeBody), at the window's width less this, so a row renders at
 // its height the first time; a wrong inset still lays out right, a frame
 // later and with a jump, once onLayout reports the real width.

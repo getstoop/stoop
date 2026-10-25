@@ -8,7 +8,7 @@ import { markdown, tokens } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
 import { anyCovered, coveredIn, linePath, mentionWords, type Node, nodePath, type Parsed, spoken } from "./lines";
 
-// A message as the styled runs our TextKit view draws (NativeBody,
+// A message as the styled runs our native view draws (NativeBody,
 // modules/stoop-rich-text), from the same parser tree and by the same
 // rules as ReactNativeBody (index.tsx): the view gets the marks resolved,
 // never Markdown.
@@ -20,6 +20,20 @@ const coverText = (text: string) =>
   splitEmoji(text)
     .map((run) => (run.emoji ? EM_SPACE.repeat(clusters(run.text).length) : run.text))
     .join("");
+
+// A link's id, from its node's path in the parse rather than a count, so
+// it stays the same when a reveal or the channel list arriving changes
+// which links come before it: the native views key their screen reader
+// elements on it (Android's virtual view ids), and focus stays put. A
+// 30-bit FNV-1a hash, so the views can add to it and keep an Int.
+export function linkId(path: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < path.length; index++) {
+    hash ^= path.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0) & 0x3fffffff;
+}
 
 type Context = {
   covered: boolean;
@@ -54,7 +68,6 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
   const lineHeight = parsed.emojiOnly ? size * tokens.leadingTight : body * tokens.leadingBody;
   const runs: RichRun[] = [];
   const spoilers: string[] = [];
-  let nextLink = 0;
   let nextFill = 0;
 
   const push = (text: string, context: Context, extra: Partial<RichRun> = {}) => {
@@ -87,12 +100,12 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       ...(link ? { link: link.url, linkId: link.id, linkHidden: undefined } : {}),
     });
 
-  const mention = (ref: MentionRef, context: Context) => {
+  const mention = (ref: MentionRef, at: string, context: Context) => {
     if (ref.kind === "channel") {
       const channel = links?.channels.get(ref.id);
       if (!channel) return push(mentionText(ref), context);
       const tappable = !!links && !compact && !context.inLink;
-      return pill(`#${channel.name}`, context, false, tappable ? { id: nextLink++, url: `channel:${ref.id}` } : undefined);
+      return pill(`#${channel.name}`, context, false, tappable ? { id: linkId(at), url: `channel:${ref.id}` } : undefined);
     }
     pill(mentionText(ref), context, ref.kind === "person" && ref.id === myUserId);
   };
@@ -121,7 +134,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
           });
         case "mention":
           if (context.covered) return push(coverText(mentionText(node.mention)), context);
-          return mention(node.mention, context);
+          return mention(node.mention, at, context);
         case "link": {
           if (context.covered) {
             if (node.label) return draw(node.label, at, context);
@@ -132,7 +145,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
             ...context,
             inLink: true,
             underline: true,
-            link: compact ? undefined : { id: nextLink++, url: node.href, hidden: hides },
+            link: compact ? undefined : { id: linkId(at), url: node.href, hidden: hides },
           };
           if (node.label) draw(node.label, at, inner);
           else push(node.href, inner);
@@ -188,6 +201,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       spoilerPad: markdown.spoilerPadX,
       radius: tokens.radiusSm,
       label,
+      revealable: !compact,
     },
     spoilers,
   };

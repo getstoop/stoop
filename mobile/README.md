@@ -445,9 +445,10 @@ generation) and gitignored. Native settings go in `app.json` or a config
 plugin, never into those folders by hand.
 
 `modules/stoop-rich-text` is native code of our own: a local Expo module,
-iOS only for now, that draws a message's paragraph
-(`docs/proposals/mobile-markdown.md` → Tech). Expo links it on its own;
-a change to its Swift needs a native rebuild, not only Metro.
+for iOS (Swift, TextKit) and Android (Kotlin, a `StaticLayout`), that
+draws a message's paragraph (`docs/proposals/mobile-markdown.md` →
+Tech). Expo links it on its own; a change to its Swift or Kotlin needs a
+native rebuild, not only Metro.
 
 After the first install, `make mobile-metro` (or `pnpm start` in
 `mobile/`) serves JavaScript to a build already on the phone, with no

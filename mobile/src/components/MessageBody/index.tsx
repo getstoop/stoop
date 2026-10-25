@@ -45,10 +45,10 @@ const coverText = (text: string) =>
 // reaches the row. `compact` (the message menu's card) taps nothing and
 // reveals nothing.
 //
-// On iOS our own TextKit view draws them (NativeBody), for web's rounded,
-// padded pills; elsewhere React Native's Text does (ReactNativeBody), with
-// flat pills, until the Android view lands. `place` names where the
-// message is drawn, for NativeBody's measure (insets.ts).
+// On iOS and Android our own native view draws them (NativeBody), for
+// web's rounded, padded pills; anything without the module falls back to
+// React Native's Text (ReactNativeBody), with flat pills. `place` names
+// where the message is drawn, for NativeBody's measure (insets.ts).
 type Props = {
   content: string;
   myUserId: string;
