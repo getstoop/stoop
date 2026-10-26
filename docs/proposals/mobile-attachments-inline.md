@@ -20,10 +20,12 @@ way web's `Attachments` does: images inline, video as a still that plays
 full screen, audio as a player, anything else as a card, an expired file
 as a placeholder. A full-screen viewer for images and video. A tap on any
 other file hands it to the system. One component, used by channel rows,
-the thread screen and (compactly) the long-press menu's card.
+the thread screen and (compactly) the long-press menu's card. Two server
+changes support it: image sizes at upload and thumbnails.
 
-Out of scope: sending (done), video stills, in-app document preview, saving to the photo library, and anything web doesn't
-do today (see Later).
+Out of scope: sending (done), video stills, in-app document preview,
+saving to the photo library, and any other client behaviour web doesn't
+have today (see Later).
 
 ## What exists
 
@@ -285,7 +287,8 @@ tile, fixed fallback, video, audio, card or expired.
 
 ### 2. Loading images: memory and caching
 
-- **The problem.** These are originals. A 12 MP photo is 2–5 MB on the
+- **The problem.** These are originals (until thumbnails, step 4;
+  after it the viewer and older images still load originals). A 12 MP photo is 2–5 MB on the
   wire and about 48 MB as a bitmap if decoded at full size. A channel of
   photos in a `FlatList` can exhaust memory unless each is decoded at the
   size it is drawn: 312pt at 3× is 936 px wide, about 2.6 MB.
@@ -326,25 +329,51 @@ Added at the operator's request on 2026-10-25, after the design pass.
   `jobs` service exists for: `normalise_image` already runs one decode
   at a time inside its 512m limit (files.md → Images). A new kind,
   `thumbnail_attachment`, does the same: queued when a PNG, JPEG or
-  still WebP attachment is uploaded, at most one in flight. It decodes,
-  applies the EXIF orientation (the reader from step 1), scales to fit
-  1024×1024 with `x/image/draw` (already a dependency), and encodes a
-  JPEG (a PNG when the image has transparency). The thumbnail is its
-  own `files` row of a new kind, pointed at from the original's row.
-  It expires and is deleted with the original, and it doesn't count
-  against the uploader's quota.
-- **Skipped** for an animated GIF or WebP (a still would stop the
-  animation), for an image already within 1024 px, and for anything
-  above the decode bound, which the build sets by measuring the
-  largest phone photos (12, 24 and 48 MP JPEGs) in the jobs container,
-  as files.md records for avatars. A skipped image has no thumbnail
-  and is served as today.
+  still WebP attachment is uploaded (never a GIF), at most one in
+  flight. It decodes, applies the EXIF orientation (the reader from
+  step 1), scales to fit 1024×1024 with `x/image/draw` (already a
+  dependency), and encodes a JPEG (a PNG when the image has
+  transparency).
+- **Its own pixel bound.** Avatars' `maxImagePixels` (4096², 16.7 MP)
+  would skip the 24 and 48 MP photos recent phones take, so the job has
+  a separate bound, checked with `DecodeConfig` before decoding. It
+  decodes from the blob as it is read rather than reading the whole
+  file into memory first (attachments go up to 100 MB). The build sets
+  the bound by measuring 12, 24 and 48 MP JPEGs in the jobs container,
+  and records the numbers in files.md, as it does for avatars.
+- **Skipped** for an animated WebP (a still would stop the animation),
+  an image already within 1024 px, and anything above the bound. A
+  skipped image has no thumbnail and is served as today.
+- **Storage.** The thumbnail is its own `files` row of a new kind,
+  `attachment_thumbnail`, with `thumbnail_of` referencing the original
+  (`ON DELETE CASCADE`), so deleting the original's row removes it.
+  Every path that removes an original has to take the thumbnail's blob
+  too, and the doc for each names it:
+  - retention (`retention.go`): an expiring original's thumbnail is
+    deleted with it, and a pinned original keeps its thumbnail;
+  - deleting a message (`DeleteFiles`);
+  - the sweep, which keeps a thumbnail while its original exists,
+    since neither chat nor auth references it directly.
+
+  It is inserted without the quota check (it is made after the
+  upload was already accepted), but `StorageUsage` counts it, so the
+  disk figure stays honest.
+- **Serving.** `mayDownload` authorises a thumbnail as its original:
+  look up the original and check that. Copying the original's space or
+  channel onto the row isn't enough, because a DM's readers are found
+  through `message_attachments`, which holds only the original's id.
+  A thumbnail answers 410 once its original has expired. files.md's
+  Kinds and Serving tables gain a row.
 - **On the message:** `Attachment.thumbnail_file_id`, empty when there
-  is none. Clients use it when it is set and the original otherwise.
-  A message sent before its job finishes (a second or so after the
-  upload) carries none and shows the original; the next fetch of the
-  message gets it. Images uploaded before this step have none. A
-  backfill job is Later.
+  is none, carried as width and height are: `files.Info` → `GetFiles`
+  → `fileDirectory` (`internal/app/adapters.go`) → chat's `FileRecord`
+  → `toProtoAttachment`. Clients use it when it is set and the original
+  otherwise. No event goes out when the job finishes. A message sent
+  before its job is done (a second or so after the upload) carries
+  none, and a client already holding it keeps showing the original
+  until it fetches the message again, after a reload or reopening the
+  channel. That is acceptable: the original is what shows today.
+  Images uploaded before this step have none. A backfill job is Later.
 - **Who uses it:** the phone's timeline tiles and the menu strip, the
   viewer as the picture to show while the original loads, and web's
   inline image (the preview keeps the original). Downloads and Share
@@ -426,8 +455,8 @@ Added at the operator's request on 2026-10-25, after the design pass.
   compiled in, but gesture-handler came in as 3.4.0 (a stable release
   from 2026-10-16) because pnpm picked the newest for expo-router's
   `*` peer. `expo install --check` would flag that, since SDK 58 pins
-  `~3.3.0`, and moving to 3.3.x changes native code, so it rides the
-  same rebuild as `expo-image`. The app root gains
+  `~3.3.0`, and moving to 3.3.x changes native code, so step 5 needs a
+  rebuild. The app root gains
   `GestureHandlerRootView`. Open questions → 7.
 - **Share** in the viewer: an image from `expo-image`'s cache, a video
   downloaded as a file is. Share is the only action. On iOS the share
@@ -515,7 +544,8 @@ from a row; that follow-up is unchanged.
   core moves, under web's Vitest. On the server: the orientation reader
   (all eight orientations, no EXIF, malformed EXIF) and the upload
   storing the size (a portrait JPEG with Orientation 6 reports
-  portrait).
+  portrait). The thumbnail job: orientation, transparency, the skips,
+  the bound, and each removal path taking the thumbnail with it.
 - **Maestro:** the seed uploads a landscape and a portrait JPEG (known
   sizes), a PDF and an expired file. Flows assert the labels, open
   the viewer, swipe to the next image, close it, and tap the PDF to
@@ -538,14 +568,14 @@ One PR each, in order. Each ships on its own.
    - one image fitted, the grid, the loading box and the failed card
      with retry;
    - file cards that download and open the share sheet;
-   - video and audio drawn as cards until steps 5 and 6;
+   - video and audio drawn as cards until steps 6 and 7;
    - the menu card's compact strip.
 
    Dependencies: `expo-image` and `expo-sharing`, plus
    `expo-file-system` declared (one rebuild).
 4. **Thumbnails.** The `thumbnail_attachment` job and its file kind,
-   the proto field, and the phone's tiles and web's inline image using
-   it. Server tests for the job (orientation, transparency, skips, the
+   the removal paths and serving, the proto field and its route to the
+   message, and the phone's tiles and web's inline image using it. Server tests for the job (orientation, transparency, skips, the
    bound), and a memory measurement recorded in files.md.
 5. **Phone: the viewer for images.** The modal, paging, zoom, swipe
    down and Share. Declares gesture-handler, reanimated and worklets at
@@ -591,8 +621,8 @@ Added: **server thumbnails** (Tech → Thumbnails), as step 4.
 
 ## Open questions
 
-Each has a recommendation and why. A decision here needs no reading of
-code.
+All decided on 2026-10-25 (see Decisions). Kept for the reasoning, and
+because the doc refers to them by number.
 
 1. **How does the phone know an image's shape before it loads?**
    - **A. The server measures it at upload** (two numbers on the
@@ -646,7 +676,7 @@ code.
    by accident: pnpm installed them as an optional companion of
    expo-router, and gesture-handler came in at 3.4.0 rather than SDK
    58's 3.3.x. **Recommend declaring both at SDK 58's versions** (a
-   rebuild, shared with step 3's). The alternative, with no new
+   rebuild, in step 5). The alternative, with no new
    declaration: iOS's built-in zoom, no zoom on Android, and
    swipe-down done with the `PanResponder` the sheets already use.
    It works, but the two platforms behave differently.
