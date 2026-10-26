@@ -26,7 +26,7 @@ type dbFiles struct {
 
 func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord, error) {
 	rows, err := d.pool.Query(ctx,
-		`SELECT id, kind, owner_id, COALESCE(space_id::text, ''), COALESCE(private_channel_id::text, ''), name, content_type, size, expired_at IS NOT NULL FROM files WHERE id = ANY($1::uuid[])`, ids)
+		`SELECT id, kind, owner_id, COALESCE(space_id::text, ''), COALESCE(private_channel_id::text, ''), name, content_type, size, expired_at IS NOT NULL, COALESCE(width, 0), COALESCE(height, 0) FROM files WHERE id = ANY($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord
 	var out []chat.FileRecord
 	for rows.Next() {
 		var record chat.FileRecord
-		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.PrivateChannelID, &record.Name, &record.ContentType, &record.Size, &record.Expired); err != nil {
+		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.PrivateChannelID, &record.Name, &record.ContentType, &record.Size, &record.Expired, &record.Width, &record.Height); err != nil {
 			return nil, err
 		}
 		out = append(out, record)
@@ -108,6 +108,10 @@ func TestAttachments(t *testing.T) {
 		t.Fatalf("attachments on send: %+v", m1.Attachments)
 	}
 	f2 := newFile(t, pool, owner, spaceID, "attachment", "photo.png")
+	// The size the upload measured travels with the attachment.
+	if _, err := pool.Exec(context.Background(), `UPDATE files SET width = 30, height = 40 WHERE id = $1`, f2); err != nil {
+		t.Fatal(err)
+	}
 	m2, err := send(owner, "", f2)
 	if err != nil {
 		t.Fatalf("attachment-only message: %v", err)
@@ -118,6 +122,12 @@ func TestAttachments(t *testing.T) {
 	}
 	if got := list.Msg.Messages; len(got) != 2 || len(got[0].Attachments) != 1 || got[1].Attachments[0].Name != "photo.png" {
 		t.Fatalf("ListMessages attachments: %+v", got)
+	}
+	if photo := list.Msg.Messages[1].Attachments[0]; photo.Width != 30 || photo.Height != 40 {
+		t.Errorf("photo size = %d×%d, want 30×40", photo.Width, photo.Height)
+	}
+	if file := list.Msg.Messages[0].Attachments[0]; file.Width != 0 || file.Height != 0 {
+		t.Errorf("text file size = %d×%d, want none", file.Width, file.Height)
 	}
 
 	// A reply to an attachment-only message previews the file name.

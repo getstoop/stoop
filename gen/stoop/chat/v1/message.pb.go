@@ -190,7 +190,13 @@ type Attachment struct {
 	Size        int64  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
 	// Deleted by the server's attachment retention setting: no bytes, and
 	// name is empty. The content type and size stay for the placeholder.
-	Expired       bool `protobuf:"varint,5,opt,name=expired,proto3" json:"expired,omitempty"`
+	Expired bool `protobuf:"varint,5,opt,name=expired,proto3" json:"expired,omitempty"`
+	// An image's size in pixels as it is displayed (EXIF orientation
+	// applied), read from its header at upload. 0 when unknown: not a PNG,
+	// JPEG, GIF or WebP, a header that would not read, or uploaded before
+	// the server measured.
+	Width         int32 `protobuf:"varint,6,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32 `protobuf:"varint,7,opt,name=height,proto3" json:"height,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -258,6 +264,20 @@ func (x *Attachment) GetExpired() bool {
 		return x.Expired
 	}
 	return false
+}
+
+func (x *Attachment) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *Attachment) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
 }
 
 type Message struct {
@@ -705,14 +725,16 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
 	"\x06author\x18\x02 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\x06author\x12\x18\n" +
-	"\apreview\x18\x03 \x01(\tR\apreview\"\x8a\x01\n" +
+	"\apreview\x18\x03 \x01(\tR\apreview\"\xb8\x01\n" +
 	"\n" +
 	"Attachment\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
-	"\aexpired\x18\x05 \x01(\bR\aexpired\"\x80\a\n" +
+	"\aexpired\x18\x05 \x01(\bR\aexpired\x12\x14\n" +
+	"\x05width\x18\x06 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\a \x01(\x05R\x06height\"\x80\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +

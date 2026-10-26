@@ -126,6 +126,40 @@ func TestUploadAttachmentSniffsImagesAndSVG(t *testing.T) {
 	}
 }
 
+// An image's size is read from its header at upload, turned by its EXIF
+// orientation; anything else, or an image that won't measure, is stored
+// all the same with no size.
+func TestUploadAttachmentMeasuresImages(t *testing.T) {
+	fixture := setup(t)
+	ch := fixture.spaces.channelID
+	// A phone's portrait photo: stored 40×30 with "rotate 90° clockwise".
+	portrait := files.JPEGWithOrientation(t, 40, 30, 6)
+	cases := []struct {
+		name          string
+		body          []byte
+		width, height int32
+	}{
+		{"portrait.jpg", portrait, 30, 40},
+		{"landscape.png", pngBytes(t, 8, 6), 8, 6},
+		{"notes.txt", []byte("not an image\n"), 0, 0},
+		// JPEG's magic and nothing after it: sniffed as one, unmeasurable.
+		{"broken.jpg", []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00}, 0, 0},
+	}
+	for _, tc := range cases {
+		status, body := fixture.upload(t, "member", ch, tc.name, tc.body)
+		if status != http.StatusCreated {
+			t.Fatalf("%s: status %d: %v", tc.name, status, body)
+		}
+		infos, err := fixture.svc.GetFiles(context.Background(), []string{body["id"].(string)})
+		if err != nil || len(infos) != 1 {
+			t.Fatalf("%s: GetFiles: %v %+v", tc.name, err, infos)
+		}
+		if infos[0].Width != tc.width || infos[0].Height != tc.height {
+			t.Errorf("%s: %d×%d, want %d×%d", tc.name, infos[0].Width, infos[0].Height, tc.width, tc.height)
+		}
+	}
+}
+
 func TestUploadAttachmentRejects(t *testing.T) {
 	f := setup(t)
 	ch := f.spaces.channelID

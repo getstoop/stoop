@@ -74,6 +74,8 @@ type FileRecord struct {
 	Size             int64
 	// Expired: deleted by attachment retention, with its name.
 	Expired bool
+	// Width and Height: an image's displayed size; 0 when unknown.
+	Width, Height int32
 }
 
 // label is how a preview names the file.
