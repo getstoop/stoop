@@ -1,9 +1,9 @@
 import { type FormEvent, useId, useState } from "react";
 import { createPortal } from "react-dom";
+import { checkLink } from "../../core/editor/links";
 import { Field } from "../Field";
 import { Input } from "../Input";
 import { Modal } from "../Modal";
-import { checkLink } from "./links";
 
 // The link form: the words and the address. On the body, not in the
 // composer, whose own form it would otherwise sit inside.

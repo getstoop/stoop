@@ -135,7 +135,10 @@ mention list) is unchanged.
 - **Quote**: Return on an empty quote line leaves the quote. Backspace
   at a quote line's start makes it a plain line.
 - **Code block**: Return adds a line; Return on a blank last line leaves
-  the block.
+  the block. A line of only ```` ``` ```` inside one would end the
+  block when read back: the format has no longer fence to write around
+  it (web's editor shares the limit). Step 6 decides what the field
+  does with one (Later).
 - **Format as you type**: the rules in Scope, as web's. Backspace
   straight after one puts the markers back. None fire inside a code
   block, and none while the keyboard is composing a word (CJK, Android's
@@ -341,17 +344,17 @@ visible result (the sent message read back over RPC, as the mention
 flows do); single flows only, the suite once at the end with the
 operator's OK.
 
-0. **Shared cases with the server** (if agreed): the parser's cases in
+0. **Shared cases with the server**: the parser's cases in
    one file read by Go and vitest; the length constant and code-point
-   `writtenLength` in core. Independent of the rest.
+   `writtenLength` in core. Independent of the rest. Carries this spec.
 1. **Core**: `toMarkdown` / `fromMarkdown` and `checkLink` move to core
    (web imports them, unchanged); `EditorLine`, `linesToDoc`,
-   `docToLines`, round-trip tests; the cases table's first rows (it
-   grows with each step). Carries this spec.
+   `docToLines`, round-trip tests.
 2. **The editor, plain**: the native view on both platforms with no
    formatting yet, replacing `TextInput` at parity (focus, height,
-   caret, the mention list, send, edit, refused send). Starts as the
-   spike above.
+   caret, the mention list, send, edit, refused send), and the cases
+   table's first rows with the Swift and Kotlin tests that read it (it
+   grows with each step). Starts as the spike above.
 3. **Inline marks**: the row's six mark buttons, pressed state, typing
    attributes, the spoiler fill.
 4. **Pills**: picks and typed-in-full handles as pills; edit mode loads
@@ -393,5 +396,8 @@ operator's OK.
 - Images pasted as attachments.
 - A character counter before the limit.
 - Choosing a code block's language.
+- A code block that can hold a line of only ```` ``` ````: longer fences
+  in the format, read the same by the client and the server's parsers
+  (and in the shared cases).
 - Emoji `:shortcode` suggestions in the mention panel.
 - Reading the formats at the caret to a screen reader on request.

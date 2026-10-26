@@ -3,6 +3,7 @@ import { EditorState, Selection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Format } from "../../api/formatting";
+import { fromMarkdown, toMarkdown } from "../../core/editor/markdown";
 import type { MentionRef } from "../../core/mentions";
 import { activeFormats, formatCommands } from "./commands";
 import { LinkDialog } from "./LinkDialog";
@@ -14,7 +15,6 @@ import {
   linkDraft,
   saveLink,
 } from "./links";
-import { fromMarkdown, toMarkdown } from "./markdown";
 import {
   type MentionContext,
   mentionsKey,
