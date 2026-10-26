@@ -3,6 +3,7 @@ import { Directory, File, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { shareAsync } from "expo-sharing";
 import { isFileId, localName } from "./fileNames";
+import { clearPosters } from "./posters";
 
 // A received file handed to the system: GET /files/<id> with the
 // session as a bearer token, into the app's cache under the file's own
@@ -117,6 +118,7 @@ export function shareDownloaded(uri: string, attachment: Attachment): Promise<vo
 // a photo from a private channel shouldn't outlive the session on a
 // shared phone. The image cache can't be cleared one server at a time.
 export async function clearFileCaches(): Promise<void> {
+  clearPosters();
   await Promise.all([Image.clearDiskCache(), Image.clearMemoryCache()]).catch(() => {});
   try {
     const folder = downloads();

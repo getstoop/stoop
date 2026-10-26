@@ -3,7 +3,8 @@
 Status: approved 2026-10-25 (the designs, every recommendation, and
 server thumbnails added as step 4). Steps 1–7 are built; audio plays
 on `expo-video`, which plays audio files without a view, so
-`expo-audio` was not added (Open questions → 12).
+`expo-audio` was not added (Open questions → 12). Video tiles show
+their first frame since 2026-10-26 (Decisions → Added).
 Follows [mobile-attachments.md](mobile-attachments.md) (sending, #549,
 #550), whose Later section names this step.
 Design: canvas artboards, all in the "On a server" row after "8c":
@@ -646,7 +647,8 @@ every recommendation below is taken. In short:
 7. Gesture-handler and reanimated for the viewer.
 8. Share only; no Save to Photos.
 9. A tap on a file opens the share sheet.
-10. A plain black video tile; no stills.
+10. A plain black video tile; no stills. (Replaced on 2026-10-26: the
+    phone shows the first frame; see Added below.)
 11. Nothing plays in the timeline; the viewer plays on open, with
     sound.
 12. Audio inline, last, checking `expo-video` first.
@@ -655,6 +657,20 @@ every recommendation below is taken. In short:
 15. Sign-out clears every cached image.
 
 Added: **server thumbnails** (Tech → Thumbnails), as step 4.
+
+Added 2026-10-26, after trying the stack on a phone (a black tile
+looked broken): **video posters on the phone** with
+`expo-video-thumbnails` (`~58.0.2`, approved then), a follow-up on top
+of step 7, replacing decision 10. A tile drawn asks for its video's
+first frame (`api/posters.ts`), which the system's player reads from
+`/files` with the session over range requests. Two are read at a time,
+in the order their tiles asked, and one whose tiles have gone before
+its turn is dropped. The frame is kept as a JPEG in the app's cache
+under the file id, so a tile drawn again shows it from disk, and
+sign-out clears it with the other caches. The tile stays black while
+it comes, and if it doesn't: one that fails isn't asked for again for
+a minute. A lone video's frame is letterboxed, as web's `<video>`; a
+grid's tile is filled, as its pictures are.
 
 ## Open questions
 
