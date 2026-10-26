@@ -38,6 +38,12 @@ describe("parse", () => {
     expect(block).toEqual({ type: "code", text: "ping @here **now** https://example.com" });
   });
 
+  it("drops exactly one last line break in a code block, as a <pre> draws it", () => {
+    expect(parse("```\nfoo\n\n```").blocks[0]).toEqual({ type: "code", text: "foo" });
+    expect(parse("```\nfoo\n\n\n```").blocks[0]).toEqual({ type: "code", text: "foo\n" });
+    expect(parse("```\nfoo\n```").blocks[0]).toEqual({ type: "code", text: "foo" });
+  });
+
   it("draws no line for a line break before another block, as a browser does", () => {
     const [lines, code] = parse("Look:\n\n```\nx\n```").blocks;
     expect(lines.type === "lines" && lines.lines.length).toBe(1);
@@ -92,6 +98,17 @@ describe("listRows", () => {
 
   it("starts the numbers again after a bulleted sibling, as a new list", () => {
     expect(rows("1. a\n- b\n1. c").map((row) => row.marker)).toEqual(["1.", "•", "1."]);
+  });
+
+  it("sets a top-level switch between numbers and bullets apart, as web's two lists", () => {
+    expect(rows("1. a\n- b\n- c\n2. d").map((row) => row.gap)).toEqual([
+      0,
+      markdown.listMarginY,
+      0,
+      markdown.listMarginY,
+    ]);
+    // A nested list sits tight, and its parent's siblings stay one list.
+    expect(rows("1. a\n  - b\n2. c").map((row) => row.gap)).toEqual([0, 0, 0]);
   });
 
   it("never goes more than one level deeper than the row before", () => {

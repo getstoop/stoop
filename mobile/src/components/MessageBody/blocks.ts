@@ -16,6 +16,10 @@ export type ListRow = {
   marker: string;
   // Its one line, as a paragraph takes it.
   lines: [Line];
+  // Space above it: a top-level row that switches between numbers and
+  // bullets starts a list of its own, apart by the list margin, as on
+  // web (nested lists have none).
+  gap: number;
 };
 
 export type BodyBlock =
@@ -64,7 +68,8 @@ export function parse(content: string): Parsed {
         blocks.push({ type: "list", rows: listRows(block.items, at) });
         return;
       case "codeblock":
-        blocks.push({ type: "code", text: block.text });
+        // A <pre> draws no line for a last line break.
+        blocks.push({ type: "code", text: block.text.endsWith("\n") ? block.text.slice(0, -1) : block.text });
         return;
     }
   });
@@ -87,9 +92,11 @@ export function listRows(items: ListItem[], at: string): ListRow[] {
       if (row.depth < depth || (row.depth === depth && !row.ordered)) break;
       if (row.depth === depth) number++;
     }
+    const sibling = depth === 0 ? rows.findLast((row) => row.depth === 0) : undefined;
     rows.push({
       depth,
       ordered: item.ordered,
+      gap: sibling && sibling.ordered !== item.ordered ? markdown.listMarginY : 0,
       marker: item.ordered ? `${number}.` : BULLETS[Math.min(depth, BULLETS.length - 1)],
       lines: [{ path: nodePath(at, index), nodes: item.content }],
     });

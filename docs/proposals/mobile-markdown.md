@@ -182,29 +182,39 @@ and no Markdown library. Rules follow web's `MessageBody`:
      never more than one level below the one before; numbers count from
      one within a run of numbered siblings (a bulleted sibling starts a
      new list); bullets are the browser's disc, circle and square by how
-     many lists a row is inside. The marker is React Native Text in the
-     indent, right-aligned with a no-break space after it, as a browser
-     draws an outside marker; it is hidden from screen readers, and the
-     row's paragraph says it before its words ("1. ", or "• ", read as
-     "bullet", at any depth).
+     many lists a row is inside. A top-level switch between numbers and
+     bullets is two lists on web, so that row gets the list margin above
+     it; nested lists sit tight. The marker is React Native Text, one
+     line, ending where the row's words start with a no-break space after
+     it, as a browser draws an outside marker: as wide as it needs, so
+     "100." at a large text size spills left of the indent, into the
+     avatar's gutter and, at the largest sizes, past the screen's edge,
+     rather than wrapping. It is hidden from screen readers (on Android
+     no marker is in the accessibility tree), and the row's paragraph
+     says it before its words ("1. ", or "• ", read as "bullet", at any
+     depth).
    - **Code blocks are React Native Text in a horizontal ScrollView**,
      not our native view: the view lays out at a width it is given and
      reports only a height, so it can't size a line that never wraps,
      and a code block has no pills or spoilers for it to draw. The text
-     is exactly as written and reads as itself. On iOS a ScrollView
+     is exactly as written, less one last line break (a `<pre>` draws
+     none for it), and reads as itself. On iOS a ScrollView
      won't start its drag while an ancestor holds the touch (Fabric's
      `_shouldDisableScrollInteraction`), and the row's `Pressable` takes
      every touch, so the code's own `Pressable`, inside the scroll, takes
      the row's long press. A drag up or down on a code block scrolls the
      list. Long-pressing code doesn't tint the row as pressed first. On
-     iOS the Text is the screen reader's element; on Android that
-     Pressable is, read as the code.
+     both platforms the Text is the code block's one screen reader
+     element, read as the code; the Pressable is out of the tree, so
+     nothing offers a double tap that does nothing.
    - **Paths** start with the block's index in the parse, so spoilers
      and link ids are unique across blocks and stable; spoilers'
      revealed state is the message's, shared by all its paragraphs.
    - **"(edited)"** follows the last words when the message ends in a
      paragraph, and is a line of its own after a quote, a list or a code
-     block, where web's inline marker lands after a block element.
+     block, where web's inline marker lands after a block element. Its
+     leading space stays as the gap there (web's 6px margin isn't a named
+     value), but it is read as "(edited)".
    - Every value was already named in `markdown.css` (`--md-pre-*`,
      `--md-quote-*`, `--md-list-*`); web is unchanged.
 
@@ -260,6 +270,8 @@ marks), one assertion proved to bite, and the operator's phone check.
   Text** (step 3, 2026-10-25; Tech → 8): a code block never wraps, and
   our view can only lay out at a given width; the module is unchanged.
   Open for the operator's review.
+- **A long press on a code block doesn't tint the row first; fine for
+  now** (operator, 2026-10-25).
 
 ## Later
 

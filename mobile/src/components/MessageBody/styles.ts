@@ -66,13 +66,15 @@ export function makeStyles(theme: Theme) {
       paddingVertical: markdown.quotePadY,
       paddingHorizontal: markdown.quotePadX,
     },
-    // A list row's marker, outside its words as a browser draws it: in
-    // the indent, against the words.
-    marker: {
+    // A list row's marker, outside its words as a browser draws it: its
+    // box (List) ends where the words start, and the marker sits at that
+    // end, as wide as it is.
+    markerBox: {
       position: "absolute",
       top: 0,
-      width: markdown.listIndent,
-      textAlign: "right",
+      alignItems: "flex-end",
+    },
+    marker: {
       color: theme.text,
       fontSize: body,
       lineHeight: body * tokens.leadingBody,

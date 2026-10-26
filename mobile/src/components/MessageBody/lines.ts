@@ -1,11 +1,9 @@
 import type { Inline } from "@stoop/core/markdown";
 import { type MentionChannels, type MentionRef, mentionText } from "@stoop/core/mentions";
 
-export type Node = Inline;
-
 // One line of a paragraph: its inlines and its place in the message (the
 // block's index, then the line's), from which every node's path follows.
-export type Line = { path: string; nodes: Node[] };
+export type Line = { path: string; nodes: Inline[] };
 
 // A spoiler's place in the message, the same for every drawing of the
 // same content: the block's index, the line's, then each node's down to
@@ -28,7 +26,7 @@ export function spoken(
   cover: string,
   words: (ref: MentionRef) => string = mentionText,
 ): string {
-  const walk = (nodes: Node[], parent: string): string =>
+  const walk = (nodes: Inline[], parent: string): string =>
     nodes
       .map((node, index) => {
         const path = nodePath(parent, index);
@@ -51,7 +49,7 @@ export function spoken(
 }
 
 // Whether any spoiler among these nodes, at parent, is still covered.
-export function coveredIn(nodes: Node[], parent: string, isCovered: (path: string) => boolean): boolean {
+export function coveredIn(nodes: Inline[], parent: string, isCovered: (path: string) => boolean): boolean {
   return nodes.some((node, index) => {
     const path = nodePath(parent, index);
     if (node.type === "spoiler") return isCovered(path) || coveredIn(node.children, path, isCovered);
@@ -68,7 +66,7 @@ export function anyCovered(lines: Line[], isCovered: (path: string) => boolean):
 // The path of a paragraph's first covered spoiler in reading order, the
 // outermost where one covers another: what activating it reveals.
 export function firstCovered(lines: Line[], isCovered: (path: string) => boolean): string | undefined {
-  const find = (nodes: Node[], parent: string): string | undefined => {
+  const find = (nodes: Inline[], parent: string): string | undefined => {
     for (const [index, node] of nodes.entries()) {
       const path = nodePath(parent, index);
       if (node.type === "spoiler" && isCovered(path)) return path;

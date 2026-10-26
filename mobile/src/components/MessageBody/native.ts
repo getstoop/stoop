@@ -1,4 +1,5 @@
 import { clusters, splitEmoji } from "@stoop/core/emojiText";
+import type { Inline } from "@stoop/core/markdown";
 import { type MentionRef, mentionText, splitEveryone } from "@stoop/core/mentions";
 import type { RichDoc, RichRun } from "../../../modules/stoop-rich-text";
 import type { Theme } from "../../theme";
@@ -6,7 +7,7 @@ import type { Theme } from "../../theme";
 // file needs no React Native and its tests run in Node.
 import { markdown, tokens } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
-import { anyCovered, coveredIn, type Line, mentionWords, type Node, nodePath, spoken } from "./lines";
+import { anyCovered, coveredIn, type Line, mentionWords, nodePath, spoken } from "./lines";
 
 // A paragraph of a message (its lines, a quote's, a list row's) as the
 // styled runs our native view draws (NativeParagraph,
@@ -116,7 +117,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
     pill(mentionText(ref), context, ref.kind === "person" && ref.id === myUserId);
   };
 
-  const draw = (nodes: Node[], parent: string, context: Context) => {
+  const draw = (nodes: Inline[], parent: string, context: Context) => {
     nodes.forEach((node, index) => {
       const at = nodePath(parent, index);
       switch (node.type) {
@@ -204,7 +205,8 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       textColor: input.muted ? theme[markdown.quoteColor] : theme.text,
       spoilerPad: markdown.spoilerPadX,
       radius: tokens.radiusSm,
-      label: `${input.prefix ?? ""}${words}`,
+      // No leading space: "(edited)" on a line of its own reads as itself.
+      label: `${input.prefix ?? ""}${words}`.trimStart(),
       revealable: !compact,
     },
     spoilers,

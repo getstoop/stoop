@@ -1,11 +1,12 @@
 import { clusters, splitEmoji } from "@stoop/core/emojiText";
+import type { Inline } from "@stoop/core/markdown";
 import { type MentionRef, mentionText, splitEveryone } from "@stoop/core/mentions";
 import { Fragment, type ReactNode, useContext, useMemo } from "react";
 import { Linking, Text } from "react-native";
 import { useTheme } from "../../theme";
 import { ChannelLinksContext } from "./channelLinks";
 import { COVER, type ParagraphProps } from "./context";
-import { anyCovered, coveredIn, firstCovered, mentionWords, type Node, nodePath, spoken } from "./lines";
+import { anyCovered, coveredIn, firstCovered, mentionWords, nodePath, spoken } from "./lines";
 import Spoiler from "./Spoiler";
 import { decoration, makeStyles } from "./styles";
 
@@ -87,7 +88,7 @@ export default function TextParagraph({
     );
   };
 
-  const draw = (nodes: Node[], parent: string, context: Context): ReactNode =>
+  const draw = (nodes: Inline[], parent: string, context: Context): ReactNode =>
     nodes.map((node, index) => {
       const at = nodePath(parent, index);
       switch (node.type) {
@@ -178,8 +179,12 @@ export default function TextParagraph({
   const covers = anyCovered(lines, isCovered);
   const said = (cover: string) =>
     `${spoken(lines, isCovered, cover, (ref) => mentionWords(ref, links?.channels))}${edited ? " (edited)" : ""}`;
+  // Set when the drawn words would read wrong: a cover, a marker, or
+  // "(edited)" on a line of its own with its leading space.
   const label =
-    covers || prefix ? `${prefix ?? ""}${said(compact ? "spoiler" : COVER)}` : undefined;
+    covers || prefix || lines.length === 0
+      ? `${prefix ?? ""}${said(compact ? "spoiler" : COVER)}`.trimStart()
+      : undefined;
   // Activating the paragraph (a screen reader's double tap, the "activate"
   // action on both platforms: Text takes no onAccessibilityTap) reveals
   // its first covered spoiler, as the label says; with none covered it

@@ -311,6 +311,8 @@ describe("buildDoc: the rest", () => {
     const { doc } = build("hello", { edited: true });
     expect(doc.runs.at(-1)?.text).toBe(" (edited)");
     expect(doc.label).toBe("hello (edited)");
+    // On a line of its own, after a block: read without the space.
+    expect(build("", { lines: [], edited: true }).doc.label).toBe("(edited)");
   });
 
   it("draws an emoji-only message large", () => {
