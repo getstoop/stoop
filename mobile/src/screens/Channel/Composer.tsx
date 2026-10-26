@@ -1,12 +1,12 @@
 import type { UploadedFile } from "@stoop/core/attachments";
-import { editableText, withTokensRestored } from "@stoop/core/editableText";
-import { isBlankMessage } from "@stoop/core/markdown";
+import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
+import { isBlankMessage, plainText } from "@stoop/core/markdown";
 import { withTypedMentions } from "@stoop/core/mentions";
 import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { type ComponentRef, forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -14,7 +14,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
   type ViewStyle,
 } from "react-native";
@@ -28,6 +27,7 @@ import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
 import AttachSheet from "./AttachSheet";
 import FormatRow from "./FormatRow";
+import RichField, { type RichFieldHandle } from "./RichField";
 import Surface from "./Surface";
 import { useAttachments } from "./useAttachments";
 import type { ComposerMentions } from "./useMentionNames";
@@ -37,8 +37,10 @@ import { useMentionQuery } from "./useMentionQuery";
 // pill floating over the list, Attach and "Message #channel"; tapped, it
 // becomes a card above the keyboard, the text on top and under it
 // Attach, Aa (which opens the formatting row) and Send. Losing focus
-// returns it to the pill, the draft kept. The formats are placed for the
-// step that gives them work.
+// returns it to the pill, the draft kept. The text is the native rich
+// text field (RichField), which shows a draft formatted, its markers
+// never; the draft is held here as Markdown, and the pill shows it as
+// plain words. The formats are placed for the step that gives them work.
 //
 // Attach, in either state, puts the keyboard away and opens the attach
 // sheet (AttachSheet); the photo library, the camera or files picked
@@ -81,14 +83,15 @@ import { useMentionQuery } from "./useMentionQuery";
 //
 // A message being edited (`editing`, the screen's to hold, never
 // together with a quote) puts the composer in editing mode: the draft
-// is set aside, the field holds the message's words (its mention and
-// channel tokens as the @handle and #name they show as; core/editableText),
+// is set aside, the field holds the message,
 // the strip says "Editing message" with Cancel editing, Attach is dimmed
 // and the files held are out of sight, since an edit changes words only,
 // and Send is Save; the pill says
-// "Editing message" under the pencil while the keyboard is down. Save
-// puts the tokens back for the handles the original had and sends
-// EditMessage; the answer merges like a send's. Words unchanged end the
+// "Editing message" under the pencil while the keyboard is down. The
+// field loads the message's Markdown as it is stored, its mentions as
+// mentions, and Save sends what the field holds as EditMessage; the
+// answer merges like a send's. Words unchanged (the content, or the
+// content as the field writes it back) end the
 // edit with no request; none at all are refused with web's wording, the
 // edit going on; a refusal keeps the edited words with the server's
 // under them, and Cancel editing waits for the answer. Editing ends on
@@ -141,26 +144,33 @@ export default forwardRef<
   const theme = useTheme();
   const styles = makeStyles(theme);
   const [draft, setDraft] = useState("");
+  // Counts the drafts put in the field from outside, so it loads each
+  // (RichField loadKey), even one whose Markdown is what it already holds.
+  const [loads, setLoads] = useState(0);
+  const putDraft = (text: string | ((typedSince: string) => string)) => {
+    setDraft(text);
+    setLoads((count) => count + 1);
+  };
   const [writing, setWriting] = useState(false);
   const [formatting, setFormatting] = useState(false);
   const [sending, setSending] = useState(false);
   const [alsoSend, setAlsoSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The caret's line up to the caret, for the mention list.
+  const [before, setBefore] = useState<string | null>(null);
   // The files held, and the attach sheet; back to the card after a pick.
   const attachments = useAttachments(upload, maxUploadBytes, () => openCard());
-  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  const input = useRef<RichFieldHandle>(null);
   // The draft set aside while a message is edited, to come back after,
   // and a send's refusal that waits with it.
   const setAside = useRef("");
   const heldError = useRef<string | null>(null);
   // Which message the field holds for editing, so a change of it (in,
   // out, or to another message) is taken in the same render, while a
-  // copy of the same one, edited elsewhere, leaves the field alone; the
-  // content the field was filled from, which Save restores tokens
-  // against; and a count of the edits begun, so a Save's answer is only
-  // the edit it was pressed in.
+  // copy of the same one, edited elsewhere, leaves the field alone; and a
+  // count of the edits begun, so a Save's answer is only the edit it was
+  // pressed in.
   const editingShown = useRef<string | null>(null);
-  const filledFrom = useRef("");
   const session = useRef(0);
   const editingId = editing?.id ?? null;
   if (editingShown.current !== editingId) {
@@ -171,11 +181,10 @@ export default forwardRef<
     }
     editingShown.current = editingId;
     if (editing) {
-      filledFrom.current = editing.content;
-      setDraft(editableText(editing.content));
+      putDraft(editing.content);
       setError(null);
     } else {
-      setDraft(setAside.current);
+      putDraft(setAside.current);
       setError(heldError.current);
       heldError.current = null;
     }
@@ -188,13 +197,12 @@ export default forwardRef<
   replyToRef.current = replyTo;
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
   const mentions = useMentionQuery({
-    draft,
-    setDraft,
+    before,
     writing,
-    replaced: editingId,
     names: mentionNames,
     origin,
     token,
+    replace: ({ count, text }) => input.current?.replaceBeforeCaret(count, text),
   });
 
   // The card, with the field focused: mounted so (autoFocus), and focused
@@ -231,21 +239,28 @@ export default forwardRef<
   const files = editing ? [] : attachments.files;
   const quotedName = replyTo ? authorName(replyTo.author) : "";
 
-  // Save: the words as typed with the tokens put back by the content the
-  // field was filled from, not a copy edited elsewhere since, which could
-  // only take a token away or hand one to typed words. The same words
-  // as the latest copy end the edit with nothing sent, as on web; no
-  // words are refused. The answer counts only for the edit Save was
-  // pressed in: ended, or begun again on the same message, meanwhile,
+  // Save: what the field holds. The same as the latest copy, as stored or
+  // as the field writes it back, ends the edit with nothing sent, as on
+  // web; no words are refused. The answer counts only for the edit Save
+  // was pressed in: ended, or begun again on the same message, meanwhile,
   // it is nobody's.
   const save = async (message: Message) => {
     const mine = session.current;
-    const content = withTokensRestored(draft.trim(), filledFrom.current);
-    if (content === message.content) {
+    sendingRef.current = true;
+    let content: string;
+    try {
+      content = ((await input.current?.commit()) ?? draft).trim();
+    } catch {
+      content = draft.trim();
+    } finally {
+      sendingRef.current = false;
+    }
+    if (session.current !== mine) return;
+    if (content === message.content || content === toMarkdown(fromMarkdown(message.content))) {
       onEditDone();
       return;
     }
-    if (blank) {
+    if (isBlankMessage(content)) {
       setError("A message can't be empty — delete it instead.");
       return;
     }
@@ -273,18 +288,25 @@ export default forwardRef<
     // files are left out.
     if (attachments.uploading || (blank && !attachments.ready)) return;
     sendingRef.current = true;
-    const typed = draft;
+    // The field's text as it stands, a word still being composed taken;
+    // the draft as last reported if the field can't answer.
+    let typed: string;
+    try {
+      typed = (await input.current?.commit()) ?? draft;
+    } catch {
+      typed = draft;
+    }
     const quoted = replyTo;
     const also = alsoSend;
     const held = attachments.take();
     const attachmentIds = held.flatMap((file) => (file.fileId ? [file.fileId] : []));
-    setDraft("");
+    putDraft("");
     setError(null);
     setSending(true);
     setAlsoSend(false);
     if (quoted) onCancelReply();
     try {
-      await send(blank ? "" : withTypedMentions(typed.trim(), mentionNames), quoted?.id ?? "", also, attachmentIds);
+      await send(isBlankMessage(typed) ? "" : withTypedMentions(typed.trim(), mentionNames), quoted?.id ?? "", also, attachmentIds);
     } catch (err) {
       setAlsoSend(also);
       attachments.restore(held);
@@ -294,7 +316,7 @@ export default forwardRef<
         setAside.current = restoreDraft(typed, setAside.current);
         heldError.current = errorText(err);
       } else {
-        setDraft((typedSince) => restoreDraft(typed, typedSince));
+        putDraft((typedSince) => restoreDraft(typed, typedSince));
         setError(errorText(err));
       }
       const quotedNow = replyToRef.current;
@@ -311,7 +333,8 @@ export default forwardRef<
   const sheet = attachments.attaching && <AttachSheet onClose={attachments.sheetClosed} />;
 
   if (!writing) {
-    const shownText = editing ? "Editing message" : draft || (replyTo ? `Replying to ${quotedName}` : placeholder);
+    const words = plainText(draft);
+    const shownText = editing ? "Editing message" : words || (replyTo ? `Replying to ${quotedName}` : placeholder);
     return (
       <>
         <Surface glass={glass} style={styles.pill}>
@@ -330,7 +353,7 @@ export default forwardRef<
             ) : (
               replyTo && <QuoteReplyIcon color={theme.accent} size={16} />
             )}
-            <Text numberOfLines={1} style={draft || replyTo || editing ? styles.draft : styles.placeholder}>
+            <Text numberOfLines={1} style={words || replyTo || editing ? styles.draft : styles.placeholder}>
               {shownText}
             </Text>
           </Pressable>
@@ -396,20 +419,19 @@ export default forwardRef<
           )
         )}
         {inThread && !editing && <AlsoSendRow channelName={channelName} checked={alsoSend} onChange={setAlsoSend} />}
-        <TextInput
+        <RichField
           ref={input}
           testID="composer"
           autoFocus
-          multiline
           value={draft}
-          onChangeText={setDraft}
-          selection={mentions.selection}
-          onSelectionChange={mentions.onSelectionChange}
+          loadKey={loads}
+          onChange={setDraft}
+          onCaret={setBefore}
           onBlur={() => setWriting(false)}
           placeholder={placeholder}
-          placeholderTextColor={theme.textMuted}
-          accessibilityLabel={placeholder}
-          style={styles.field}
+          label={placeholder}
+          minHeight={44}
+          maxHeight={11 + 8 + 23 * MAX_LINES}
         />
         {error && (
           <Text style={styles.error} accessibilityRole="alert">
@@ -574,16 +596,6 @@ function makeStyles(theme: Theme) {
       paddingBottom: 8,
       paddingHorizontal: 8,
       gap: 4,
-    },
-    field: {
-      minHeight: 44,
-      maxHeight: 11 + 8 + 23 * MAX_LINES,
-      paddingTop: 11,
-      paddingBottom: 8,
-      paddingHorizontal: 10,
-      color: theme.text,
-      fontSize: 17,
-      lineHeight: 23,
     },
     error: {
       marginHorizontal: 10,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
-import { pickedWords, withAt, withPick } from "./mentionPicks";
+import { atReplace, pickedWords, pickReplace } from "./mentionPicks";
 import { type MentionCandidate, mentionQueryAt } from "./mentions";
 
 const ada = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a01";
@@ -35,45 +35,36 @@ describe("pickedWords", () => {
   });
 });
 
-describe("withPick", () => {
-  it("replaces the query with the pick and a space, caret after", () => {
-    const text = "hi @ad";
-    expect(withPick(text, 3, 6, person)).toEqual({
-      text: `hi <@u:${ada}:ada> `,
-      caret: 3 + `<@u:${ada}:ada> `.length,
+describe("pickReplace", () => {
+  it("replaces the query with the pick and a space", () => {
+    expect(pickReplace("hi @ad", 3, person)).toEqual({
+      count: 3,
+      text: `<@u:${ada}:ada> `,
     });
-  });
-
-  it("keeps what follows the caret", () => {
-    expect(withPick("see #ga then", 4, 7, channel)).toEqual({
-      text: `see <#${garden}:garden>  then`,
-      caret: 4 + `<#${garden}:garden> `.length,
+    expect(pickReplace("see #ga", 4, channel)).toEqual({
+      count: 3,
+      text: `<#${garden}:garden> `,
     });
   });
 
   it("writes @channel as words", () => {
-    expect(withPick("@ch", 0, 3, everyone)).toEqual({
+    expect(pickReplace("@ch", 0, everyone)).toEqual({
+      count: 3,
       text: "@channel ",
-      caret: 9,
     });
   });
 });
 
-describe("withAt", () => {
+describe("atReplace", () => {
   it("puts an @ at the caret that starts a query", () => {
-    expect(withAt("", 0)).toEqual({ text: "@", caret: 1 });
-    expect(withAt("hi ", 3)).toEqual({ text: "hi @", caret: 4 });
-    expect(withAt("hi  there", 3)).toEqual({ text: "hi @ there", caret: 4 });
+    expect(atReplace("")).toEqual({ count: 0, text: "@" });
+    expect(atReplace("hi ")).toEqual({ count: 0, text: "@" });
   });
 
   it("puts a space first where the @ would run into a word", () => {
-    const edited = withAt("cc", 2);
-    expect(edited).toEqual({ text: "cc @", caret: 4 });
-    expect(mentionQueryAt(edited.text, edited.caret)).toEqual({
-      start: 3,
-      query: "",
-    });
-    expect(withAt("hi there", 2)).toEqual({ text: "hi @ there", caret: 4 });
-    expect(withAt("@", 1)).toEqual({ text: "@ @", caret: 3 });
+    const { text } = atReplace("cc");
+    expect(text).toBe(" @");
+    expect(mentionQueryAt(`cc${text}`, 4)).toEqual({ start: 3, query: "" });
+    expect(atReplace("@").text).toBe(" @");
   });
 });

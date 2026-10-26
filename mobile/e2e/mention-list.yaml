@@ -95,9 +95,11 @@ name: Pick mentions from the list, from @, the @ button and #, and see them sent
 # button at the start of "there", a pick, then "hi" typed after the
 # token and its space, not at the end of the field.
 - inputText: "there"
+# The tap is in the field's left padding, before the word: a tap inside
+# a word snaps to its nearer end, as iOS places a caret.
 - tapOn:
     id: "composer"
-    point: "3%,50%"
+    point: "1%,50%"
 - tapOn: "Mention someone"
 - extendedWaitUntil:
     visible:

@@ -8,6 +8,7 @@ executionOrder:
   flowsOrder:
     - "Open a channel and read it, from what is new back to the beginning, kept live"
     - "Edit a message from its menu, cancel an edit, and see Save refuse an emptied one"
+    - "Edit a formatted message and see its formatting and mention kept"
     - "Paste an invite link and create an account with it"
     - "Open an invite from the web's open-in-app link, sign in and join"
     - "React to a message from its menu, copy its words, and delete it"

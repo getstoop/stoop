@@ -4,10 +4,10 @@ import {
   mentionToken,
 } from "./mentions";
 
-// The phone's plain composer field after a pick from the mention list,
-// or its @ button: the text, and where the caret goes. The field shows a
-// mention as its token until the rich editor draws it as one.
-export type Edited = { text: string; caret: number };
+// What the phone's composer field does for a pick from the mention list,
+// or its @ button: the `count` characters before the caret replaced by
+// `text`. The field reads only the caret's line up to the caret.
+export type Replace = { count: number; text: string };
 
 // What a picked row writes: its token, or @channel / @here as the words
 // they are sent as.
@@ -18,18 +18,13 @@ export function pickedWords(candidate: MentionCandidate): string {
 }
 
 // The query typed from `start` (its "@" or "#") to the caret replaced by
-// the pick and a space, the caret after them.
-export function withPick(
-  text: string,
+// the pick and a space.
+export function pickReplace(
+  before: string,
   start: number,
-  caret: number,
   candidate: MentionCandidate,
-): Edited {
-  const words = `${pickedWords(candidate)} `;
-  return {
-    text: text.slice(0, start) + words + text.slice(caret),
-    caret: start + words.length,
-  };
+): Replace {
+  return { count: before.length - start, text: `${pickedWords(candidate)} ` };
 }
 
 // The character before an "@" that would make it part of a word, as
@@ -38,11 +33,10 @@ const RUNS_INTO_AT = /[a-z0-9_@]/i;
 
 // An "@" put in at the caret, after a space where the character before
 // would run into it, so it starts a query and the list opens.
-export function withAt(text: string, caret: number): Edited {
-  const before = text[caret - 1];
-  const at = before !== undefined && RUNS_INTO_AT.test(before) ? " @" : "@";
+export function atReplace(before: string): Replace {
+  const last = before[before.length - 1];
   return {
-    text: text.slice(0, caret) + at + text.slice(caret),
-    caret: caret + at.length,
+    count: 0,
+    text: last !== undefined && RUNS_INTO_AT.test(last) ? " @" : "@",
   };
 }

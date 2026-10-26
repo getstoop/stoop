@@ -186,9 +186,9 @@ and `withTokensRestored` go (the phone was their only user).
   kept across that.
 - The pill shows the draft as plain text (`plainText`), never markers.
 - A refused send puts its words back ahead of anything typed since
-  (`restoreDraft`, which joins with a new line). Joined Markdown can
-  merge blocks (an open code fence would swallow what follows), so
-  `restoreDraft` joins two documents, not two strings (Tech).
+  (`restoreDraft`, which joins with a new line). `toMarkdown` closes
+  every block it opens (a fence always has its closing line), so two
+  drafts joined by a line read back as the two.
 - Over 4000 written characters: Send dims and a line under the field
   says how many over, as the error line does. No keystroke is refused.
 
@@ -282,9 +282,17 @@ A native paragraph is one line; each carries its block in a paragraph
 attribute (iOS) or span (Android), each run its marks. Core converts
 lines to and from web's document JSON (`linesToDoc`, `docToLines`), so
 `toMarkdown` and `fromMarkdown` are web's, unchanged, moved to core with
-their tests. A pill is one object-replacement character (U+FFFC) with
-the mention attached: one character, so atomic for free; drawn as a
-pill; read by a screen reader as its words.
+their tests. A pill is its words (`@priya`) carrying the mention as an
+attribute (iOS) or span (Android): drawn as a pill by the same drawing
+as inline code, read by a screen reader as the words it shows, and
+kept one unit by the view (the caret steps over it, a backspace takes
+it whole; step 4). A character standing in for it (U+FFFC with a drawn
+attachment) was the first idea; words keep the screen reader, copy and
+the caret's geometry right with no drawing of our own.
+
+The field joins React Native's focus registry while it is focused
+(`fieldFocus.ts`), so a tap on the timeline, a drag, or
+`Keyboard.dismiss()` puts it away as it would a `TextInput`.
 
 ### Where each behaviour lives
 
@@ -314,17 +322,13 @@ waits on JS, and native CI is planned (Decisions).
   two after the tap). One Markdown reader and writer, shared with web
   and checked against the server's cases (Split → 0); moving it native
   would add a Swift and a Kotlin parser to the Go and TypeScript ones.
-- **The cases** are one table in core (`core/editor/cases.json`: lines
-  and selection, an action (a key, typed text, a command), lines and
-  selection after): web's editor behaviour written down. The Swift and
-  Kotlin unit tests both read it, so the platforms are held to the same
-  answers. They run locally and with the hand-run `mobile-native.yml`
-  until native CI exists.
-
-Step 2 is a spike before it is a pull request: the view on both
-platforms holding typed text with a mark and a pill, `onChange` lines
-reaching JS, and `load` / `insertLines` landing where they should,
-before anything is built on it.
+- **The checks** are Maestro flows on the real field, one per step,
+  each typing or tapping and then reading the sent message back over
+  RPC, so a behaviour is held to the Markdown it produces. The same
+  flows run on iOS and Android. (The first plan was a cases table read
+  by Swift and Kotlin unit tests; that needs test targets the app
+  doesn't have: an iOS test spec wired through a config plugin, and
+  Robolectric on Android, a new dependency. Open question 1.)
 
 ### The composer
 
@@ -350,15 +354,18 @@ operator's OK.
 1. **Core**: `toMarkdown` / `fromMarkdown` and `checkLink` move to core
    (web imports them, unchanged); `EditorLine`, `linesToDoc`,
    `docToLines`, round-trip tests.
-2. **The editor, plain**: the native view on both platforms with no
-   formatting yet, replacing `TextInput` at parity (focus, height,
-   caret, the mention list, send, edit, refused send), and the cases
-   table's first rows with the Swift and Kotlin tests that read it (it
-   grows with each step). Starts as the spike above.
+2. **The editor**: the native view on both platforms, holding and
+   drawing the whole format (marks, links, mentions, quotes, lists,
+   code blocks) so an edit keeps what it loads, typing plain, replacing
+   `TextInput` at parity (focus, height, the mention list, send, refused
+   send, the keyboard put away by a tap). Edit mode loads the message
+   through `fromMarkdown` and saves what the field holds;
+   `editableText` and `withTokensRestored` go. The controls come in the
+   steps after.
 3. **Inline marks**: the row's six mark buttons, pressed state, typing
    attributes, the spoiler fill.
-4. **Pills**: picks and typed-in-full handles as pills; edit mode loads
-   through `fromMarkdown`; `editableText` and `withTokensRestored` go.
+4. **Pills**: picks and typed-in-full handles as pills, one unit to the
+   caret and backspace.
 5. **Links**: the dialog, ⌘K, paste over words, bare addresses styled.
 6. **Quote and code block.**
 7. **Lists**, with indent and outdent.
@@ -401,3 +408,12 @@ operator's OK.
   (and in the shared cases).
 - Emoji `:shortcode` suggestions in the mention panel.
 - Reading the formats at the caret to a screen reader on request.
+
+## Open questions
+
+1. Native unit tests: the plan named a cases table read by Swift and
+   Kotlin tests. The app has no native test targets; adding them means
+   an iOS test spec wired through a config plugin and Robolectric on
+   Android (a new dependency). Until that's decided, Maestro flows on
+   the real field check each step's behaviour (Tech → Where each
+   behaviour lives).
