@@ -142,7 +142,11 @@ and `DecodeConfig` does not, so orientations 5–8 swap the two. Go has no
 EXIF reader; `image_size.go` walks just far enough to find the tag (a
 JPEG's APP1 segment, or a WebP's `EXIF` chunk when its VP8X flags say
 there is one, then the TIFF block's first IFD), checks every length
-against what is there, and holds at most 64 KiB.
+against what is there, and holds at most 64 KiB. The walk is bounded
+too: a JPEG's stops at the frame header, after 64 segments or 256 KiB,
+and a WebP's after 32 chunks or at the end of its RIFF size, so a file
+of empty segments costs a few reads. Only JPEG and WebP are read for
+orientation; a PNG's `eXIf` chunk is ignored.
 
 Measuring never fails an upload: anything else, a header that won't
 read, or a file uploaded before the columns existed has no size, and the

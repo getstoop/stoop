@@ -132,6 +132,16 @@ func TestExifOrientationNone(t *testing.T) {
 	// An XMP APP1 first, then the EXIF one: the walk passes the first.
 	exif := jpegWithSegment(plain.Bytes(), 0xE1, append([]byte("Exif\x00\x00"), exifTIFF(binary.LittleEndian, 6)...))
 	both := jpegWithSegment(exif, 0xE1, xmpPayload)
+	// Fill bytes before a code, and markers that carry no length (TEM, a
+	// restart), are stepped over on the way to the EXIF segment.
+	spaced := append([]byte{}, exif[:2]...)
+	spaced = append(spaced, 0xFF, 0xFF, 0xFF, 0xE0, 0x00, 0x04, 'J', 'F', 0xFF, 0x01, 0xFF, 0xD3)
+	spaced = append(spaced, exif[2:]...)
+	// EXIF after the frame header is past where the walk stops.
+	afterFrame := jpegWithSegment(exif, 0xC0, []byte{0x08, 0x00, 0x1E, 0x00, 0x28, 0x01, 0x01, 0x11, 0x00})
+	// A WebP that has an EXIF chunk but whose VP8X flags don't say so.
+	unflagged := webpWithExif(4, 4, exifTIFF(binary.LittleEndian, 6))
+	unflagged[20] = 0
 	cases := []struct {
 		name        string
 		file        []byte
@@ -141,13 +151,76 @@ func TestExifOrientationNone(t *testing.T) {
 		{"JPEG without APP1", plain.Bytes(), "image/jpeg", 0},
 		{"JPEG with only XMP", xmp, "image/jpeg", 0},
 		{"JPEG with XMP and EXIF", both, "image/jpeg", 6},
+		{"JPEG with fill bytes and markers without a length", spaced, "image/jpeg", 6},
+		{"JPEG with EXIF after the frame header", afterFrame, "image/jpeg", 0},
 		{"PNG", []byte("\x89PNG\r\n\x1a\n"), "image/png", 0},
-		{"WebP without the EXIF flag", webpWithExif(4, 4, nil)[:20], "image/webp", 0},
+		{"WebP without the EXIF flag", unflagged, "image/webp", 0},
 	}
 	for _, tc := range cases {
 		if got := exifOrientation(bytes.NewReader(tc.file), tc.contentType); got != tc.want {
 			t.Errorf("%s: got %d, want %d", tc.name, got, tc.want)
 		}
+	}
+}
+
+// countingReader counts the bytes read and the reads and seeks made.
+type countingReader struct {
+	reader       *bytes.Reader
+	bytes, calls int
+}
+
+func (c *countingReader) Read(buf []byte) (int, error) {
+	read, err := c.reader.Read(buf)
+	c.bytes += read
+	c.calls++
+	return read, err
+}
+
+func (c *countingReader) Seek(offset int64, whence int) (int64, error) {
+	c.calls++
+	return c.reader.Seek(offset, whence)
+}
+
+// A file of nothing but empty segments or chunks, with the EXIF after
+// them, is given up on after a bounded walk rather than read through.
+func TestExifOrientationGivesUpEarly(t *testing.T) {
+	const padding = 1_000_000
+	tiff := exifTIFF(binary.LittleEndian, 6)
+
+	jpegFile := []byte{0xFF, 0xD8}
+	for range padding {
+		jpegFile = append(jpegFile, 0xFF, 0xE2, 0x00, 0x02)
+	}
+	exif := append([]byte("Exif\x00\x00"), tiff...)
+	jpegFile = append(jpegFile, 0xFF, 0xE1)
+	jpegFile = binary.BigEndian.AppendUint16(jpegFile, uint16(len(exif)+2))
+	jpegFile = append(jpegFile, exif...)
+	jpegReader := &countingReader{reader: bytes.NewReader(jpegFile)}
+	if got := exifOrientation(jpegReader, "image/jpeg"); got != 0 {
+		t.Errorf("JPEG: got %d, want 0 (EXIF beyond the bound)", got)
+	}
+	if jpegReader.bytes > maxJPEGWalk {
+		t.Errorf("JPEG: read %d bytes, want at most %d", jpegReader.bytes, maxJPEGWalk)
+	}
+
+	chunks := []byte("WEBP")
+	chunks = append(chunks, "VP8X"...)
+	chunks = binary.LittleEndian.AppendUint32(chunks, 10)
+	chunks = append(chunks, 0x08, 0, 0, 0, 3, 0, 0, 2, 0, 0)
+	for range padding {
+		chunks = append(chunks, "JUNK\x00\x00\x00\x00"...)
+	}
+	chunks = append(chunks, "EXIF"...)
+	chunks = binary.LittleEndian.AppendUint32(chunks, uint32(len(tiff)))
+	chunks = append(chunks, tiff...)
+	webpFile := binary.LittleEndian.AppendUint32([]byte("RIFF"), uint32(len(chunks)))
+	webpFile = append(webpFile, chunks...)
+	webpReader := &countingReader{reader: bytes.NewReader(webpFile)}
+	if got := exifOrientation(webpReader, "image/webp"); got != 0 {
+		t.Errorf("WebP: got %d, want 0 (EXIF beyond the bound)", got)
+	}
+	if webpReader.calls > 4*maxWebPChunks {
+		t.Errorf("WebP: %d reads and seeks, want a bounded walk", webpReader.calls)
 	}
 }
 
