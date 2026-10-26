@@ -92,6 +92,9 @@ type imageHeader struct {
 	contentType string
 	// progressive: a JPEG whose decoder keeps every coefficient.
 	progressive bool
+	// rgb: a three-component JPEG the decoder will read as RGB, which it
+	// converts into an RGBA image of its own.
+	rgb bool
 	// interlaced: a PNG in Adam7, decoded a pass at a time into images
 	// of their own before they are put together.
 	interlaced bool
@@ -99,14 +102,16 @@ type imageHeader struct {
 
 // decodeCost is what decoding an image holds, in bytes:
 //   - a JPEG's bitmap, YCbCr counted as unsubsampled (3 bytes a pixel),
-//     grey 1, CMYK 8 (the decoder keeps it as YCbCr and converts), and
-//     for a progressive one its coefficients too, four bytes a sample
-//     per component;
+//     RGB 7 (decoded as three planes, then converted to RGBA), grey 1,
+//     CMYK 8 (the decoder keeps it as YCbCr and converts), and for a
+//     progressive one its coefficients too, four bytes a sample per
+//     component;
 //   - a PNG's bitmap, grey counted as 4 or 8 because a tRNS chunk, which
 //     the header doesn't show, makes it NRGBA, and doubled when
 //     interlaced;
-//   - eight bytes a pixel for any WebP, whose lossless decoder holds two
-//     copies and whose header doesn't always say which kind it is.
+//   - twelve bytes a pixel for any WebP: the lossless decoder holds two
+//     copies, a lossy one with alpha decodes the alpha losslessly beside
+//     its planes, and the header doesn't always say which kind it is.
 //
 // TestDecodeCostCoversTheDecoders checks these against what the
 // decoders allocate.
@@ -114,7 +119,7 @@ func decodeCost(header imageHeader) int64 {
 	pixels := int64(header.Width) * int64(header.Height)
 	switch header.contentType {
 	case "image/webp":
-		return pixels * 8
+		return pixels * 12
 	case "image/jpeg":
 		perPixel, components := int64(3), int64(3)
 		switch header.ColorModel {
@@ -122,6 +127,9 @@ func decodeCost(header imageHeader) int64 {
 			perPixel, components = 1, 1
 		case color.CMYKModel:
 			perPixel, components = 8, 4
+		}
+		if header.rgb {
+			perPixel = 7
 		}
 		if header.progressive {
 			perPixel += 4 * components
@@ -218,6 +226,87 @@ func jpegProgressive(file io.Reader) bool {
 	return true
 }
 
+// maxJPEGMarkers bounds jpegDecodesAsRGB's walk; a progressive file
+// has a few dozen.
+const maxJPEGMarkers = 4096
+
+// jpegDecodesAsRGB reports whether Go's decoder will read a
+// three-component JPEG as RGB rather than YCbCr: no JFIF APP0, and either
+// an Adobe APP14 whose transform is 0 or components named R, G and B
+// (image/jpeg's isRGB). The markers that decide it may come after the
+// first scan, where DecodeConfig doesn't look, so this walks every
+// marker to the end of the image, stepping over each segment by its
+// length and over scan data to the next marker, and keeps the state the
+// decoder would. Anything it can't follow says true, which costs more
+// and so errs towards skipping.
+func jpegDecodesAsRGB(file io.Reader) bool {
+	reader := bufio.NewReader(file)
+	var soi [2]byte
+	if _, err := io.ReadFull(reader, soi[:]); err != nil || soi[0] != 0xFF || soi[1] != 0xD8 {
+		return true
+	}
+	jfif, adobeRGB, namedRGB := false, false, false
+	inScan := false
+	for markers := 0; markers < maxJPEGMarkers; {
+		first, err := reader.ReadByte()
+		if err != nil {
+			return true
+		}
+		if first != 0xFF {
+			if inScan {
+				continue // entropy-coded data
+			}
+			return true
+		}
+		code := byte(0xFF)
+		for code == 0xFF {
+			if code, err = reader.ReadByte(); err != nil {
+				return true
+			}
+		}
+		switch {
+		case inScan && (code == 0x00 || (code >= 0xD0 && code <= 0xD7)):
+			continue // a stuffed byte or a restart marker inside the scan
+		case code == 0xD9:
+			return !jfif && (adobeRGB || namedRGB)
+		case code == 0x01 || (code >= 0xD0 && code <= 0xD7):
+			continue
+		case code == 0x00:
+			return true
+		}
+		markers++
+		inScan = false
+		var lengthBytes [2]byte
+		if _, err := io.ReadFull(reader, lengthBytes[:]); err != nil {
+			return true
+		}
+		length := int(binary.BigEndian.Uint16(lengthBytes[:])) - 2
+		if length < 0 {
+			return true
+		}
+		// Enough for a JFIF or Adobe header, or a frame header's first
+		// three component ids.
+		segment := make([]byte, min(length, 15))
+		if _, err := io.ReadFull(reader, segment); err != nil {
+			return true
+		}
+		switch {
+		case code == 0xE0 && length >= 5:
+			jfif = string(segment[:5]) == "JFIF\x00"
+		case code == 0xEE && length >= 12 && string(segment[:5]) == "Adobe":
+			adobeRGB = segment[11] == 0
+		case isFrameHeader(code) && length >= 15 && segment[5] == 3:
+			namedRGB = segment[6] == 'R' && segment[9] == 'G' && segment[12] == 'B'
+		case code == 0xDA:
+			inScan = true
+		}
+		if _, err := reader.Discard(length - len(segment)); err != nil {
+			return true
+		}
+	}
+	return true
+}
+
 // thumbnail is an encoded thumbnail and its size, the right way up.
 type thumbnail struct {
 	data          []byte
@@ -251,6 +340,12 @@ func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
 			return thumbnail{}, err
 		}
 		header.progressive = jpegProgressive(file)
+		if cfg.ColorModel == color.YCbCrModel || cfg.ColorModel == color.RGBAModel {
+			if _, err := file.Seek(0, io.SeekStart); err != nil {
+				return thumbnail{}, err
+			}
+			header.rgb = jpegDecodesAsRGB(file)
+		}
 	case "image/png":
 		if pngAnimated(file) {
 			return thumbnail{}, errNoThumbnailNeeded

@@ -205,7 +205,7 @@ func TestThumbnailSkips(t *testing.T) {
 	}
 }
 
-// jpegHeader is a JPEG that ends at the start of its scan: enough for
+// jpegHeader is a JPEG whose scan is empty: enough for
 // DecodeConfig and the bound, not for a decode. frame is the SOF code.
 func jpegHeader(frame byte, width, height int) []byte {
 	out := []byte{0xFF, 0xD8}
@@ -215,7 +215,8 @@ func jpegHeader(frame byte, width, height int) []byte {
 	out = binary.BigEndian.AppendUint16(out, uint16(height))
 	out = binary.BigEndian.AppendUint16(out, uint16(width))
 	out = append(out, 3, 1, 0x11, 0, 2, 0x11, 0, 3, 0x11, 0)
-	return append(out, 0xFF, 0xDA, 0x00, 0x0C, 3, 1, 0, 2, 0x11, 3, 0x11, 0, 63, 0)
+	out = append(out, 0xFF, 0xDA, 0x00, 0x0C, 3, 1, 0, 2, 0x11, 3, 0x11, 0, 63, 0)
+	return append(out, 0xFF, 0xD9)
 }
 
 // The bound is reckoned from the header before anything is decoded. A
@@ -249,6 +250,11 @@ func TestThumbnailBound(t *testing.T) {
 		header.progressive = true
 		return header
 	}
+	rgbJPEG := func(width, height int) imageHeader {
+		header := sized(color.YCbCrModel, width, height, "image/jpeg")
+		header.rgb = true
+		return header
+	}
 	interlacedPNG := func(model color.Model, width, height int) imageHeader {
 		header := sized(model, width, height, "image/png")
 		header.interlaced = true
@@ -272,8 +278,10 @@ func TestThumbnailBound(t *testing.T) {
 		"48 MP 16-bit PNG":             {sized(color.RGBA64Model, 8064, 6048, "image/png"), false},
 		"24 MP interlaced PNG":         {interlacedPNG(color.NRGBAModel, 5712, 4284), true},
 		"48 MP interlaced PNG":         {interlacedPNG(color.NRGBAModel, 8064, 6048), false},
-		"24 MP WebP":                   {sized(color.YCbCrModel, 5712, 4284, "image/webp"), true},
-		"48 MP WebP":                   {sized(color.YCbCrModel, 8064, 6048, "image/webp"), false},
+		"16 MP WebP":                   {sized(color.YCbCrModel, 4608, 3456, "image/webp"), true},
+		"24 MP WebP":                   {sized(color.YCbCrModel, 5712, 4284, "image/webp"), false},
+		"32 MP RGB JPEG":               {rgbJPEG(6528, 4896), true},
+		"48 MP RGB JPEG":               {rgbJPEG(8064, 6048), false},
 	} {
 		if fits := thumbnailCost(tc.header) <= maxThumbnailMemory; fits != tc.fits {
 			t.Errorf("%s: fits %v, want %v", name, fits, tc.fits)
@@ -326,6 +334,60 @@ func TestThumbnailSkipsAPNG(t *testing.T) {
 	}
 }
 
+// A JPEG is read as RGB, and costs more than twice as much, when it has
+// no JFIF APP0 and an Adobe APP14 says transform 0, wherever in the file
+// the APP14 is: after the scan too, past where DecodeConfig stops. A
+// phone photo has neither (an EXIF APP1 and no JFIF) and is YCbCr.
+func TestJPEGDecodesAsRGB(t *testing.T) {
+	phone := encodeJPEG(t, quadrants(64, 48), 6)
+	adobe := []byte{0xFF, 0xEE, 0x00, 0x0E, 'A', 'd', 'o', 'b', 'e', 0, 100, 0, 0, 0, 0, 0}
+	beforeEnd := func(data, segment []byte) []byte {
+		out := append([]byte{}, data[:len(data)-2]...)
+		return append(append(out, segment...), 0xFF, 0xD9)
+	}
+	jfif := []byte{0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1, 0, 1, 0, 0}
+	afterSOI := func(data, segment []byte) []byte {
+		out := append([]byte{}, data[:2]...)
+		return append(append(out, segment...), data[2:]...)
+	}
+	for name, tc := range map[string]struct {
+		data []byte
+		rgb  bool
+	}{
+		"a phone photo":                   {phone, false},
+		"an APP14 after the scan":         {beforeEnd(phone, adobe), true},
+		"the same with JFIF":              {afterSOI(beforeEnd(phone, adobe), jfif), false},
+		"cjpeg -rgb":                      {readTestdata(t, "smooth-rgb.jpeg"), true},
+		"cjpeg -rgb, progressive":         {readTestdata(t, "smooth-rgb.progressive.jpeg"), true},
+		"a progressive YCbCr photo":       {readTestdata(t, "smooth-444.progressive.jpeg"), false},
+		"a file that ends before its end": {phone[:len(phone)-40], true},
+	} {
+		if got := jpegDecodesAsRGB(bytes.NewReader(tc.data)); got != tc.rgb {
+			t.Errorf("%s: %v, want %v", name, got, tc.rgb)
+		}
+		if tc.data[len(tc.data)-1] != 0xD9 {
+			continue
+		}
+		// What the decoder does is the truth this follows.
+		img, err := jpeg.Decode(bytes.NewReader(tc.data))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if _, isRGB := img.(*image.RGBA); isRGB != tc.rgb {
+			t.Errorf("%s: the decoder gave a %T", name, img)
+		}
+	}
+}
+
+func readTestdata(t *testing.T, name string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
 // decodeSlack is what a decoder allocates whatever the image's size:
 // Huffman and quantisation tables, a zlib window, read buffers.
 const decodeSlack = 192 << 10
@@ -360,13 +422,10 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 	cases["YCbCr baseline JPEG"] = encodeJPEG(t, quadrants(1000, 800), 0)
 	for _, name := range []string{
 		"smooth-444.progressive.jpeg", "video-005.gray.q50.progressive.jpeg", "video-001.cmyk.jpeg",
+		"smooth-rgb.jpeg", "smooth-rgb.progressive.jpeg",
 		"video-001.lossy.webp", "yellow_rose.lossy-with-alpha.webp", "blue-purple-pink.lossless.webp",
 	} {
-		data, err := os.ReadFile(filepath.Join("testdata", name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		cases[name] = data
+		cases[name] = readTestdata(t, name)
 	}
 
 	for name, data := range cases {
@@ -378,6 +437,7 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 		switch format {
 		case "jpeg":
 			header.progressive = jpegProgressive(bytes.NewReader(data))
+			header.rgb = jpegDecodesAsRGB(bytes.NewReader(data))
 		case "png":
 			header.interlaced = data[28] == 1
 		}

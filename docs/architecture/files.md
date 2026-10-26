@@ -198,22 +198,34 @@ decoded: `decodeCost` (below) plus the band, the averaged image, the
 scaler's buffer and the thumbnail, and the job skips anything over
 288 MiB. `decodeCost` counts:
 
-- JPEG: 3 bytes a pixel for YCbCr, as if unsubsampled; 1 for grey; 8
-  for CMYK, which the decoder holds as YCbCr and converts; and when
-  progressive, 4 more per component for the coefficients.
+- JPEG: 3 bytes a pixel for YCbCr, as if unsubsampled; 7 for one the
+  decoder reads as RGB, which it converts into an RGBA image of its
+  own; 1 for grey; 8 for CMYK, which the decoder holds as YCbCr and
+  converts; and when progressive, 4 more per component for the
+  coefficients. Whether three components are RGB is the decoder's
+  rule: no JFIF APP0, and an Adobe APP14 with transform 0 or components
+  named R, G, B. An APP14 may come after the first scan, where
+  `DecodeConfig` has stopped, so `jpegDecodesAsRGB` walks every marker
+  to the end of the image (stepping over scan data) and keeps the
+  decoder's state; anything it can't follow counts as RGB. A phone
+  photo carries EXIF and no JFIF, but no APP14 and components 1, 2, 3,
+  so it is YCbCr.
 - PNG: 4 bytes a pixel for 8-bit grey, RGB or RGBA and 8 for 16-bit
   (a `tRNS` chunk, which the header doesn't show, turns grey into
   NRGBA), 1 for paletted, doubled when Adam7-interlaced (each pass is
   decoded into an image of its own first).
-- WebP: 8 bytes a pixel, since the lossless decoder holds two copies
-  and the header doesn't always say which kind it is.
+- WebP: 12 bytes a pixel: the lossless decoder holds two copies, a
+  lossy picture with alpha decodes the alpha losslessly beside its
+  planes (7.1 bytes a pixel measured), and the header doesn't always
+  say which kind it is.
 
 `TestDecodeCostCoversTheDecoders` decodes every PNG colour type with
 and without `tRNS` and interlacing, and each kind of JPEG and WebP, and
 checks that what was allocated stays within the reckoning. The bound
-admits a baseline JPEG up to about 75 MP (4:4:4), a 48 MP 8-bit PNG,
-grey with `tRNS` included, an interlaced one of about 28 MP, a 24 MP
-WebP or CMYK JPEG, and a progressive JPEG of about 16 MP. A skipped
+admits a baseline YCbCr JPEG up to about 75 MP (4:4:4), an RGB one of
+about 32 MP, a 48 MP 8-bit PNG, grey with `tRNS` included, an
+interlaced one of about 28 MP, a 24 MP CMYK JPEG, a 16 MP WebP, and
+progressive JPEGs of about 16 MP (YCbCr) and 12 MP (RGB). A skipped
 image is served as it is.
 
 The kind runs one at a time (`MaxInFlight: 1`), shares one decode slot
@@ -234,10 +246,15 @@ container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
 | 48 MP 8-bit PNG, with alpha | 269 MiB | 1.2 s |
 | 48 MP grey PNG with `tRNS` | 265 MiB | 0.5 s |
 | 28 MP interlaced RGBA PNG (the largest admitted) | 279 MiB | 0.3 s |
-| 12 of the largest, one after another | 294 MiB | |
+| 32 MP RGB JPEG (the largest admitted) | 279 MiB | 1.3 s |
+| 12 MP progressive RGB JPEG (the largest admitted) | 295 MiB | 0.8 s |
+| 12 of the largest, one after another | 297 MiB | |
 
-Refused ones cost nothing: a 24 MP progressive JPEG, a 14400² grey PNG
-with `tRNS` and a 200,000,000×1 PNG each peaked at 16 MiB. Before the
+Refused ones cost nothing: a 24 MP progressive JPEG, a 48 MP RGB JPEG,
+a 14400² grey PNG with `tRNS` and a 200,000,000×1 PNG each peaked at
+16 MiB. These are the job's own numbers: with jobs embedded in the
+server ([runtime.md](runtime.md#background-work)) the server's heap
+shares the limit. Before the
 bound counted them, a 24 MP progressive JPEG peaked at 422 MiB, a 48 MP
 one was killed at 512m, and the grey 14400² held 829 MB; without
 handing memory back, a run of twelve large ones grew to 463 MiB.

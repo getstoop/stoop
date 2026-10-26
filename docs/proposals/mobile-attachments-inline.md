@@ -353,11 +353,13 @@ Added at the operator's request on 2026-10-25, after the design pass.
   a 48 MP one was killed at 512m, while a 48 MP baseline one holds
   147 MiB. So the job reckons, from the header alone, what the decode
   and the steps after it will hold, and skips anything over 288 MiB.
-  The decode is counted per format: JPEG by colour model (CMYK at 8
-  bytes a pixel) plus the coefficients when progressive; PNG at 4 or 8
-  bytes a pixel even for grey, because a `tRNS` chunk the header
-  doesn't show makes it NRGBA, doubled when interlaced; WebP at 8. A
-  test checks the reckoning against what each decoder allocates.
+  The decode is counted per format: JPEG by colour model (RGB at 7
+  bytes a pixel, decided by walking every marker as the decoder does,
+  since an APP14 after the first scan makes it RGB; CMYK at 8) plus
+  the coefficients when progressive; PNG at 4 or 8 bytes a pixel even
+  for grey, because a `tRNS` chunk the header doesn't show makes it
+  NRGBA, doubled when interlaced; WebP at 12. A test checks the
+  reckoning against what each decoder allocates.
   Before any of that, the shape: no side over 20,000 px and nothing
   longer than 20 to 1, since a 200,000,000×1 PNG is a 200 KB file. The
   numbers, measured for 12, 24 and 48 MP JPEGs and the largest of each

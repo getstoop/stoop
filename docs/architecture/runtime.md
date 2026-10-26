@@ -363,7 +363,7 @@ the `jobs_runner` health row
 | `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for when no insert has woken the dispatcher. |
 | `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |
-| `STOOP_JOBS` | `embedded` | Where the dispatcher runs: in the server, in a `stoop jobs` the server starts and supervises (`child`, restarted with backoff like cloudflared; on Linux it is sent `SIGTERM` when the server dies, however it dies), or in none of it (`external`, the `jobs` compose service or a bare `stoop jobs`). Events a job publishes in either separate process reach the server over Postgres `NOTIFY` ([realtime.md](realtime.md#across-processes)). |
+| `STOOP_JOBS` | `embedded` | Where the dispatcher runs: in the server, in a `stoop jobs` the server starts and supervises (`child`, restarted with backoff like cloudflared; on Linux it is sent `SIGTERM` when the server dies, however it dies), or in none of it (`external`, the `jobs` compose service or a bare `stoop jobs`). Events a job publishes in either separate process reach the server over Postgres `NOTIFY` ([realtime.md](realtime.md#across-processes)). The image jobs' measured peaks (up to about 300 MiB, [files.md](files.md#thumbnails)) are for the job alone; embedded, the server's own heap shares the memory limit, so leave headroom above them. |
 
 The Storage tab's **Clean now** is `FileService.SweepFiles`: it enqueues
 one `sweep_files` job and returns its id, and the Diagnostics tab's
