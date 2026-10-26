@@ -38,7 +38,9 @@ export default function LinkPreviews({
     <View style={styles.column}>
       {shown.map((preview) => (
         <Card
-          key={preview.url}
+          // A new image for the same link (a refetch) gets a fresh card,
+          // so one that failed to load tries again.
+          key={`${preview.url}\n${preview.imageFileId}`}
           preview={preview}
           layout={cardLayout(preview, bodyWidth)}
           origin={origin}

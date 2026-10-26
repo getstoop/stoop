@@ -274,7 +274,9 @@ and no Markdown library. Rules follow web's `MessageBody`:
      (`markEdited`) and draws "(edited)" itself, as the body draws it on
      a line of its own, read as its own element after the cards. A card
      removed, or a link to a message here (no card), puts it back after
-     the words.
+     the words. A card that hides because its image alone failed to load
+     still counts, so "(edited)" stays on its own line there (cosmetic;
+     the measure agrees).
    - **Flow**: `link-previews.yaml`, on a channel the seed fills while
      it serves a page from 127.0.0.1 and turns previews on (then off, so
      no other flow's links are fetched); the server runs with
