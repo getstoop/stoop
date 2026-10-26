@@ -12,6 +12,7 @@ import { threadMessageLink } from "../../api/shareLinks";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
 import MessageContexts from "../../components/MessageContexts";
 import Viewer from "../../components/Viewer";
+import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
@@ -367,6 +368,7 @@ export default function Thread({
       </MessageContexts>
       {viewer.viewing && (
         <Viewer
+          key={itemKey(viewer.viewing.items[viewer.viewing.index])}
           items={viewer.viewing.items}
           start={viewer.viewing.index}
           origin={server.origin}

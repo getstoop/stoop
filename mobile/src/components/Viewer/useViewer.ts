@@ -22,7 +22,9 @@ export function useViewer(messages: Message[]) {
     // tells apart one file sent in two messages; else its id.
     const same = items.findIndex((item) => item.attachment === attachment);
     const index = same >= 0 ? same : items.findIndex((item) => item.attachment.fileId === attachment.fileId);
-    if (index >= 0) setViewing({ items, index });
+    // A tap under the viewer before it covers the screen (Android's
+    // moment for the status bar) opens nothing more.
+    if (index >= 0) setViewing((current) => current ?? { items, index });
   }, []);
   const close = useCallback(() => setViewing(null), []);
   return { viewing, open, close };

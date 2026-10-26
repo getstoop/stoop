@@ -3,6 +3,7 @@ import { type ComponentRef, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   GestureDetector,
+  GestureStateManager,
   usePanGesture,
   usePinchGesture,
   useSimultaneousGestures,
@@ -46,6 +47,9 @@ const DOUBLE_TAP_DELAY = 300;
 // How far a finger may move and still tap: further is a swipe, which
 // Android otherwise counts as a tap too, and the pager never pages.
 const TAP_SLOP = 10;
+// A double tap's second tap is measured from the first's touch-down,
+// and a thumb's two taps seldom land on one point.
+const DOUBLE_TAP_SLOP = 40;
 // How far, or how fast, a drag down must go to close the viewer.
 const CLOSE_DY = 120;
 const CLOSE_VY = 800;
@@ -110,11 +114,17 @@ export default function Page({
     setZoomed(false);
   }, [active, scale, x, y]);
 
+  // Asked when the focus would move, so a redraw meanwhile doesn't use
+  // the request up.
+  const focusRequest = useRef(takeFocus);
+  focusRequest.current = takeFocus;
   useEffect(() => {
-    if (!active || !takeFocus()) return;
-    const timer = setTimeout(() => page.current && AccessibilityInfo.sendAccessibilityEvent(page.current, "focus"), 300);
+    if (!active) return;
+    const timer = setTimeout(() => {
+      if (page.current && focusRequest.current()) AccessibilityInfo.sendAccessibilityEvent(page.current, "focus");
+    }, 300);
     return () => clearTimeout(timer);
-  }, [active, takeFocus]);
+  }, [active]);
 
   // How far the picture may move each way at a scale: none until it
   // overflows the screen.
@@ -148,6 +158,12 @@ export default function Page({
 
   const pinch = usePinchGesture({
     onActivate: (event) => {
+      // Android's pinch also takes a tap then a drag (its quick scale),
+      // which is a swipe soon after a swipe here; two fingers only.
+      if (event.numberOfPointers < 2) {
+        GestureStateManager.fail(event.handlerTag);
+        return;
+      }
       // Zoomed from the first moment, so the pager doesn't page under
       // the fingers.
       scheduleOnRN(onZoom, true);
@@ -160,6 +176,7 @@ export default function Page({
       };
     },
     onUpdate: (event) => {
+      if (event.numberOfPointers < 2) return;
       const from = start.value;
       const next = Math.min(MAX_SCALE, Math.max(0.8, from.scale * event.scale));
       // The point under the fingers stays under them.
@@ -198,8 +215,10 @@ export default function Page({
       drag.y.value = event.translationY;
     },
     onDeactivate: (event) => {
-      // Far enough and not flung back up, or flung down.
-      if ((event.translationY > CLOSE_DY && event.velocityY >= 0) || event.velocityY > CLOSE_VY) {
+      // Far enough and not flung back up, or flung down; not when cut
+      // short (a second finger).
+      const closing = (event.translationY > CLOSE_DY && event.velocityY >= 0) || event.velocityY > CLOSE_VY;
+      if (!event.canceled && closing) {
         drag.y.value = withTiming(height, { duration: tokens.dur });
         scheduleOnRN(onSwipeClose);
         return;
@@ -212,7 +231,7 @@ export default function Page({
   const doubleTap = useTapGesture({
     numberOfTaps: 2,
     maxDelay: DOUBLE_TAP_DELAY,
-    maxDistance: TAP_SLOP,
+    maxDistance: DOUBLE_TAP_SLOP,
     onActivate: (event) => {
       if (scale.value > 1) {
         scale.value = withTiming(1, { duration: tokens.dur });
@@ -250,10 +269,12 @@ export default function Page({
   const thumbnail = attachment.thumbnailFileId ? fileSource(origin, token, attachment.thumbnailFileId) : undefined;
   const known = attachment.width > 0 && attachment.height > 0;
   const fullSize = active && known && attachment.width * attachment.height <= FULL_SIZE_PIXELS;
-  // With the size known, the original and its thumbnail fill the same
-  // box, so nothing moves when one replaces the other.
+  // With the size known, the original and its thumbnail fit the same
+  // box, so nothing moves when one replaces the other; contained, so a
+  // picture turned other than the server measured it is letterboxed,
+  // not cropped.
   const box = known ? fitted(attachment, width, height) : { width, height };
-  const fit = known ? "cover" : "scale-down";
+  const fit = known ? "contain" : "scale-down";
 
   // A size the server didn't measure comes from the original once it
   // lands.

@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, type LayoutChangeEvent, Modal, Platform, StyleSheet } from "react-native";
+import { AccessibilityInfo, BackHandler, type LayoutChangeEvent, Modal, Platform, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
@@ -67,7 +67,7 @@ export default function Viewer({
       shown.value = withTiming(1, { duration: tokens.dur });
       return;
     }
-    const timer = setTimeout(() => setReady(true), BARS_SETTLE_MS);
+    const timer = setTimeout(() => !closing.current && setReady(true), BARS_SETTLE_MS);
     return () => clearTimeout(timer);
   }, [ready, shown]);
 
@@ -84,6 +84,17 @@ export default function Viewer({
       scheduleOnRN(onClose);
     });
   }, [shown, onClose]);
+
+  // Back before the modal is up (it takes its own once shown) closes the
+  // viewer rather than the screen under it.
+  useEffect(() => {
+    if (ready) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      close();
+      return true;
+    });
+    return () => sub.remove();
+  }, [ready, close]);
 
   const paged = useCallback((next: number) => {
     setIndex(next);
