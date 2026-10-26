@@ -262,6 +262,31 @@ enum EditorDocument {
     }
   }
 
+  // Each list line held to one level deeper than the list line before it
+  // at most (0 for a list's first line), as core's linesToDoc reads
+  // lines, so what the field draws is what is sent. The lines it changed.
+  static func normaliseListDepths(_ text: NSMutableAttributedString) -> [NSRange] {
+    let string = text.string as NSString
+    var changed: [NSRange] = []
+    var before = -1
+    var location = 0
+    while location < string.length {
+      let line = string.lineRange(for: NSRange(location: location, length: 0))
+      if let block = text.attribute(.editorBlock, at: line.location, effectiveRange: nil) as? BlockBox, block.block.isList {
+        let depth = min(block.depth, before + 1)
+        if depth != block.depth {
+          text.addAttribute(.editorBlock, value: BlockBox(block.block, depth: depth), range: line)
+          changed.append(line)
+        }
+        before = depth
+      } else {
+        before = -1
+      }
+      location = NSMaxRange(line)
+    }
+    return changed
+  }
+
   // The line's text up to a position, a mention's words as U+FFFC each, so
   // a query can't start inside one and every index still counts.
   static func textBefore(_ text: NSAttributedString, at location: Int) -> String {

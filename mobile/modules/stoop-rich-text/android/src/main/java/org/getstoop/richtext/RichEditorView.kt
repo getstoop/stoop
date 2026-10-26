@@ -183,6 +183,9 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
 
   private fun restyle(text: Editable, from: Int, to: Int, changed: BlockInfo? = null, changedLine: Int = -1) {
     EditorStyler.restyle(text, from, to, look, field.paint, explicitTrailing, changed, changedLine)
+    if (EditorDocument.normaliseListDepths(text)) {
+      EditorStyler.restyle(text, 0, text.length, look, field.paint, explicitTrailing)
+    }
   }
 
   override fun onAttachedToWindow() {
@@ -505,10 +508,63 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     setBlocks(lines.map { it.copy(info = made) })
   }
 
+  // A bulleted or numbered list on every line touched, or off when the
+  // first is in that list already (web decides by where the selection
+  // starts). A line already in a list keeps its level.
+  private fun toggleList(kind: Block) {
+    val lines = touchedLines()
+    val on = lines.firstOrNull()?.info?.block != kind
+    setBlocks(lines.map { it.copy(info = if (on) BlockInfo(kind, if (it.info.block.isList) it.info.depth else 0) else BlockInfo.PARAGRAPH) })
+  }
+
+  // Indent (one level deeper, four at most, and never more than one past
+  // the item before) or outdent (one level up; from the top level, out of
+  // the list) each list line touched.
+  private fun indent(step: Int) {
+    val text = field.text ?: return
+    val touched = touchedLines().filter { it.info.block.isList }
+    if (touched.isEmpty()) return
+    // An outdented item brings the items under it along, as web lifts an
+    // item with its children.
+    val lines = ArrayList(touched)
+    if (step < 0) {
+      val last = touched.last()
+      var start = last.end + 1
+      while (start < text.length) {
+        val end = EditorDocument.lineEnd(text, start)
+        val info = EditorDocument.blockAt(text, start)
+        if (info == null || !info.block.isList || info.depth <= last.info.depth) break
+        lines.add(TouchedLine(start, end, info))
+        start = end + 1
+      }
+    }
+    val first = lines[0].start
+    var previous: Int? = if (first > 0) {
+      EditorDocument.blockAt(text, EditorDocument.lineStart(text, first - 1))?.takeIf { it.block.isList }?.depth
+    } else {
+      null
+    }
+    val changed = lines.map { line ->
+      val info = line.info
+      val next = when {
+        step > 0 -> {
+          val deepest = minOf(3, (previous ?: -1) + 1)
+          BlockInfo(info.block, minOf(info.depth + 1, maxOf(info.depth, deepest)))
+        }
+        info.depth > 0 -> BlockInfo(info.block, info.depth - 1)
+        else -> BlockInfo.PARAGRAPH
+      }
+      previous = if (next.block.isList) next.depth else null
+      line.copy(info = next)
+    }
+    setBlocks(changed)
+  }
+
   // Return on an empty quote line, or on a code block's blank last line,
-  // leaves the block: the line becomes a plain one. Backspace at the start
-  // of a quote line, or of a code block's first line, makes it a plain
-  // line rather than joining it to the one before. Seen by the input
+  // leaves the block: the line becomes a plain one; on an empty list item
+  // it goes up a level, or out of the list from the top. Backspace at the
+  // start of a quote line, a list item, or a code block's first line makes
+  // it a plain line rather than joining it to the one before. Seen by the input
   // filter (soft keyboards send text, not keys); true when handled, and
   // the change is then made after the filter returns.
   internal fun blockKey(inserted: CharSequence, dstart: Int, dend: Int): Boolean {
@@ -521,9 +577,12 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       val end = EditorDocument.lineEnd(text, dstart)
       if (end > start) return false
       val info = lineBlock(text, start)
-      val leaves = info.block == Block.QUOTE || (info.block == Block.CODE && lastOfCodeBlock(text, end, info))
-      if (!leaves) return false
-      post { blockAtCaret(info) { BlockInfo.PARAGRAPH } }
+      val made = when {
+        info.block == Block.QUOTE || (info.block == Block.CODE && lastOfCodeBlock(text, end, info)) -> BlockInfo.PARAGRAPH
+        info.block.isList -> if (info.depth > 0) BlockInfo(info.block, info.depth - 1) else BlockInfo.PARAGRAPH
+        else -> return false
+      }
+      post { blockAtCaret(info) { made } }
       return true
     }
     if (inserted.isEmpty() && dend == dstart + 1 && text[dstart] == '\n' && field.selectionStart == dend) {
@@ -531,7 +590,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       val previous = EditorDocument.blockAt(text, EditorDocument.lineStart(text, dstart))
       // A later quote line joins the one above, as on web; the first
       // leaves the quote.
-      val starts = (info.block == Block.QUOTE && previous?.block != Block.QUOTE) ||
+      val starts = (info.block == Block.QUOTE && previous?.block != Block.QUOTE) || info.block.isList ||
         (info.block == Block.CODE && !(previous?.block == Block.CODE && previous.group == info.group))
       if (!starts) return false
       post { blockAtCaret(info) { BlockInfo.PARAGRAPH } }
@@ -690,6 +749,10 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     when (name) {
       "quote" -> return toggleBlock(Block.QUOTE)
       "codeblock" -> return toggleBlock(Block.CODE)
+      "list" -> return toggleList(Block.BULLET)
+      "orderedList" -> return toggleList(Block.ORDERED)
+      "indent" -> return indent(1)
+      "outdent" -> return indent(-1)
     }
     val bit = Marks.named.firstOrNull { it.first == name }?.second ?: return
     val text = field.text ?: return

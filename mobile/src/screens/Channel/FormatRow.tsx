@@ -1,7 +1,7 @@
 import type { Format } from "@stoop/core/editor/formats";
 import type { ReactNode } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text } from "react-native";
-import { BulletListIcon, LinkIcon, NumberedListIcon } from "../../components/Icons";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BulletListIcon, IndentIcon, LinkIcon, NumberedListIcon, OutdentIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // The formatting row above the composer's buttons, opened by Aa: the
@@ -9,13 +9,23 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // in its order and with its labels, scrolling sideways where they don't
 // fit. A button shows pressed while its format is in effect at the caret
 // (or over all of the selection); the inline marks are dimmed in a code
-// block, which holds none. Taps keep the field focused.
+// block, which holds none. While the caret is in a list, Outdent and
+// Indent come first, before a divider. Taps keep the field focused.
 const MONO = Platform.select({ ios: "Menlo", default: "monospace" });
 const SERIF = Platform.select({ ios: "Georgia", default: "serif" });
 
 const MARKS: Format[] = ["bold", "italic", "underline", "strike", "code", "spoiler", "link"];
 
-export default function FormatRow({ active, onFormat }: { active: Format[]; onFormat: (format: Format) => void }) {
+export default function FormatRow({
+  active,
+  onFormat,
+  onIndent,
+}: {
+  active: Format[];
+  onFormat: (format: Format) => void;
+  // A level deeper (1) or up (-1), in a list.
+  onIndent: (step: 1 | -1) => void;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const formats: { format: Format; label: string; glyph: ReactNode }[] = [
@@ -32,6 +42,7 @@ export default function FormatRow({ active, onFormat }: { active: Format[]; onFo
     { format: "codeblock", label: "Code block", glyph: <Text style={[styles.glyph, styles.mono]}>{"{ }"}</Text> },
   ];
   const inCode = active.includes("codeblock");
+  const inList = active.includes("list") || active.includes("orderedList");
 
   return (
     <ScrollView
@@ -41,6 +52,17 @@ export default function FormatRow({ active, onFormat }: { active: Format[]; onFo
       testID="format-row"
       contentContainerStyle={styles.row}
     >
+      {inList && (
+        <>
+          <Pressable accessibilityRole="button" accessibilityLabel="Outdent" onPress={() => onIndent(-1)} style={styles.button}>
+            <OutdentIcon color={theme.text} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Indent" onPress={() => onIndent(1)} style={styles.button}>
+            <IndentIcon color={theme.text} />
+          </Pressable>
+          <View style={styles.divider} />
+        </>
+      )}
       {formats.map(({ format, label, glyph }) => {
         const pressed = active.includes(format);
         const disabled = inCode && MARKS.includes(format);
@@ -79,6 +101,12 @@ function makeStyles(theme: Theme) {
       borderRadius: tokens.radiusPill,
       alignItems: "center",
       justifyContent: "center",
+    },
+    divider: {
+      width: 1,
+      height: 24,
+      marginHorizontal: 4,
+      backgroundColor: theme.border,
     },
     pressed: {
       backgroundColor: theme.accentSoft,

@@ -1,0 +1,97 @@
+appId: ${APP_ID}
+name: Write bulleted and numbered lists from the format row, indent and leave them, and see them sent
+---
+# As ada, in chapters, after send.yaml.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+# Read already when channel.yaml ran first.
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+- tapOn: "Message #chapters"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+- tapOn: "Formatting"
+- swipe:
+    from:
+      id: "format-row"
+    direction: LEFT
+# A bulleted list: Return adds the next item; Indent (first in the row
+# while in a list) takes an item a level deeper; Return on an empty item
+# goes up a level, then out of the list.
+- inputText: "one"
+- tapOn: "Bulleted list"
+- pressKey: Enter
+- inputText: "two"
+- swipe:
+    from:
+      id: "format-row"
+    direction: RIGHT
+- tapOn: "Indent"
+- pressKey: Enter
+- inputText: "three"
+- pressKey: Enter
+- pressKey: Enter
+- inputText: "four"
+- pressKey: Enter
+- pressKey: Enter
+- inputText: "end"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: ".*end.*"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "- one\n  - two\n  - three\n- four\nend"
+- assertTrue: ${output.count == 1}
+# A numbered list numbers itself.
+- swipe:
+    from:
+      id: "format-row"
+    direction: LEFT
+- tapOn: "Numbered list"
+- inputText: "first"
+- pressKey: Enter
+- inputText: "second"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: ".*second.*"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "1. first\n2. second"
+- assertTrue: ${output.count == 1}

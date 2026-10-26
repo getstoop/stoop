@@ -519,7 +519,13 @@ export default forwardRef<
             {error}
           </Text>
         )}
-        {formatting && <FormatRow active={formats} onFormat={applyFormat} />}
+        {formatting && (
+          <FormatRow
+            active={formats}
+            onFormat={applyFormat}
+            onIndent={(step) => input.current?.format(step > 0 ? "indent" : "outdent")}
+          />
+        )}
         <View style={styles.buttons}>
           <Round label="Attach files" disabled={!!editing} onPress={openAttach} style={raised}>
             <PlusIcon color={theme.text} size={22} />
@@ -557,8 +563,19 @@ export default forwardRef<
   );
 });
 
-// What the field toggles itself (lists come with their step).
-const FIELD_FORMATS = new Set<Format>(["bold", "italic", "underline", "strike", "code", "spoiler", "quote", "codeblock"]);
+// What the field toggles itself.
+const FIELD_FORMATS = new Set<Format>([
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "code",
+  "spoiler",
+  "quote",
+  "list",
+  "orderedList",
+  "codeblock",
+]);
 
 const FORMAT_LABELS: Record<Format, string> = {
   bold: "Bold",

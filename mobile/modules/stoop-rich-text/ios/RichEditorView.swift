@@ -164,6 +164,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     let lines = string.lineRange(for: NSIntersectionRange(editedRange, NSRange(location: 0, length: string.length)))
     EditorDocument.dropBrokenMentions(textStorage, in: lines)
     styler.restyle(textStorage, lines: editedRange)
+    for line in EditorDocument.normaliseListDepths(textStorage) { styler.restyle(textStorage, lines: line) }
   }
 
   // A pill is one unit: a change that would cut into one takes it whole
@@ -542,6 +543,10 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     switch name {
     case "quote": toggleBlock(.quote)
     case "codeblock": toggleBlock(.code)
+    case "list": toggleList(.bullet)
+    case "orderedList": toggleList(.ordered)
+    case "indent": indent(by: 1)
+    case "outdent": indent(by: -1)
     default: break
     }
   }
@@ -617,6 +622,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
       }
       styler.restyle(storage, lines: range)
     }
+    for line in EditorDocument.normaliseListDepths(storage) { styler.restyle(storage, lines: line) }
     storage.endEditing()
     if let empty = lines.last(where: { $0.range.length == 0 }) { explicitTrailing = empty.block }
     let selected = textView.selectedRange
@@ -639,10 +645,69 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     setBlocks(lines.map { ($0.range, on ? BlockBox(kind, group: kind == .code ? group : 0) : .paragraph) })
   }
 
+  // A bulleted or numbered list on every line touched, or off when the
+  // first is in that list already (web decides by where the selection
+  // starts). A line already in a list keeps its level.
+  func toggleList(_ kind: EditorBlock) {
+    let lines = touchedLines()
+    let on = lines.first?.block.block != kind
+    setBlocks(lines.map { line in
+      (line.range, on ? BlockBox(kind, depth: line.block.block.isList ? line.block.depth : 0) : .paragraph)
+    })
+  }
+
+  // The list level of the line before a line, or nil when it is no list
+  // item: an item goes at most one level deeper than the one before it.
+  private func depthBefore(_ line: NSRange) -> Int? {
+    guard line.location > 0,
+      let before = storage.attribute(.editorBlock, at: line.location - 1, effectiveRange: nil) as? BlockBox,
+      before.block.isList
+    else { return nil }
+    return before.depth
+  }
+
+  // Indent (one level deeper, four at most, and never more than one past
+  // the item before) or outdent (one level up; from the top level, out of
+  // the list) each list line touched. An outdented item brings the items
+  // under it along, as web lifts an item with its children.
+  func indent(by step: Int) {
+    var lines = touchedLines().filter { $0.block.block.isList }
+    guard !lines.isEmpty else { return }
+    if step < 0, let last = lines.last {
+      let string = storage.string as NSString
+      var location = NSMaxRange(last.range)
+      while location < string.length {
+        let line = string.lineRange(for: NSRange(location: location, length: 0))
+        guard let block = storage.attribute(.editorBlock, at: line.location, effectiveRange: nil) as? BlockBox,
+          block.block.isList, block.depth > last.block.depth
+        else { break }
+        lines.append((line, block))
+        location = NSMaxRange(line)
+      }
+    }
+    var previous = depthBefore(lines[0].range)
+    for index in lines.indices {
+      let block = lines[index].block
+      if step > 0 {
+        let deepest = min(3, (previous ?? -1) + 1)
+        let depth = min(block.depth + 1, max(block.depth, deepest))
+        lines[index].block = BlockBox(block.block, depth: depth)
+      } else if block.depth > 0 {
+        lines[index].block = BlockBox(block.block, depth: block.depth - 1)
+      } else {
+        lines[index].block = .paragraph
+      }
+      previous = lines[index].block.block.isList ? lines[index].block.depth : nil
+    }
+    setBlocks(lines)
+  }
+
   // Return on an empty quote line, or on a code block's blank last line,
-  // leaves the block: the line becomes a plain one. Backspace at the start
-  // of a quote line, or of a code block's first line, makes it a plain
-  // line rather than joining it to the one before. True when handled.
+  // leaves the block: the line becomes a plain one; on an empty list item
+  // it goes up a level, or out of the list from the top. Backspace at the
+  // start of a quote line, a list item, or a code block's first line makes
+  // it a plain line rather than joining it to the one before. True when
+  // handled.
   private func blockKey(_ range: NSRange, _ text: String) -> Bool {
     let string = storage.string as NSString
     let caret = textView.selectedRange
@@ -659,12 +724,17 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
         setBlocks([(line, .paragraph)])
         return true
       }
+      // An empty list item: up a level, or out of the list from the top.
+      if block.block.isList {
+        setBlocks([(line, block.depth > 0 ? BlockBox(block.block, depth: block.depth - 1) : .paragraph)])
+        return true
+      }
       return false
     }
     if text.isEmpty, range.length == 1, caret.location == line.location, range.location == line.location - 1 {
       // A later quote line joins the one above, as on web; the first
       // leaves the quote.
-      let startsBlock = (block.block == .quote && !continuesQuote(line))
+      let startsBlock = (block.block == .quote && !continuesQuote(line)) || block.block.isList
         || (block.block == .code && !continuesCodeBlock(line, block))
       if startsBlock {
         setBlocks([(line, .paragraph)])

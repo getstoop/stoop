@@ -308,6 +308,36 @@ internal object EditorDocument {
     }
   }
 
+  // Each list line held to one level deeper than the list line before it
+  // at most (0 for a list's first line), as core's linesToDoc reads
+  // lines, so what the field draws is what is sent. Whether it changed any.
+  fun normaliseListDepths(text: Editable): Boolean {
+    var changed = false
+    var before = -1
+    var start = 0
+    while (start < text.length) {
+      val end = lineEnd(text, start)
+      val info = blockAt(text, start)
+      if (info != null && info.block.isList) {
+        val depth = minOf(info.depth, before + 1)
+        if (depth != info.depth) {
+          val spanEnd = if (end < text.length) end + 1 else end
+          for (span in text.getSpans(start, spanEnd, BlockSpan::class.java)) {
+            if (text.getSpanStart(span) == start) text.removeSpan(span)
+          }
+          text.setSpan(BlockSpan(BlockInfo(info.block, depth)), start, spanEnd, Spanned.SPAN_PARAGRAPH)
+          changed = true
+        }
+        before = depth
+      } else {
+        before = -1
+      }
+      if (end >= text.length) break
+      start = end + 1
+    }
+    return changed
+  }
+
   // Marks stop at a line's end: a mark never carries over a Return, as
   // on iOS, where what is typed at a line's start carries no marks.
   fun cutMarksAtLines(text: Editable, from: Int, to: Int) {

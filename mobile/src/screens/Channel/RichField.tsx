@@ -31,8 +31,9 @@ export type RichFieldHandle = {
   blur: () => void;
   // The `count` characters before the caret replaced by text, as typed.
   replaceBeforeCaret: (count: number, text: string) => void;
-  // A format on or off, at the caret or over the selection.
-  format: (format: Format) => void;
+  // A format on or off, at the caret or over the selection; or list items
+  // a level deeper or up.
+  format: (format: Format | "indent" | "outdent") => void;
   // The `count` characters before the caret replaced by a pill, then
   // `after`.
   insertMention: (count: number, mention: MentionRef, after: string) => void;
