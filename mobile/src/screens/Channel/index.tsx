@@ -166,6 +166,8 @@ export default function Channel({
   // Audio stops when the screen is covered or left, the app leaves the
   // front, or the viewer opens.
   const audio = useAudioPlayback(focused && active && !viewer.viewing);
+  // Nor does it go on when the screen shows another channel in place.
+  useEffect(() => () => audio.release(), [audio, channelId]);
   const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // And Reply in thread pushes the thread then.
   useEffect(() => {

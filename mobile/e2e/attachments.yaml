@@ -116,12 +116,12 @@ name: See files under messages, a photo, two in a grid, a PDF, a video, an audio
 - extendedWaitUntil:
     visible: "Save to Files"
     timeout: 15000
-# The system draws no close button on it; this is its dismiss area,
-# tapped over the channel's header: the tap reaches what is under it
-# too, and lower down that is a row (the video, now the audio file
-# follows the PDF).
-- tapOn:
-    point: "50%,10%"
+# The system draws no close button on it, and a tap on its dismiss area
+# reaches the row under it too, so it is swiped down from its header.
+- swipe:
+    from:
+      text: "PDF Document.*"
+    direction: DOWN
 - extendedWaitUntil:
     notVisible: "Save to Files"
     timeout: 5000

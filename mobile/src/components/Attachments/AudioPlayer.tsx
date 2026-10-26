@@ -13,7 +13,8 @@ import { audioLabel, audioTime, clock } from "./words";
 // plays until Play is tapped, and the screen's playback plays one file
 // at a time (audio.ts). Once it has started, a tap or a drag along the
 // track moves it there, and a screen reader adjusts the track by a
-// tenth. A long press anywhere is the row's.
+// tenth. A try that failed says so in the time's place until Play is
+// tapped again. A long press anywhere is the row's.
 export default function AudioPlayer({
   attachment,
   width,
@@ -31,7 +32,7 @@ export default function AudioPlayer({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const { state, duration } = useAudioFile(playback, attachment.fileId);
+  const { state, duration, failed } = useAudioFile(playback, attachment.fileId);
   const [trackWidth, setTrackWidth] = useState(0);
   const playing = !!state?.playing;
   const position = state?.position ?? 0;
@@ -84,7 +85,7 @@ export default function AudioPlayer({
           </View>
         </View>
         <Text style={styles.time} testID="attachment-audio-time">
-          {audioTime(!!state, position, duration)}
+          {failed && !state ? "Couldn't play · tap to retry" : audioTime(!!state, position, duration)}
         </Text>
       </View>
     </Pressable>

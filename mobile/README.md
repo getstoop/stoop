@@ -225,7 +225,14 @@ import a screen; the screens themselves live in `src/screens`, so
   `expo-video`'s audio session, so on an iPhone it is heard with the
   silent switch on and stops other apps' sound, as a video does. A file
   the phone can't decode (Ogg on an iPhone) becomes the card, which a
-  tap shares, as an unplayable video does.
+  tap shares, as an unplayable video does; told apart from a failure a
+  retry may mend (offline, a session ended, a dropped connection) by a
+  HEAD for the file, which says "Couldn't play · tap to retry" in the
+  time's place instead. Two known limits: nothing keeps the screen
+  awake for a player with no view, so a long file stops when the phone
+  locks itself; and `expo-video` leaves the audio session active after
+  a pause, so music another app was playing doesn't come back on its
+  own (the viewer's video is the same).
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions

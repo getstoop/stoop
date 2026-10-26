@@ -169,6 +169,8 @@ export default function Thread({
   // Audio stops when the screen is covered or left, the app leaves the
   // front, or the viewer opens.
   const audio = useAudioPlayback(focused && active && !viewer.viewing);
+  // Nor does it go on when the screen shows another thread in place.
+  useEffect(() => () => audio.release(), [audio, rootId]);
   const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // A mute asked for: the bell waits for the server's answer, as web's,
   // and a second tap meanwhile does nothing. Each tap turns over what
