@@ -76,26 +76,30 @@ func validateImage(data []byte, size int) (string, error) {
 		return "", errAnimatedWebP
 	}
 	// The scaler reads the centre square, as many rows as the shorter side.
-	if !fitsDecodeMemory(data, contentType, cfg, min(cfg.Width, cfg.Height), size, size) {
+	if _, ok := boundedHeader(data, contentType, cfg, min(cfg.Width, cfg.Height), size, size); !ok {
 		return "", errHugeImage
 	}
 	return contentType, nil
 }
 
-// fitsDecodeMemory reports whether decoding data and scaling sourceRows
-// of it to width×height stays within maxDecodeMemory, as fitCost reckons
-// it.
-func fitsDecodeMemory(data []byte, contentType string, cfg image.Config, sourceRows, width, height int) bool {
+// boundedHeader reads data's header (readImageHeader) and reports
+// whether decoding it and scaling sourceRows of it to width×height stays
+// within maxDecodeMemory, as fitCost reckons it.
+func boundedHeader(data []byte, contentType string, cfg image.Config, sourceRows, width, height int) (imageHeader, bool) {
 	header, err := readImageHeader(bytes.NewReader(data), contentType, cfg)
-	return err == nil && fitCost(header, sourceRows, width, height) <= maxDecodeMemory
+	return header, err == nil && fitCost(header, sourceRows, width, height) <= maxDecodeMemory
 }
 
 // fitCost is decodeCost plus what scaling sourceRows of the decode to
 // width×height allocates: the scaler's buffer (eight float64s per
-// destination column per source row) and the result.
+// destination column per source row), the result, and its turned copy
+// when the EXIF orientation asks for one.
 func fitCost(header imageHeader, sourceRows, width, height int) int64 {
 	scaler := int64(width) * int64(sourceRows) * 32
 	result := int64(width) * int64(height) * 4
+	if header.orientation >= 2 && header.orientation <= 8 {
+		result *= 2
+	}
 	return decodeCost(header) + scaler + result
 }
 
@@ -108,11 +112,14 @@ func webpAnimated(data []byte) bool {
 	return len(data) > flagsOffset && string(data[12:16]) == "VP8X" && data[flagsOffset]&animationBit != 0
 }
 
-// normaliseImage decodes a validated image, centre-crops it to a square
-// and scales it to size×size, re-encoded as PNG. The decode drops any
+// normaliseImage decodes a validated image of the sniffed contentType,
+// centre-crops it to a square, scales it to size×size and turns it as
+// its EXIF orientation says, re-encoded as PNG. The decode drops any
 // metadata (EXIF, ICC, comments) the original carried; an animated GIF
-// keeps its first frame.
-func normaliseImage(data []byte, size int) ([]byte, error) {
+// keeps its first frame. The centre square of the turned picture is the
+// turned centre square, so cropping first is the same.
+func normaliseImage(data []byte, contentType string, size int) ([]byte, error) {
+	orientation := exifOrientation(bytes.NewReader(data), contentType)
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, errNotAnImage
@@ -126,7 +133,7 @@ func normaliseImage(data []byte, size int) ([]byte, error) {
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, crop, draw.Src, nil)
 
 	var out bytes.Buffer
-	if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, dst); err != nil {
+	if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, orientNRGBA(dst, orientation)); err != nil {
 		return nil, fmt.Errorf("encode png: %w", err)
 	}
 	return out.Bytes(), nil
@@ -135,10 +142,11 @@ func normaliseImage(data []byte, size int) ([]byte, error) {
 // processImage validates and normalises in one step: what the
 // normalise_image job runs on the stored upload.
 func processImage(data []byte, size int) ([]byte, error) {
-	if _, err := validateImage(data, size); err != nil {
+	contentType, err := validateImage(data, size)
+	if err != nil {
 		return nil, err
 	}
-	return normaliseImage(data, size)
+	return normaliseImage(data, contentType, size)
 }
 
 // isRaster reports whether a content type may be rendered inline by the
@@ -161,8 +169,9 @@ const (
 
 // processImageFit re-encodes an image to fit within maxDim on its longer
 // side, keeping the aspect ratio (never upscaling), and returns the type
-// it wrote: PNG, or GIF for an animation. Same validation and metadata
-// stripping as processImage, and the same memory bound.
+// it wrote: PNG, or GIF for an animation, and its size. Same validation,
+// metadata stripping, turning by the EXIF orientation and memory bound
+// as processImage.
 func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) {
 	sniffed, cfg, err := sniffImage(data)
 	if err != nil {
@@ -191,7 +200,8 @@ func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) 
 	// Reckoned on the header's size, which a GIF's first frame never
 	// exceeds; the result is sized from the frame itself.
 	fitWidth, fitHeight := fitWithin(cfg.Width, cfg.Height, maxDim)
-	if !fitsDecodeMemory(data, sniffed, cfg, cfg.Height, fitWidth, fitHeight) {
+	header, ok := boundedHeader(data, sniffed, cfg, cfg.Height, fitWidth, fitHeight)
+	if !ok {
 		return nil, "", 0, 0, errHugeImage
 	}
 	src, _, err := image.Decode(bytes.NewReader(data))
@@ -201,11 +211,12 @@ func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) 
 	width, height := fitWithin(src.Bounds().Dx(), src.Bounds().Dy(), maxDim)
 	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
+	turned := orientNRGBA(dst, header.orientation)
 	var out bytes.Buffer
-	if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, dst); err != nil {
+	if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, turned); err != nil {
 		return nil, "", 0, 0, fmt.Errorf("encode png: %w", err)
 	}
-	return out.Bytes(), "image/png", width, height, nil
+	return out.Bytes(), "image/png", turned.Rect.Dx(), turned.Rect.Dy(), nil
 }
 
 // fitWithin scales width×height down so the longer side is at most

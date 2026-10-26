@@ -324,7 +324,7 @@ func TestFitCostCoversTheScaling(t *testing.T) {
 			sourceRows, width, height int
 			process                   func() error
 		}{
-			{"normalise", min(cfg.Width, cfg.Height), SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, SpaceIconSize); return err }},
+			{"normalise", min(cfg.Width, cfg.Height), SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, contentType, SpaceIconSize); return err }},
 			{"fit", cfg.Height, fitWidth, fitHeight, func() error {
 				_, _, _, _, err := processImageFit(data, LinkPreviewMaxDim)
 				return err
@@ -363,5 +363,46 @@ func TestLinkPreviewWaitsForTheDecodeSlot(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// An avatar and a link preview image come out the right way up for
+// every EXIF orientation, as a thumbnail does: the avatar's centre
+// square holds all four quadrants, and the preview's size is the turned
+// one.
+func TestImageOrientation(t *testing.T) {
+	stored := quadrants(1200, 600)
+	for orientation, want := range displayedCorners {
+		data := encodeJPEG(t, stored, orientation)
+		avatar, err := processImage(data, AvatarSize)
+		if err != nil {
+			t.Fatalf("avatar, orientation %d: %v", orientation, err)
+		}
+		img, err := png.Decode(bytes.NewReader(avatar))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := corners(img); got != want {
+			t.Errorf("avatar, orientation %d: corners %v, want %v", orientation, got, want)
+		}
+
+		preview, _, width, height, err := processImageFit(data, LinkPreviewMaxDim)
+		if err != nil {
+			t.Fatalf("preview, orientation %d: %v", orientation, err)
+		}
+		wantWidth, wantHeight := LinkPreviewMaxDim, LinkPreviewMaxDim/2
+		if swapsAxes(int(orientation)) {
+			wantWidth, wantHeight = wantHeight, wantWidth
+		}
+		if _, gotWidth, gotHeight := decodeSize(t, preview); width != wantWidth || height != wantHeight || gotWidth != wantWidth || gotHeight != wantHeight {
+			t.Errorf("preview, orientation %d: said %d×%d, wrote %d×%d, want %d×%d", orientation, width, height, gotWidth, gotHeight, wantWidth, wantHeight)
+		}
+		img, err = png.Decode(bytes.NewReader(preview))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := corners(img); got != want {
+			t.Errorf("preview, orientation %d: corners %v, want %v", orientation, got, want)
+		}
 	}
 }

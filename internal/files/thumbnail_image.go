@@ -102,11 +102,15 @@ type imageHeader struct {
 	// interlaced: a PNG in Adam7, decoded a pass at a time into images
 	// of their own before they are put together.
 	interlaced bool
+	// orientation: a JPEG's or WebP's EXIF orientation (1–8; 0 for
+	// none), which the re-encodes turn the result by.
+	orientation int
 }
 
 // readImageHeader reads what decodeCost needs beyond cfg: whether a
-// JPEG is progressive and whether it decodes as RGB, whether a PNG is
-// interlaced.
+// JPEG is progressive (a walk that gives up says yes, which costs more
+// and so errs towards refusing) and whether it decodes as RGB, whether a
+// PNG is interlaced; and the EXIF orientation.
 func readImageHeader(file io.ReadSeeker, contentType string, cfg image.Config) (imageHeader, error) {
 	header := imageHeader{Config: cfg, contentType: contentType}
 	switch contentType {
@@ -114,7 +118,11 @@ func readImageHeader(file io.ReadSeeker, contentType string, cfg image.Config) (
 		if _, err := file.Seek(0, io.SeekStart); err != nil {
 			return imageHeader{}, err
 		}
-		header.progressive = jpegProgressive(file)
+		tiff, frame := jpegWalk(file)
+		header.progressive = frame == 0 || frame&0x03 == 0x02
+		if tiff != nil {
+			header.orientation = tiffOrientation(tiff)
+		}
 		if cfg.ColorModel == color.YCbCrModel || cfg.ColorModel == color.RGBAModel {
 			if _, err := file.Seek(0, io.SeekStart); err != nil {
 				return imageHeader{}, err
@@ -129,6 +137,11 @@ func readImageHeader(file io.ReadSeeker, contentType string, cfg image.Config) (
 		var interlace [1]byte
 		_, err := io.ReadFull(file, interlace[:])
 		header.interlaced = err == nil && interlace[0] == 1
+	case "image/webp":
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			return imageHeader{}, err
+		}
+		header.orientation = exifOrientation(file, contentType)
 	}
 	return header, nil
 }
@@ -199,7 +212,7 @@ func thumbnailCost(header imageHeader) int64 {
 	width, height := int64(header.Width), int64(header.Height)
 	factor := reductionFactor(header.Width, header.Height)
 	reducedWidth, reducedHeight := (width+factor-1)/factor, (height+factor-1)/factor
-	thumbWidth, thumbHeight := thumbnailSize(header.Width, header.Height)
+	thumbWidth, thumbHeight := fitWithin(header.Width, header.Height, ThumbnailSize)
 	band := width * min(factor, height) * 4
 	reduced := reducedWidth * reducedHeight * 4
 	scaler := int64(thumbWidth) * reducedHeight * 32
@@ -212,56 +225,6 @@ func thumbnailCost(header imageHeader) int64 {
 func reductionFactor(width, height int) int64 {
 	longer := int64(max(width, height))
 	return (longer + 2*ThumbnailSize - 1) / (2 * ThumbnailSize)
-}
-
-// thumbnailSize fits width×height inside ThumbnailSize×ThumbnailSize.
-func thumbnailSize(width, height int) (int, int) {
-	longer := max(width, height)
-	return max(1, width*ThumbnailSize/longer), max(1, height*ThumbnailSize/longer)
-}
-
-// jpegProgressive reports whether a JPEG's frame header is progressive
-// (SOF2, SOF6, SOF10 or SOF14), walking its segments as jpegExif does
-// and within the same bounds. A walk that gives up says true, which
-// costs more and so errs towards skipping.
-func jpegProgressive(file io.Reader) bool {
-	reader := bufio.NewReader(io.LimitReader(file, maxJPEGWalk))
-	var soi [2]byte
-	if _, err := io.ReadFull(reader, soi[:]); err != nil || soi[0] != 0xFF || soi[1] != 0xD8 {
-		return true
-	}
-	for range maxJPEGSegments {
-		if first, err := reader.ReadByte(); err != nil || first != 0xFF {
-			return true
-		}
-		code := byte(0xFF)
-		for code == 0xFF {
-			var err error
-			if code, err = reader.ReadByte(); err != nil {
-				return true
-			}
-		}
-		switch {
-		case isFrameHeader(code):
-			return code&0x03 == 0x02
-		case code == 0x01 || (code >= 0xD0 && code <= 0xD7):
-			continue
-		case code == 0x00, code == 0xD9, code == 0xDA:
-			return true
-		}
-		var lengthBytes [2]byte
-		if _, err := io.ReadFull(reader, lengthBytes[:]); err != nil {
-			return true
-		}
-		length := int(binary.BigEndian.Uint16(lengthBytes[:])) - 2
-		if length < 0 {
-			return true
-		}
-		if _, err := reader.Discard(length); err != nil {
-			return true
-		}
-	}
-	return true
 }
 
 // maxJPEGMarkers bounds jpegDecodesAsRGB's walk; a progressive file
@@ -384,19 +347,15 @@ func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return thumbnail{}, err
 	}
-	orientation := exifOrientation(file, contentType)
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return thumbnail{}, err
-	}
 	reduced, err := decodeReduced(file, cfg)
 	if err != nil {
 		return thumbnail{}, err
 	}
 	opaque := reduced.Opaque()
-	width, height := thumbnailSize(cfg.Width, cfg.Height)
+	width, height := fitWithin(cfg.Width, cfg.Height, ThumbnailSize)
 	scaled := image.NewRGBA(image.Rect(0, 0, width, height))
 	draw.CatmullRom.Scale(scaled, scaled.Bounds(), reduced, reduced.Bounds(), draw.Src, nil)
-	turned := orient(scaled, orientation)
+	turned := orientRGBA(scaled, header.orientation)
 
 	var out bytes.Buffer
 	result := thumbnail{contentType: "image/jpeg", width: turned.Bounds().Dx(), height: turned.Bounds().Dy()}
@@ -466,18 +425,38 @@ func shrinkBy(src image.Image, factor int) *image.RGBA {
 	return dst
 }
 
-// orient turns img the way an EXIF orientation (1–8) asks, so the
-// thumbnail is the right way up without the tag.
-func orient(img *image.RGBA, orientation int) *image.RGBA {
-	if orientation < 2 || orientation > 8 {
+// orientRGBA and orientNRGBA turn an image the way an EXIF orientation
+// asks, so it is the right way up without the tag: a thumbnail, an
+// avatar or icon, a link preview image.
+func orientRGBA(img *image.RGBA, orientation int) *image.RGBA {
+	pix, width, height, turned := orient(img.Pix, img.Stride, img.Rect.Dx(), img.Rect.Dy(), orientation)
+	if !turned {
 		return img
 	}
-	width, height := img.Bounds().Dx(), img.Bounds().Dy()
-	outWidth, outHeight := width, height
+	return &image.RGBA{Pix: pix, Stride: width * 4, Rect: image.Rect(0, 0, width, height)}
+}
+
+func orientNRGBA(img *image.NRGBA, orientation int) *image.NRGBA {
+	pix, width, height, turned := orient(img.Pix, img.Stride, img.Rect.Dx(), img.Rect.Dy(), orientation)
+	if !turned {
+		return img
+	}
+	return &image.NRGBA{Pix: pix, Stride: width * 4, Rect: image.Rect(0, 0, width, height)}
+}
+
+// orient turns width×height four-byte pixels, rows stride apart, the
+// way an EXIF orientation (1–8) asks, into new pixels with no gaps
+// between rows. turned is false, and nothing is copied, for any other
+// orientation.
+func orient(pix []byte, stride, width, height, orientation int) (out []byte, outWidth, outHeight int, turned bool) {
+	if orientation < 2 || orientation > 8 {
+		return pix, width, height, false
+	}
+	outWidth, outHeight = width, height
 	if swapsAxes(orientation) {
 		outWidth, outHeight = height, width
 	}
-	out := image.NewRGBA(image.Rect(0, 0, outWidth, outHeight))
+	out = make([]byte, outWidth*outHeight*4)
 	for row := range height {
 		for column := range width {
 			var toX, toY int
@@ -497,8 +476,8 @@ func orient(img *image.RGBA, orientation int) *image.RGBA {
 			case 8: // a quarter turn anticlockwise
 				toX, toY = row, width-1-column
 			}
-			copy(out.Pix[out.PixOffset(toX, toY):][:4], img.Pix[img.PixOffset(column, row):][:4])
+			copy(out[(toY*outWidth+toX)*4:][:4], pix[row*stride+column*4:][:4])
 		}
 	}
-	return out
+	return out, outWidth, outHeight, true
 }

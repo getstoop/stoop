@@ -107,22 +107,25 @@ func decodeThumbnail(t *testing.T, thumb thumbnail) image.Image {
 	return img
 }
 
+// displayedCorners is how a viewer shows quadrants() stored with each
+// EXIF orientation: top left, top right, bottom left, bottom right.
+var displayedCorners = map[uint16][4]string{
+	0: {"red", "green", "blue", "white"},
+	1: {"red", "green", "blue", "white"},
+	2: {"green", "red", "white", "blue"},
+	3: {"white", "blue", "green", "red"},
+	4: {"blue", "white", "red", "green"},
+	5: {"red", "blue", "green", "white"},
+	6: {"blue", "red", "white", "green"},
+	7: {"white", "green", "blue", "red"},
+	8: {"green", "white", "red", "blue"},
+}
+
 // Every EXIF orientation comes out the right way up, the way a viewer
 // shows the original, with the long side at ThumbnailSize.
 func TestThumbnailOrientation(t *testing.T) {
 	stored := quadrants(2400, 1200)
-	// Corners as displayed: top left, top right, bottom left, bottom right.
-	for orientation, want := range map[uint16][4]string{
-		0: {"red", "green", "blue", "white"},
-		1: {"red", "green", "blue", "white"},
-		2: {"green", "red", "white", "blue"},
-		3: {"white", "blue", "green", "red"},
-		4: {"blue", "white", "red", "green"},
-		5: {"red", "blue", "green", "white"},
-		6: {"blue", "red", "white", "green"},
-		7: {"white", "green", "blue", "red"},
-		8: {"green", "white", "red", "blue"},
-	} {
+	for orientation, want := range displayedCorners {
 		thumb, err := makeThumbnail(bytes.NewReader(encodeJPEG(t, stored, orientation)), "image/jpeg")
 		if err != nil {
 			t.Fatalf("orientation %d: %v", orientation, err)
@@ -233,8 +236,11 @@ func TestThumbnailBound(t *testing.T) {
 	if _, err := makeThumbnail(bytes.NewReader(progressive), "image/jpeg"); !errors.Is(err, errNoThumbnailNeeded) {
 		t.Errorf("24 MP progressive: %v, want a skip", err)
 	}
-	if !jpegProgressive(bytes.NewReader(progressive)) || jpegProgressive(bytes.NewReader(baseline)) {
-		t.Error("jpegProgressive misread the frame header")
+	if _, frame := jpegWalk(bytes.NewReader(progressive)); frame != 0xC2 {
+		t.Errorf("progressive frame header read as %#x", frame)
+	}
+	if _, frame := jpegWalk(bytes.NewReader(baseline)); frame != 0xC0 {
+		t.Errorf("baseline frame header read as %#x", frame)
 	}
 	// Grey with a tRNS chunk decodes to NRGBA, which the header can't
 	// show: 14400² would hold 829 MB.

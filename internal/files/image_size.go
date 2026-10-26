@@ -53,7 +53,7 @@ func exifOrientation(file io.ReadSeeker, contentType string) int {
 	var tiff []byte
 	switch contentType {
 	case "image/jpeg":
-		tiff = jpegExif(file)
+		tiff, _ = jpegWalk(file)
 	case "image/webp":
 		tiff = webpExif(file)
 	}
@@ -76,59 +76,64 @@ const (
 	maxWebPChunks   = 32
 )
 
-// jpegExif walks a JPEG's marker segments up to the frame header and
-// returns the TIFF block of its EXIF APP1 segment, or nil. It reads at
-// most maxJPEGWalk bytes and maxJPEGSegments segments.
-func jpegExif(file io.Reader) []byte {
+// jpegWalk walks a JPEG's marker segments to the frame header and
+// returns the TIFF block of its first EXIF APP1 segment (nil when there
+// is none) and the frame header's code (0 when the walk stopped first:
+// a broken file, the scan reached, or the bounds). It reads at most
+// maxJPEGWalk bytes and maxJPEGSegments segments. Both the orientation
+// and the decode's bound (readImageHeader) are read from this one walk.
+func jpegWalk(file io.Reader) (tiff []byte, frame byte) {
 	reader := bufio.NewReader(io.LimitReader(file, maxJPEGWalk))
 	var soi [2]byte
 	if _, err := io.ReadFull(reader, soi[:]); err != nil || soi[0] != 0xFF || soi[1] != 0xD8 {
-		return nil
+		return nil, 0
 	}
 	for range maxJPEGSegments {
 		if first, err := reader.ReadByte(); err != nil || first != 0xFF {
-			return nil
+			return tiff, 0
 		}
 		// Any number of 0xFF fill bytes may come before the code.
 		code := byte(0xFF)
 		for code == 0xFF {
 			var err error
 			if code, err = reader.ReadByte(); err != nil {
-				return nil
+				return tiff, 0
 			}
 		}
 		switch {
+		case isFrameHeader(code):
+			return tiff, code
 		case code == 0x01 || (code >= 0xD0 && code <= 0xD7):
 			continue // TEM and the restart markers have no length
-		case code == 0x00, code == 0xD9, code == 0xDA, isFrameHeader(code):
-			// Not a marker, the end of the image, the start of the scan or
-			// the frame header: the metadata is behind us.
-			return nil
+		case code == 0x00, code == 0xD9, code == 0xDA:
+			// Not a marker, the end of the image or the start of the scan,
+			// before any frame header.
+			return tiff, 0
 		}
 		var lengthBytes [2]byte
 		if _, err := io.ReadFull(reader, lengthBytes[:]); err != nil {
-			return nil
+			return tiff, 0
 		}
 		// The length counts its own two bytes.
 		length := int(binary.BigEndian.Uint16(lengthBytes[:])) - 2
 		if length < 0 {
-			return nil
+			return tiff, 0
 		}
-		if code != 0xE1 || length < len(exifHeader) {
+		if tiff != nil || code != 0xE1 || length < len(exifHeader) {
 			if _, err := reader.Discard(length); err != nil {
-				return nil
+				return tiff, 0
 			}
 			continue
 		}
 		segment := make([]byte, length)
 		if _, err := io.ReadFull(reader, segment); err != nil {
-			return nil
+			return nil, 0
 		}
 		if bytes.HasPrefix(segment, exifHeader) {
-			return segment[len(exifHeader):]
+			tiff = segment[len(exifHeader):]
 		}
 	}
-	return nil
+	return tiff, 0
 }
 
 // isFrameHeader reports whether a JPEG marker is a start of frame: C0 to
