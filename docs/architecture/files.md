@@ -128,7 +128,11 @@ out saves nothing, and the next message with that link fetches again.
 Three things fall out of the re-encode:
 
 - **Metadata is stripped.** A person uploading a photo as an avatar does
-  not also upload where it was taken.
+  not also upload where it was taken. The EXIF orientation is applied
+  first, as for thumbnails (one walk of a JPEG's header reads it with
+  what the bound needs), so a phone photo stored sideways becomes an
+  upright avatar or link preview image, and a preview's width and
+  height are the turned ones.
 - **The stored bytes are ours**, so a malformed file that survived
   decoding cannot be served back to someone else's parser.
 - **The decode is bounded**, before a pixel is decoded, because a 2 MB
@@ -136,7 +140,8 @@ Three things fall out of the re-encode:
   happily allocate for them. At most 4096×4096 pixels, and what decoding
   and scaling would hold (`fitCost`: the decoder's reckoning, as for
   [thumbnails](#thumbnails), plus the scaler's buffer, which grows with
-  the rows it reads, the crop's for an avatar, and the result)
+  the rows it reads, the crop's for an avatar, the result, and its turned
+  copy when the EXIF orientation asks for one)
   within the same 288 MiB as a thumbnail. Pixels alone are not enough: a
   progressive JPEG keeps every coefficient, so a 4096² one holds about
   240 MiB before scaling, and a progressive CMYK one about 380 MiB. The
