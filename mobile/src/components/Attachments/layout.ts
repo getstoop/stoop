@@ -9,8 +9,9 @@ import { markdown } from "../../theme/generated";
 // lands. Web's rules (attachments.css through theme/generated.ts) where
 // a phone can follow them:
 // - one image at its own size, shrunk to fit the words' width (no more
-//   than 420) and 320 high, never enlarged; a short side under 44 is
-//   raised to 44 and the image cropped to fill;
+//   than 420) and 320 high, never enlarged; a side under 44 gets a 44
+//   box, the image cropped to fill it when that needs no enlarging and
+//   otherwise drawn at its own size inside;
 // - one image of a size the server didn't measure (uploaded before it
 //   did) in a fixed 4:3 box as wide as that, the image fitted inside;
 // - two or more images in a grid of square tiles, two to a row, in
@@ -61,10 +62,8 @@ function fitted({ width, height }: Attachment, room: number): { box: Box; fit: F
   }
   const scale = Math.min(1, room / width, markdown.attachmentImageMaxHeight / height);
   const box = { width: Math.floor(width * scale), height: Math.floor(height * scale) };
-  // A strip is cropped to fill; an image small both ways keeps its size.
-  const tiny = box.width < MIN_SIDE && box.height < MIN_SIDE;
-  return {
-    box: { width: Math.max(box.width, MIN_SIDE), height: Math.max(box.height, MIN_SIDE) },
-    fit: tiny ? "scale-down" : "cover",
-  };
+  const raised = { width: Math.max(box.width, MIN_SIDE), height: Math.max(box.height, MIN_SIDE) };
+  // Cropping to fill would enlarge it once the box is bigger than the
+  // image itself; then it keeps its own size.
+  return { box: raised, fit: raised.width <= width && raised.height <= height ? "cover" : "scale-down" };
 }

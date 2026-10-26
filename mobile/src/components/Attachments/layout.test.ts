@@ -33,11 +33,17 @@ describe("attachmentsLayout", () => {
     expect(unknown).toMatchObject({ box: { width: 312, height: 234 }, fit: "scale-down" });
   });
 
-  it("keeps a strip 44 on its short side, cropped, and a tiny image its size", () => {
-    const [wide] = attachmentsLayout([photo(4000, 20)], BODY);
-    expect(wide).toMatchObject({ box: { width: 312, height: 44 }, fit: "cover" });
-    const [tall] = attachmentsLayout([photo(20, 4000)], BODY);
+  it("gives a side under 44 a 44 box, never enlarging the image to fill it", () => {
+    // Shrunk below 44: cropped to fill, which still shrinks it.
+    const [shrunk] = attachmentsLayout([photo(4000, 100)], BODY);
+    expect(shrunk).toMatchObject({ box: { width: 312, height: 44 }, fit: "cover" });
+    const [tall] = attachmentsLayout([photo(100, 4000)], BODY);
     expect(tall).toMatchObject({ box: { width: 44, height: 320 }, fit: "cover" });
+    // Under 44 of its own: drawn at its own size inside the box.
+    const [strip] = attachmentsLayout([photo(200, 30)], BODY);
+    expect(strip).toMatchObject({ box: { width: 200, height: 44 }, fit: "scale-down" });
+    const [thin] = attachmentsLayout([photo(4000, 20)], BODY);
+    expect(thin).toMatchObject({ box: { width: 312, height: 44 }, fit: "scale-down" });
     const [tiny] = attachmentsLayout([photo(16, 16)], BODY);
     expect(tiny).toMatchObject({ box: { width: 44, height: 44 }, fit: "scale-down" });
   });

@@ -146,7 +146,9 @@ import a screen; the screens themselves live in `src/screens`, so
   A tap on a card downloads the file into the app's cache, counting
   what has arrived in its size's place over an accent line, and opens
   the system share sheet on it (`src/api/downloads.ts`, with
-  `expo-file-system` and `expo-sharing`); a failure says "Couldn't
+  `expo-file-system` and `expo-sharing`; the server's file id must be a
+  UUID and the name is made safe and short, `api/fileNames.ts`, and the
+  file is written beside its place and moved in whole); a failure says "Couldn't
   download" there until the next tap. Signing out forgets every cached
   picture and downloaded file, for every server. Each file is its own
   element for a screen reader, named by its kind and name ("Image 2 of
@@ -514,7 +516,7 @@ native rebuild.
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
-`Attachments/layout.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`Attachments/layout.ts`, `api/fileNames.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
