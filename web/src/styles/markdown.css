@@ -79,8 +79,8 @@
   --md-attachments-margin-top: 6px;
   --md-attachment-image-max-width: 420px;
   --md-attachment-image-max-height: 320px;
-  --md-attachment-video-width: 280px;
-  --md-attachment-video-max-height: 200px;
+  --md-attachment-video-width: 280px; /* a thumbnail's width */
+  --md-attachment-video-max-height: 200px; /* caps a portrait clip's still */
   --md-attachment-media-max-width: 480px;
   --md-attachment-bar-pad-y: 6px;
   --md-attachment-bar-pad-x: 8px;
