@@ -81,6 +81,17 @@ export function PersonIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+export function PeopleIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <Circle cx={9} cy={7} r={4} />
+      <Path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <Path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </Stroke>
+  );
+}
+
 export function MutedIcon({ color, size = 18 }: IconProps) {
   return (
     <Stroke color={color} size={size}>

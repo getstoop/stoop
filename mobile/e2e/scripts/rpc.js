@@ -94,6 +94,17 @@ var steps = {
     output.typedMentions = false;
     for (var i = 0; i < messages.length; i++) if (messages[i].content === expected) output.typedMentions = true;
   },
+  // In CHANNEL_ID (mention-list.yaml): whether the newest page holds ada's
+  // message naming the group readers, dee and #random as the tokens their
+  // picks put in, as the server holds it.
+  pickedMentions: function () {
+    var expected =
+      "Over to <@g:" + READERS_ID + ":readers> <@u:" + POSTER_ID + ":" + POSTER.toLowerCase() + "> " +
+      "in <#" + RANDOM_ID + ":random>";
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    output.pickedMentions = false;
+    for (var i = 0; i < messages.length; i++) if (messages[i].content === expected) output.pickedMentions = true;
+  },
   // In CHANNEL_ID (message-more.yaml): the id of the newest page's message
   // reading TEXT, as the server holds it, for the link the flow expects.
   messageId: function () {
