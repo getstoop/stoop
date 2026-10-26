@@ -89,6 +89,10 @@ export type EditorSelection = {
   revision: number;
   selection: { start: number; end: number };
   before: string;
+  // The formats in effect, as web's toolbar names them: at a caret, what
+  // typing carries; over a selection, what all of it has; and the line's
+  // block.
+  formats: string[];
 };
 
 export type EditorChange = EditorSelection & { lines: EditorLine[] };
@@ -114,6 +118,8 @@ export type RichEditorMethods = {
   focus(): Promise<void>;
   blur(): Promise<void>;
   replaceBeforeCaret(count: number, text: string): Promise<void>;
+  // A format on or off (bold, italic, underline, strike, code, spoiler).
+  format(name: string): Promise<void>;
   commit(): Promise<EditorLine[]>;
 };
 

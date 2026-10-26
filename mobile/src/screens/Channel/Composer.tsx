@@ -1,4 +1,5 @@
 import type { UploadedFile } from "@stoop/core/attachments";
+import type { Format } from "@stoop/core/editor/formats";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { isBlankMessage, plainText } from "@stoop/core/markdown";
 import { withTypedMentions } from "@stoop/core/mentions";
@@ -8,6 +9,7 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Keyboard,
   Platform,
@@ -156,8 +158,10 @@ export default forwardRef<
   const [sending, setSending] = useState(false);
   const [alsoSend, setAlsoSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // The caret's line up to the caret, for the mention list.
+  // The caret's line up to the caret, for the mention list, and the
+  // formats in effect there, for the format row.
   const [before, setBefore] = useState<string | null>(null);
+  const [formats, setFormats] = useState<Format[]>([]);
   // The files held, and the attach sheet; back to the card after a pick.
   const attachments = useAttachments(upload, maxUploadBytes, () => openCard());
   const input = useRef<RichFieldHandle>(null);
@@ -327,6 +331,16 @@ export default forwardRef<
     }
   };
 
+  // A format from the row: the inline marks now; links and the blocks
+  // come in their own steps. A screen reader hears it go on or off, as
+  // the field next reports it (a tap that changes nothing says nothing).
+  const announcing = useRef<Format | null>(null);
+  const applyFormat = (format: Format) => {
+    if (!MARK_FORMATS.has(format)) return;
+    announcing.current = format;
+    input.current?.format(format);
+  };
+
   const raised = glass ? styles.glassRaised : styles.raised;
   const waiting = attachments.uploading && !editing;
   const openAttach = () => attachments.openSheet(writing);
@@ -426,7 +440,16 @@ export default forwardRef<
           value={draft}
           loadKey={loads}
           onChange={setDraft}
-          onCaret={setBefore}
+          onCaret={(text, active) => {
+            setBefore(text);
+            setFormats(active);
+            const format = announcing.current;
+            if (format) {
+              announcing.current = null;
+              const state = active.includes(format) ? "on" : "off";
+              AccessibilityInfo.announceForAccessibility(`${FORMAT_LABELS[format]}, ${state}`);
+            }
+          }}
           onBlur={() => setWriting(false)}
           placeholder={placeholder}
           label={placeholder}
@@ -438,7 +461,7 @@ export default forwardRef<
             {error}
           </Text>
         )}
-        {formatting && <FormatRow />}
+        {formatting && <FormatRow active={formats} onFormat={applyFormat} />}
         <View style={styles.buttons}>
           <Round label="Attach files" disabled={!!editing} onPress={openAttach} style={raised}>
             <PlusIcon color={theme.text} size={22} />
@@ -475,6 +498,22 @@ export default forwardRef<
     </>
   );
 });
+
+const MARK_FORMATS = new Set<Format>(["bold", "italic", "underline", "strike", "code", "spoiler"]);
+
+const FORMAT_LABELS: Record<Format, string> = {
+  bold: "Bold",
+  italic: "Italic",
+  underline: "Underline",
+  strike: "Strikethrough",
+  code: "Inline code",
+  spoiler: "Spoiler",
+  link: "Link",
+  quote: "Quote",
+  list: "Bulleted list",
+  orderedList: "Numbered list",
+  codeblock: "Code block",
+};
 
 const fileCount = (count: number) => (count === 1 ? "1 file" : `${count} files`);
 

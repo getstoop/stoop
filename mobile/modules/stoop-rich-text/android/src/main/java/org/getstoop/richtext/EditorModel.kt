@@ -7,6 +7,8 @@ import android.text.Spanned
 import android.text.style.ParagraphStyle
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
+import kotlin.math.max
+import kotlin.math.min
 
 // The composer's document as JS hands it over and reads it back: lines,
 // each with its block and styled runs (core/editor/lines.ts EditorLine),
@@ -341,6 +343,61 @@ internal object EditorDocument {
   fun clearMeaning(text: Spannable, start: Int, end: Int) {
     for (kind in listOf(MarksSpan::class.java, HrefSpan::class.java, MentionSpan::class.java)) {
       for (span in text.getSpans(start, end, kind)) text.removeSpan(span)
+    }
+  }
+}
+
+// Marks set over a range, a line at a time and never in a code block:
+// the spans there are cut at the range's ends and each piece takes the
+// marks `change` gives it.
+internal object EditorMarksEdit {
+  fun markableIn(text: Spanned, start: Int, end: Int) = markable(text, start, end)
+
+  private fun markable(text: Spanned, start: Int, end: Int): List<Pair<Int, Int>> {
+    val out = ArrayList<Pair<Int, Int>>()
+    var lineStart = EditorDocument.lineStart(text, start)
+    while (lineStart < end) {
+      val lineEnd = EditorDocument.lineEnd(text, lineStart)
+      val from = max(lineStart, start)
+      val to = min(lineEnd, end)
+      val block = EditorDocument.blockAt(text, lineStart) ?: BlockInfo.PARAGRAPH
+      if (to > from && block.block != Block.CODE) out.add(from to to)
+      if (lineEnd >= text.length) break
+      lineStart = lineEnd + 1
+    }
+    return out
+  }
+
+  // The marks every markable character of the range has.
+  fun common(text: Spanned, start: Int, end: Int): Int {
+    var common: Int? = null
+    for ((from, to) in markable(text, start, end)) {
+      val cuts = EditorDocument.boundaries(text, from, to)
+      for (i in 0 until cuts.size - 1) {
+        if (cuts[i] >= cuts[i + 1]) continue
+        val marks = EditorDocument.marksAt(text, cuts[i], cuts[i + 1])
+        common = common?.and(marks) ?: marks
+      }
+    }
+    return common ?: 0
+  }
+
+  fun apply(text: Editable, start: Int, end: Int, change: (Int) -> Int) {
+    for ((from, to) in markable(text, start, end)) {
+      val cuts = EditorDocument.boundaries(text, from, to)
+      val pieces = (0 until cuts.size - 1).filter { cuts[it] < cuts[it + 1] }
+        .map { Triple(cuts[it], cuts[it + 1], change(EditorDocument.marksAt(text, cuts[it], cuts[it + 1]))) }
+      for (span in text.getSpans(from, to, MarksSpan::class.java)) {
+        val s = text.getSpanStart(span)
+        val e = text.getSpanEnd(span)
+        if (s >= to || e <= from) continue
+        text.removeSpan(span)
+        if (s < from) text.setSpan(MarksSpan(span.marks), s, from, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+        if (e > to) text.setSpan(MarksSpan(span.marks), to, e, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+      }
+      for ((a, b, marks) in pieces) {
+        if (marks != 0) text.setSpan(MarksSpan(marks), a, b, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+      }
     }
   }
 }

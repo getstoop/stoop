@@ -1,4 +1,5 @@
 import { docToLines, type EditorLine, linesToDoc } from "@stoop/core/editor/lines";
+import type { Format } from "@stoop/core/editor/formats";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
@@ -28,6 +29,8 @@ export type RichFieldHandle = {
   blur: () => void;
   // The `count` characters before the caret replaced by text, as typed.
   replaceBeforeCaret: (count: number, text: string) => void;
+  // A format on or off, at the caret or over the selection.
+  format: (format: Format) => void;
   // The draft as it stands, a word still being composed taken as is.
   commit: () => Promise<string>;
 };
@@ -41,9 +44,9 @@ export default forwardRef<
     // Changed by the composer each time it puts a draft in from outside.
     loadKey: number;
     onChange: (markdown: string) => void;
-    // The caret and the text before it on its line, after each change or
-    // move; `before` is null while a range is selected.
-    onCaret: (before: string | null) => void;
+    // After each change or move: the text before the caret on its line
+    // (null while a range is selected), and the formats in effect.
+    onCaret: (before: string | null, formats: Format[]) => void;
     onBlur: () => void;
     placeholder: string;
     label: string;
@@ -82,6 +85,7 @@ export default forwardRef<
       focus: () => void native.current?.focus(),
       blur: () => void native.current?.blur(),
       replaceBeforeCaret: (count, text) => void native.current?.replaceBeforeCaret(count, text),
+      format: (format) => void native.current?.format(format),
       commit: async () => {
         const lines = await native.current?.commit();
         return lines ? toMd(lines) : value;
@@ -92,7 +96,7 @@ export default forwardRef<
 
   if (!richEditor) return null;
   const caret = (event: EditorSelection) =>
-    onCaret(event.selection.start === event.selection.end ? event.before : null);
+    onCaret(event.selection.start === event.selection.end ? event.before : null, event.formats as Format[]);
 
   return (
     <richEditor.View

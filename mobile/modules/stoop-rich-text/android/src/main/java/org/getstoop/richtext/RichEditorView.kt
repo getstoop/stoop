@@ -62,6 +62,22 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   private var changedNewline = false
   // The last change only took characters away.
   private var deleted = false
+  // Marks toggled at a caret, for what is typed there next: Android has
+  // no typing attributes, so the view keeps them, and the place they're
+  // for, until the caret moves.
+  private var pendingMarks: Int? = null
+  private var pendingFrom = -1
+  private var pendingAt = -1
+  // The marks a change's new text is meant to have, taken before it:
+  // those of the text it replaces (a keyboard composing a word replaces
+  // the whole word at each key), else what typing at its start carries.
+  // Set on the text explicitly, rather than left to how the spans stretch
+  // over a replace.
+  private var replacedMarks: Int? = null
+  private var typingMarks = 0
+  // Between a change's before and after: the caret moves with the text
+  // before the after runs, which is no reason to drop pending marks.
+  private var changing = false
   var autoFocus = false
   private var focusedOnce = false
   // The block of an empty last line, which no character holds: one the
@@ -76,11 +92,14 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     addView(field, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     field.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+        changing = true
         val text = s as? Spanned ?: return
         val line = EditorDocument.lineStart(text, start)
         changedLine = line
         changedBlock = EditorDocument.blockAt(text, line) ?: if (line >= text.length) trailingBlock() else null
         changedNewline = (start until start + count).any { text[it] == '\n' }
+        replacedMarks = if (count > 0) EditorDocument.marksAt(text, start, start + 1) else null
+        typingMarks = caretMarks(text, start)
       }
 
       override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
@@ -90,8 +109,29 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       }
 
       override fun afterTextChanged(s: Editable) {
+        changing = false
         if (applying) return
         applying = true
+        val pending = pendingMarks
+        if (changedTo > changedFrom) {
+          if (pending != null && changedFrom <= pendingAt && changedTo > pendingFrom) {
+            // Typed where a mark was toggled, however the keyboard put it
+            // (a word it composes from before the toggle included):
+            // everything since the toggle takes the toggled marks, what
+            // came before it keeps its own.
+            if (changedFrom < pendingFrom) {
+              val before = replacedMarks ?: typingMarks
+              EditorMarksEdit.apply(s, changedFrom, pendingFrom) { before }
+            }
+            EditorMarksEdit.apply(s, pendingFrom, changedTo) { pending }
+            pendingAt = changedTo
+          } else {
+            val intended = replacedMarks ?: typingMarks
+            EditorMarksEdit.apply(s, changedFrom, changedTo) { intended }
+          }
+          // A Return ends what a toggle was for, as on iOS.
+          if (s.subSequence(changedFrom, changedTo).contains('\n')) pendingMarks = null
+        }
         // The last line emptied by a deletion (a backspace, or a keyboard
         // taking a word out to put it back changed) keeps its block, which
         // no character holds now, until it has words again.
@@ -174,6 +214,9 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
 
   internal fun selectionChanged() {
     if (applying) return
+    if (!changing && pendingMarks != null && (field.selectionStart != pendingAt || field.selectionEnd != pendingAt)) {
+      pendingMarks = null
+    }
     field.invalidate()
     onEditorSelection(selectionPayload())
   }
@@ -188,7 +231,75 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       "revision" to loadedRevision,
       "selection" to mapOf("start" to start, "end" to end),
       "before" to EditorDocument.textBefore(text, start),
+      "formats" to activeFormats(text, start, end),
     )
+  }
+
+  // MARK: Formats
+
+  private fun lineBlock(text: Spanned, at: Int): BlockInfo {
+    val start = EditorDocument.lineStart(text, at)
+    val end = EditorDocument.lineEnd(text, start)
+    return if (end > start || end < text.length) {
+      EditorDocument.blockAt(text, start) ?: BlockInfo.PARAGRAPH
+    } else {
+      trailingBlock() ?: BlockInfo.PARAGRAPH
+    }
+  }
+
+  // What typing at a caret carries: the marks of the character before
+  // it on its line, as the spans extend to text typed at their end.
+  private fun caretMarks(text: Spanned, at: Int): Int {
+    pendingMarks?.let { if (at == pendingAt) return it }
+    if (at == 0 || text[at - 1] == '\n') return 0
+    return EditorDocument.marksAt(text, at - 1, at)
+  }
+
+  // The formats in effect, as web's toolbar names them: at a caret, what
+  // typing would carry; over a selection, what all of its words have.
+  // And the caret's line's block.
+  private fun activeFormats(text: Spanned, start: Int, end: Int): List<String> {
+    val block = lineBlock(text, start)
+    val formats = ArrayList<String>()
+    // A selection is "in a code block" only when none of it can take a
+    // mark; one that runs out of a code block into words can.
+    val inCode = if (start == end) block.block == Block.CODE else EditorMarksEdit.markableIn(text, start, end).isEmpty()
+    if (!inCode) {
+      val marks = if (start == end) caretMarks(text, start) else EditorMarksEdit.common(text, start, end)
+      formats.addAll(Marks.names(marks))
+    }
+    when (block.block) {
+      Block.QUOTE -> formats.add("quote")
+      Block.BULLET -> formats.add("list")
+      Block.ORDERED -> formats.add("orderedList")
+      Block.CODE -> if (inCode) formats.add("codeblock")
+      Block.PARAGRAPH -> {}
+    }
+    return formats
+  }
+
+  // A mark on or off: over a selection, on everywhere unless all of it
+  // has it already (web's rule); at a caret, for what is typed next,
+  // until the caret moves. Not in a code block, which holds no marks.
+  fun format(name: String) {
+    val bit = Marks.named.firstOrNull { it.first == name }?.second ?: return
+    val text = field.text ?: return
+    val start = max(0, field.selectionStart)
+    val end = max(start, field.selectionEnd)
+    if (start == end) {
+      if (lineBlock(text, start).block == Block.CODE) return
+      pendingMarks = caretMarks(text, start) xor bit
+      pendingFrom = start
+      pendingAt = start
+      onEditorSelection(selectionPayload())
+      return
+    }
+    val on = EditorMarksEdit.common(text, start, end) and bit == 0
+    applying = true
+    EditorMarksEdit.apply(text, start, end) { marks -> if (on) marks or bit else marks and bit.inv() }
+    restyle(text, start, end)
+    applying = false
+    emitChange()
   }
 
   internal fun linesJson(): List<Map<String, Any>> {

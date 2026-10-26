@@ -212,7 +212,111 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
       "revision": loadedRevision,
       "selection": ["start": selected.location, "end": NSMaxRange(selected)],
       "before": EditorDocument.textBefore(storage, at: selected.location),
+      "formats": activeFormats(),
     ]
+  }
+
+  // MARK: Formats
+
+  // The formats in effect, as web's toolbar names them (api/formatting
+  // Format): at a caret, what typing would carry; over a selection, what
+  // all of its words have. And the caret's line's block.
+  func activeFormats() -> [String] {
+    var formats: [String] = []
+    let selected = textView.selectedRange
+    let block = (meaning(at: selected.location)[.editorBlock] as? BlockBox) ?? .paragraph
+    // A selection is "in a code block" only when none of it can take a
+    // mark; one that runs out of a code block into words can.
+    let inCode = selected.length == 0 ? block.block == .code : markable(selected).isEmpty
+    if !inCode {
+      let marks: EditorMarks
+      if selected.length == 0 {
+        marks = EditorMarks(rawValue: (textView.typingAttributes[.editorMarks] as? Int) ?? 0)
+      } else {
+        marks = commonMarks(in: selected)
+      }
+      formats += marks.names
+    }
+    switch block.block {
+    case .quote: formats.append("quote")
+    case .bullet: formats.append("list")
+    case .ordered: formats.append("orderedList")
+    case .code: if inCode { formats.append("codeblock") }
+    case .paragraph: break
+    }
+    return formats
+  }
+
+  // The words of a range a mark can go on: not newlines, not code blocks.
+  private func markable(_ range: NSRange) -> [NSRange] {
+    let string = storage.string as NSString
+    var out: [NSRange] = []
+    var location = range.location
+    while location < NSMaxRange(range) {
+      let line = string.lineRange(for: NSRange(location: location, length: 0))
+      var content = line
+      if content.length > 0, string.character(at: NSMaxRange(content) - 1) == 10 { content.length -= 1 }
+      let part = NSIntersectionRange(content, range)
+      let block = (storage.attribute(.editorBlock, at: line.location, effectiveRange: nil) as? BlockBox) ?? .paragraph
+      if part.length > 0, block.block != .code { out.append(part) }
+      if NSMaxRange(line) <= location { break }
+      location = NSMaxRange(line)
+    }
+    return out
+  }
+
+  private func commonMarks(in range: NSRange) -> EditorMarks {
+    var common: EditorMarks?
+    for part in markable(range) {
+      storage.enumerateAttribute(.editorMarks, in: part) { value, _, _ in
+        let marks = EditorMarks(rawValue: (value as? Int) ?? 0)
+        common = common.map { $0.intersection(marks) } ?? marks
+      }
+    }
+    return common ?? []
+  }
+
+  // A mark on or off: over a selection, on everywhere unless all of it
+  // has it already (web's rule); at a caret, for what is typed next, until
+  // the caret moves. Not in a code block, which holds no marks.
+  func toggle(_ mark: EditorMarks) {
+    let selected = textView.selectedRange
+    if selected.length == 0 {
+      var meaning = self.meaning(at: selected.location)
+      guard (meaning[.editorBlock] as? BlockBox)?.block != .code else { return }
+      var marks = EditorMarks(rawValue: (textView.typingAttributes[.editorMarks] as? Int) ?? 0)
+      marks.formSymmetricDifference(mark)
+      meaning[.editorMarks] = marks.isEmpty ? nil : marks.rawValue
+      if let href = textView.typingAttributes[.editorHref] { meaning[.editorHref] = href }
+      textView.typingAttributes = styler.look(for: meaning)
+      onEditorSelection(selectionPayload())
+      return
+    }
+    let parts = markable(selected)
+    guard !parts.isEmpty else { return }
+    let on = !commonMarks(in: selected).contains(mark)
+    storage.beginEditing()
+    for part in parts {
+      storage.enumerateAttribute(.editorMarks, in: part) { value, run, _ in
+        var marks = EditorMarks(rawValue: (value as? Int) ?? 0)
+        if on { marks.insert(mark) } else { marks.remove(mark) }
+        if marks.isEmpty {
+          storage.removeAttribute(.editorMarks, range: run)
+        } else {
+          storage.addAttribute(.editorMarks, value: marks.rawValue, range: run)
+        }
+      }
+      styler.restyle(storage, lines: part)
+    }
+    storage.endEditing()
+    textView.selectedRange = selected
+    emitChange()
+  }
+
+  func format(_ name: String) {
+    if let mark = EditorMarks.named.first(where: { $0.0 == name })?.1 {
+      toggle(mark)
+    }
   }
 
   func linesJSON() -> [[String: Any]] {

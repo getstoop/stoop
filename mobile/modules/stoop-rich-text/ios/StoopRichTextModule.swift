@@ -50,6 +50,9 @@ public class StoopRichTextModule: Module {
       AsyncFunction("replaceBeforeCaret") { (view: RichEditorView, count: Int, text: String) in
         view.replaceBeforeCaret(count, text)
       }.runOnQueue(.main)
+      AsyncFunction("format") { (view: RichEditorView, name: String) in
+        view.format(name)
+      }.runOnQueue(.main)
       AsyncFunction("commit") { (view: RichEditorView) -> [[String: Any]] in
         view.commit()
       }.runOnQueue(.main)
