@@ -272,6 +272,10 @@ marks), one assertion proved to bite, and the operator's phone check.
   Open for the operator's review.
 - **A long press on a code block doesn't tint the row first; fine for
   now** (operator, 2026-10-25).
+- **List markers stay outside markers, uncapped**: at the largest
+  accessibility text sizes a three-digit marker runs past the screen's
+  left edge, as web's does in a narrow window; left as is (operator,
+  2026-10-25).
 
 ## Later
 
