@@ -131,6 +131,25 @@ describe("video posters", () => {
     expect(disk.size).toBe(0);
   });
 
+  it("leaves a newer tile's request alone when one from before sign-out goes", () => {
+    requestPoster("o", "t", id(1), () => {});
+    requestPoster("o", "t", id(2), () => {});
+    const before = requestPoster("o", "t", id(3), () => {});
+    clearPosters();
+    for (const grab of grabs) grab.reject();
+    grabs.length = 0;
+    requestPoster("o", "t", id(4), () => {});
+    requestPoster("o", "t", id(5), () => {});
+    requestPoster("o", "t", id(3), () => {});
+    before();
+    return settle().then(() => {
+      grabs[0].resolve("cache/VideoThumbnails/a.jpg");
+      return settle().then(() => {
+        expect(grabs.map((grab) => grab.url)).toContain(`o/files/${id(3)}`);
+      });
+    });
+  });
+
   it("asks for nothing that isn't a file id", () => {
     requestPoster("o", "t", "../secrets", () => {});
     expect(grabs).toHaveLength(0);

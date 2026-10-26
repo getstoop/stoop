@@ -17,8 +17,8 @@ import VideoTile from "./VideoTile";
 import { expiredLabel, expiredText, imageLabel, tileLabel, videoLabel } from "./words";
 
 // A message's files, under its words, as web's Attachments draws them
-// where a phone can (layout.ts says where it can't): an image inline, a
-// video as a tile with its first frame that plays full screen, two or
+// where a phone can (layout.ts says where it can't): an image inline,
+// a video as a tile with its first frame that plays full screen, two or
 // more of them in a grid, audio as a player (the screen's, AudioContext; without one, the
 // card), any other file as a card that a tap shares, an expired one as
 // its placeholder, which nothing fetches. The same in a

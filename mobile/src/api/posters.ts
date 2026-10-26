@@ -6,11 +6,13 @@ import { isFileId } from "./fileNames";
 // ffmpeg), so the phone's own player reads it from /files with the
 // session, over range requests (a few hundred KB, more when the file's
 // index is at its end), and it is kept as a JPEG in the app's cache
-// under the file's id, so a tile drawn again shows it from disk. Two at
-// a time, in the order their tiles asked; one whose tiles have all gone
-// before its turn is dropped. One that doesn't come (a file the phone
-// can't decode, no network) is not asked for again for a minute, so a
-// list scrolled back and forth doesn't keep asking.
+// under the file's id, so a tile drawn again shows it from disk. At most
+// 1024 px on a side, and on iOS off the queue other modules share (both
+// our patch, patches/). Two at a time, in the order their tiles asked;
+// one whose tiles have all gone before its turn is dropped. One that
+// doesn't come (a file the phone can't decode, no network) is not asked
+// for again for a minute, so a list scrolled back and forth doesn't keep
+// asking; a tile still showing stays black until it is drawn again.
 
 const posters = () => new Directory(Paths.cache, "posters");
 // Where expo-video-thumbnails writes before the frame is moved into place.
@@ -70,7 +72,9 @@ export function requestPoster(
   next();
   return () => {
     asked.listeners.delete(onDone);
-    if (asked.listeners.size > 0 || asked.started) return;
+    // Sign-out may have forgotten this request and a newer tile asked
+    // again; that one isn't this tile's to drop.
+    if (asked.listeners.size > 0 || asked.started || requests.get(fileId) !== asked) return;
     requests.delete(fileId);
     const index = waiting.indexOf(fileId);
     if (index >= 0) waiting.splice(index, 1);

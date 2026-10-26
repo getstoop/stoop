@@ -670,7 +670,13 @@ under the file id, so a tile drawn again shows it from disk, and
 sign-out clears it with the other caches. The tile stays black while
 it comes, and if it doesn't: one that fails isn't asked for again for
 a minute. A lone video's frame is letterboxed, as web's `<video>`; a
-grid's tile is filled, as its pictures are.
+grid's tile is filled, as its pictures are. The package is patched
+(`mobile/patches/`, listed in `mobile/pnpm-workspace.yaml`) to read the
+frame at most 1024 px on a side instead of the video's full size (about
+33 MB for a 4K frame), and on iOS on a queue of its own: otherwise it
+runs on the queue every Expo module's async functions share, and Share,
+the clipboard and secure storage would wait behind a frame read over
+the network.
 
 ## Open questions
 
