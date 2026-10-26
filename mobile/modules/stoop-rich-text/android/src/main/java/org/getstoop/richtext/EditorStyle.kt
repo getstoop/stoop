@@ -139,9 +139,31 @@ internal object EditorStyler {
           if (a >= b) continue
           styleRun(text, a, b, info, look)
         }
+        if (info.block != Block.CODE) styleBareAddresses(text, start, end, look)
       }
       if (end >= last || end >= text.length) break
       start = end + 1
+    }
+  }
+
+  // A bare address stays text (the message format links it on its own);
+  // it only looks like a link: the accent, underlined. Trailing
+  // punctuation belongs to the sentence, as the parser reads it.
+  private val address = Regex("https?://[^\\s<>]+", RegexOption.IGNORE_CASE)
+
+  private fun styleBareAddresses(text: Editable, start: Int, end: Int, look: EditorLook) {
+    for (match in address.findAll(text.subSequence(start, end))) {
+      val from = start + match.range.first
+      var to = start + match.range.last + 1
+      while (to > from && text[to - 1] in ".,;:!?)]'\"") to--
+      if (to <= from) continue
+      if (EditorDocument.boundaries(text, from, to).zipWithNext().any { (a, b) ->
+          a < b && (EditorDocument.hrefAt(text, a, b) != null || EditorDocument.mentionAt(text, a, b) != null ||
+            EditorDocument.marksAt(text, a, b) and Marks.CODE != 0)
+        }
+      ) continue
+      text.setSpan(LookColor(look.accent), from, to, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      text.setSpan(LookUnderline(), from, to, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
   }
 

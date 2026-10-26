@@ -355,6 +355,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
       }
       formats += marks.names
     }
+    if link(around: selected) != nil { formats.append("link") }
     switch block.block {
     case .quote: formats.append("quote")
     case .bullet: formats.append("list")
@@ -431,6 +432,106 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     emitChange()
   }
 
+  // MARK: Links
+
+  // The whole link a caret is in (not at its edge: typing there isn't
+  // linked), or a selection lies inside: every neighbouring character
+  // with the same address, so a link partly bold is one link.
+  private func link(around selected: NSRange) -> (range: NSRange, href: String)? {
+    let string = storage.string as NSString
+    let at = selected.length == 0 ? selected.location - 1 : selected.location
+    guard at >= 0, at < string.length,
+      let href = storage.attribute(.editorHref, at: at, effectiveRange: nil) as? String
+    else { return nil }
+    if selected.length == 0 {
+      guard selected.location < string.length,
+        storage.attribute(.editorHref, at: selected.location, effectiveRange: nil) as? String == href
+      else { return nil }
+    }
+    var start = at
+    while start > 0, storage.attribute(.editorHref, at: start - 1, effectiveRange: nil) as? String == href { start -= 1 }
+    var end = at + 1
+    while end < string.length, storage.attribute(.editorHref, at: end, effectiveRange: nil) as? String == href { end += 1 }
+    let range = NSRange(location: start, length: end - start)
+    guard NSMaxRange(selected) <= end else { return nil }
+    return (range, href)
+  }
+
+  // Where the link dialog's Save or Remove lands, from when it opened, and
+  // the words there then: if the text has changed under the dialog (a
+  // reload), Save and Remove do nothing rather than land elsewhere.
+  private var linkRange: NSRange?
+  private var linkWords = ""
+
+  private func linkStillThere(_ range: NSRange) -> Bool {
+    NSMaxRange(range) <= storage.length && (storage.string as NSString).substring(with: range) == linkWords
+  }
+
+  // What the link dialog opens with (web's linkDraft): the link being
+  // edited, else the selected words on one line, else nothing at the
+  // caret (or, across lines, at the end of the last). Nil in a code block,
+  // which holds no links.
+  func linkDraft() -> [String: Any]? {
+    let selected = textView.selectedRange
+    let string = storage.string as NSString
+    let block = (meaning(at: selected.location)[.editorBlock] as? BlockBox) ?? .paragraph
+    let endBlock = (meaning(at: NSMaxRange(selected))[.editorBlock] as? BlockBox) ?? .paragraph
+    if block.block == .code || endBlock.block == .code { return nil }
+    if let link = link(around: selected) {
+      linkRange = link.range
+      linkWords = string.substring(with: link.range)
+      return ["text": linkWords, "href": link.href, "editing": true]
+    }
+    let line = string.lineRange(for: NSRange(location: selected.location, length: 0))
+    var lineEnd = NSMaxRange(line)
+    if lineEnd > line.location, string.character(at: lineEnd - 1) == 10 { lineEnd -= 1 }
+    let onOneLine = NSMaxRange(selected) <= lineEnd
+    let range = onOneLine ? selected : NSRange(location: NSMaxRange(selected), length: 0)
+    linkRange = range
+    linkWords = string.substring(with: range)
+    return ["text": linkWords, "href": "", "editing": false]
+  }
+
+  // The dialog's Save: the words linked to the address. Words unchanged
+  // keep their own marks; new words take those where they start. A pill
+  // in the words becomes its words (a mention is never linked). The caret
+  // lands after the link, outside it.
+  func setLink(_ text: String, _ href: String) {
+    guard let range = linkRange, linkStillThere(range) else { return }
+    linkRange = nil
+    let address = href.trimmingCharacters(in: .whitespacesAndNewlines)
+    var words = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if words.isEmpty { words = address }
+    var target = range
+    if (storage.string as NSString).substring(with: range) != words {
+      var meaning = self.meaning(at: range.location)
+      meaning.removeValue(forKey: .editorHref)
+      textView.typingAttributes = styler.look(for: meaning)
+      replace(range, with: words)
+      target = NSRange(location: range.location, length: (words as NSString).length)
+    }
+    storage.beginEditing()
+    storage.removeAttribute(.editorMention, range: target)
+    storage.addAttribute(.editorHref, value: address, range: target)
+    styler.restyle(storage, lines: target)
+    storage.endEditing()
+    textView.selectedRange = NSRange(location: NSMaxRange(target), length: 0)
+    textViewDidChange(textView)
+    textViewDidChangeSelection(textView)
+  }
+
+  // The dialog's Remove: the words stay, unlinked.
+  func removeLink() {
+    guard let range = linkRange, linkStillThere(range) else { return }
+    linkRange = nil
+    storage.beginEditing()
+    storage.removeAttribute(.editorHref, range: range)
+    styler.restyle(storage, lines: range)
+    storage.endEditing()
+    textViewDidChange(textView)
+    textViewDidChangeSelection(textView)
+  }
+
   func format(_ name: String) {
     if let mark = EditorMarks.named.first(where: { $0.0 == name })?.1 {
       toggle(mark)
@@ -468,6 +569,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   }
 
   func load(_ lines: [EditorLineRecord]) {
+    linkRange = nil
     let text = EditorDocument.attributed(lines)
     // The keyboard is told, so its capitals and suggestions start afresh.
     textView.inputDelegate?.textWillChange(textView)

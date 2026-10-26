@@ -114,6 +114,10 @@ export type RichEditorProps = ViewProps & {
   onEditorBlur?: () => void;
 };
 
+// The link dialog's starting values: the link being edited (`editing`),
+// else the selected words.
+export type LinkDraft = { text: string; href: string; editing: boolean };
+
 // What JS can ask of the field, through its ref.
 export type RichEditorMethods = {
   focus(): Promise<void>;
@@ -126,6 +130,11 @@ export type RichEditorMethods = {
   insertMention(count: number, mention: MentionRef, after: string): Promise<void>;
   // The words `typed` at `location` made a pill, if they are still there.
   markMention(location: number, typed: string, mention: MentionRef): Promise<void>;
+  // What the link dialog opens with, null where links can't go; and its
+  // Save and Remove, over the range it opened with.
+  linkDraft(): Promise<LinkDraft | null>;
+  setLink(text: string, href: string): Promise<void>;
+  removeLink(): Promise<void>;
   commit(): Promise<EditorLine[]>;
 };
 

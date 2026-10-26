@@ -79,7 +79,34 @@ final class EditorStyler {
           mention: attrs[.editorMention] as? MentionBox, at: part.location)
         storage.addAttributes(look, range: part)
       }
+      if block.block != .code { styleBareAddresses(storage, in: line) }
       location = NSMaxRange(line)
+    }
+  }
+
+  // A bare address stays text (the message format links it on its own);
+  // it only looks like a link: the accent, underlined. Trailing
+  // punctuation belongs to the sentence, as the parser reads it.
+  private static let address = try! NSRegularExpression(pattern: "https?://[^\\s<>]+", options: [.caseInsensitive])
+
+  private func styleBareAddresses(_ storage: NSTextStorage, in line: NSRange) {
+    let string = storage.string as NSString
+    for match in EditorStyler.address.matches(in: storage.string, range: line) {
+      var range = match.range
+      while range.length > 0, ".,;:!?)]'\"".contains(Character(UnicodeScalar(string.character(at: NSMaxRange(range) - 1)) ?? " ")) {
+        range.length -= 1
+      }
+      var plain = true
+      storage.enumerateAttributes(in: range) { attrs, _, stop in
+        let marks = EditorMarks(rawValue: (attrs[.editorMarks] as? Int) ?? 0)
+        if attrs[.editorHref] != nil || attrs[.editorMention] != nil || marks.contains(.code) {
+          plain = false
+          stop.pointee = true
+        }
+      }
+      guard plain, range.length > 0 else { continue }
+      storage.addAttributes(
+        [.foregroundColor: style.accentColor, .underlineStyle: NSUnderlineStyle.single.rawValue], range: range)
     }
   }
 

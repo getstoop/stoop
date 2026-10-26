@@ -7,6 +7,7 @@ import type { StyleProp, ViewStyle } from "react-native";
 import {
   type EditorSelection,
   type EditorStyle,
+  type LinkDraft,
   type RichEditorMethods,
   richEditor,
 } from "../../../modules/stoop-rich-text";
@@ -37,6 +38,11 @@ export type RichFieldHandle = {
   insertMention: (count: number, mention: MentionRef, after: string) => void;
   // The words `typed` at `location` made a pill, if still there.
   markMention: (location: number, typed: string, mention: MentionRef) => void;
+  // The link dialog's starting values (null where links can't go), and
+  // its Save and Remove over the range it opened with.
+  linkDraft: () => Promise<LinkDraft | null>;
+  setLink: (text: string, href: string) => void;
+  removeLink: () => void;
   // The draft as it stands, a word still being composed taken as is.
   commit: () => Promise<string>;
 };
@@ -57,6 +63,7 @@ export default forwardRef<
     // (null while a range is selected), and the formats in effect.
     onCaret: (before: string | null, formats: Format[]) => void;
     onBlur: () => void;
+    onFocus?: () => void;
     placeholder: string;
     label: string;
     testID?: string;
@@ -66,7 +73,7 @@ export default forwardRef<
     style?: StyleProp<ViewStyle>;
   }
 >(function RichField(
-  { value, loadKey, onChange, onTyped, onCaret, onBlur, placeholder, label, testID, autoFocus, minHeight, maxHeight, style },
+  { value, loadKey, onChange, onTyped, onCaret, onBlur, onFocus, placeholder, label, testID, autoFocus, minHeight, maxHeight, style },
   ref,
 ) {
   const theme = useTheme();
@@ -100,6 +107,9 @@ export default forwardRef<
       format: (format) => void native.current?.format(format),
       insertMention: (count, mention, after) => void native.current?.insertMention(count, mention, after),
       markMention: (location, typed, mention) => void native.current?.markMention(location, typed, mention),
+      linkDraft: async () => (await native.current?.linkDraft()) ?? null,
+      setLink: (text, href) => void native.current?.setLink(text, href),
+      removeLink: () => void native.current?.removeLink(),
       commit: async () => {
         const lines = await native.current?.commit();
         return lines ? toMd(lines) : value;
@@ -136,7 +146,10 @@ export default forwardRef<
         if (nativeEvent.revision === document.revision) caret(nativeEvent);
       }}
       onEditorHeight={({ nativeEvent }) => setHeight(nativeEvent.height)}
-      onEditorFocus={() => fieldFocused(focusKey)}
+      onEditorFocus={() => {
+        fieldFocused(focusKey);
+        onFocus?.();
+      }}
       onEditorBlur={() => {
         fieldBlurred(focusKey);
         onBlur();

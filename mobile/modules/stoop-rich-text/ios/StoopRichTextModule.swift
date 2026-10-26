@@ -59,6 +59,15 @@ public class StoopRichTextModule: Module {
       AsyncFunction("markMention") { (view: RichEditorView, location: Int, typed: String, mention: EditorMentionRecord) in
         view.markMention(location, typed, mention)
       }.runOnQueue(.main)
+      AsyncFunction("linkDraft") { (view: RichEditorView) -> [String: Any]? in
+        view.linkDraft()
+      }.runOnQueue(.main)
+      AsyncFunction("setLink") { (view: RichEditorView, text: String, href: String) in
+        view.setLink(text, href)
+      }.runOnQueue(.main)
+      AsyncFunction("removeLink") { (view: RichEditorView) in
+        view.removeLink()
+      }.runOnQueue(.main)
       AsyncFunction("commit") { (view: RichEditorView) -> [[String: Any]] in
         view.commit()
       }.runOnQueue(.main)

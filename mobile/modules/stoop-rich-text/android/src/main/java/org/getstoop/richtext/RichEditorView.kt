@@ -236,8 +236,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
 
   private fun selectionPayload(): Map<String, Any> {
     val text = field.text ?: return emptyMap()
-    val start = max(0, field.selectionStart)
-    val end = max(start, field.selectionEnd)
+    val start = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val end = max(start, maxOf(field.selectionStart, field.selectionEnd))
     return mapOf(
       // The document revision the text is from, so JS can drop a change
       // that was on its way when it loaded another.
@@ -281,8 +281,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   private fun snapSelection(): Boolean {
     if (snapping) return false
     val text = field.text ?: return false
-    val start = max(0, field.selectionStart)
-    val end = max(start, field.selectionEnd)
+    val start = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val end = max(start, maxOf(field.selectionStart, field.selectionEnd))
     fun edge(at: Int, was: Int): Int {
       val pill = pill(text, at) ?: return at
       val s = text.getSpanStart(pill)
@@ -392,6 +392,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       val marks = if (start == end) caretMarks(text, start) else EditorMarksEdit.common(text, start, end)
       formats.addAll(Marks.names(marks))
     }
+    if (link(text, start, end) != null) formats.add("link")
     when (block.block) {
       Block.QUOTE -> formats.add("quote")
       Block.BULLET -> formats.add("list")
@@ -402,14 +403,124 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     return formats
   }
 
+  // MARK: Links
+
+  // The whole link a caret is in (not at its edge: typing there isn't
+  // linked), or a selection lies inside: every neighbouring character
+  // with the same address, so a link partly bold is one link.
+  private fun link(text: Spanned, start: Int, end: Int): Pair<IntRange, String>? {
+    val at = if (start == end) start - 1 else start
+    if (at < 0 || at >= text.length) return null
+    val href = EditorDocument.hrefAt(text, at, at + 1) ?: return null
+    if (start == end && (start >= text.length || EditorDocument.hrefAt(text, start, start + 1) != href)) return null
+    var from = at
+    while (from > 0 && EditorDocument.hrefAt(text, from - 1, from) == href) from--
+    var to = at + 1
+    while (to < text.length && EditorDocument.hrefAt(text, to, to + 1) == href) to++
+    if (end > to) return null
+    return (from until to) to href
+  }
+
+  // Where the link dialog's Save or Remove lands, from when it opened, and
+  // the words there then: if the text has changed under the dialog (a
+  // reload), Save and Remove do nothing rather than land elsewhere.
+  private var linkRange: IntRange? = null
+  private var linkWords = ""
+
+  private fun linkStillThere(text: Spanned, range: IntRange): Boolean {
+    val to = if (range.isEmpty()) range.first else range.last + 1
+    return to <= text.length && text.subSequence(range.first, to).toString() == linkWords
+  }
+
+  // What the link dialog opens with (web's linkDraft): the link being
+  // edited, else the selected words on one line, else nothing at the
+  // caret (or, across lines, at the end of the last). Null in a code
+  // block, which holds no links.
+  fun linkDraft(): Map<String, Any>? {
+    val text = field.text ?: return null
+    val start = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val end = max(start, maxOf(field.selectionStart, field.selectionEnd))
+    if (lineBlock(text, start).block == Block.CODE || lineBlock(text, end).block == Block.CODE) return null
+    link(text, start, end)?.let { (range, href) ->
+      linkRange = range
+      linkWords = text.subSequence(range.first, range.last + 1).toString()
+      return mapOf("text" to linkWords, "href" to href, "editing" to true)
+    }
+    val range = if (end <= EditorDocument.lineEnd(text, start)) start until end else end until end
+    linkRange = range
+    linkWords = if (range.isEmpty()) "" else text.subSequence(range.first, range.last + 1).toString()
+    return mapOf("text" to linkWords, "href" to "", "editing" to false)
+  }
+
+  // The dialog's Save: the words linked to the address. Words unchanged
+  // keep their own marks; new words take those where they start. A pill
+  // in the words becomes its words (a mention is never linked). The caret
+  // lands after the link, outside it.
+  fun setLink(words: String, href: String) {
+    val text = field.text ?: return
+    val range = linkRange ?: return
+    linkRange = null
+    if (!linkStillThere(text, range)) return
+    val from = range.first
+    val to = if (range.isEmpty()) from else range.last + 1
+    val address = href.trim()
+    val linked = words.trim().ifEmpty { address }
+    applying = true
+    BaseInputConnection.removeComposingSpans(text)
+    pendingMarks = null
+    val end = from + linked.length
+    if (text.subSequence(from, to).toString() != linked) {
+      // New words take the marks where they start, as on iOS.
+      val marks = if (from > 0 && text[from - 1] != '\n') EditorDocument.marksAt(text, from - 1, from) else 0
+      text.replace(from, to, linked)
+      EditorMarksEdit.apply(text, from, end) { marks }
+    }
+    for (span in text.getSpans(from, end, MentionSpan::class.java)) text.removeSpan(span)
+    for (span in text.getSpans(from, end, HrefSpan::class.java)) {
+      val s = text.getSpanStart(span)
+      val e = text.getSpanEnd(span)
+      if (s >= end || e <= from) continue
+      text.removeSpan(span)
+      if (s < from) text.setSpan(HrefSpan(span.href), s, from, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      if (e > end) text.setSpan(HrefSpan(span.href), end, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+    text.setSpan(HrefSpan(address), from, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    restyle(text, from, end)
+    field.setSelection(end)
+    applying = false
+    emitChange()
+  }
+
+  // The dialog's Remove: the words stay, unlinked.
+  fun removeLink() {
+    val text = field.text ?: return
+    val range = linkRange ?: return
+    linkRange = null
+    if (range.isEmpty() || !linkStillThere(text, range)) return
+    val from = range.first
+    val to = range.last + 1
+    applying = true
+    for (span in text.getSpans(from, to, HrefSpan::class.java)) {
+      val s = text.getSpanStart(span)
+      val e = text.getSpanEnd(span)
+      if (s >= to || e <= from) continue
+      text.removeSpan(span)
+      if (s < from) text.setSpan(HrefSpan(span.href), s, from, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      if (e > to) text.setSpan(HrefSpan(span.href), to, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+    restyle(text, from, to)
+    applying = false
+    emitChange()
+  }
+
   // A mark on or off: over a selection, on everywhere unless all of it
   // has it already (web's rule); at a caret, for what is typed next,
   // until the caret moves. Not in a code block, which holds no marks.
   fun format(name: String) {
     val bit = Marks.named.firstOrNull { it.first == name }?.second ?: return
     val text = field.text ?: return
-    val start = max(0, field.selectionStart)
-    val end = max(start, field.selectionEnd)
+    val start = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val end = max(start, maxOf(field.selectionStart, field.selectionEnd))
     if (start == end) {
       if (lineBlock(text, start).block == Block.CODE) return
       pendingMarks = caretMarks(text, start) xor bit
@@ -450,6 +561,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
 
   fun load(lines: List<EditorLineRecord>) {
     val text = field.text ?: return
+    linkRange = null
     val last = lines.lastOrNull()
     explicitTrailing = if (last != null && last.runs.isEmpty()) {
       BlockInfo(Block.of(last.block), last.depth, last.group, last.lang).normalised()
@@ -469,10 +581,19 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     post { reportHeight() }
   }
 
-  fun focus() {
+  // The keyboard is only given to a field whose window has focus: asked
+  // while a dialog is still going (the link dialog), it waits for it, a
+  // little at a time. The field may have kept view focus under the dialog,
+  // which sends no focus change, so it says it is focused itself.
+  fun focus(tries: Int = 20) {
+    if (!field.hasWindowFocus() && tries > 0) {
+      postDelayed({ focus(tries - 1) }, 50)
+      return
+    }
     field.requestFocus()
     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
     imm?.showSoftInput(field, InputMethodManager.SHOW_IMPLICIT)
+    onEditorFocus(emptyMap<String, Any>())
   }
 
   fun blur() {

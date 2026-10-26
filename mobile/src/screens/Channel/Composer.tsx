@@ -23,12 +23,14 @@ import { authorName } from "../../api/authors";
 import { errorText } from "../../api/errors";
 import type { LocalFile } from "../../api/files";
 import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
+import type { LinkDraft } from "../../../modules/stoop-rich-text";
 import { type Theme, tokens, useTheme } from "../../theme";
 import AlsoSendRow from "./AlsoSendRow";
 import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
 import AttachSheet from "./AttachSheet";
 import FormatRow from "./FormatRow";
+import LinkDialog from "./LinkDialog";
 import RichField, { type RichFieldHandle } from "./RichField";
 import Surface from "./Surface";
 import { useAttachments } from "./useAttachments";
@@ -193,6 +195,9 @@ export default forwardRef<
       heldError.current = null;
     }
   }
+  // The link dialog is up: the field losing the keyboard to it doesn't
+  // close the card.
+  const linking = useRef(false);
   // Send pressed again before React commits the sending state must not
   // send twice, so the guard is a ref as well.
   const sendingRef = useRef(false);
@@ -235,7 +240,9 @@ export default forwardRef<
   // field; iOS blurs it, so the field's own onBlur covers it there.
   useEffect(() => {
     if (Platform.OS !== "android") return;
-    const sub = Keyboard.addListener("keyboardDidHide", () => input.current?.blur());
+    const sub = Keyboard.addListener("keyboardDidHide", () => {
+      if (!linking.current) input.current?.blur();
+    });
     return () => sub.remove();
   }, []);
 
@@ -332,14 +339,39 @@ export default forwardRef<
     }
   };
 
-  // A format from the row: the inline marks now; links and the blocks
-  // come in their own steps. A screen reader hears it go on or off, as
-  // the field next reports it (a tap that changes nothing says nothing).
+  // A format from the row: the inline marks, and Link, which opens the
+  // link dialog on what the field says it would link; the blocks come in
+  // their own steps. A screen reader hears a mark go on or off, as the
+  // field next reports it (a tap that changes nothing says nothing).
   const announcing = useRef<Format | null>(null);
   const applyFormat = (format: Format) => {
+    if (format === "link") {
+      void openLink();
+      return;
+    }
     if (!MARK_FORMATS.has(format)) return;
     announcing.current = format;
     input.current?.format(format);
+  };
+
+  // The link dialog takes the keyboard from the field while it is up; the
+  // card stays open meanwhile, and the field has it back after.
+  const [link, setLink] = useState<LinkDraft | null>(null);
+  const openLink = async () => {
+    const draft = await input.current?.linkDraft();
+    if (!draft) return;
+    linking.current = true;
+    setLink(draft);
+  };
+  // The field has the keyboard back once it says it's focused (or after
+  // a moment, should it never say), and only then does losing it close
+  // the card again.
+  const closeLink = () => {
+    setLink(null);
+    input.current?.focus();
+    setTimeout(() => {
+      linking.current = false;
+    }, 1000);
   };
 
   const raised = glass ? styles.glassRaised : styles.raised;
@@ -383,6 +415,20 @@ export default forwardRef<
 
   return (
     <>
+      {link && (
+        <LinkDialog
+          draft={link}
+          onSave={(text, href) => {
+            input.current?.setLink(text, href);
+            closeLink();
+          }}
+          onRemove={() => {
+            input.current?.removeLink();
+            closeLink();
+          }}
+          onCancel={closeLink}
+        />
+      )}
       <Surface glass={glass} style={styles.card}>
         {files.length > 0 && <AttachmentStrip files={files} raised={raised} onRemove={attachments.remove} />}
         {attachments.notice && !editing && (
@@ -458,7 +504,12 @@ export default forwardRef<
               AccessibilityInfo.announceForAccessibility(`${FORMAT_LABELS[format]}, ${state}`);
             }
           }}
-          onBlur={() => setWriting(false)}
+          onBlur={() => {
+            if (!linking.current) setWriting(false);
+          }}
+          onFocus={() => {
+            if (!link) linking.current = false;
+          }}
           placeholder={placeholder}
           label={placeholder}
           minHeight={44}

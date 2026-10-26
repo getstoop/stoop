@@ -17,6 +17,7 @@ executionOrder:
     - "Quote a message in a reply, cancel it, send it, and see the quote go with its message"
     - "Write in a channel and see it land, once, where it was sent"
     - "Format words from the row, at the caret and over a selection, and see them sent in Markdown"
+    - "Link words from the format row through the link dialog, and see the link sent"
     - "Type mentions in full and see them sent as mentions"
     - "Pick mentions from the list, from @, the @ button and #, and see them sent"
     - "Add a second server from the switcher, see the first one's badge, switch back"
