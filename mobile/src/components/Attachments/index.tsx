@@ -1,9 +1,12 @@
 import { attachmentKind } from "@stoop/core/attachments";
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
+import { useContext } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { markdown, useTheme } from "../../theme";
 import { FileIcon } from "../Icons";
 import { paragraphWidth } from "../MessageBody/insets";
+import { AudioContext } from "./audio";
+import AudioPlayer from "./AudioPlayer";
 import Card from "./Card";
 import FileCard from "./FileCard";
 import { attachmentsLayout } from "./layout";
@@ -16,8 +19,9 @@ import { expiredLabel, expiredText, imageLabel, tileLabel, videoLabel } from "./
 // A message's files, under its words, as web's Attachments draws them
 // where a phone can (layout.ts says where it can't): an image inline, a
 // video as a tile that plays full screen, two or more of them in a
-// grid, any other file as a card that a tap shares, an
-// expired one as its placeholder, which nothing fetches. The same in a
+// grid, audio as a player (the screen's, AudioContext; without one, the
+// card), any other file as a card that a tap shares, an expired one as
+// its placeholder, which nothing fetches. The same in a
 // channel's rows and a thread's; on the message menu's card (`compact`)
 // a strip of thumbnails and chips. A long press anywhere is the row's.
 export default function Attachments({
@@ -36,6 +40,7 @@ export default function Attachments({
   const theme = useTheme();
   const window = useWindowDimensions();
   const unplayable = useUnplayable();
+  const playback = useContext(AudioContext);
   if (attachments.length === 0) return null;
   if (compact) return <Strip attachments={attachments} origin={origin} token={token} />;
   const parts = attachmentsLayout(attachments, paragraphWidth(window.width, "row", 0), unplayable);
@@ -93,6 +98,18 @@ export default function Attachments({
                   );
                 })}
               </View>
+            );
+          case "audio":
+            return playback ? (
+              <AudioPlayer
+                key={part.attachment.fileId}
+                attachment={part.attachment}
+                width={part.width}
+                playback={playback}
+                {...shared}
+              />
+            ) : (
+              <FileCard key={part.attachment.fileId} attachment={part.attachment} {...shared} />
             );
           case "card":
             return <FileCard key={part.attachment.fileId} attachment={part.attachment} {...shared} />;

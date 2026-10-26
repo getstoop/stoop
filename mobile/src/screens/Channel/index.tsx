@@ -9,6 +9,7 @@ import { useServerStatus } from "../../api/instance";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
+import { useAudioPlayback } from "../../components/Attachments/audio";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
 import MessageContexts from "../../components/MessageContexts";
 import Viewer from "../../components/Viewer";
@@ -162,6 +163,9 @@ export default function Channel({
   const { menuFor, menuMessage } = actions;
   const links = useChannelLinks(server, spaceId, channelId, header);
   const viewer = useViewer(messages);
+  // Audio stops when the screen is covered or left, the app leaves the
+  // front, or the viewer opens.
+  const audio = useAudioPlayback(focused && active && !viewer.viewing);
   const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // And Reply in thread pushes the thread then.
   useEffect(() => {
@@ -223,7 +227,7 @@ export default function Channel({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <MessageContexts links={links} previews={previews} view={viewer.open}>
+          <MessageContexts links={links} previews={previews} view={viewer.open} audio={audio}>
             <FlatList
               ref={list}
               inverted

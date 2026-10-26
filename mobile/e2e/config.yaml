@@ -23,5 +23,5 @@ executionOrder:
     - "Mute a thread, see a reply in it counted as nothing new, and unmute it"
     - "Read messages in Markdown, reveal a spoiler, open a channel from its link, and see its blocks"
     - "See link previews under messages, open a message's menu from one, and remove one"
-    - "See files under messages, a photo, two in a grid, a PDF and an expired file, and share the PDF"
+    - "See files under messages, a photo, two in a grid, a PDF, a video, an audio file and an expired file, page through the photos full screen, play the video and the audio, and share the PDF"
     - "Attach from the library, the camera and files, see it in the card and the pill, and send it"

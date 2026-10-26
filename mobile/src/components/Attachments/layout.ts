@@ -21,9 +21,11 @@ import { markdown } from "../../theme/generated";
 //   row, in their order, cropped to fill, all of them shown, and the
 //   other files after it in theirs (web wraps each at its own size,
 //   which at a phone's width stacks full-size photos);
-// - any other file as a card, an expired one as its placeholder. Audio
-//   is a card until the phone plays it, and so is a video this phone
-//   has found it can't play (`unplayable`, by file id), as on web.
+// - audio as web's player, its name and size over the controls, as wide
+//   as the words (no more than 480);
+// - any other file as a card, an expired one as its placeholder, and so
+//   is a video or audio file this phone has found it can't play
+//   (`unplayable`, by file id), as on web.
 
 export type Box = { width: number; height: number };
 // How the image fills its box: to its edges, or at most its own size
@@ -33,6 +35,7 @@ export type Fit = "cover" | "scale-down";
 export type AttachmentPart =
   | { kind: "image"; attachment: Attachment; box: Box; fit: Fit }
   | { kind: "video"; attachment: Attachment; box: Box }
+  | { kind: "audio"; attachment: Attachment; width: number }
   | { kind: "grid"; attachments: Attachment[]; tile: number }
   | { kind: "card"; attachment: Attachment }
   | { kind: "expired"; attachment: Attachment };
@@ -53,7 +56,7 @@ export function attachmentsLayout(
   const room = Math.min(bodyWidth, markdown.attachmentImageMaxWidth);
   const kindOf = (attachment: Attachment) => {
     const kind = attachmentKind(attachment);
-    return kind === "video" && unplayable.has(attachment.fileId) ? "file" : kind;
+    return (kind === "video" || kind === "audio") && unplayable.has(attachment.fileId) ? "file" : kind;
   };
   const media = attachments.filter((attachment) => ["image", "video"].includes(kindOf(attachment)));
   const parts: AttachmentPart[] = [];
@@ -64,7 +67,10 @@ export function attachmentsLayout(
   for (const attachment of attachments) {
     const kind = kindOf(attachment);
     if (kind === "expired") parts.push({ kind, attachment });
-    else if (kind === "audio" || kind === "file") parts.push({ kind: "card", attachment });
+    else if (kind === "file") parts.push({ kind: "card", attachment });
+    else if (kind === "audio") {
+      parts.push({ kind, attachment, width: Math.min(bodyWidth, markdown.attachmentMediaMaxWidth) });
+    }
     // Two or more images and videos are in the grid already.
     else if (media.length > 1) continue;
     else if (kind === "image") parts.push({ kind, attachment, ...fitted(attachment, room) });

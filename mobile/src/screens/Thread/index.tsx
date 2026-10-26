@@ -9,6 +9,7 @@ import { hostOf } from "../../api/probe";
 import { errorText } from "../../api/errors";
 import { useServerStatus } from "../../api/instance";
 import { threadMessageLink } from "../../api/shareLinks";
+import { useAudioPlayback } from "../../components/Attachments/audio";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
 import MessageContexts from "../../components/MessageContexts";
 import Viewer from "../../components/Viewer";
@@ -165,6 +166,9 @@ export default function Thread({
   const { send, edit, muteThread } = engine;
   const links = useChannelLinks(server, spaceId, channelId, header, true);
   const viewer = useViewer(shown);
+  // Audio stops when the screen is covered or left, the app leaves the
+  // front, or the viewer opens.
+  const audio = useAudioPlayback(focused && active && !viewer.viewing);
   const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // A mute asked for: the bell waits for the server's answer, as web's,
   // and a second tap meanwhile does nothing. Each tap turns over what
@@ -272,7 +276,7 @@ export default function Thread({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <MessageContexts links={links} previews={previews} view={viewer.open}>
+          <MessageContexts links={links} previews={previews} view={viewer.open} audio={audio}>
             <FlatList
               ref={list}
               inverted

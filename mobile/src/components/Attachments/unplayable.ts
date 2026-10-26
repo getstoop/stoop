@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from "react";
 
-// The videos this phone has found it can't play, by file id, for as long
-// as the app runs: the viewer finds out when it tries, and the timeline
-// then draws each as the plain card, whose tap shares it (layout.ts), as
-// web turns a video it can't decode into its download card.
+// The videos and audio files this phone has found it can't play, by file
+// id, for as long as the app runs: the viewer or the audio player finds
+// out when it tries, and the timeline then draws each as the plain card,
+// whose tap shares it (layout.ts), as web turns a file it can't decode
+// into its download card.
 
 let ids: ReadonlySet<string> = new Set();
 const listeners = new Set<() => void>();

@@ -3,7 +3,7 @@ import { AttachmentSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { describe, expect, it } from "vitest";
 import { markdown } from "../../theme/generated";
 import { attachmentsLayout } from "./layout";
-import { downloadedText } from "./words";
+import { audioTime, clock, downloadedText } from "./words";
 
 let next = 0;
 const file = (fields: Parameters<typeof create<typeof AttachmentSchema>>[1]) =>
@@ -85,9 +85,21 @@ describe("attachmentsLayout", () => {
     ]);
   });
 
-  it("draws audio as a card for now", () => {
-    const parts = attachmentsLayout([file({ contentType: "audio/mpeg" }), photo(10, 10)], BODY);
-    expect(parts.map((part) => part.kind)).toEqual(["card", "image"]);
+  it("draws audio as a player as wide as the words, no wider than web's 480, in its place", () => {
+    const note = file({ contentType: "audio/mp4" });
+    const images = [photo(10, 10), photo(20, 20)];
+    expect(attachmentsLayout([note, ...images], BODY)).toEqual([
+      { kind: "grid", attachments: images, tile: 152 },
+      { kind: "audio", attachment: note, width: BODY },
+    ]);
+    expect(attachmentsLayout([note], 1000)).toEqual([
+      { kind: "audio", attachment: note, width: markdown.attachmentMediaMaxWidth },
+    ]);
+  });
+
+  it("draws an audio file this phone can't play as a card", () => {
+    const note = file({ contentType: "audio/ogg" });
+    expect(attachmentsLayout([note], BODY, new Set([note.fileId]))).toEqual([{ kind: "card", attachment: note }]);
   });
 
   it("draws a video this phone can't play as a card, out of the grid", () => {
@@ -108,5 +120,24 @@ describe("downloadedText", () => {
   it("only says it is going for a small file or before the first bytes", () => {
     expect(downloadedText(100, 500_000)).toBe("Downloading…");
     expect(downloadedText(0, 5 * 1024 * 1024)).toBe("Downloading…");
+  });
+});
+
+describe("audioTime", () => {
+  it("shows the length at rest and the position against it once started", () => {
+    expect(audioTime(false, 0, 72.4)).toBe("1:12");
+    expect(audioTime(true, 27.9, 72.4)).toBe("0:27 / 1:12");
+    expect(audioTime(true, 71.5, 71.98)).toBe("1:11 / 1:12");
+  });
+
+  it("says 0:00 for a file never played, and the position alone while the length is unknown", () => {
+    expect(audioTime(false, 0, 0)).toBe("0:00");
+    expect(audioTime(true, 3.2, 0)).toBe("0:03");
+  });
+
+  it("counts hours past the hour", () => {
+    expect(clock(605)).toBe("10:05");
+    expect(clock(3729)).toBe("1:02:09");
+    expect(clock(-1)).toBe("0:00");
   });
 });
