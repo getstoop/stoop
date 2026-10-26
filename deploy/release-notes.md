@@ -10,7 +10,7 @@ back is the backup it takes. Check 0.15.0 is working before you upgrade.
 **What's in it.**
 
 - **Image thumbnails.** A large image attachment (a PNG, JPEG or still
-  WebP over 1024 px on a side) gets a smaller copy, made in the
+  WebP over 1024 px on a side, within size limits) gets a smaller copy, made in the
   background after upload. The web app draws images inline from it, so
   a channel full of phone photos loads a fraction of the bytes. The
   preview and downloads still use the original. GIFs, animated WebPs
@@ -25,15 +25,19 @@ back is the backup it takes. Check 0.15.0 is working before you upgrade.
   were stored.
 - **A memory bound on every image the server decodes.** A link preview
   image (fetched from any link a member posts) and an avatar or icon
-  were bounded only by pixel count. A crafted 16 MP progressive or
-  CMYK JPEG could make one decode hold 300–400 MB, and up to four
-  previews decoded at once beside the background jobs, enough to push
-  a server past a 512 MB limit. Every decode now reckons its memory
-  from the header first and refuses anything over 288 MiB, and they
-  run one at a time. In practice this refuses only unusual images:
-  progressive JPEGs over about 15 MP (10 MP for CMYK) as an avatar or
+  were bounded only by pixel count. A crafted 16 MP progressive JPEG
+  could make one decode hold 240–380 MiB (the top end for CMYK), and
+  up to four previews decoded at once beside the background jobs,
+  enough to push a server past a 512 MB limit. Every still-image
+  decode now reckons its memory from the header first and refuses
+  anything over 288 MiB, and they run one at a time in each process.
+  In practice this refuses only unusual images, such as progressive
+  JPEGs over about 15 MP (12 MP RGB, 10 MP CMYK): as an avatar or
   icon, which the upload says plainly, or as a link preview, which
-  keeps its card without the image.
+  keeps its card without the image (or has none, if the page had only
+  an image). A preview whose image waits behind a large decode for
+  longer than its fetch allows also loses the image; the next message
+  with that link fetches it again.
 - **The phone app**, still unreleased, took most of the work merged
   since 0.15.0 (the channel screen, threads, Markdown, attachments).
   It is built against these server features but none of it ships in
@@ -45,15 +49,21 @@ back is the backup it takes. Check 0.15.0 is working before you upgrade.
   the schema floor from 68 to 70. Nothing has written the column since
   0.15.0, but 0.15.0's queries still name it when they read a channel,
   so 0.15.0 would fail on its first channel query; the floor makes it
-  refuse to start instead. On a failed upgrade, `stoop upgrade` prints
-  the restore commands for the backup it took rather than offering
-  `rollback` ([Restoring in place](https://github.com/getstoop/stoop/blob/v0.16.0/docs/self-hosting/backups.md#restoring-in-place));
+  refuse to start instead. If an upgrade fails after 00070 has run,
+  `stoop upgrade` prints the restore commands for the backup it took
+  rather than offering `rollback` (if it fails before, it still offers
+  `rollback`) ([Restoring in place](https://github.com/getstoop/stoop/blob/v0.16.0/docs/self-hosting/backups.md#restoring-in-place));
   anything written after the upgrade is lost by restoring it.
-- **Upgrading from 0.14.0** straight to 0.16.0 runs 00069 and 00070 in
-  order and lands in the same place, with no rollback to either.
+- **Upgrading from 0.14.0** straight to 0.16.0 runs 00069 through
+  00072 in order and lands in the same place, with no rollback to
+  either.
+- **Checking the release.** The post-publish check in
+  `docs/releasing.md` rolls back with `stoop upgrade rollback`; for this
+  release, skip that step.
 - **A new background job,** `thumbnail_attachment`, runs one at a time
   wherever your jobs run (`STOOP_JOBS`). Its measured peak is about
-  300 MiB for the largest image it accepts, a 75 MP phone photo
+  300 MiB at most (293 MiB for a 75 MP JPEG, the largest it accepts;
+  147 MiB for a typical 48 MP phone photo)
   ([files.md](https://github.com/getstoop/stoop/blob/v0.16.0/docs/architecture/files.md#thumbnails)).
   With jobs embedded in the server (the default), the server's own
   memory shares whatever limit you give it, so leave headroom above
