@@ -42,6 +42,9 @@ type Props = {
   onLongPress?: () => void;
   compact?: boolean;
   place: BodyPlace;
+  // Whether "(edited)" closes the words: false where the row puts it
+  // after the message's files and link cards, as web's row does.
+  markEdited?: boolean;
 };
 
 export default function MessageBody({
@@ -53,12 +56,13 @@ export default function MessageBody({
   onLongPress,
   compact = false,
   place,
+  markEdited = true,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => makeStyles(theme), [theme]);
   const { blocks, emojiOnly } = useMemo(() => parse(content), [content]);
   const gaps = useMemo(() => blockGaps(blocks), [blocks]);
-  const edited = !!editedAt;
+  const edited = !!editedAt && markEdited;
 
   // The spoilers revealed, by path, for this version of the message: an
   // edit starts over, even back to the same words.

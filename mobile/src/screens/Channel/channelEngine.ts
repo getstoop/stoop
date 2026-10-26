@@ -20,6 +20,7 @@ import { type LocalFile, uploadAttachment } from "../../api/files";
 import {
   ChannelGone,
   deleteMessage,
+  dismissLinkPreview,
   editMessage,
   loadChanges,
   loadChannel,
@@ -606,6 +607,21 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         throw err;
       }
       if (!mine.ended) dispatch({ type: "deleted", messageId: message.id });
+    },
+
+    // A link's card taken off a message, confirmed already: the
+    // message_updated that follows draws the row without it. A refusal is
+    // the caller's to show, as above.
+    async dismissPreview(message: Message, url: string) {
+      const mine = life;
+      if (!state.token) return;
+      try {
+        await dismissLinkPreview(server.origin, state.token, message.id, url);
+      } catch (err) {
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
     },
 
     // The reader's own message with new words: EditMessage, then its answer

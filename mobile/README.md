@@ -293,6 +293,24 @@ import a screen; the screens themselves live in `src/screens`, so
   As on web the bell shows once the thread has replies, and under a
   muted channel it shows the thread muted by its channel and does
   nothing (the header follows ChannelMuted for that).
+- A message's links get the cards the server fetched for them
+  (`link_previews`), under its words and files, in the channel and the
+  thread but not on the menu's card, as web's row draws them
+  (`src/components/LinkPreviews`, with web's rules in
+  `core/linkPreviews` and its values from `link-previews.css` through
+  `theme/generated.ts`): the site, the title in the accent and three
+  lines of description beside the accent bar, a squarish image as a
+  thumbnail beside them and a wide one under them, or an image alone.
+  The image is the server's copy from `/files` with the session, as an
+  avatar is. A link to a message on this server gets no card, as on web
+  (its origins are the address the phone was given and the instance's
+  public one, `src/api/instance.ts`). A tap opens the link in the
+  browser and a long press is the row's. The author, or whoever
+  moderates the space, gets web's × on each card, which asks first and
+  takes it off for everyone (`DismissLinkPreview`); the server's update
+  for the message redraws the row. An edited message with files or
+  cards says "(edited)" after them, as web's row does, rather than
+  after its words.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until
@@ -470,7 +488,7 @@ native rebuild.
 ## Tests
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
-`MessageBody/blocks.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`MessageBody/blocks.ts`, `LinkPreviews/layout.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
@@ -491,7 +509,11 @@ thread, also to the channel, and edit, react and delete there, mute a
 thread and see a reply in it counted as nothing new, read messages in
 Markdown (the marks, a spoiler revealed on a tap, a channel link that
 opens the channel, an emoji-only message, a quote with a spoiler in it,
-nested and numbered lists, a code block dragged sideways), attach a photo
+nested and numbered lists, a code block dragged sideways), see link
+previews under messages (served by the seed from 127.0.0.1 while it
+turns previews on, so the server runs with
+`STOOP_UNFURL_ALLOW_PRIVATE`), none for a link to a message on this
+server, open the menu from one and remove one, attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it
@@ -571,7 +593,9 @@ packages:
   dates, the emoji (`core/emoji.ts`: the common row, the names and
   keywords and the search over them, with the Unicode list in
   `core/emojiData.ts` and the `:shortcodes:` in `core/shortcodes.ts`),
-  the paths a message's link carries (`core/shareLinks.ts`), a
+  the paths a message's link carries and the message a pasted link
+  names (`core/shareLinks.ts`), which link previews show and how
+  (`core/linkPreviews.ts`), a
   message's one-line preview (`core/messagePreview.ts`), badge
   counts, which
   messages run together and where the "New" line goes, the channel log

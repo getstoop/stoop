@@ -3,21 +3,21 @@
 .link-previews {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
+  gap: var(--md-previews-gap);
+  margin-top: var(--md-previews-margin-top);
 }
 
 .link-preview-card {
   position: relative;
-  max-width: 520px;
+  max-width: var(--md-preview-max-width);
 }
 
 /* Over the card's corner, for whoever may delete the message. */
 .link-preview-dismiss {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  background: var(--surface);
+  top: var(--md-preview-dismiss-inset);
+  right: var(--md-preview-dismiss-inset);
+  background: var(--md-preview-dismiss-bg);
   opacity: 0;
 }
 
@@ -34,12 +34,12 @@
 
 .link-preview {
   display: flex;
-  gap: 12px;
-  max-width: 520px;
-  padding: 8px 12px;
-  border-left: 3px solid var(--accent);
+  gap: var(--md-preview-gap);
+  max-width: var(--md-preview-max-width);
+  padding: var(--md-preview-pad-y) var(--md-preview-pad-x);
+  border-left: var(--md-preview-bar-width) solid var(--md-preview-bar-color);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--md-preview-bg);
   color: inherit;
   text-decoration: none;
 }
@@ -52,25 +52,25 @@
   padding: 0;
   border-left: none;
   background: none;
-  max-width: 400px;
+  max-width: var(--md-preview-image-only-max-width);
 }
 
 .link-preview-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--md-preview-text-gap);
   min-width: 0;
   flex: 1 1 auto;
 }
 
 .link-preview-site {
   font-size: var(--text-sm);
-  color: var(--text-muted);
+  color: var(--md-preview-site-color);
 }
 
 .link-preview-title {
-  font-weight: 600;
-  color: var(--accent);
+  font-weight: var(--md-preview-title-weight);
+  color: var(--md-preview-title-color);
   overflow-wrap: anywhere;
 }
 
@@ -80,9 +80,9 @@
 
 .link-preview-description {
   font-size: var(--text-ui);
-  color: var(--text-muted);
+  color: var(--md-preview-description-color);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: var(--md-preview-description-lines);
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -96,13 +96,13 @@
 }
 
 .link-preview:not(.landscape):not(.image-only) .link-preview-image {
-  width: 80px;
-  height: 80px;
+  width: var(--md-preview-thumb-size);
+  height: var(--md-preview-thumb-size);
   align-self: flex-start;
 }
 
 .link-preview.landscape .link-preview-image {
-  max-height: 260px;
+  max-height: var(--md-preview-image-max-height);
   width: auto;
   max-width: 100%;
 }

@@ -48,6 +48,29 @@
      against the text size. */
   --md-emoji-scale: 1.4;
   --md-emoji-only-scale: 2;
+
+  /* Link preview cards under a message (link-previews.css). previews-:
+     the column of them; preview-: one card. */
+  --md-previews-gap: 6px;
+  --md-previews-margin-top: 6px;
+  --md-preview-max-width: 520px;
+  --md-preview-gap: 12px;
+  --md-preview-pad-y: 8px;
+  --md-preview-pad-x: 12px;
+  --md-preview-bar-width: 3px;
+  --md-preview-bar-color: var(--accent);
+  --md-preview-bg: var(--surface);
+  --md-preview-text-gap: 2px;
+  --md-preview-site-color: var(--text-muted);
+  --md-preview-title-color: var(--accent);
+  --md-preview-title-weight: 600;
+  --md-preview-description-color: var(--text-muted);
+  --md-preview-description-lines: 3;
+  --md-preview-thumb-size: 80px;
+  --md-preview-image-max-height: 260px;
+  --md-preview-image-only-max-width: 400px;
+  --md-preview-dismiss-inset: 4px;
+  --md-preview-dismiss-bg: var(--surface);
 }
 
 .md-code {

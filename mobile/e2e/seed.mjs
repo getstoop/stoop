@@ -10,8 +10,10 @@
 // four times, the last two since ada read it, and dee's question after it
 // has no thread yet; ada has read the channel. bea has an account but no
 // space; cleo has neither and arrives through the invite. formatting
-// holds ada's messages in Markdown, read.
+// holds ada's messages in Markdown, read, and links her messages with
+// link previews, read.
 
+import { createServer } from "node:http";
 import { BASE, seed } from "../../web/e2e/seed.mjs";
 
 const space = "Book club";
@@ -154,6 +156,45 @@ await rpc(
   ada,
 );
 
+// In links, ada's messages with link previews, fetched by the server
+// from a site this seed serves for as long as that takes
+// (STOOP_UNFURL_ALLOW_PRIVATE, scripts/mobile-e2e.sh), with previews on
+// only meanwhile, so no other message's link is fetched: a page with a
+// wide image, under its words, the message then edited; a page with a
+// square one, beside them,
+// and an image on its own; and, newest, a link to one of formatting's
+// messages, whose card ("Stoop", this server's page) the app leaves out
+// as web does (link-previews.yaml).
+const links = await rpc(
+  "chat.v1.ChatService/CreateChannel",
+  { spaceId: s.space.id, name: "links", kind: "CHANNEL_KIND_TEXT" },
+  ada,
+);
+const site = await serveSite();
+await rpc("instance.v1.InstanceService/UpdateSettings", { linkPreviews: true }, ada);
+const linked = [
+  `Trail map for Saturday: ${site.url}/trail`,
+  `The hut, and a photo of it: ${site.url}/hut ${site.url}/photo.png`,
+  `As we said: ${BASE}/s/${s.space.id}/c/${formatting.channel.id}?m=${lastFormatted.id}`,
+];
+const sentLinked = [];
+for (const content of linked) {
+  const sent = await rpc("chat.v1.ChatService/SendMessage", { channelId: links.channel.id, content }, ada);
+  sentLinked.push(sent.message);
+}
+const lastLinked = sentLinked.at(-1);
+await previewsLanded(links.channel.id, ada, [1, 2, 1]);
+// The trail's message edited, its card kept: "(edited)" goes after it.
+await rpc(
+  "chat.v1.ChatService/EditMessage",
+  { messageId: sentLinked[0].id, content: `${linked[0]}, meet at eight` },
+  ada,
+);
+await previewsLanded(links.channel.id, ada, [1, 2, 1]);
+site.close();
+await rpc("instance.v1.InstanceService/UpdateSettings", { linkPreviews: false }, ada);
+await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: links.channel.id, messageId: lastLinked.id }, ada);
+
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);
 await rpc(
@@ -193,6 +234,60 @@ const env = {
   OPEN_LINK: `stoop://open?${new URLSearchParams({ server: BASE, path })}`,
 };
 for (const [key, value] of Object.entries(env)) console.log(`${key}=${value}`);
+
+// The linked site: two pages with Open Graph tags and their images, and
+// an image linked directly.
+async function serveSite() {
+  const png = (base64) => Buffer.from(base64, "base64");
+  // 192×96: blue over green stripes.
+  const wide = png(
+    "iVBORw0KGgoAAAANSUhEUgAAAMAAAABgCAIAAADEouq+AAAA/0lEQVR42u3SwQ0AEBBFQSW5kyhBJwpQgkqUqQYuQiZ553/YnZDalI4LTiCABJAAEkASQAJIAAkgCSABJIAEkASQABJAAkgCSAAJIAEkgCSABJAAEkASQAJIAAkgCSABJIAEkASQABJAAkgASQAJIAEkgCSABJAAEkASQAJIAAkgCSABJIAEkASQANJFQKXHrerIW9n/ex8g+wDZB8g+QB4AkAPZB8g+QPYB8gCAHMg+QPYBsg+QfYA8wD5A9gGyD5B9gDzAPkD2AbIPkH2APAAgB7IPkH2A7APkAQA5kH2A7ANkHyD7AHmAfYDsA2QfIPsAeYB9gOwDZB8g+8/vL8X0q/wS/v3yAAAAAElFTkSuQmCC",
+  );
+  // 96×96: an orange and green check.
+  const square = png(
+    "iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAAAr0lEQVR42u3bMQ0AIAwEwCpiwA4u2DGLEkx0IJ9LXsD31k/r7tWScWZLfutTgAABAgQIECBAgAABAgQIECBAgAABAgQIECBAgCKAUg/r6gMIECBAgAABAgQIECBAgAABAgQIECBAgAABAgQoA8hwaFkFBAgQIECAAAECBAgQIECAAAECBAgQIECAAAHyL2Y4BAQIECBAgAABAgQIECBAgAABAgQIECBAgAABAhQB9AC5zdqki08AGgAAAABJRU5ErkJggg==",
+  );
+  const pages = {
+    "/trail": page("Ridge loop", "A five-mile loop over the ridge, with the hut at the halfway mark.", "/wide.png", "Example Trails"),
+    "/hut": page("The hut", "Bunks for twelve, a stove and a view of the valley.", "/square.png"),
+  };
+  const images = { "/wide.png": wide, "/square.png": square, "/photo.png": square };
+  const server = createServer((req, res) => {
+    if (images[req.url]) {
+      res.writeHead(200, { "Content-Type": "image/png" });
+      res.end(images[req.url]);
+    } else if (pages[req.url]) {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(pages[req.url]);
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return { url: `http://127.0.0.1:${server.address().port}`, close: () => server.close() };
+}
+
+function page(title, description, image, siteName) {
+  return `<html><head><title>fallback</title>
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${description}">
+${siteName ? `<meta property="og:site_name" content="${siteName}">` : ""}
+<meta property="og:image" content="${image}">
+</head><body>${title}</body></html>`;
+}
+
+// Waits until the channel's newest messages carry these many previews
+// each, in any order: the server fetches them after the send.
+async function previewsLanded(channelId, token, counts) {
+  for (let tries = 0; tries < 60; tries++) {
+    const { messages } = await rpc("chat.v1.ChatService/ListMessages", { channelId, limit: counts.length }, token);
+    const have = messages.map((message) => (message.linkPreviews ?? []).length).sort();
+    if (JSON.stringify(have) === JSON.stringify([...counts].sort())) return;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`link previews never landed in ${channelId}`);
+}
 
 async function rpc(proc, body, token) {
   const res = await fetch(`${BASE}/stoop.${proc}`, {

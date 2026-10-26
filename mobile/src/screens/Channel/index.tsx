@@ -5,11 +5,12 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
-import { useUploadCap } from "../../api/files";
+import { useServerStatus } from "../../api/instance";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
-import { ChannelLinksContext } from "../../components/MessageBody/channelLinks";
+import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
+import MessageContexts from "../../components/MessageContexts";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -67,7 +68,7 @@ export default function Channel({
   const router = useRouter();
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
-  const maxUploadBytes = useUploadCap(server.origin);
+  const status = useServerStatus(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId);
   const { older, retry, send, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder } = state;
@@ -155,6 +156,7 @@ export default function Channel({
   });
   const { menuFor, menuMessage } = actions;
   const links = useChannelLinks(server, spaceId, channelId, header);
+  const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // And Reply in thread pushes the thread then.
   useEffect(() => {
     const rootId = threadAfterMenu.current;
@@ -215,7 +217,7 @@ export default function Channel({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <ChannelLinksContext.Provider value={links}>
+          <MessageContexts links={links} previews={previews}>
             <FlatList
               ref={list}
               inverted
@@ -271,7 +273,7 @@ export default function Channel({
                 ) : undefined
               }
             />
-          </ChannelLinksContext.Provider>
+          </MessageContexts>
         )}
         composer={
           <Composer
@@ -280,7 +282,7 @@ export default function Channel({
             channelName={channel.name}
             send={sendHere}
             upload={engine.upload}
-            maxUploadBytes={maxUploadBytes}
+            maxUploadBytes={status.maxUploadBytes}
             edit={edit}
             replyTo={actions.replyTo}
             onCancelReply={actions.cancelReply}
@@ -290,7 +292,7 @@ export default function Channel({
           />
         }
       />
-      <ChannelLinksContext.Provider value={links}>
+      <MessageContexts links={links} previews={previews}>
         {menuMessage && (
           <MessageMenu
             message={menuMessage}
@@ -316,7 +318,7 @@ export default function Channel({
             onClose={actions.closeMenu}
           />
         )}
-      </ChannelLinksContext.Provider>
+      </MessageContexts>
     </View>
   );
 }

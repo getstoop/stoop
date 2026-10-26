@@ -54,10 +54,12 @@ rm -rf "$STORAGE"
 mkdir -p "$STORAGE" tmp
 
 # As e2e-scratch.sh: no public URL, so invite links carry this server's
-# local origin, and no sign-in throttle.
+# local origin, and no sign-in throttle. Previews may fetch from
+# 127.0.0.1, where the seed serves the page it links to while it turns
+# them on.
 unset STOOP_TAILSCALE STOOP_TAILSCALE_FUNNEL STOOP_TRUST_PROXY STOOP_PUBLIC_URL STOOP_LIVEKIT_URL
 STOOP_DATABASE_URL=$DB_URL STOOP_LISTEN_ADDR=":$PORT" STOOP_STORAGE_DIR=$STORAGE \
-STOOP_AUTH_RATE_LIMIT=0 \
+STOOP_AUTH_RATE_LIMIT=0 STOOP_UNFURL_ALLOW_PRIVATE=true \
 bin/stoop >"$LOG" 2>&1 &
 pid=$!
 trap 'kill $pid 2>/dev/null; wait $pid 2>/dev/null' EXIT INT TERM

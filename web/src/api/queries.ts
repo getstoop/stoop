@@ -1,4 +1,5 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
+import { serverOrigins } from "../core/shareLinks";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   authClient,
@@ -24,14 +25,7 @@ export function useInstanceStatus() {
 // The origins a link to this server may carry: the one this tab is on,
 // and the configured public address.
 export function useServerOrigins(): string[] {
-  const publicUrl = useInstanceStatus().data?.publicUrl;
-  const origins = [serverOrigin()];
-  try {
-    if (publicUrl) origins.push(new URL(publicUrl).origin);
-  } catch {
-    // An address that doesn't parse names no origin.
-  }
-  return origins;
+  return serverOrigins(serverOrigin(), useInstanceStatus().data?.publicUrl);
 }
 
 // Whether this server has voice: off when the operator turned it off or

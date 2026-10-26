@@ -1,11 +1,14 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { dayAndTime, sameDay } from "@stoop/core/dates";
+import { shownPreviews } from "@stoop/core/linkPreviews";
 import { mentionsMe } from "@stoop/core/mentions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { memo } from "react";
+import { memo, useContext } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
+import LinkPreviews from "../../components/LinkPreviews";
+import { LinkPreviewsContext } from "../../components/LinkPreviews/context";
 import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Reactions from "./Reactions";
@@ -38,8 +41,12 @@ const GAP = 10;
 // (onOpenOrigin); in its thread it says where else it went
 // (`alsoSentTo`). Its reactions are chips under its words and files,
 // over the thread's line (Reactions), each toggling the reader's own
-// (onReact); not on the card, nor on a placeholder. Link previews come
-// in a later step.
+// (onReact); not on the card, nor on a placeholder. Its links' preview
+// cards come after its files (LinkPreviews), as on web; not on the card,
+// as web's pins, search and linked-message cards draw none. An edited
+// message's "(edited)" closes its words, unless it has files or cards:
+// then it comes after them, before "Also sent to" and the reactions,
+// where web's row puts it.
 export default memo(function MessageRow({
   message,
   continued,
@@ -72,6 +79,7 @@ export default memo(function MessageRow({
   alsoSentTo?: string;
 }) {
   const styles = makeStyles(useTheme());
+  const previews = useContext(LinkPreviewsContext);
   const thread =
     !card && onOpenThread && message.thread && message.thread.replyCount > 0 ? (
       <ThreadLine thread={message.thread} origin={origin} token={token} onPress={() => onOpenThread(message)} />
@@ -99,6 +107,9 @@ export default memo(function MessageRow({
   // with no author or preview either.
   const answered = onOpenOrigin && message.threadRootId ? message.threadRoot : undefined;
   const answeredName = answered?.author ? authorName(answered.author) : "";
+  const editedLast =
+    message.attachments.length > 0 ||
+    (!card && shownPreviews(message.linkPreviews, previews?.origins ?? []).length > 0);
   const body = (
     <>
       {message.content !== "" && (
@@ -111,6 +122,7 @@ export default memo(function MessageRow({
           onLongPress={hold}
           compact={card}
           place={card ? "menuCard" : "row"}
+          markEdited={!editedLast}
         />
       )}
       {message.attachments.map((file) => (
@@ -118,6 +130,10 @@ export default memo(function MessageRow({
           📎 {file.name}
         </Text>
       ))}
+      {!card && (
+        <LinkPreviews message={message} myUserId={myUserId} origin={origin} token={token} onLongPress={hold} />
+      )}
+      {message.editedAt && editedLast && <Text style={styles.edited}>(edited)</Text>}
       {alsoSentTo && <Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
       {!card && onReact && <Reactions message={message} myUserId={myUserId} onReact={onReact} onLongPress={hold} />}
       {thread}
@@ -263,6 +279,12 @@ function makeStyles(theme: Theme) {
       color: theme.textMuted,
       fontSize: tokens.textUi,
       lineHeight: tokens.textUi * tokens.leadingUi,
+    },
+    // As MessageBody's "(edited)" on a line of its own.
+    edited: {
+      color: theme.textMuted,
+      fontSize: tokens.textSm,
+      lineHeight: tokens.textBody * tokens.leadingBody,
     },
     placeholder: {
       color: theme.textMuted,
