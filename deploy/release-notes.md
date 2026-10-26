@@ -1,5 +1,98 @@
 Stoop 0.16.0
 
+Stoop 0.16.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.15.0. **It is a contract release:
+`stoop upgrade rollback` cannot take it back to 0.15.0.** Migration
+00070 drops a column that 0.15.0 still reads, so 0.15.0 refuses to start
+against the result. `stoop upgrade` says so before it starts, and the way
+back is the backup it takes. Check 0.15.0 is working before you upgrade.
+
+**What's in it.**
+
+- **Image thumbnails.** A large image attachment (a PNG, JPEG or still
+  WebP over 1024 px on a side) gets a smaller copy, made in the
+  background after upload. The web app draws images inline from it, so
+  a channel full of phone photos loads a fraction of the bytes. The
+  preview and downloads still use the original. GIFs, animated WebPs
+  and animated PNGs keep their originals so they still move.
+- **Image sizes at upload.** The server reads each image's width and
+  height from its header, turned by the photo's EXIF orientation, so
+  clients can lay a picture out before it loads.
+- **Upright avatars and link preview images.** A phone photo stored
+  sideways with a "rotate me" tag became a sideways avatar, space icon
+  or link preview image. They are now turned the right way up, as
+  thumbnails are. Images uploaded before this release keep how they
+  were stored.
+- **A memory bound on every image the server decodes.** A link preview
+  image (fetched from any link a member posts) and an avatar or icon
+  were bounded only by pixel count. A crafted 16 MP progressive or
+  CMYK JPEG could make one decode hold 300–400 MB, and up to four
+  previews decoded at once beside the background jobs, enough to push
+  a server past a 512 MB limit. Every decode now reckons its memory
+  from the header first and refuses anything over 288 MiB, and they
+  run one at a time. In practice this refuses only unusual images:
+  progressive JPEGs over about 15 MP (10 MP for CMYK) as an avatar or
+  icon, which the upload says plainly, or as a link preview, which
+  keeps its card without the image.
+- **The phone app**, still unreleased, took most of the work merged
+  since 0.15.0 (the channel screen, threads, Markdown, attachments).
+  It is built against these server features but none of it ships in
+  this image.
+
+**For operators.**
+
+- **Contract migration.** 00070 drops `channels.swept_seq` and raises
+  the schema floor from 68 to 70. Nothing has written the column since
+  0.15.0, but 0.15.0's queries still name it when they read a channel,
+  so 0.15.0 would fail on its first channel query; the floor makes it
+  refuse to start instead. On a failed upgrade, `stoop upgrade` prints
+  the restore commands for the backup it took rather than offering
+  `rollback` ([Restoring in place](https://github.com/getstoop/stoop/blob/v0.16.0/docs/self-hosting/backups.md#restoring-in-place));
+  anything written after the upgrade is lost by restoring it.
+- **Upgrading from 0.14.0** straight to 0.16.0 runs 00069 and 00070 in
+  order and lands in the same place, with no rollback to either.
+- **A new background job,** `thumbnail_attachment`, runs one at a time
+  wherever your jobs run (`STOOP_JOBS`). Its measured peak is about
+  300 MiB for the largest image it accepts, a 75 MP phone photo
+  ([files.md](https://github.com/getstoop/stoop/blob/v0.16.0/docs/architecture/files.md#thumbnails)).
+  With jobs embedded in the server (the default), the server's own
+  memory shares whatever limit you give it, so leave headroom above
+  that. The bundled compose file's separate `jobs` container (the
+  `jobs` profile with `STOOP_JOBS=external`) is limited to 512m with
+  `GOMEMLIMIT=400MiB`, which covers it.
+- **Existing attachments** get no size or thumbnail. Only uploads after
+  the upgrade do, and clients fall back as before for the rest.
+- **Storage.** A thumbnail is a file of its own (kind
+  `attachment_thumbnail`), deleted with its original by every path that
+  removes one: message deletion, retention and the sweep. It is made
+  without a quota check, since its upload passed one, but it counts in
+  storage usage, so usage grows a little with each large image.
+
+**API changes.** Additive. `Attachment` gains `width` and `height`
+(fields 6 and 7, 0 when unknown) and `thumbnail_file_id` (field 8, ""
+when there is none). A thumbnail is served from `GET /files/{id}` under
+its original's authorization.
+
+**Schema.** Migrations 00070 to 00072 take the schema from 69 to 72 and
+the floor from 68 to 70. 00070 drops `channels.swept_seq`. 00071 adds
+`files.width` and `files.height`. 00072 adds `files.thumbnail_of`
+(references `files`, `ON DELETE CASCADE`) with a partial unique index.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.15.0.
+
+**Known issues.** As 0.15.0's: deleting a message above the part of a
+channel you are reading shifts the view by its height; an audio
+attachment starts over if its row is scrolled far enough away to be
+removed from the page and then comes back; two quick jumps land on
+whichever the server answers first; a display name change reaches other
+people's open tabs on reload; with everything in a channel unread, the
+"New messages" line can move as older messages load.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
 Changes since 0.15.0:
 
 - Bump storybook from 10.6.0 to 10.6.2 in /web (5e403da7)
