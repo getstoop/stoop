@@ -23,7 +23,8 @@ import type { ViewerItem } from "./items";
 // requests. Every touch on the video is its controls': a gesture over it
 // keeps them from showing, so while a player is up (onPlayer) the pager
 // pages from swipes on the bars instead, and there is no drag down to
-// close.
+// close. The controls' full screen button is the platform's player over
+// the whole screen, which comes back to this page.
 // When the player gives up before the file has loaded, its first byte is
 // asked for (after, the error is the network's: couldn't load); and on
 // Android a file whose video tracks the phone says it can't decode is
@@ -219,7 +220,7 @@ function Player({
       player={player}
       nativeControls
       contentFit="contain"
-      fullscreenOptions={{ enable: false }}
+      fullscreenOptions={{ enable: true }}
       allowsPictureInPicture={false}
       style={StyleSheet.absoluteFill}
     />
