@@ -192,11 +192,14 @@ import a screen; the screens themselves live in `src/screens`, so
   them but Close and Share lets the touch through to the pager's strips
   under them), and there is no drag down to close. For a screen reader
   the page is adjustable as a picture's is ("…, video 5 of 5, …"), and
-  activating it plays or pauses. When the player gives up, the file's
-  first byte is asked for with the session: one that answers is a file
-  the phone can't play (a WebM on an iPhone, HEVC on some Androids),
-  which shows web's card and "This phone can't play this video. Share
-  it to open it elsewhere."; the card's tap shares it as Share does, and
+  activating it plays or pauses. When the player gives up before the
+  file has loaded, its first byte is asked for with the session (an
+  error after it loaded is the network's, and on Android a file whose
+  video tracks the phone says it can't decode is known as it loads):
+  one that answers is a file the phone can't play (a WebM on an
+  iPhone, HEVC on some Androids), which shows web's card and "This
+  phone can't play this video. Share it to open it elsewhere."; the
+  card's tap shares it as Share does, and
   for as long as the app runs the page opens that way and the timeline
   draws it as that card, which a tap shares, as web turns a video it
   can't decode into its download card. One that doesn't answer

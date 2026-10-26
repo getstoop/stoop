@@ -1,5 +1,5 @@
 import { formatBytes } from "@stoop/core/attachments";
-import { useEvent } from "expo";
+import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { type ComponentRef, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
@@ -24,15 +24,18 @@ import type { ViewerItem } from "./items";
 // keeps them from showing, so while a player is up (onPlayer) the pager
 // pages from swipes on the bars instead, and there is no drag down to
 // close.
-// When the player gives up, the file's first byte is asked for: a file
-// that answers is one this phone can't decode, which shows web's card
-// with a sentence saying so (the card's tap shares it, as the top bar's
-// Share does) and, for as long as the app runs, the timeline draws as
-// that card too (Attachments/unplayable); one that doesn't answer
-// (offline, refused, gone) says it couldn't load and tries again on a
-// tap. For a screen reader the page is one adjustable element, as a
-// picture's is: increment and decrement page (onStep), and activating it
-// plays or pauses, shares, or tries again.
+// When the player gives up before the file has loaded, its first byte is
+// asked for (after, the error is the network's: couldn't load); and on
+// Android a file whose video tracks the phone says it can't decode is
+// known at load. A file that answers is one this phone can't decode,
+// which shows web's card with a sentence saying so (the card's tap
+// shares it, as the top bar's Share does) and, for as long as the app
+// runs, the timeline draws as that card too (Attachments/unplayable);
+// one that doesn't answer (offline, refused, gone) says it couldn't load
+// and tries again on a tap. For a screen reader the page is one adjustable element, as a
+// picture's is, its value Playing or Paused: increment and decrement
+// page (onStep), and activating it plays or pauses, shares, or tries
+// again.
 type State = "playing" | "unplayable" | "unloaded";
 
 export default function VideoPage({
@@ -62,6 +65,7 @@ export default function VideoPage({
   const [seen, setSeen] = useState(active);
   const [state, setState] = useState<State>(() => (isUnplayable(fileId) ? "unplayable" : "playing"));
   const [attempt, setAttempt] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const page = useRef<ComponentRef<typeof View>>(null);
   const toggle = useRef<() => void>(() => {});
   const mounted = useRef(true);
@@ -90,13 +94,27 @@ export default function VideoPage({
     return () => clearTimeout(timer);
   }, [active, takeFocus]);
 
-  const failed = useCallback(() => {
-    fileAnswers(origin, token, fileId).then((answers) => {
-      if (!mounted.current) return;
-      if (answers) markUnplayable(fileId);
-      setState(answers ? "unplayable" : "unloaded");
-    });
-  }, [origin, token, fileId]);
+  const unplayable = useCallback(() => {
+    markUnplayable(fileId);
+    setState("unplayable");
+  }, [fileId]);
+  // An error before the file loaded may be one it can't decode, which
+  // the first byte tells; one after is the network's (a drop mid-play
+  // that recovers would answer the probe and be called undecodable).
+  const failed = useCallback(
+    (loaded: boolean) => {
+      if (loaded) {
+        setState("unloaded");
+        return;
+      }
+      fileAnswers(origin, token, fileId).then((answers) => {
+        if (!mounted.current) return;
+        if (answers) unplayable();
+        else setState("unloaded");
+      });
+    },
+    [origin, token, fileId, unplayable],
+  );
   const retry = () => {
     setState("playing");
     setAttempt((count) => count + 1);
@@ -113,6 +131,7 @@ export default function VideoPage({
       accessibilityRole="adjustable"
       accessibilityLabel={said}
       accessibilityHint={hint}
+      accessibilityValue={state === "playing" ? { text: playing ? "Playing" : "Paused" } : undefined}
       accessibilityActions={[{ name: "increment" }, { name: "decrement" }, { name: "activate" }]}
       onAccessibilityAction={({ nativeEvent }) => {
         if (nativeEvent.actionName !== "activate") onStep(nativeEvent.actionName === "increment" ? 1 : -1);
@@ -144,6 +163,8 @@ export default function VideoPage({
               active={active}
               toggle={toggle}
               onFail={failed}
+              onUnsupported={unplayable}
+              onPlaying={setPlaying}
             />
           </View>
         )
@@ -159,16 +180,30 @@ function Player({
   active,
   toggle,
   onFail,
+  onUnsupported,
+  onPlaying,
 }: {
   item: ViewerItem;
   origin: string;
   token: string;
   active: boolean;
   toggle: RefObject<() => void>;
-  onFail: () => void;
+  onFail: (loaded: boolean) => void;
+  onUnsupported: () => void;
+  onPlaying: (playing: boolean) => void;
 }) {
   const player = useVideoPlayer(fileSource(origin, token, item.attachment.fileId));
   const { status } = useEvent(player, "statusChange", { status: player.status });
+  // Whether the source has loaded, and, where the platform says (Android),
+  // whether the phone can decode any of its video tracks.
+  const loaded = useRef(false);
+  useEventListener(player, "playingChange", ({ isPlaying }) => onPlaying(isPlaying));
+  useEventListener(player, "sourceLoad", ({ availableVideoTracks }) => {
+    loaded.current = true;
+    if (availableVideoTracks.length > 0 && availableVideoTracks.every((track) => track.isSupported === false)) {
+      onUnsupported();
+    }
+  });
   useEffect(() => {
     toggle.current = () => (player.playing ? player.pause() : player.play());
   }, [player, toggle]);
@@ -177,7 +212,7 @@ function Player({
     else player.pause();
   }, [active, player]);
   useEffect(() => {
-    if (status === "error") onFail();
+    if (status === "error") onFail(loaded.current);
   }, [status, onFail]);
   return (
     <VideoView
