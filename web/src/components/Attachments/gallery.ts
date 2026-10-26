@@ -1,21 +1,12 @@
 import { createContext, useContext, useState } from "react";
-import { isInlineImage, isPlayableVideo } from "../../api/files";
-import type { Attachment, Message } from "../../gen/stoop/chat/v1/message_pb";
+import type { Attachment } from "../../gen/stoop/chat/v1/message_pb";
+
+export { galleryMedia } from "../../core/attachments";
 
 // What a preview steps through: the images and videos of the message
 // list it was opened from, oldest first. Null outside a list, where it
 // shows one.
 export const GalleryMedia = createContext<Attachment[] | null>(null);
-
-export function galleryMedia(messages: Message[]): Attachment[] {
-  return messages.flatMap((m) =>
-    m.attachments.filter(
-      (a) =>
-        !a.expired &&
-        (isInlineImage(a.contentType) || isPlayableVideo(a.contentType)),
-    ),
-  );
-}
 
 // One attachment's preview: open() shows it, and the steps move to its
 // neighbours in the list. shown is undefined while it is closed.

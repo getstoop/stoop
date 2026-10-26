@@ -4,8 +4,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--md-attachments-gap);
+  margin-top: var(--md-attachments-margin-top);
   white-space: normal;
 }
 
@@ -13,7 +13,7 @@
   position: relative;
   display: block;
   margin: 0;
-  max-width: min(420px, 100%);
+  max-width: min(var(--md-attachment-image-max-width), 100%);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -55,7 +55,7 @@
 .attachment-image img {
   display: block;
   max-width: 100%;
-  max-height: 320px;
+  max-height: var(--md-attachment-image-max-height);
   object-fit: contain;
 }
 
@@ -69,7 +69,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px 6px 12px;
+  padding: var(--md-attachment-bar-pad-y) var(--md-attachment-bar-pad-x)
+    var(--md-attachment-bar-pad-y) var(--md-attachment-bar-pad-start);
   background: color-mix(in srgb, var(--canvas) 85%, transparent);
   color: var(--text);
   font-size: var(--text-sm);
@@ -88,7 +89,7 @@
 .attachment-audio {
   display: block;
   margin: 0;
-  max-width: min(480px, 100%);
+  max-width: min(var(--md-attachment-media-max-width), 100%);
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
@@ -98,21 +99,19 @@
 /* A still to click, not a player: it plays in the preview. */
 .attachment-video {
   position: relative;
-  /* off-scale: a thumbnail's width */
-  width: min(280px, 100%);
+  width: min(var(--md-attachment-video-width), 100%);
 }
 
 .attachment-video video {
   display: block;
   width: 100%;
-  /* off-scale: caps a portrait clip's still */
-  max-height: 200px;
+  max-height: var(--md-attachment-video-max-height);
   /* off-scale: black behind video is right in every theme */
   background: #000;
 }
 
 .attachment-audio {
-  width: min(480px, 100%);
+  width: min(var(--md-attachment-media-max-width), 100%);
 }
 
 .attachment-audio audio {
@@ -156,7 +155,7 @@
   align-items: center;
   gap: 8px;
   max-width: 100%;
-  padding: 8px 12px;
+  padding: var(--md-attachment-card-pad-y) var(--md-attachment-card-pad-x);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--panel);
@@ -171,7 +170,7 @@
 
 .attachment-card svg {
   flex: none;
-  color: var(--accent);
+  color: var(--md-attachment-icon-color);
 }
 
 .attachment-name {
@@ -305,7 +304,7 @@
   align-items: center;
   gap: 8px;
   max-width: 100%;
-  padding: 8px 12px;
+  padding: var(--md-attachment-card-pad-y) var(--md-attachment-card-pad-x);
   border-radius: var(--radius-md);
   border: 1px dashed var(--border);
   color: var(--text-muted);

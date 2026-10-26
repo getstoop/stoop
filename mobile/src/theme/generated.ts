@@ -847,5 +847,18 @@ export const markdown = {
   "previewImageMaxHeight": 260,
   "previewImageOnlyMaxWidth": 400,
   "previewDismissInset": 4,
-  "previewDismissBg": "surface"
+  "previewDismissBg": "surface",
+  "attachmentsGap": 8,
+  "attachmentsMarginTop": 6,
+  "attachmentImageMaxWidth": 420,
+  "attachmentImageMaxHeight": 320,
+  "attachmentVideoWidth": 280,
+  "attachmentVideoMaxHeight": 200,
+  "attachmentMediaMaxWidth": 480,
+  "attachmentBarPadY": 6,
+  "attachmentBarPadX": 8,
+  "attachmentBarPadStart": 12,
+  "attachmentCardPadY": 8,
+  "attachmentCardPadX": 12,
+  "attachmentIconColor": "accent"
 } as const;

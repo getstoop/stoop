@@ -1,8 +1,4 @@
-import {
-  isInlineImage,
-  isPlayableAudio,
-  isPlayableVideo,
-} from "../../api/files";
+import { attachmentKind } from "../../core/attachments";
 import type { Attachment } from "../../gen/stoop/chat/v1/message_pb";
 import { AttachmentCard } from "./AttachmentCard";
 import { AudioAttachment } from "./AudioAttachment";
@@ -22,19 +18,24 @@ export function Attachments({ attachments }: { attachments: Attachment[] }) {
   if (attachments.length === 0) return null;
   return (
     <div className="attachments">
-      {attachments.map((a) =>
-        a.expired ? (
-          <ExpiredAttachment key={a.fileId} attachment={a} />
-        ) : isPlayableVideo(a.contentType) ? (
-          <VideoAttachment key={a.fileId} attachment={a} />
-        ) : isPlayableAudio(a.contentType) ? (
-          <AudioAttachment key={a.fileId} attachment={a} />
-        ) : isInlineImage(a.contentType) ? (
-          <ImageAttachment key={a.fileId} attachment={a} />
-        ) : (
-          <AttachmentCard key={a.fileId} attachment={a} />
-        ),
-      )}
+      {attachments.map((attachment) => (
+        <AttachmentOfKind key={attachment.fileId} attachment={attachment} />
+      ))}
     </div>
   );
+}
+
+function AttachmentOfKind({ attachment }: { attachment: Attachment }) {
+  switch (attachmentKind(attachment)) {
+    case "expired":
+      return <ExpiredAttachment attachment={attachment} />;
+    case "video":
+      return <VideoAttachment attachment={attachment} />;
+    case "audio":
+      return <AudioAttachment attachment={attachment} />;
+    case "image":
+      return <ImageAttachment attachment={attachment} />;
+    case "file":
+      return <AttachmentCard attachment={attachment} />;
+  }
 }
