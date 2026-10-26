@@ -1,8 +1,9 @@
 import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { describe, expect, it } from "vitest";
 import { markdown, themes } from "../../theme/generated";
+import { parse } from "./blocks";
 import type { ChannelLinks } from "./channelLinks";
-import { firstCovered, type Parsed, parse } from "./lines";
+import { firstCovered, type Line } from "./lines";
 import { type BuildInput, buildDoc } from "./native";
 
 const theme = themes.daylight;
@@ -16,12 +17,21 @@ const links: ChannelLinks = {
   open: () => {},
 };
 
-// A message built as NativeBody builds it, everything covered unless
-// `revealed` names the spoiler's path.
+// A message's first paragraph: its lines, a quote's or a list row's.
+const paragraph = (content: string): { lines: Line[]; emojiOnly: boolean } => {
+  const { blocks, emojiOnly } = parse(content);
+  const first = blocks[0];
+  if (first?.type === "list") return { lines: first.rows[0].lines, emojiOnly };
+  if (first?.type === "lines" || first?.type === "quote") return { lines: first.lines, emojiOnly };
+  throw new Error(`no paragraph in ${JSON.stringify(content)}`);
+};
+
+// A paragraph built as NativeParagraph builds it, everything covered
+// unless `revealed` names the spoiler's path.
 const build = (content: string, extra: Partial<BuildInput> & { revealed?: string[] } = {}) => {
   const { revealed = [], ...rest } = extra;
   return buildDoc({
-    parsed: parse(content),
+    ...paragraph(content),
     theme,
     myUserId: ME,
     mentionsEntireChannel: false,
@@ -47,7 +57,7 @@ describe("buildDoc: spoilers", () => {
     const { doc, spoilers } = build("Read ||burnt|| ending");
     expect(doc.label).toBe(`Read ${COVER} ending`);
     expect(doc.label).not.toContain("burnt");
-    expect(spoilers).toEqual(["0.1"]);
+    expect(spoilers).toEqual(["0.0.1"]);
   });
 
   it("marks a covered spoiler's runs covered and never a link", () => {
@@ -81,7 +91,7 @@ describe("buildDoc: spoilers", () => {
   });
 
   it("shows a revealed spoiler's words, and its link again", () => {
-    const { doc } = build("[the ||burnt|| ending](https://example.com)", { revealed: ["0.0.1"] });
+    const { doc } = build("[the ||burnt|| ending](https://example.com)", { revealed: ["0.0.0.1"] });
     const burnt = runWith(doc, "burnt");
     expect(burnt.covered).toBeUndefined();
     expect(burnt.link).toBe("https://example.com");
@@ -91,10 +101,10 @@ describe("buildDoc: spoilers", () => {
 
   // Our parser closes a spoiler at the first || (`||a ||b|| c||` is two
   // spoilers), so the tree is built by hand: the runs don't count on it.
-  const nested: Parsed = {
-    emojiOnly: false,
-    lines: [
-      [
+  const nested: Line[] = [
+    {
+      path: "0.0",
+      nodes: [
         {
           type: "spoiler",
           children: [
@@ -104,12 +114,12 @@ describe("buildDoc: spoilers", () => {
           ],
         },
       ],
-    ],
-  };
+    },
+  ];
 
   it("gives a spoiler inside a covered one the outer's id, so a tap reveals the outer", () => {
-    const { doc, spoilers } = build("", { parsed: nested });
-    expect(spoilers).toEqual(["0.0", "0.0.1"]);
+    const { doc, spoilers } = build("", { lines: nested });
+    expect(spoilers).toEqual(["0.0.0", "0.0.0.1"]);
     expect(doc.runs.map((run) => [run.text, run.spoiler, run.covered])).toEqual([
       ["a ", 0, true],
       ["b", 0, true],
@@ -119,7 +129,7 @@ describe("buildDoc: spoilers", () => {
   });
 
   it("covers the inner spoiler on its own once the outer is revealed", () => {
-    const { doc } = build("", { parsed: nested, revealed: ["0.0"] });
+    const { doc } = build("", { lines: nested, revealed: ["0.0.0"] });
     expect(doc.runs.map((run) => [run.text, run.spoiler, run.covered])).toEqual([
       ["a ", 0, undefined],
       ["b", 1, true],
@@ -129,7 +139,7 @@ describe("buildDoc: spoilers", () => {
   });
 
   it("reads both spoilers once both are revealed", () => {
-    const { doc } = build("", { parsed: nested, revealed: ["0.0", "0.0.1"] });
+    const { doc } = build("", { lines: nested, revealed: ["0.0.0", "0.0.0.1"] });
     expect(doc.runs.every((run) => !run.covered)).toBe(true);
     expect(doc.label).toBe("a b c");
   });
@@ -193,7 +203,7 @@ describe("buildDoc: links", () => {
   it("keeps a link's id when a reveal adds a link before it", () => {
     const content = "||[a](https://a.example)|| then https://b.example";
     const covered = build(content).doc;
-    const revealed = build(content, { revealed: ["0.0"] }).doc;
+    const revealed = build(content, { revealed: ["0.0.0"] }).doc;
     expect(runWith(covered, "a").link).toBeUndefined();
     expect(runWith(revealed, "a").link).toBe("https://a.example");
     expect(runWith(revealed, "b.example").linkId).toBe(runWith(covered, "b.example").linkId);
@@ -237,12 +247,29 @@ describe("buildDoc: channel links", () => {
   });
 });
 
-describe("buildDoc: code blocks", () => {
-  it("keeps a code block's @here literal, even when the message carried @here", () => {
-    const { doc } = build("```\nping @here\n```\n@here", { mentionsHere: true });
-    const pills = doc.runs.filter((run) => run.fill !== undefined);
-    expect(pills.map((run) => run.text)).toEqual(["@here"]);
-    expect(runWith(doc, "ping @here").fill).toBeUndefined();
+describe("buildDoc: blocks", () => {
+  it("mutes a quote's words but not its pills or links", () => {
+    const { doc } = build(`> see <@u:${DEE}:dee> and https://example.com`, { muted: true });
+    expect(doc.textColor).toBe(theme[markdown.quoteColor]);
+    expect(runWith(doc, "see ").color).toBeUndefined();
+    expect(runWith(doc, "@dee").color).toBe(theme[markdown.mentionColor]);
+    expect(runWith(doc, "example.com").color).toBe(theme[markdown.linkColor]);
+  });
+
+  it("reads a list row's marker before its words, and a spoiler in it covered", () => {
+    expect(build("1. first", { prefix: "1. " }).doc.label).toBe("1. first");
+    const { doc, spoilers } = build("- the ||end||", { prefix: "• " });
+    expect(doc.label).toBe(`• the ${COVER}`);
+    expect(spoilers).toEqual(["0.0.1"]);
+  });
+
+  it("gives a link in a later block an id of its own path", () => {
+    const content = "https://example.com\n- https://example.com";
+    const { blocks } = parse(content);
+    if (blocks[1]?.type !== "list") throw new Error("no list");
+    const row = build("", { lines: blocks[1].rows[0].lines }).doc;
+    const line = build(content).doc;
+    expect(runWith(row, "example.com").linkId).not.toBe(runWith(line, "example.com").linkId);
   });
 });
 
@@ -263,10 +290,10 @@ describe("firstCovered", () => {
   const covered = (revealed: string[]) => (path: string) => !revealed.includes(path);
 
   it("finds the first covered spoiler, in a link's words too", () => {
-    const { lines } = parse("one ||two|| [three ||four||](https://example.com)");
-    expect(firstCovered(lines, covered([]))).toBe("0.1");
-    expect(firstCovered(lines, covered(["0.1"]))).toBe("0.3.1");
-    expect(firstCovered(lines, covered(["0.1", "0.3.1"]))).toBeUndefined();
+    const { lines } = paragraph("one ||two|| [three ||four||](https://example.com)");
+    expect(firstCovered(lines, covered([]))).toBe("0.0.1");
+    expect(firstCovered(lines, covered(["0.0.1"]))).toBe("0.0.3.1");
+    expect(firstCovered(lines, covered(["0.0.1", "0.0.3.1"]))).toBeUndefined();
   });
 });
 

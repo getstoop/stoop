@@ -1,12 +1,11 @@
 # Drawing messages' Markdown in the phone app
 
 Status: draft 2026-10-24, shape agreed with the operator the same day
-(Decisions). Step 1 (shared values + drift check) built on branch
-`mobile-markdown-values`, not yet merged; step 2 (inline marks) built on
-`mobile-markdown-native`, stacked on it, not yet merged: our own native
-view draws the paragraph, with TextKit on iOS and, on
-`mobile-markdown-native-android` stacked on that, a `StaticLayout` on
-Android. Plane STOOP-517, under STOOP-518 (timeline parity with web).
+(Decisions). Steps 1 (shared values + drift check) and 2 (inline marks,
+drawn by our own native view: TextKit on iOS, a `StaticLayout` on
+Android) are merged. Step 3 (blocks) is built on branch
+`mobile-markdown-blocks`, not yet merged (Tech → 8). Plane STOOP-517,
+under STOOP-518 (timeline parity with web).
 Design: no new artboards. The look is web's, carried over through shared
 values (step 1), and checked on the phone.
 
@@ -166,6 +165,48 @@ and no Markdown library. Rules follow web's `MessageBody`:
    VoiceOver's always answers, doing nothing when nothing is.
    `markdown.yaml` runs on the Android emulator up to its "Back" tap,
    which is iOS's back button label (Android's reads "Navigate up").
+8. **Blocks (step 3).** A message is a column of blocks
+   (`MessageBody/blocks.ts`, from the parser's): lines, a quote, a list,
+   a code block, spaced as a browser collapses their margins (the larger
+   of two neighbours'). A line break with nothing after it before
+   another block draws no line, as in a browser.
+   - **Quotes and lists are Views around paragraphs.** Each block's
+     words are one paragraph (`Paragraph`: our native view, or nested
+     Text without the module), measured at the place's width less the
+     block's own room: the quote's bar and padding (`QUOTE_INDENT`) or a
+     row's indent (`rowIndent`), the one source for both the View and
+     the measure (`insets.ts` `paragraphWidth`). A quote's words are in
+     `--md-quote-color`; its pills and links keep theirs.
+   - **Lists** are their flat rows, each one paragraph at its depth's
+     indent, nested and numbered as web's `List` builds them: a row
+     never more than one level below the one before; numbers count from
+     one within a run of numbered siblings (a bulleted sibling starts a
+     new list); bullets are the browser's disc, circle and square by how
+     many lists a row is inside. The marker is React Native Text in the
+     indent, right-aligned with a no-break space after it, as a browser
+     draws an outside marker; it is hidden from screen readers, and the
+     row's paragraph says it before its words ("1. ", or "• ", read as
+     "bullet", at any depth).
+   - **Code blocks are React Native Text in a horizontal ScrollView**,
+     not our native view: the view lays out at a width it is given and
+     reports only a height, so it can't size a line that never wraps,
+     and a code block has no pills or spoilers for it to draw. The text
+     is exactly as written and reads as itself. On iOS a ScrollView
+     won't start its drag while an ancestor holds the touch (Fabric's
+     `_shouldDisableScrollInteraction`), and the row's `Pressable` takes
+     every touch, so the code's own `Pressable`, inside the scroll, takes
+     the row's long press. A drag up or down on a code block scrolls the
+     list. Long-pressing code doesn't tint the row as pressed first. On
+     iOS the Text is the screen reader's element; on Android that
+     Pressable is, read as the code.
+   - **Paths** start with the block's index in the parse, so spoilers
+     and link ids are unique across blocks and stable; spoilers'
+     revealed state is the message's, shared by all its paragraphs.
+   - **"(edited)"** follows the last words when the message ends in a
+     paragraph, and is a line of its own after a quote, a list or a code
+     block, where web's inline marker lands after a block element.
+   - Every value was already named in `markdown.css` (`--md-pre-*`,
+     `--md-quote-*`, `--md-list-*`); web is unchanged.
 
 ## Split
 
@@ -214,6 +255,11 @@ marks), one assertion proved to bite, and the operator's phone check.
   (`StaticLayout`, boxes painted in `onDraw`, `ExploreByTouchHelper`)
   (operator, 2026-10-24); the React Native renderer stays only as the
   fallback for anything without the module.
+
+- **Blocks: paragraphs native, code and list markers React Native
+  Text** (step 3, 2026-10-25; Tech → 8): a code block never wraps, and
+  our view can only lay out at a given width; the module is unchanged.
+  Open for the operator's review.
 
 ## Later
 

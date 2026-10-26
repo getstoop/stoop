@@ -6,14 +6,15 @@ import type { Theme } from "../../theme";
 // file needs no React Native and its tests run in Node.
 import { markdown, tokens } from "../../theme/generated";
 import type { ChannelLinks } from "./channelLinks";
-import { anyCovered, coveredIn, linePath, mentionWords, type Node, nodePath, type Parsed, spoken } from "./lines";
+import { anyCovered, coveredIn, type Line, mentionWords, type Node, nodePath, spoken } from "./lines";
 
-// A message as the styled runs our native view draws (NativeBody,
+// A paragraph of a message (its lines, a quote's, a list row's) as the
+// styled runs our native view draws (NativeParagraph,
 // modules/stoop-rich-text), from the same parser tree and by the same
-// rules as ReactNativeBody (index.tsx): the view gets the marks resolved,
-// never Markdown.
+// rules as TextParagraph: the view gets the marks resolved, never
+// Markdown.
 
-// Words under a spoiler's cover, as ReactNativeBody covers them: each
+// Words under a spoiler's cover, as TextParagraph covers them: each
 // emoji an em space, since emoji draw through the cover's clear text.
 const EM_SPACE = "\u2003";
 const coverText = (text: string) =>
@@ -47,7 +48,12 @@ type Context = {
 };
 
 export type BuildInput = {
-  parsed: Parsed;
+  lines: Line[];
+  emojiOnly: boolean;
+  // A quote's words are muted.
+  muted?: boolean;
+  // Read before the words: a list row's marker (blocks.ts spokenMarker).
+  prefix?: string;
   theme: Theme;
   myUserId: string;
   mentionsEntireChannel: boolean;
@@ -62,10 +68,10 @@ export type BuildInput = {
 
 // The doc, and each spoiler's path by its id, for a reveal.
 export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] } {
-  const { parsed, theme, myUserId, links, compact, isCovered, fontScale } = input;
+  const { lines, theme, myUserId, links, compact, isCovered, fontScale } = input;
   const body = tokens.textBody * fontScale;
-  const size = parsed.emojiOnly ? body * markdown.emojiOnlyScale : body;
-  const lineHeight = parsed.emojiOnly ? size * tokens.leadingTight : body * tokens.leadingBody;
+  const size = input.emojiOnly ? body * markdown.emojiOnlyScale : body;
+  const lineHeight = input.emojiOnly ? size * tokens.leadingTight : body * tokens.leadingBody;
   const runs: RichRun[] = [];
   const spoilers: string[] = [];
   let nextFill = 0;
@@ -114,8 +120,6 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
     nodes.forEach((node, index) => {
       const at = nodePath(parent, index);
       switch (node.type) {
-        case "literal":
-          return push(node.text, context);
         case "text":
           if (context.covered) return push(coverText(node.text), context);
           for (const part of splitEveryone(node.text, input.mentionsEntireChannel, input.mentionsHere)) {
@@ -180,16 +184,16 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
   };
 
   const top: Context = { covered: false, inLink: false, underline: false, strike: false, bold: false, italic: false };
-  parsed.lines.forEach((line, index) => {
+  lines.forEach((line, index) => {
     if (index > 0) push("\n", top);
-    draw(line, linePath(index), top);
+    draw(line.nodes, line.path, top);
   });
   if (input.edited) {
     runs.push({ text: " (edited)", size: tokens.textSm * fontScale, color: theme.textMuted });
   }
 
-  const label = anyCovered(parsed.lines, isCovered)
-    ? `${spoken(parsed.lines, isCovered, input.cover, (ref) => mentionWords(ref, links?.channels))}${input.edited ? " (edited)" : ""}`
+  const words = anyCovered(lines, isCovered)
+    ? `${spoken(lines, isCovered, input.cover, (ref) => mentionWords(ref, links?.channels))}${input.edited ? " (edited)" : ""}`
     : runs.map((run) => run.text).join("");
 
   return {
@@ -197,10 +201,10 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       runs,
       lineHeight,
       bodySize: size,
-      textColor: theme.text,
+      textColor: input.muted ? theme[markdown.quoteColor] : theme.text,
       spoilerPad: markdown.spoilerPadX,
       radius: tokens.radiusSm,
-      label,
+      label: `${input.prefix ?? ""}${words}`,
       revealable: !compact,
     },
     spoilers,

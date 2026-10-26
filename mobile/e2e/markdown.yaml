@@ -1,9 +1,10 @@
 appId: ${APP_ID}
-name: Read messages in Markdown, reveal a spoiler and open a channel from its link
+name: Read messages in Markdown, reveal a spoiler, open a channel from its link, and see its blocks
 ---
 # formatting (seed.mjs): ada's marks message, her long spoiler and her
-# emoji-only message, all read. A message's words are one element read as
-# a whole; its links are elements of their own.
+# emoji-only message, all read, and above them her quotes, lists and code
+# block. A paragraph's words are one element read as a whole; its links
+# are elements of their own.
 - clearKeychain
 - launchApp:
     clearState: true
@@ -83,3 +84,86 @@ name: Read messages in Markdown, reveal a spoiler and open a channel from its li
 - extendedWaitUntil:
     notVisible: "Quote in reply"
     timeout: 5000
+# The blocks, older, above. A quote's words, a list row's and a code
+# block's are each an element: a row read with its number, or "•" for a
+# bullet at any depth, before its words; the code as written.
+- scrollUntilVisible:
+    element: "Who\\? spoiler, double tap to reveal"
+    direction: UP
+    centerElement: true
+    timeout: 30000
+# A spoiler in a quote is covered, its words not read out, until a tap
+# on it (the middle of the quote's line) reveals it.
+- assertNotVisible: ".*gardener.*"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn: "Who\\? spoiler, double tap to reveal"
+- extendedWaitUntil:
+    visible: "Who\\? The gardener, with a trowel"
+    timeout: 5000
+# A code block keeps its marks, @here and link as written.
+- scrollUntilVisible:
+    element: "// \\*\\*left as written\\*\\* @here https://example\\.com\\s+const route = .*"
+    direction: UP
+    centerElement: true
+    timeout: 30000
+# Dragged sideways it scrolls, and a long press on it is still the row's.
+# Aimed at the block's box: its text is wider than the screen, and its
+# middle off it.
+- swipe:
+    from:
+      id: "code-block"
+    direction: LEFT
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn:
+    id: "code-block"
+- extendedWaitUntil:
+    visible: "Quote in reply"
+    timeout: 5000
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+# A numbered list counts from one, a bulleted row inside it on its own,
+# and "(edited)" goes on a line of its own after it.
+- scrollUntilVisible:
+    element: "1\\. Warm up"
+    direction: UP
+    centerElement: true
+    timeout: 30000
+- assertVisible: "2\\. Climb"
+- assertVisible: "• lead"
+- assertVisible: "3\\. Stretch"
+- assertVisible: "4\\. Eat"
+- assertVisible: "\\s*\\(edited\\)"
+# A nested bulleted list, with a link in a row that is a link of its own;
+# a long press on it is the row's.
+- scrollUntilVisible:
+    element: "• rope"
+    direction: UP
+    centerElement: true
+    timeout: 30000
+- assertVisible: "Packing list:"
+- assertVisible: "• 60 m"
+- assertVisible: "• dry treated"
+- assertVisible: "• the route topo"
+- assertVisible: "route topo"
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "route topo"
+- extendedWaitUntil:
+    visible: "Quote in reply"
+    timeout: 5000
+- tapOn:
+    id: "message-menu-close"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+# A quote reads its words, both lines.
+- scrollUntilVisible:
+    element: "Every tree was once a nut\\s+that held its ground"
+    direction: UP
+    centerElement: true
+    timeout: 30000

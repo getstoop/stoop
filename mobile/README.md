@@ -469,8 +469,8 @@ native rebuild.
 
 ## Tests
 
-The app's pure logic that needs no React Native (`MessageBody/native.ts`)
-has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+The app's pure logic that needs no React Native (`MessageBody/native.ts`,
+`MessageBody/blocks.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
@@ -490,7 +490,8 @@ and from Reply in thread and read it while a reply arrives, reply in a
 thread, also to the channel, and edit, react and delete there, mute a
 thread and see a reply in it counted as nothing new, read messages in
 Markdown (the marks, a spoiler revealed on a tap, a channel link that
-opens the channel, an emoji-only message), attach a photo
+opens the channel, an emoji-only message, a quote with a spoiler in it,
+nested and numbered lists, a code block dragged sideways), attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it
