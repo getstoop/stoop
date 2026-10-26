@@ -7,8 +7,7 @@ import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 
 export const imageLabel = (attachment: Attachment) => `Image, ${attachment.name}`;
 
-export const videoLabel = (attachment: Attachment) =>
-  `Video, ${attachment.name}, ${formatBytes(attachment.size)}. Plays full screen`;
+export const videoLabel = (attachment: Attachment) => `Video, ${attachment.name}, ${formatBytes(attachment.size)}`;
 
 // A grid's tile: "Image 2 of 4, IMG_2111.jpg", "Video 3 of 4, IMG_2112.mov".
 export const tileLabel = (attachment: Attachment, index: number, count: number, video = false) =>

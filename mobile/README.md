@@ -182,20 +182,26 @@ import a screen; the screens themselves live in `src/screens`, so
   config plugin is left out, so there is no background playback or
   picture in picture): from `/files` with the session, by Range
   requests, with sound and the platform's own controls, starting as
-  its page comes on screen and pausing as it leaves; a neighbour
-  fetches nothing until it is paged to, and a page left behind by
-  more than one, or closing, releases it. Every touch on the video is
-  its controls': a gesture over it keeps them from showing, so the
-  pager's swipe is off on a video's page and a sideways swipe from
-  either edge pages instead, there is no drag down to close, and the
-  bars stay up. For a screen reader the page is adjustable as a
-  picture's is ("…, video 5 of 5, …"), and activating it plays or
-  pauses. One the phone can't play (a
-  WebM on an iPhone, HEVC on some Androids) shows web's card and "This
-  phone can't play this video. Share it to open it elsewhere."; the
-  card's tap shares it as Share does, and for as long as the app runs
-  the timeline draws it as that card, which a tap shares, as web turns
-  a video it can't decode into its download card. The gestures are
+  its page comes on screen and pausing as it leaves or as the viewer
+  closes; a neighbour fetches nothing until it is paged to, and a page
+  left behind by more than one releases it. The video is drawn in the
+  box between the bars, which stay up over a video's page, so they
+  cover none of its controls. Every touch on the video is its
+  controls': a gesture over it keeps them from showing, so while it
+  plays the pager pages only from swipes on the bars (everything on
+  them but Close and Share lets the touch through to the pager's strips
+  under them), and there is no drag down to close. For a screen reader
+  the page is adjustable as a picture's is ("…, video 5 of 5, …"), and
+  activating it plays or pauses. When the player gives up, the file's
+  first byte is asked for with the session: one that answers is a file
+  the phone can't play (a WebM on an iPhone, HEVC on some Androids),
+  which shows web's card and "This phone can't play this video. Share
+  it to open it elsewhere."; the card's tap shares it as Share does, and
+  for as long as the app runs the page opens that way and the timeline
+  draws it as that card, which a tap shares, as web turns a video it
+  can't decode into its download card. One that doesn't answer
+  (offline, refused, gone) says "Couldn't load this video." over Try
+  again, and is tried afresh next time. The gestures are
   `react-native-gesture-handler` and `react-native-reanimated` (native
   modules, so a build on the phone needs `make mobile-ios` again),
   under a `GestureHandlerRootView` at the app's root;

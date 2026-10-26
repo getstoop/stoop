@@ -20,3 +20,5 @@ const subscribe = (listener: () => void) => {
 };
 
 export const useUnplayable = () => useSyncExternalStore(subscribe, () => ids);
+
+export const isUnplayable = (fileId: string) => ids.has(fileId);

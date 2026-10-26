@@ -21,6 +21,20 @@ export const fileSource = (origin: string, token: string, fileId: string) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
+// Whether the file answers at all: its first byte, with the session.
+// After a player's error this tells a file the phone can't decode (it
+// answers) from one it couldn't fetch (an error status or no network).
+export async function fileAnswers(origin: string, token: string, fileId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${origin}/files/${fileId}`, {
+      headers: { Authorization: `Bearer ${token}`, Range: "bytes=0-0" },
+    });
+    return res.status === 200 || res.status === 206;
+  } catch {
+    return false;
+  }
+}
+
 // One download per file at a time, however many cards show it (the
 // channel's and the thread's); a later tap shares the same result.
 const inFlight = new Map<string, Promise<string>>();

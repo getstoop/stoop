@@ -32,8 +32,8 @@ export default function VideoTile({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={tile ? "Plays full screen" : undefined}
+      accessibilityLabel={view && !tile ? `${label}. Plays full screen` : label}
+      accessibilityHint={view && tile ? "Plays full screen" : undefined}
       onPress={view ? () => view(attachment) : undefined}
       onLongPress={onLongPress}
       disabled={!view && !onLongPress}

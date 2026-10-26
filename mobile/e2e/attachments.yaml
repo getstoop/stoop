@@ -85,21 +85,21 @@ name: See files under messages, a photo, two in a grid, a PDF, a video and an ex
     timeout: 5000
 - assertVisible: "Image, ridge-landscape\\.jpg\\. Opens full screen"
 # A tap on the video opens it full screen, the last of the five, in the
-# system's player, which plays it rather than leaving the card that
-# says it can't. (The page is one element for a screen reader, so the
-# player's controls are out of Maestro's sight; playing and pausing are
-# checked by hand.)
+# system's player, which plays it: the page, one element for a screen
+# reader, never comes to say it can't play or couldn't load (its label
+# gains either at the end). The player's controls are out of Maestro's
+# sight under it, so playing and pausing are checked by hand.
 - scrollUntilVisible:
     element: "Video, ridge-walk\\.mp4, .*"
     direction: DOWN
 - tapOn: "Video, ridge-walk\\.mp4, .*"
 - extendedWaitUntil:
-    visible: "ridge-walk\\.mp4, video 5 of 5, from .*"
+    visible: "ridge-walk\\.mp4, video 5 of 5, from [^,]+, [^,]+"
     timeout: 5000
 - assertVisible: "5 of 5"
 - waitForAnimationToEnd:
     timeout: 3000
-- assertNotVisible: "This phone can't play this video\\..*"
+- assertNotVisible: "ridge-walk\\.mp4, video 5 of 5, .*, (can't play|couldn't load)"
 - tapOn:
     id: "viewer-close"
 - extendedWaitUntil:

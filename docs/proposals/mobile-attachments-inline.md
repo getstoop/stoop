@@ -203,6 +203,15 @@ The counterpart of `MediaPreview`, drawn in "8d · Viewer, photo" and
   (scrub, pause, the time). Swiping away pauses it. A file the phone
   can't play shows the card and "This phone can't play this video.
   Share it to open it elsewhere."
+  **Departures (found building it):** the video is drawn in the box
+  between the bars, which stay up over it, so they cover none of its
+  controls. Any gesture over the native player keeps its controls from
+  showing, so there is no swipe down to close on the video itself, and
+  while it plays the viewer pages by a swipe on the top or bottom bar
+  instead of on the picture. A file that won't load (no network, an
+  error status) is told apart from one the phone can't decode by
+  asking for its first byte, and says it couldn't load, with Try
+  again.
 - **Android back** closes it; on iOS the two-finger scrub (the
   accessibility escape) closes it too.
 
