@@ -108,7 +108,8 @@ name: Attach from the library, the camera and files, see it in the card and the 
 - assertVisible:
     id: "attachment-count"
 - assertVisible: "1 file attached, Message #random"
-# Words and the photo go as one message; the row shows the file by name.
+# Words and the photo go as one message; the row shows the photo, read
+# by its name.
 - tapOn: "1 file attached, Message #random"
 - extendedWaitUntil:
     visible:
@@ -120,7 +121,7 @@ name: Attach from the library, the camera and files, see it in the card and the 
     visible: "The trail map"
     timeout: 10000
 - extendedWaitUntil:
-    visible: "📎 trail-map.jpg"
+    visible: "Image, trail-map\\.jpg(\\. Opens full screen)?"
     timeout: 10000
 - assertNotVisible:
     id: "attachment-strip"
@@ -152,7 +153,7 @@ name: Attach from the library, the camera and files, see it in the card and the 
 - tapOn: "Send"
 - extendedWaitUntil:
     visible:
-      text: "📎 trail-map.jpg"
+      text: "Image, trail-map\\.jpg(\\. Opens full screen)?"
       index: 1
     timeout: 10000
 - runScript:
@@ -211,13 +212,14 @@ name: Attach from the library, the camera and files, see it in the card and the 
       id: "composer"
     timeout: 10000
 - assertNotVisible: "Stoop doesn't have permission to use the camera."
-# Sent with words, the row shows the file by name.
+# Sent with words, the row shows the file's card, read by its name and
+# size.
 - tapOn:
     id: "composer"
 - inputText: "Notes for the trail"
 - tapOn: "Send"
 - extendedWaitUntil:
-    visible: "📎 trail-notes.pdf"
+    visible: "trail-notes\\.pdf, .*"
     timeout: 10000
 - runScript:
     file: scripts/rpc.js
