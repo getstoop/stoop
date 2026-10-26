@@ -1,34 +1,42 @@
 import { formatBytes } from "@stoop/core/attachments";
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { useContext } from "react";
+import { Image } from "expo-image";
+import { useContext, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { cachedPoster, requestPoster } from "../../api/posters";
 import { markdown, type Theme, tokens, useTheme } from "../../theme";
 import { PlayIcon } from "../Icons";
 import { ViewerContext } from "../Viewer/useViewer";
 import type { Box } from "./layout";
 
-// A video in the timeline: web's frame on black with its round play
-// badge, and, alone, web's bar with the name and size over its foot,
-// always shown. Drawn, not a player: nothing plays here and nothing is
-// fetched, since the server has no still to show (the proposal's
-// decision 10). A tap opens the viewer, which plays it (ViewerContext);
-// a long press is the row's.
+// A video in the timeline: web's frame on black with its first frame
+// (api/posters; black until it comes, or if it doesn't), letterboxed
+// alone as web's is and filling a grid's tile as a picture does, under
+// its round play badge, and, alone, web's bar with the name and size
+// over its foot, always shown. Not a player: nothing plays here. A tap
+// opens the viewer, which plays it (ViewerContext); a long press is the
+// row's.
 export default function VideoTile({
   attachment,
   box,
   label,
+  origin,
+  token,
   tile = false,
   onLongPress,
 }: {
   attachment: Attachment;
   box: Box;
   label: string;
+  origin: string;
+  token: string;
   tile?: boolean;
   onLongPress?: () => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const view = useContext(ViewerContext);
+  const poster = usePoster(origin, token, attachment.fileId);
   return (
     <Pressable
       accessibilityRole="button"
@@ -37,9 +45,17 @@ export default function VideoTile({
       onPress={view ? () => view(attachment) : undefined}
       onLongPress={onLongPress}
       disabled={!view && !onLongPress}
-      testID="attachment-video"
+      testID={poster ? "attachment-video-poster" : "attachment-video"}
       style={[styles.frame, box]}
     >
+      {poster && (
+        <Image
+          source={{ uri: poster }}
+          recyclingKey={attachment.fileId}
+          contentFit={tile ? "cover" : "contain"}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <View style={styles.badge}>
         <PlayIcon color={theme.text} size={BADGE_ICON} />
       </View>
@@ -53,6 +69,17 @@ export default function VideoTile({
       )}
     </Pressable>
   );
+}
+
+// The video's first frame from disk, or asked for while the tile is
+// drawn.
+function usePoster(origin: string, token: string, fileId: string) {
+  const [poster, setPoster] = useState(() => cachedPoster(fileId));
+  useEffect(() => {
+    if (poster) return;
+    return requestPoster(origin, token, fileId, setPoster);
+  }, [origin, token, fileId, poster]);
+  return poster;
 }
 
 // Web's .attachment-video-play: a 20 icon in 8 of padding.

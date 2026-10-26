@@ -9,3 +9,11 @@ nodeLinker: hoisted
 # of pnpm quietly adding it to an exclusion list.
 minimumReleaseAgeStrict: true
 
+# Our own changes to a package, as pnpm patch writes them (patches/):
+#   - expo-video-thumbnails reads a video tile's first frame (api/posters)
+#     on a queue of its own on iOS, not the one every module's async
+#     functions share (sharing, secure store, clipboard wait behind a
+#     frame read over the network otherwise), and at most 1024 px on a
+#     side, not the video's full size.
+patchedDependencies:
+  expo-video-thumbnails@58.0.2: patches/expo-video-thumbnails@58.0.2.patch

@@ -1,0 +1,45 @@
+diff --git a/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt b/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt
+index 8d6bdc5df3e0d0d717f1c71e9fdd9ee6c63aa308..1141c05efa4fcaae7c65263ce627cf4c310d2e8e 100644
+--- a/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt
++++ b/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt
+@@ -95,6 +95,16 @@ class VideoThumbnailsModule : Module() {
+             retriever.setDataSource(sourceFilename, videoOptions.headers)
+           }
+ 
++          // Stoop: a tile's frame, not the video's full size, where the
++          // platform can scale it (API 27).
++          if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
++            return retriever.getScaledFrameAtTime(
++              videoOptions.time.toLong() * 1000,
++              MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
++              1024,
++              1024
++            )
++          }
+           return retriever.getFrameAtTime(
+             videoOptions.time.toLong() * 1000,
+             MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+diff --git a/ios/VideoThumbnailsModule.swift b/ios/VideoThumbnailsModule.swift
+index b2996dd50c76d78de7a44d2948badfffcc66f252..529858d45fc777e884cca806f809ca2eeba7d704 100644
+--- a/ios/VideoThumbnailsModule.swift
++++ b/ios/VideoThumbnailsModule.swift
+@@ -7,7 +7,10 @@ public class VideoThumbnailsModule: Module {
+   public func definition() -> ModuleDefinition {
+     Name("ExpoVideoThumbnails")
+ 
++    // Stoop: off the queue every other module's async functions share, so a
++    // frame read over the network doesn't hold them up.
+     AsyncFunction("getThumbnail", getVideoThumbnail)
++      .runOnQueue(DispatchQueue.global(qos: .utility))
+   }
+ 
+   internal func getVideoThumbnail(sourceFilename: URL, options: VideoThumbnailsOptions) throws -> [String: Any] {
+@@ -21,6 +24,8 @@ public class VideoThumbnailsModule: Module {
+     let generator = AVAssetImageGenerator(asset: asset)
+ 
+     generator.appliesPreferredTrackTransform = true
++    // Stoop: a tile's frame, not the video's full size.
++    generator.maximumSize = CGSize(width: 1024, height: 1024)
+     generator.requestedTimeToleranceAfter = CMTime.zero
+ 
+     let time = CMTimeMake(value: options.time, timescale: 1000)

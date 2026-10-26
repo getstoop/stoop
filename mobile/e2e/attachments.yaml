@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: See files under messages, a photo, two in a grid, a PDF, a video, an audio file and an expired file, page through the photos full screen, play the video and the audio, and share the PDF
+name: See files under messages, a photo, two in a grid, a PDF, a video with its first frame, an audio file and an expired file, page through the photos full screen, play the video and the audio, and share the PDF
 ---
 # photos (seed.mjs): dee's landscape photo, then a portrait one, the two
 # together, a PDF, a short clip, ten seconds of audio, and, newest, a
@@ -85,6 +85,15 @@ name: See files under messages, a photo, two in a grid, a PDF, a video, an audio
     notVisible: "2 of 5"
     timeout: 5000
 - assertVisible: "Image, ridge-landscape\\.jpg\\. Opens full screen"
+# The video's tile shows its first frame, which the phone reads from
+# the file itself (the server makes none).
+- scrollUntilVisible:
+    element: "Video, ridge-walk\\.mp4, .*"
+    direction: DOWN
+- extendedWaitUntil:
+    visible:
+      id: "attachment-video-poster"
+    timeout: 15000
 # A tap on the video opens it full screen, the last of the five, in the
 # system's player, which plays it: the page, one element for a screen
 # reader, has the value Playing once the player says so, and never comes

@@ -17,9 +17,9 @@ import VideoTile from "./VideoTile";
 import { expiredLabel, expiredText, imageLabel, tileLabel, videoLabel } from "./words";
 
 // A message's files, under its words, as web's Attachments draws them
-// where a phone can (layout.ts says where it can't): an image inline, a
-// video as a tile that plays full screen, two or more of them in a
-// grid, audio as a player (the screen's, AudioContext; without one, the
+// where a phone can (layout.ts says where it can't): an image inline,
+// a video as a tile with its first frame that plays full screen, two or
+// more of them in a grid, audio as a player (the screen's, AudioContext; without one, the
 // card), any other file as a card that a tap shares, an expired one as
 // its placeholder, which nothing fetches. The same in a
 // channel's rows and a thread's; on the message menu's card (`compact`)
@@ -67,7 +67,7 @@ export default function Attachments({
                 attachment={part.attachment}
                 box={part.box}
                 label={videoLabel(part.attachment)}
-                onLongPress={onLongPress}
+                {...shared}
               />
             );
           case "grid":
@@ -83,7 +83,7 @@ export default function Attachments({
                       box={box}
                       label={tileLabel(attachment, index, count, true)}
                       tile
-                      onLongPress={onLongPress}
+                      {...shared}
                     />
                   ) : (
                     <Picture
