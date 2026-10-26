@@ -36,14 +36,16 @@ describe("pickedWords", () => {
 });
 
 describe("pickReplace", () => {
-  it("replaces the query with the pick and a space", () => {
+  it("replaces the query with a pill for the pick and a space", () => {
     expect(pickReplace("hi @ad", 3, person)).toEqual({
       count: 3,
-      text: `<@u:${ada}:ada> `,
+      text: " ",
+      mention: { kind: "person", id: ada, handle: "ada" },
     });
     expect(pickReplace("see #ga", 4, channel)).toEqual({
       count: 3,
-      text: `<#${garden}:garden> `,
+      text: " ",
+      mention: { kind: "channel", id: garden, handle: "garden" },
     });
   });
 

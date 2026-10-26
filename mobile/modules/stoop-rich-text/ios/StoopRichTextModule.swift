@@ -53,6 +53,12 @@ public class StoopRichTextModule: Module {
       AsyncFunction("format") { (view: RichEditorView, name: String) in
         view.format(name)
       }.runOnQueue(.main)
+      AsyncFunction("insertMention") { (view: RichEditorView, count: Int, mention: EditorMentionRecord, after: String) in
+        view.insertMention(count, mention, after)
+      }.runOnQueue(.main)
+      AsyncFunction("markMention") { (view: RichEditorView, location: Int, typed: String, mention: EditorMentionRecord) in
+        view.markMention(location, typed, mention)
+      }.runOnQueue(.main)
       AsyncFunction("commit") { (view: RichEditorView) -> [[String: Any]] in
         view.commit()
       }.runOnQueue(.main)

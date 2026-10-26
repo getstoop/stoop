@@ -60,6 +60,12 @@ class StoopRichTextModule : Module() {
       AsyncFunction("format") { view: RichEditorView, name: String ->
         view.format(name)
       }.runOnQueue(Queues.MAIN)
+      AsyncFunction("insertMention") { view: RichEditorView, count: Int, mention: EditorMentionRecord, after: String ->
+        view.insertMention(count, mention, after)
+      }.runOnQueue(Queues.MAIN)
+      AsyncFunction("markMention") { view: RichEditorView, location: Int, typed: String, mention: EditorMentionRecord ->
+        view.markMention(location, typed, mention)
+      }.runOnQueue(Queues.MAIN)
       AsyncFunction("commit") { view: RichEditorView ->
         view.commit()
       }.runOnQueue(Queues.MAIN)

@@ -261,6 +261,47 @@ export function withTypedMentions(
   return out + text.slice(last);
 }
 
+// The @handle or #name that the last character of `before` (a line up
+// to the caret) has just ended, by withTypedMentions' rules, when exactly
+// one person, group or linkable channel has it: where its "@" or "#"
+// starts, how long it is, and who it names. The phone's field makes it a
+// pill there.
+export function typedMentionEnding(
+  before: string,
+  { members, groups, channels }: MentionNames,
+): { start: number; length: number; ref: MentionRef } | null {
+  const ending = before[before.length - 1];
+  if (ending === undefined) return null;
+  const typed = before.slice(0, -1);
+  const kinds = [
+    {
+      pattern: TYPED_HANDLE,
+      runsOn: /[a-z0-9_]/i,
+      sole: (name: string) => soleMention(name, members, groups),
+    },
+    {
+      pattern: TYPED_CHANNEL,
+      runsOn: /[a-z0-9_-]/i,
+      sole: (name: string) => soleChannel(name, channels),
+    },
+  ];
+  for (const { pattern, runsOn, sole } of kinds) {
+    if (runsOn.test(ending)) continue;
+    for (const match of typed.matchAll(pattern)) {
+      const start = match.index + match[1].length;
+      const length = match[2].length + 1;
+      if (start + length !== typed.length) continue;
+      const inAddress = [...before.matchAll(ADDRESS)].some(
+        (address) =>
+          start >= address.index && start < address.index + address[0].length,
+      );
+      const ref = inAddress ? null : sole(match[2]);
+      if (ref) return { start, length, ref };
+    }
+  }
+  return null;
+}
+
 // The handle a mention reads as now: the person's, group's or channel's
 // current one, or null when it can't be found here.
 export function currentHandle(

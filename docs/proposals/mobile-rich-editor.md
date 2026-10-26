@@ -399,6 +399,10 @@ operator's OK.
 
 - Web's editor drawing spoilers hatched too, if the phone's reads
   better.
+- Undo and redo of a pill on iOS: undo brings back a pill's words as
+  plain words, since the pill is put on outside the text view's undo.
+  On send they still go as the token (`withTypedMentions`) when typed in
+  full with one owner.
 - Styled paste from other apps (RTF/HTML to our marks).
 - Images pasted as attachments.
 - A character counter before the limit.

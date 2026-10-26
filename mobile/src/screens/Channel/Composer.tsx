@@ -2,7 +2,7 @@ import type { UploadedFile } from "@stoop/core/attachments";
 import type { Format } from "@stoop/core/editor/formats";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { isBlankMessage, plainText } from "@stoop/core/markdown";
-import { withTypedMentions } from "@stoop/core/mentions";
+import { typedMentionEnding, withTypedMentions } from "@stoop/core/mentions";
 import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
@@ -71,12 +71,12 @@ import { useMentionQuery } from "./useMentionQuery";
 // meanwhile (web's rule); pressing Send again is the retry.
 //
 // Typing a @handle or #name in the card lists who or what it may name over
-// the card (useMentionQuery, MentionList), and a pick puts the token in
-// the field; the @ button beside Aa types an "@" that opens the list.
-//
-// Sent, a @handle or #name typed in full that exactly one person, group
-// or channel has goes as its token (core/mentions withTypedMentions), as
-// web's editor makes one; the words come back as typed on a refusal.
+// the card (useMentionQuery, MentionList), and a pick puts a pill in the
+// field, one unit to the caret and to a backspace; the @ button beside Aa
+// types an "@" that opens the list. A @handle or #name typed in full that
+// exactly one person, group or channel has becomes a pill as the word
+// ends (core/mentions typedMentionEnding), as web's editor makes one, and
+// any left as words go as their tokens on send (withTypedMentions).
 //
 // In a thread (`inThread`) the pill says "Reply in thread", and the card
 // has "Also send to #channel" over the field, a checkbox that sends the
@@ -206,7 +206,8 @@ export default forwardRef<
     names: mentionNames,
     origin,
     token,
-    replace: ({ count, text }) => input.current?.replaceBeforeCaret(count, text),
+    replace: ({ count, text, mention }) =>
+      mention ? input.current?.insertMention(count, mention, text) : input.current?.replaceBeforeCaret(count, text),
   });
 
   // The card, with the field focused: mounted so (autoFocus), and focused
@@ -440,6 +441,13 @@ export default forwardRef<
           value={draft}
           loadKey={loads}
           onChange={setDraft}
+          onTyped={(line, caret) => {
+            const typed = typedMentionEnding(line, mentionNames);
+            if (typed) {
+              const location = caret - line.length + typed.start;
+              input.current?.markMention(location, line.slice(typed.start, typed.start + typed.length), typed.ref);
+            }
+          }}
           onCaret={(text, active) => {
             setBefore(text);
             setFormats(active);

@@ -53,8 +53,8 @@ name: Pick mentions from the list, from @, the @ button and #, and see them sent
     notVisible: "at channel, Everyone in this channel"
     timeout: 5000
 - assertNotVisible: ".*, at ${POSTER}"
-# A pick puts the group's token in the field, with a space, and the list
-# goes.
+# A pick puts the group's pill in the field, its @handle, with a space,
+# and the list goes.
 - tapOn: "Readers, 2 people, at readers"
 - extendedWaitUntil:
     notVisible:
@@ -62,7 +62,7 @@ name: Pick mentions from the list, from @, the @ button and #, and see them sent
     timeout: 5000
 - assertVisible:
     id: "composer"
-    text: "Over to <@g:${READERS_ID}:readers> "
+    text: "Over to @readers "
 # The @ button types an "@", which opens the list the same way.
 - tapOn: "Mention someone"
 - extendedWaitUntil:
@@ -109,4 +109,4 @@ name: Pick mentions from the list, from @, the @ button and #, and see them sent
 - inputText: "hi"
 - assertVisible:
     id: "composer"
-    text: "<@g:${READERS_ID}:readers> hithere"
+    text: "@readers hithere"

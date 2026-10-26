@@ -18,6 +18,9 @@ import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputConnectionWrapper
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.core.view.AccessibilityDelegateCompat
@@ -78,6 +81,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   // Between a change's before and after: the caret moves with the text
   // before the after runs, which is no reason to drop pending marks.
   private var changing = false
+  private var snapping = false
   var autoFocus = false
   private var focusedOnce = false
   // The block of an empty last line, which no character holds: one the
@@ -112,6 +116,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
         changing = false
         if (applying) return
         applying = true
+        // A pill is one unit: a backspace into one takes it whole.
+        if (deleted) takeCutPills(s)
         val pending = pendingMarks
         if (changedTo > changedFrom) {
           if (pending != null && changedFrom <= pendingAt && changedTo > pendingFrom) {
@@ -214,6 +220,13 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
 
   internal fun selectionChanged() {
     if (applying) return
+    if (changing) {
+      // Moved by the text itself, not by the reader: where it settled.
+      settledStart = max(0, field.selectionStart)
+      settledEnd = max(settledStart, field.selectionEnd)
+    } else if (snapSelection()) {
+      return
+    }
     if (!changing && pendingMarks != null && (field.selectionStart != pendingAt || field.selectionEnd != pendingAt)) {
       pendingMarks = null
     }
@@ -233,6 +246,117 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       "before" to EditorDocument.textBefore(text, start),
       "formats" to activeFormats(text, start, end),
     )
+  }
+
+  // MARK: Pills
+
+  // The pill whose words hold `at` strictly inside them.
+  private fun pill(text: Spanned, at: Int): MentionSpan? =
+    text.getSpans(at, at, MentionSpan::class.java)
+      .firstOrNull { text.getSpanStart(it) < at && text.getSpanEnd(it) > at }
+
+  // A pill cut short by a deletion goes whole.
+  private fun takeCutPills(text: Editable) {
+    val from = EditorDocument.lineStart(text, changedFrom)
+    val to = EditorDocument.lineEnd(text, changedFrom)
+    for (span in text.getSpans(from, to, MentionSpan::class.java)) {
+      val a = text.getSpanStart(span)
+      val b = text.getSpanEnd(span)
+      if (b <= a || b - a >= span.words.length || text.subSequence(a, b).toString() == span.words) continue
+      text.removeSpan(span)
+      text.delete(a, b)
+      changedFrom = minOf(changedFrom, a)
+      changedTo = changedFrom
+    }
+  }
+
+  // The selection as it last settled, for the way an edge is moving.
+  private var settledStart = 0
+  private var settledEnd = 0
+
+  // A caret or a selection's edge never rests inside a pill: it goes on
+  // past it the way it was moving (a caret stepped left from a pill's end
+  // goes to its start), or to the nearer edge when it jumped there (a
+  // tap). True when it moved it.
+  private fun snapSelection(): Boolean {
+    if (snapping) return false
+    val text = field.text ?: return false
+    val start = max(0, field.selectionStart)
+    val end = max(start, field.selectionEnd)
+    fun edge(at: Int, was: Int): Int {
+      val pill = pill(text, at) ?: return at
+      val s = text.getSpanStart(pill)
+      val e = text.getSpanEnd(pill)
+      return when {
+        was <= s -> e
+        was >= e -> s
+        at - s < e - at -> s
+        else -> e
+      }
+    }
+    var a = edge(start, settledStart)
+    var b = if (start == end) a else edge(end, settledEnd)
+    if (b < a) a = b.also { b = a }
+    settledStart = a
+    settledEnd = b
+    if (a == start && b == end) return false
+    snapping = true
+    field.setSelection(a, b)
+    snapping = false
+    return true
+  }
+
+  // The keyboard may compose only outside pills: a region it would put
+  // over a pill's words (Gboard composes the word before the caret) is
+  // cut back to the text beside it, so it can't rewrite the pill.
+  internal fun composableRegion(start: Int, end: Int): Pair<Int, Int> {
+    val text = field.text ?: return start to end
+    var a = minOf(start, end)
+    var b = maxOf(start, end)
+    for (pill in text.getSpans(a, b, MentionSpan::class.java)) {
+      val s = text.getSpanStart(pill)
+      val e = text.getSpanEnd(pill)
+      if (s >= b || e <= a) continue
+      if (s <= a) a = maxOf(a, e) else b = minOf(b, s)
+    }
+    return a to b
+  }
+
+  // A pick from the mention list: the query before the caret replaced by
+  // a pill, then `after` (its space).
+  fun insertMention(count: Int, mention: EditorMentionRecord, after: String) {
+    val text = field.text ?: return
+    val caret = max(0, field.selectionStart)
+    val from = max(EditorDocument.lineStart(text, caret), caret - max(0, count))
+    val span = MentionSpan(mention.kind, mention.id, mention.handle)
+    BaseInputConnection.removeComposingSpans(text)
+    applying = true
+    text.replace(from, caret, span.words + after)
+    for (href in text.getSpans(from, from + span.words.length, HrefSpan::class.java)) text.removeSpan(href)
+    text.setSpan(span, from, from + span.words.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    restyle(text, from, from + span.words.length + after.length)
+    applying = false
+    emitChange()
+  }
+
+  // A handle typed in full that JS found has one owner: its words, at
+  // `location`, become the pill, if they are still there as typed.
+  fun markMention(location: Int, typed: String, mention: EditorMentionRecord) {
+    val text = field.text ?: return
+    val end = location + typed.length
+    if (location < 0 || end > text.length || text.subSequence(location, end).toString() != typed) return
+    if (text.getSpans(location, end, MentionSpan::class.java).any { text.getSpanStart(it) < end && text.getSpanEnd(it) > location }) return
+    val span = MentionSpan(mention.kind, mention.id, mention.handle)
+    applying = true
+    if (span.words != typed) {
+      // Typed in other capitals: the pill reads as the handle does.
+      BaseInputConnection.removeComposingSpans(text)
+      text.replace(location, end, span.words)
+    }
+    text.setSpan(span, location, location + span.words.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    restyle(text, location, location + span.words.length)
+    applying = false
+    emitChange()
   }
 
   // MARK: Formats
@@ -425,6 +549,16 @@ internal class EditorText(context: Context, private val owner: RichEditorView) :
     setHintTextColor(look.placeholder)
     setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, look.fontSizePx)
     highlightColor = (look.accent and 0x00ffffff) or 0x44000000
+  }
+
+  override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
+    val connection = super.onCreateInputConnection(outAttrs) ?: return null
+    return object : InputConnectionWrapper(connection, true) {
+      override fun setComposingRegion(start: Int, end: Int): Boolean {
+        val (a, b) = owner.composableRegion(start, end)
+        return if (a < b) super.setComposingRegion(a, b) else finishComposingText()
+      }
+    }
   }
 
   override fun onSelectionChanged(selStart: Int, selEnd: Int) {

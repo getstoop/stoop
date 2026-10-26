@@ -1,5 +1,6 @@
 import { docToLines, type EditorLine, linesToDoc } from "@stoop/core/editor/lines";
 import type { Format } from "@stoop/core/editor/formats";
+import type { MentionRef } from "@stoop/core/mentions";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
@@ -31,6 +32,11 @@ export type RichFieldHandle = {
   replaceBeforeCaret: (count: number, text: string) => void;
   // A format on or off, at the caret or over the selection.
   format: (format: Format) => void;
+  // The `count` characters before the caret replaced by a pill, then
+  // `after`.
+  insertMention: (count: number, mention: MentionRef, after: string) => void;
+  // The words `typed` at `location` made a pill, if still there.
+  markMention: (location: number, typed: string, mention: MentionRef) => void;
   // The draft as it stands, a word still being composed taken as is.
   commit: () => Promise<string>;
 };
@@ -44,6 +50,9 @@ export default forwardRef<
     // Changed by the composer each time it puts a draft in from outside.
     loadKey: number;
     onChange: (markdown: string) => void;
+    // After a change, the caret collapsed: its line up to it, and where
+    // the caret is, for a handle just typed in full to become a pill.
+    onTyped?: (before: string, caret: number) => void;
     // After each change or move: the text before the caret on its line
     // (null while a range is selected), and the formats in effect.
     onCaret: (before: string | null, formats: Format[]) => void;
@@ -57,7 +66,7 @@ export default forwardRef<
     style?: StyleProp<ViewStyle>;
   }
 >(function RichField(
-  { value, loadKey, onChange, onCaret, onBlur, placeholder, label, testID, autoFocus, minHeight, maxHeight, style },
+  { value, loadKey, onChange, onTyped, onCaret, onBlur, placeholder, label, testID, autoFocus, minHeight, maxHeight, style },
   ref,
 ) {
   const theme = useTheme();
@@ -74,6 +83,9 @@ export default forwardRef<
     loaded.current = { key: loadKey, revision: loadKey + 1, lines: docToLines(fromMarkdown(value)) };
   }
   const document = loaded.current;
+  // The caret's line up to it at the last change, to tell typing from
+  // deleting.
+  const typedBefore = useRef("");
   // The field in React Native's focus registry, so a tap on the timeline
   // or Keyboard.dismiss puts it away as it would a TextInput.
   const focusKey = useRef({}).current;
@@ -86,6 +98,8 @@ export default forwardRef<
       blur: () => void native.current?.blur(),
       replaceBeforeCaret: (count, text) => void native.current?.replaceBeforeCaret(count, text),
       format: (format) => void native.current?.format(format),
+      insertMention: (count, mention, after) => void native.current?.insertMention(count, mention, after),
+      markMention: (location, typed, mention) => void native.current?.markMention(location, typed, mention),
       commit: async () => {
         const lines = await native.current?.commit();
         return lines ? toMd(lines) : value;
@@ -111,6 +125,12 @@ export default forwardRef<
         if (nativeEvent.revision !== document.revision) return;
         onChange(toMd(nativeEvent.lines));
         caret(nativeEvent);
+        // Only when something was typed: a backspace that leaves "@dee "
+        // before the caret didn't just finish a handle.
+        const { start, end } = nativeEvent.selection;
+        const grew = nativeEvent.before.length > typedBefore.current.length;
+        typedBefore.current = nativeEvent.before;
+        if (start === end && grew) onTyped?.(nativeEvent.before, start);
       }}
       onEditorSelection={({ nativeEvent }) => {
         if (nativeEvent.revision === document.revision) caret(nativeEvent);

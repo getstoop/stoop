@@ -1,13 +1,15 @@
 import {
   candidateMention,
   type MentionCandidate,
+  type MentionRef,
   mentionToken,
 } from "./mentions";
 
 // What the phone's composer field does for a pick from the mention list,
 // or its @ button: the `count` characters before the caret replaced by
-// `text`. The field reads only the caret's line up to the caret.
-export type Replace = { count: number; text: string };
+// `text`, or by a pill for `mention` and then `text`. The field reads
+// only the caret's line up to the caret.
+export type Replace = { count: number; text: string; mention?: MentionRef };
 
 // What a picked row writes: its token, or @channel / @here as the words
 // they are sent as.
@@ -18,13 +20,16 @@ export function pickedWords(candidate: MentionCandidate): string {
 }
 
 // The query typed from `start` (its "@" or "#") to the caret replaced by
-// the pick and a space.
+// the pick and a space: a pill, or @channel / @here as words.
 export function pickReplace(
   before: string,
   start: number,
   candidate: MentionCandidate,
 ): Replace {
-  return { count: before.length - start, text: `${pickedWords(candidate)} ` };
+  const count = before.length - start;
+  const mention = candidateMention(candidate);
+  if (mention) return { count, text: " ", mention };
+  return { count, text: `${pickedWords(candidate)} ` };
 }
 
 // The character before an "@" that would make it part of a word, as

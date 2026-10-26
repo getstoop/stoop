@@ -1,5 +1,6 @@
 import { requireNativeView, requireOptionalNativeModule } from "expo";
 import type { EditorLine } from "@stoop/core/editor/lines";
+import type { MentionRef } from "@stoop/core/mentions";
 import type { Ref } from "react";
 import type { NativeSyntheticEvent, ViewProps } from "react-native";
 
@@ -120,6 +121,11 @@ export type RichEditorMethods = {
   replaceBeforeCaret(count: number, text: string): Promise<void>;
   // A format on or off (bold, italic, underline, strike, code, spoiler).
   format(name: string): Promise<void>;
+  // The `count` characters before the caret replaced by a pill, then
+  // `after`.
+  insertMention(count: number, mention: MentionRef, after: string): Promise<void>;
+  // The words `typed` at `location` made a pill, if they are still there.
+  markMention(location: number, typed: string, mention: MentionRef): Promise<void>;
   commit(): Promise<EditorLine[]>;
 };
 

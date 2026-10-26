@@ -51,3 +51,23 @@ name: Type mentions in full and see them sent as mentions
       STEP: typedMentions
       CHANNEL_ID: ${CHAPTERS_ID}
 - assertTrue: ${output.typedMentions}
+# A handle typed in full becomes a pill as the word ends, one unit: the
+# first backspace takes the space after it, the next the whole pill.
+- inputText: "cc @${POSTER} "
+- pressKey: Backspace
+- pressKey: Backspace
+- assertVisible:
+    id: "composer"
+    text: "cc "
+- inputText: "done"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "cc done"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "cc done"
+- assertTrue: ${output.count == 1}

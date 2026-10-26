@@ -166,20 +166,137 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     styler.restyle(textStorage, lines: editedRange)
   }
 
+  // A pill is one unit: a change that would cut into one takes it whole
+  // (a backspace after it deletes it), and nothing is typed inside one.
   // Lines end in "\n" only: a pasted "\r", or a line or paragraph
   // separator, is put in as one, so both platforms read the same lines.
   func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+    // A suggestion or correction for a pill's words (they look like a word
+    // to the keyboard) would rewrite the pill: it is let go.
+    if range.length > 0, !text.isEmpty, let pill = pill(around: range.location), range.location > pill.location {
+      return false
+    }
+    let whole = pillsWhole(range)
+    if whole != range {
+      replace(whole, with: text)
+      return false
+    }
     guard text.contains(where: { $0 == "\r" || $0 == "\r\n" || $0 == "\u{2028}" || $0 == "\u{2029}" }) else { return true }
     let plain = text.replacingOccurrences(of: "\r\n", with: "\n")
       .replacingOccurrences(of: "\r", with: "\n")
       .replacingOccurrences(of: "\u{2028}", with: "\n")
       .replacingOccurrences(of: "\u{2029}", with: "\n")
+    replace(range, with: plain)
+    return false
+  }
+
+  // Through the text input, so the keyboard and undo see it.
+  private func replace(_ range: NSRange, with text: String) {
     guard let start = textView.position(from: textView.beginningOfDocument, offset: range.location),
       let end = textView.position(from: start, offset: range.length),
       let textRange = textView.textRange(from: start, to: end)
-    else { return true }
-    textView.replace(textRange, withText: plain)
-    return false
+    else { return }
+    textView.replace(textRange, withText: text)
+  }
+
+  // MARK: Pills
+
+  // The whole of the pill whose words hold `location` strictly inside
+  // them (not at their edges).
+  private func pill(around location: Int) -> NSRange? {
+    guard location > 0, location < storage.length,
+      let box = storage.attribute(.editorMention, at: location, effectiveRange: nil) as? MentionBox,
+      storage.attribute(.editorMention, at: location - 1, effectiveRange: nil) as? MentionBox === box
+    else { return nil }
+    var whole = NSRange()
+    _ = storage.attribute(.editorMention, at: location, longestEffectiveRange: &whole, in: NSRange(location: 0, length: storage.length))
+    return whole
+  }
+
+  // A range grown to take every pill it cuts into whole; an insertion
+  // inside a pill moved to its end.
+  private func pillsWhole(_ range: NSRange) -> NSRange {
+    if range.length == 0 {
+      if let pill = pill(around: range.location) { return NSRange(location: NSMaxRange(pill), length: 0) }
+      return range
+    }
+    var start = range.location
+    var end = NSMaxRange(range)
+    if let pill = pill(around: start) { start = pill.location }
+    if let pill = pill(around: end) { end = NSMaxRange(pill) }
+    return NSRange(location: start, length: end - start)
+  }
+
+  private var snapping = false
+  // The selection as it last settled, for the way an edge is moving.
+  private var settled = NSRange(location: 0, length: 0)
+
+  // A caret or a selection's edge never rests inside a pill: it goes on
+  // past it the way it was moving (a caret stepped left from a pill's end
+  // goes to its start), or to the nearer edge when it jumped there (a
+  // tap).
+  private func snapSelection() {
+    defer { settled = textView.selectedRange }
+    guard !snapping, textView.markedTextRange == nil else { return }
+    let selected = textView.selectedRange
+    func edge(_ at: Int, was: Int) -> Int {
+      guard let pill = pill(around: at) else { return at }
+      if was <= pill.location { return NSMaxRange(pill) }
+      if was >= NSMaxRange(pill) { return pill.location }
+      return at - pill.location < NSMaxRange(pill) - at ? pill.location : NSMaxRange(pill)
+    }
+    var start = edge(selected.location, was: settled.location)
+    var end = selected.length == 0 ? start : edge(NSMaxRange(selected), was: NSMaxRange(settled))
+    if end < start { swap(&start, &end) }
+    let snapped = NSRange(location: start, length: end - start)
+    guard snapped != selected else { return }
+    snapping = true
+    textView.selectedRange = snapped
+    snapping = false
+  }
+
+  // A pick from the mention list: the query before the caret replaced by
+  // a pill, then `after` (its space).
+  func insertMention(_ count: Int, _ mention: EditorMentionRecord, _ after: String) {
+    let caret = textView.selectedRange.location
+    let string = storage.string as NSString
+    let line = string.lineRange(for: NSRange(location: caret, length: 0))
+    let from = max(line.location, caret - max(0, count))
+    let box = MentionBox(kind: mention.kind, id: mention.id, handle: mention.handle)
+    var meaning = self.meaning(at: from)
+    meaning.removeValue(forKey: .editorHref)
+    textView.typingAttributes = styler.look(for: meaning)
+    replace(NSRange(location: from, length: caret - from), with: box.words + after)
+    makePill(NSRange(location: from, length: (box.words as NSString).length), box)
+  }
+
+  // A handle typed in full that JS found has one owner: its words, at
+  // `location`, become the pill, if they are still there as typed.
+  func markMention(_ location: Int, _ typed: String, _ mention: EditorMentionRecord) {
+    let length = (typed as NSString).length
+    guard location >= 0, location + length <= storage.length else { return }
+    let range = NSRange(location: location, length: length)
+    guard (storage.string as NSString).substring(with: range) == typed else { return }
+    var cut = false
+    storage.enumerateAttribute(.editorMention, in: range) { value, _, _ in if value != nil { cut = true } }
+    guard !cut else { return }
+    let box = MentionBox(kind: mention.kind, id: mention.id, handle: mention.handle)
+    let words = box.words as NSString
+    if words as String != typed {
+      // Typed in other capitals: the pill reads as the handle does.
+      let caret = textView.selectedRange
+      replace(range, with: box.words)
+      textView.selectedRange = NSRange(location: caret.location + words.length - length, length: caret.length)
+    }
+    makePill(NSRange(location: location, length: words.length), box)
+  }
+
+  private func makePill(_ range: NSRange, _ box: MentionBox) {
+    storage.beginEditing()
+    storage.addAttribute(.editorMention, value: box, range: range)
+    styler.restyle(storage, lines: range)
+    storage.endEditing()
+    textViewDidChange(textView)
   }
 
   func textViewDidChange(_ textView: UITextView) {
@@ -191,6 +308,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   }
 
   func textViewDidChangeSelection(_ textView: UITextView) {
+    snapSelection()
     textView.typingAttributes = styler.look(for: meaning(at: textView.selectedRange.location))
     container.trailingBlock = trailingBlock()
     onEditorSelection(selectionPayload())
