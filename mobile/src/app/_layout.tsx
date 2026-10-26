@@ -1,21 +1,32 @@
 import { Stack } from "expo-router";
+import { StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
 import { ThemeProvider, useTheme } from "../theme";
 
 // The root of the app. Files under src/app are routes and layouts only,
-// a few lines each; the screens they show live in src/screens.
+// a few lines each; the screens they show live in src/screens. Gestures
+// (the picture viewer's) need their root view around everything.
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <ServersProvider>
-        <RealtimeProvider>
-          <RootStack />
-        </RealtimeProvider>
-      </ServersProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <ThemeProvider>
+        <ServersProvider>
+          <RealtimeProvider>
+            <RootStack />
+          </RealtimeProvider>
+        </ServersProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
 
 // One stack for now, with the platform's own back button and gesture.
 // The header carries no title: each screen puts its heading in its body.

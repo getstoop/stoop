@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: See files under messages, a photo, two in a grid, a PDF and an expired file, and share the PDF
+name: See files under messages, a photo, two in a grid, a PDF and an expired file, page through the photos full screen, and share the PDF
 ---
 # photos (seed.mjs): dee's landscape photo, then a portrait one, the two
 # together, a PDF, and, newest, a photo since expired. Each file is one
@@ -42,16 +42,16 @@ name: See files under messages, a photo, two in a grid, a PDF and an expired fil
 - assertVisible: "trail-notes\\.pdf, 585 B"
 - assertVisible: "Image 1 of 2, ridge-landscape\\.jpg"
 - assertVisible: "Image 2 of 2, hut-portrait\\.jpg"
-- assertVisible: "Image, hut-portrait\\.jpg"
+- assertVisible: "Image, hut-portrait\\.jpg\\. Opens full screen"
 - scrollUntilVisible:
-    element: "Image, ridge-landscape\\.jpg"
+    element: "Image, ridge-landscape\\.jpg\\. Opens full screen"
     direction: UP
 - assertNotVisible: "📎.*"
 # A long press on a photo is the row's: the menu's card draws the
 # message's files small, the photo once more under the same name.
 - waitForAnimationToEnd:
     timeout: 3000
-- longPressOn: "Image, ridge-landscape\\.jpg"
+- longPressOn: "Image, ridge-landscape\\.jpg\\. Opens full screen"
 - extendedWaitUntil:
     visible: "Quote in reply"
     timeout: 5000
@@ -62,6 +62,26 @@ name: See files under messages, a photo, two in a grid, a PDF and an expired fil
 - extendedWaitUntil:
     notVisible: "Quote in reply"
     timeout: 5000
+# A tap on a photo opens it full screen, as the first of the channel's
+# four (the expired one is none of them), read with who sent it; a swipe
+# pages to the next, and Close goes back to the channel.
+- tapOn: "Image, ridge-landscape\\.jpg\\. Opens full screen"
+- extendedWaitUntil:
+    visible: "ridge-landscape\\.jpg, image 1 of 4, from .*"
+    timeout: 5000
+- assertVisible: "1 of 4"
+- swipe:
+    direction: LEFT
+- extendedWaitUntil:
+    visible: "hut-portrait\\.jpg, image 2 of 4, from .*"
+    timeout: 5000
+- assertVisible: "2 of 4"
+- tapOn:
+    id: "viewer-close"
+- extendedWaitUntil:
+    notVisible: "2 of 4"
+    timeout: 5000
+- assertVisible: "Image, ridge-landscape\\.jpg\\. Opens full screen"
 # A tap on the PDF downloads it and opens the system's share sheet on it.
 - scrollUntilVisible:
     element: "trail-notes\\.pdf, 585 B"

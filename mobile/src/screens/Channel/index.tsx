@@ -11,6 +11,9 @@ import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
 import MessageContexts from "../../components/MessageContexts";
+import Viewer from "../../components/Viewer";
+import { itemKey } from "../../components/Viewer/items";
+import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -47,7 +50,9 @@ import { useMessageActions } from "./useMessageActions";
 // quote picked ends an edit. A root's replies line, or Reply in thread
 // once the menu has gone, pushes the thread over the channel
 // (screens/Thread), which shares this screen's log, as does the line on
-// a reply also sent to the channel, which opens its thread on it. The
+// a reply also sent to the channel, which opens its thread on it. A tap
+// on a picture opens the viewer over the channel (components/Viewer),
+// stepping through the pictures it has loaded. The
 // menu, the quote, the edit and the refusals are useMessageActions',
 // shared with the thread; the layout is ComposerDock's. What is held and
 // what each answer and event does to it is the channel log's
@@ -156,6 +161,7 @@ export default function Channel({
   });
   const { menuFor, menuMessage } = actions;
   const links = useChannelLinks(server, spaceId, channelId, header);
+  const viewer = useViewer(messages);
   const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // And Reply in thread pushes the thread then.
   useEffect(() => {
@@ -217,7 +223,7 @@ export default function Channel({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <MessageContexts links={links} previews={previews}>
+          <MessageContexts links={links} previews={previews} view={viewer.open}>
             <FlatList
               ref={list}
               inverted
@@ -319,6 +325,16 @@ export default function Channel({
           />
         )}
       </MessageContexts>
+      {viewer.viewing && (
+        <Viewer
+          key={itemKey(viewer.viewing.items[viewer.viewing.index])}
+          items={viewer.viewing.items}
+          start={viewer.viewing.index}
+          origin={server.origin}
+          token={token}
+          onClose={viewer.close}
+        />
+      )}
     </View>
   );
 }
