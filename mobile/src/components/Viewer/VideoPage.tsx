@@ -3,10 +3,10 @@ import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { type ComponentRef, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
-import { fileAnswers, fileSource } from "../../api/downloads";
+import { fileSource } from "../../api/files";
 import { markdown, tokens, useTheme } from "../../theme";
 import Card from "../Attachments/Card";
-import { isUnplayable, markUnplayable } from "../Attachments/unplayable";
+import { isUnplayable, markUnplayable, whyFailed } from "../Attachments/unplayable";
 import { cardLabel } from "../Attachments/words";
 import { FileIcon } from "../Icons";
 import type { BarHeights } from "./Bars";
@@ -28,15 +28,13 @@ import type { ViewerItem } from "./items";
 // and comes back to this page. On Android it is an activity of its own,
 // so the app counts as in the background while it is up: the sockets
 // close and catch up on the way back.
-// When the player gives up before the file has loaded, its first byte is
-// asked for (after, the error is the network's: couldn't load); and on
-// Android a file whose video tracks the phone says it can't decode is
-// known at load. A file that answers is one this phone can't decode,
-// which shows web's card with a sentence saying so (the card's tap
-// shares it, as the top bar's Share does) and, for as long as the app
-// runs, the timeline draws as that card too (Attachments/unplayable);
-// one that doesn't answer (offline, refused, gone) says it couldn't load
-// and tries again on a tap. For a screen reader the page is one adjustable element, as a
+// When the player gives up, Attachments/unplayable (whyFailed) says why;
+// and on Android a file whose video tracks the phone says it can't
+// decode is known at load. One this phone can't decode shows web's card
+// with a sentence saying so (the card's tap shares it, as the top bar's
+// Share does) and, for as long as the app runs, the timeline draws as
+// that card too; one that couldn't load says so and tries again on a
+// tap. For a screen reader the page is one adjustable element, as a
 // picture's is, its value Playing or Paused: increment and decrement
 // page (onStep), and activating it plays or pauses, shares, or tries
 // again.
@@ -102,18 +100,11 @@ export default function VideoPage({
     markUnplayable(fileId);
     setState("unplayable");
   }, [fileId]);
-  // An error before the file loaded may be one it can't decode, which
-  // the first byte tells; one after is the network's (a drop mid-play
-  // that recovers would answer the probe and be called undecodable).
   const failed = useCallback(
     (loaded: boolean) => {
-      if (loaded) {
-        setState("unloaded");
-        return;
-      }
-      fileAnswers(origin, token, fileId).then((answers) => {
+      whyFailed(origin, token, fileId, loaded).then((why) => {
         if (!mounted.current) return;
-        if (answers) unplayable();
+        if (why === "unplayable") unplayable();
         else setState("unloaded");
       });
     },

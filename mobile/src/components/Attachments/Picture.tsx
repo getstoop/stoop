@@ -2,7 +2,7 @@ import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Image } from "expo-image";
 import { useContext, useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { fileSource } from "../../api/downloads";
+import { fileSource } from "../../api/files";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { PhotoIcon } from "../Icons";
 import { ViewerContext } from "../Viewer/useViewer";

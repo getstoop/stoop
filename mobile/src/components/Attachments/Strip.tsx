@@ -2,7 +2,7 @@ import { attachmentKind, formatBytes } from "@stoop/core/attachments";
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Image } from "expo-image";
 import { StyleSheet, Text, View } from "react-native";
-import { fileSource } from "../../api/downloads";
+import { fileSource } from "../../api/files";
 import { markdown, type Theme, tokens, useTheme } from "../../theme";
 import { FileIcon, PlayIcon } from "../Icons";
 import { cardLabel, expiredLabel, imageLabel } from "./words";

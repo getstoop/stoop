@@ -4,9 +4,9 @@ import { AccessibilityInfo, BackHandler, type LayoutChangeEvent, Modal, Platform
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { downloadAttachment, shareDownloaded } from "../../api/downloads";
 import { tokens } from "../../theme";
-import Bars, { type BarHeights, type Sharing } from "./Bars";
+import { useShareFile } from "../Attachments/useShareFile";
+import Bars, { type BarHeights } from "./Bars";
 import { isVideo, itemKey, pageLabel, type ViewerItem } from "./items";
 import Page from "./Page";
 import Pager from "./Pager";
@@ -51,7 +51,7 @@ export default function Viewer({
   const [bars, setBars] = useState(true);
   const [zoomed, setZoomed] = useState(false);
   const [reader, setReader] = useState(false);
-  const [sharing, setSharing] = useState<{ fileId: string; state: Sharing }>({ fileId: "", state: "idle" });
+  const { sharing, share: shareFile } = useShareFile(origin, token);
   // How tall the bars are, for a video's box between them, and whether
   // the page on screen is a video's player, which takes every touch over
   // it (the pager then pages from the bars).
@@ -135,19 +135,7 @@ export default function Viewer({
   };
 
   const item = items[index];
-  const share = () => {
-    if (sharing.state === "going") return;
-    const { attachment } = item;
-    setSharing({ fileId: attachment.fileId, state: "going" });
-    downloadAttachment(origin, token, attachment, () => {}).then(
-      (uri) => {
-        if (!mounted.current) return;
-        setSharing({ fileId: attachment.fileId, state: "idle" });
-        shareDownloaded(uri, attachment).catch(() => {});
-      },
-      () => mounted.current && setSharing({ fileId: attachment.fileId, state: "failed" }),
-    );
-  };
+  const share = () => shareFile(item.attachment);
 
   // The black fades as the picture is dragged down, and the picture
   // shrinks a little as it follows the finger.

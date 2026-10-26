@@ -18,7 +18,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { fileSource } from "../../api/downloads";
+import { fileSource } from "../../api/files";
 import { tokens } from "../../theme";
 import { PhotoIcon } from "../Icons";
 import type { ViewerItem } from "./items";

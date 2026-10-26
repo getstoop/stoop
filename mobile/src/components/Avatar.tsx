@@ -1,10 +1,12 @@
+import { Image } from "expo-image";
 import { useState } from "react";
-import { Image, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { fileSource } from "../api/files";
 import { type Theme, useTheme } from "../theme";
 
-// A person's avatar, fetched with the session as a bearer token, or their
-// initials when they have none or it won't load. Decorative: the name
-// beside it says who.
+// A person's avatar, fetched with the session as a bearer token
+// (expo-image, whose cache sign-out clears), or their initials when they
+// have none or it won't load. Decorative: the name beside it says who.
 export default function Avatar({
   name,
   fileId,
@@ -28,7 +30,7 @@ export default function Avatar({
     <View style={[styles.avatar, style]} accessibilityElementsHidden importantForAccessibility="no">
       {fileId && !failed ? (
         <Image
-          source={{ uri: `${origin}/files/${fileId}`, headers: { Authorization: `Bearer ${token}` } }}
+          source={fileSource(origin, token, fileId)}
           style={styles.image}
           onError={() => setFailed(true)}
         />

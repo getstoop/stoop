@@ -1,7 +1,9 @@
 import { previewSite } from "@stoop/core/linkPreviews";
 import type { LinkPreview } from "@stoop/gen/stoop/chat/v1/message_pb";
+import { Image } from "expo-image";
 import { useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { fileSource } from "../../api/files";
 import { markdown, type Theme, tokens, useTheme } from "../../theme";
 import { CloseIcon } from "../Icons";
 import type { CardLayout } from "./layout";
@@ -10,8 +12,9 @@ import type { CardLayout } from "./layout";
 // the title in the accent and up to three lines of description, on the
 // message's surface behind the accent bar, with the image beside or
 // under them, or the image alone. The image is the server's copy, from
-// /files with the session (as an avatar is), so nothing reaches the
-// linked site; one that won't load is left out. A tap opens the link in
+// /files with the session (as an avatar is, through expo-image's cache,
+// which sign-out clears), so nothing reaches the linked site; one that
+// won't load is left out. A tap opens the link in
 // the browser; a long press is the row's. `onDismiss`, for whoever may
 // delete the message, puts web's × over the card's corner.
 export default function Card({
@@ -66,9 +69,9 @@ export default function Card({
         )}
         {image && !failed && (
           <Image
-            source={{ uri: `${origin}/files/${preview.imageFileId}`, headers: { Authorization: `Bearer ${token}` } }}
+            source={fileSource(origin, token, preview.imageFileId)}
             style={[styles.image, image]}
-            resizeMode="cover"
+            contentFit="cover"
             onError={() => setFailed(true)}
           />
         )}

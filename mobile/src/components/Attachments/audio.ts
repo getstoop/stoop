@@ -1,8 +1,8 @@
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { createVideoPlayer, type VideoPlayer } from "expo-video";
 import { createContext, useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { fileAnswers, fileSource } from "../../api/downloads";
-import { markUnplayable } from "./unplayable";
+import { fileSource } from "../../api/files";
+import { markUnplayable, whyFailed } from "./unplayable";
 
 // The audio a screen of messages plays: one file at a time, on one
 // expo-video player with no view (AVPlayer, ExoPlayer play audio files
@@ -13,15 +13,10 @@ import { markUnplayable } from "./unplayable";
 // no view isn't paused by the system when the app goes to the
 // background, and nothing here plays there.
 //
-// A file that fails before it loads while the server still hands it
-// over (its first byte, with the session: fileAnswers) is one the phone
-// can't decode: it joins the unplayable ones, and the timeline draws it as
-// the card that shares it. Any other failure (offline, a session gone,
-// the connection dropping mid-way) leaves the player, whose row says
-// "Couldn't play · tap to retry" until Play is tapped again. A failure
-// once the file has loaded is taken for the network's, even when it
-// was the decoder's part-way through: a retry costs a tap, a card would
-// stand for the rest of the run.
+// A file the phone can't decode (unplayable.ts → whyFailed) joins the
+// unplayable ones, and the timeline draws it as the card that shares it.
+// One that couldn't load leaves the player, whose row says "Couldn't
+// play · tap to retry" until Play is tapped again.
 //
 // The player keeps expo-video's audio session: on iOS the playback
 // category, so a tapped Play is heard with the silent switch on, as a
@@ -166,10 +161,9 @@ export class AudioPlayback {
       player.addListener("statusChange", ({ status }) => {
         if (status !== "error") return;
         this.release();
-        if (loaded) return this.markFailed(fileId);
-        fileAnswers(origin, token, fileId).then((answers) => {
+        whyFailed(origin, token, fileId, loaded).then((why) => {
           if (this.attempt !== attempt) return;
-          if (answers) markUnplayable(fileId);
+          if (why === "unplayable") markUnplayable(fileId);
           else this.markFailed(fileId);
         });
       }),

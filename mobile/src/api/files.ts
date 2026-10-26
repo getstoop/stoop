@@ -10,6 +10,22 @@ import { uploadWithoutCookies } from "./fetch";
 // Android streams them from disk, iOS holds the built body in native
 // memory while it sends.
 
+// Where a file is fetched from, GET /files/<id>, with the session as a
+// bearer token: one place, so expo-image's cache key and a download's
+// address agree (api/downloads reuses what the image cache holds) and
+// every picture drawn with the session goes into the cache sign-out
+// clears. (An invite's space icon, drawn before sign-in with the invite's
+// code, is the one picture from /files without it.)
+export const fileUrl = (origin: string, fileId: string) => `${origin}/files/${fileId}`;
+
+export const fileHeaders = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+// A file to draw with expo-image, which caches it by this address.
+export const fileSource = (origin: string, token: string, fileId: string) => ({
+  uri: fileUrl(origin, fileId),
+  headers: fileHeaders(token),
+});
+
 // A file on the phone, as a picker hands it over.
 export type LocalFile = { uri: string; name: string; type: string };
 

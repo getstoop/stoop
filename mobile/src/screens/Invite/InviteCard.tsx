@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { fileUrl } from "../../api/files";
 import type { InviteCheck } from "../../api/invites";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ProbeCard from "../AddServer/ProbeCard";
@@ -47,7 +48,7 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
             name={preview.spaceName}
             icon={
               preview.spaceIconFileId &&
-              `${result.origin}/files/${preview.spaceIconFileId}?invite=${encodeURIComponent(result.code)}`
+              `${fileUrl(result.origin, preview.spaceIconFileId)}?invite=${encodeURIComponent(result.code)}`
             }
             styles={styles}
           />
