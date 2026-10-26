@@ -1,6 +1,4 @@
-import { MAX_ATTACHMENT_BYTES, type UploadedFile, uploadSlots } from "@stoop/core/attachments";
-import { useEffect, useState } from "react";
-import { instanceClient } from "./clients";
+import { type UploadedFile, uploadSlots } from "@stoop/core/attachments";
 import { uploadWithoutCookies } from "./fetch";
 
 // A message's files, uploaded as they are picked: POST /files/upload, a
@@ -11,8 +9,6 @@ import { uploadWithoutCookies } from "./fetch";
 // (api/fetch uploadWithoutCookies), so the bytes never pass through JS:
 // Android streams them from disk, iOS holds the built body in native
 // memory while it sends.
-
-const TIMEOUT_MS = 10000;
 
 // A file on the phone, as a picker hands it over.
 export type LocalFile = { uri: string; name: string; type: string };
@@ -50,26 +46,4 @@ export async function uploadAttachment(
     throw new Error(message);
   }
   return JSON.parse(body) as UploadedFile;
-}
-
-// The server's cap on one file (GetInstanceStatus max_upload_bytes), read
-// as the screen opens, so a file over it fails before uploading. The
-// server's own ceiling until it answers, or if it doesn't; the server
-// enforces the cap either way.
-export function useUploadCap(origin: string): number {
-  const [cap, setCap] = useState(MAX_ATTACHMENT_BYTES);
-  useEffect(() => {
-    let live = true;
-    instanceClient(origin)
-      .getInstanceStatus({}, { timeoutMs: TIMEOUT_MS })
-      .then((status) => {
-        const bytes = Number(status.maxUploadBytes);
-        if (live && bytes > 0) setCap(bytes);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [origin]);
-  return cap;
 }

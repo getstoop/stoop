@@ -6,6 +6,7 @@ import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
+import LinkPreviews from "../../components/LinkPreviews";
 import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Reactions from "./Reactions";
@@ -38,8 +39,9 @@ const GAP = 10;
 // (onOpenOrigin); in its thread it says where else it went
 // (`alsoSentTo`). Its reactions are chips under its words and files,
 // over the thread's line (Reactions), each toggling the reader's own
-// (onReact); not on the card, nor on a placeholder. Link previews come
-// in a later step.
+// (onReact); not on the card, nor on a placeholder. Its links' preview
+// cards come after its files (LinkPreviews), as on web; not on the card,
+// as web's pins, search and linked-message cards draw none.
 export default memo(function MessageRow({
   message,
   continued,
@@ -118,7 +120,10 @@ export default memo(function MessageRow({
           📎 {file.name}
         </Text>
       ))}
-      {alsoSentTo && <Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
+      {!card && (
+        <LinkPreviews message={message} myUserId={myUserId} origin={origin} token={token} onLongPress={hold} />
+      )}
+      {alsoSentTo &&<Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
       {!card && onReact && <Reactions message={message} myUserId={myUserId} onReact={onReact} onLongPress={hold} />}
       {thread}
     </>

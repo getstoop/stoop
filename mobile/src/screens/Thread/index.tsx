@@ -7,9 +7,10 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
 import { errorText } from "../../api/errors";
-import { useUploadCap } from "../../api/files";
+import { useServerStatus } from "../../api/instance";
 import { threadMessageLink } from "../../api/shareLinks";
-import { ChannelLinksContext } from "../../components/MessageBody/channelLinks";
+import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
+import MessageContexts from "../../components/MessageContexts";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -73,7 +74,7 @@ export default function Thread({
   const router = useRouter();
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
-  const maxUploadBytes = useUploadCap(server.origin);
+  const status = useServerStatus(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId, rootId);
   const { log, header, outcome, token, threads } = state;
   const thread = threads[rootId];
@@ -159,6 +160,7 @@ export default function Thread({
   });
   const { send, edit, muteThread } = engine;
   const links = useChannelLinks(server, spaceId, channelId, header, true);
+  const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // A mute asked for: the bell waits for the server's answer, as web's,
   // and a second tap meanwhile does nothing. Each tap turns over what
   // the log holds as it lands, not what the header was drawn with.
@@ -265,7 +267,7 @@ export default function Thread({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <ChannelLinksContext.Provider value={links}>
+          <MessageContexts links={links} previews={previews}>
             <FlatList
               ref={list}
               inverted
@@ -317,7 +319,7 @@ export default function Thread({
                 ) : undefined
               }
             />
-          </ChannelLinksContext.Provider>
+          </MessageContexts>
         )}
         composer={
           closed ? (
@@ -330,7 +332,7 @@ export default function Thread({
               inThread
               send={sendHere}
               upload={engine.upload}
-              maxUploadBytes={maxUploadBytes}
+              maxUploadBytes={status.maxUploadBytes}
               edit={edit}
               replyTo={actions.replyTo}
               onCancelReply={actions.cancelReply}
@@ -341,7 +343,7 @@ export default function Thread({
           )
         }
       />
-      <ChannelLinksContext.Provider value={links}>
+      <MessageContexts links={links} previews={previews}>
         {menuMessage && (
           <MessageMenu
             message={menuMessage}
@@ -358,7 +360,7 @@ export default function Thread({
             onClose={actions.closeMenu}
           />
         )}
-      </ChannelLinksContext.Provider>
+      </MessageContexts>
     </Screen>
   );
 }

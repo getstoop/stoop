@@ -3,7 +3,7 @@ import type { GroupedRow } from "@stoop/core/grouping";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import * as Haptics from "expo-haptics";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
-import type { FlatList } from "react-native";
+import { Alert, type FlatList } from "react-native";
 import { errorText } from "../../api/errors";
 import type { ChannelEngine } from "./channelEngine";
 import type { ComposerHandle } from "./Composer";
@@ -20,7 +20,8 @@ import type { ComposerHandle } from "./Composer";
 // no composer is shown (`composing` false: a thread that takes no
 // replies) there is nothing to quote or edit into, and a quote or an
 // edit held goes as that starts. A change of `scope` (another channel,
-// another thread) lets it all go.
+// another thread) lets it all go. A link preview's × asks first, as
+// web's does, and takes the card off for everyone.
 
 // How long a refusal's line stays.
 const NOTICE_MS = 4000;
@@ -48,7 +49,7 @@ export function useMessageActions({
   log: ChannelLog;
   // The channel has gone, or can't be shown.
   gone: boolean;
-  engine: Pick<ChannelEngine, "react" | "remove">;
+  engine: Pick<ChannelEngine, "react" | "remove" | "dismissPreview">;
   keyboard: number;
   focused: boolean;
   composing?: boolean;
@@ -56,7 +57,7 @@ export function useMessageActions({
   // The list's rows, newest first.
   items: GroupedRow[];
 }) {
-  const { react, remove } = engine;
+  const { react, remove, dismissPreview: dismissCard } = engine;
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -112,6 +113,20 @@ export function useMessageActions({
     [remove, notify],
   );
   const linkNotCopied = useCallback(() => notify("Couldn't copy the link"), [notify]);
+  const dismissPreview = useCallback(
+    (message: Message, url: string) =>
+      Alert.alert("Remove this preview?", "It's removed for everyone.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            dismissCard(message, url).catch((err) => notify("Couldn't remove the preview", errorText(err)));
+          },
+        },
+      ]),
+    [dismissCard, notify],
+  );
   const quote = useCallback((message: Message) => {
     setEditingId(null);
     setReplyToId(message.id);
@@ -200,6 +215,7 @@ export function useMessageActions({
     notify,
     reactTo,
     deleteMessage,
+    dismissPreview,
     linkNotCopied,
     quote,
     startEdit,

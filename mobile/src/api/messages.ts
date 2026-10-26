@@ -208,3 +208,9 @@ export async function editMessage(origin: string, token: string, messageId: stri
 export async function deleteMessage(origin: string, token: string, messageId: string): Promise<void> {
   await chatClient(origin, token).deleteMessage({ messageId }, { timeoutMs: TIMEOUT_MS });
 }
+
+// One link's card taken off a message, for everyone, by DeleteMessage's
+// rule; the server sends the message again without it.
+export async function dismissLinkPreview(origin: string, token: string, messageId: string, url: string): Promise<void> {
+  await chatClient(origin, token).dismissLinkPreview({ messageId, url }, { timeoutMs: TIMEOUT_MS });
+}
