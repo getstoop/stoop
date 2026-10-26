@@ -60,8 +60,11 @@ func wantsThumbnail(contentType string, head []byte, width, height int) bool {
 
 // pngAnimated reports whether a PNG has an acTL chunk before its image
 // data: an APNG, whose still would stop the animation. It steps from
-// chunk to chunk by their lengths, at most 256 of them; a header that
-// ends or won't read first counts as still.
+// chunk to chunk by their lengths, at most 256 of them. A header that
+// ends or won't read first counts as still (the upload asks with the
+// first bytes only, and the job's decode refuses a broken file); one
+// with more chunks than that before its image data counts as animated,
+// so the original is served rather than a still in its place.
 func pngAnimated(file io.ReadSeeker) bool {
 	if _, err := file.Seek(8, io.SeekStart); err != nil {
 		return false
@@ -82,7 +85,7 @@ func pngAnimated(file io.ReadSeeker) bool {
 			return false
 		}
 	}
-	return false
+	return true
 }
 
 // imageHeader is what the bound is reckoned from, all of it read before

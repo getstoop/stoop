@@ -160,8 +160,9 @@ on a phone, and its original is often several megabytes. So a PNG, JPEG
 or still WebP attachment larger than 1024 px on a side gets a smaller
 copy, made by the `thumbnail_attachment` job (`thumbnail.go`), which the
 upload queues once the file is stored. Never for a GIF, an animated WebP
-or an APNG (an `acTL` chunk before the image data), whose still would
-stop the animation, and none is kept that would be no smaller than its
+or an APNG (an `acTL` chunk before the image data, or more than 256
+chunks before it, which might hide one), whose still would stop the
+animation, and none is kept that would be no smaller than its
 original. The message carries it as `Attachment.thumbnail_file_id`, and
 the clients draw it inline when it is set; the preview, downloads and
 the phone's Share use the original.

@@ -328,6 +328,12 @@ func TestThumbnailSkipsAPNG(t *testing.T) {
 	if _, err := makeThumbnail(bytes.NewReader(late), "image/png"); !errors.Is(err, errNoThumbnailNeeded) {
 		t.Errorf("APNG: %v, want a skip", err)
 	}
+	// More chunks before the image data than the walk reads: the acTL
+	// may be among the rest, so it is a skip.
+	long := rawPNG(t, pngSpec{width: 1500, height: 1000, depth: 8, colorType: 6, animated: true, comments: 300})
+	if _, err := makeThumbnail(bytes.NewReader(long), "image/png"); !errors.Is(err, errNoThumbnailNeeded) {
+		t.Errorf("APNG past 256 chunks: %v, want a skip", err)
+	}
 	still := rawPNG(t, pngSpec{width: 1500, height: 1000, depth: 8, colorType: 6})
 	if _, err := makeThumbnail(bytes.NewReader(still), "image/png"); err != nil {
 		t.Errorf("a still PNG: %v", err)
@@ -456,12 +462,13 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 }
 
 // pngSpec is a PNG for rawPNG to write: its header fields, and whether
-// it carries a tRNS chunk, an acTL chunk, and padding before either.
+// it carries a tRNS chunk, an acTL chunk, and padding or a run of
+// comment chunks before either.
 type pngSpec struct {
 	width, height                     int
 	depth, colorType                  byte
 	transparent, interlaced, animated bool
-	padding                           int
+	padding, comments                 int
 }
 
 // rawPNG writes a PNG of zero-valued pixels by hand: Go's encoder writes
@@ -486,6 +493,9 @@ func rawPNG(t *testing.T, spec pngSpec) []byte {
 	out = chunk(out, "IHDR", append(ihdr, spec.depth, spec.colorType, 0, 0, interlace))
 	if spec.padding > 0 {
 		out = chunk(out, "tEXt", append([]byte("Comment\x00"), make([]byte, spec.padding)...))
+	}
+	for range spec.comments {
+		out = chunk(out, "tEXt", []byte("Comment\x00hi"))
 	}
 	if spec.animated {
 		out = chunk(out, "acTL", []byte{0, 0, 0, 2, 0, 0, 0, 0})
