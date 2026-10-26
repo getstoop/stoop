@@ -1,6 +1,6 @@
 import { fileUrl } from "../api/files";
 import { useServerOrigins } from "../api/queries";
-import { linkedMessage } from "../api/shareLinks";
+import { previewShape, previewSite, shownPreviews } from "../core/linkPreviews";
 import type { LinkPreview } from "../gen/stoop/chat/v1/message_pb";
 import { CloseIcon } from "./Icons";
 
@@ -16,8 +16,7 @@ export function LinkPreviews({
   previews: LinkPreview[];
   onDismiss?: (url: string) => void;
 }) {
-  const origins = useServerOrigins();
-  const shown = previews.filter((p) => !linkedMessage(p.url, origins));
+  const shown = shownPreviews(previews, useServerOrigins());
   if (shown.length === 0) return null;
   return (
     <div className="link-previews">
@@ -42,14 +41,7 @@ export function LinkPreviews({
 }
 
 function LinkPreviewCard({ preview: p }: { preview: LinkPreview }) {
-  let host = "";
-  try {
-    host = new URL(p.url).host.replace(/^www\./, "");
-  } catch {
-    host = "";
-  }
-  const imageOnly = !p.title && p.imageFileId;
-  const landscape = p.imageWidth >= p.imageHeight * 1.3;
+  const { imageOnly, landscape } = previewShape(p);
   return (
     <a
       className={`link-preview ${imageOnly ? "image-only" : ""} ${landscape ? "landscape" : ""}`}
@@ -59,7 +51,7 @@ function LinkPreviewCard({ preview: p }: { preview: LinkPreview }) {
     >
       {!imageOnly && (
         <span className="link-preview-text">
-          <span className="link-preview-site">{p.siteName || host}</span>
+          <span className="link-preview-site">{previewSite(p)}</span>
           <span className="link-preview-title">{p.title}</span>
           {p.description && (
             <span className="link-preview-description">{p.description}</span>

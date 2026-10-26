@@ -1,6 +1,7 @@
-// The paths a shared link to a channel or a message carries, shared with
-// the phone. What makes them links (the server's origin, the clipboard)
-// and what a browser does on landing on one stay in web/src/api/shareLinks.ts.
+// The paths a shared link to a channel or a message carries, and the
+// message a pasted link leads to, shared with the phone. What makes them
+// links (the server's origin, the clipboard) and what a browser does on
+// landing on one stay in web/src/api/shareLinks.ts.
 
 // A space channel, or a direct message when there is no space.
 export function channelPath(spaceId: string, channelId: string): string {
@@ -43,4 +44,53 @@ export function messageLinkPath(
   if (threadRootId && threadRootId !== messageId && !inChannel)
     return threadPath(spaceId, channelId, threadRootId, messageId);
   return messagePath(spaceId, channelId, messageId);
+}
+
+// The message a link leads to.
+export interface LinkedMessage {
+  spaceId: string;
+  channelId: string;
+  messageId: string;
+  // Set when the message is a reply in this thread.
+  threadRootId: string;
+}
+
+// The space-channel message an absolute link names, when the link is to
+// one of the given origins (serverOrigins). Null for anything else, a
+// direct message's included.
+export function linkedMessage(
+  href: string,
+  origins: string[],
+): LinkedMessage | null {
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
+    return null;
+  }
+  if (!origins.includes(url.origin)) return null;
+  const seg = url.pathname.split("/").filter((s) => s !== "");
+  if (seg.length !== 4 || seg[0] !== "s" || seg[2] !== "c") return null;
+  const rootId = url.searchParams.get("t") ?? "";
+  const messageId = url.searchParams.get("m") || rootId;
+  if (!messageId) return null;
+  return {
+    spaceId: seg[1],
+    channelId: seg[3],
+    messageId,
+    threadRootId: rootId === messageId ? "" : rootId,
+  };
+}
+
+// The origins a link to this server may carry: the one the reader reached
+// it by, and its configured public address (GetInstanceStatus
+// public_url) when it has one.
+export function serverOrigins(reached: string, publicUrl?: string): string[] {
+  const origins = [reached];
+  try {
+    if (publicUrl) origins.push(new URL(publicUrl).origin);
+  } catch {
+    // An address that doesn't parse names no origin.
+  }
+  return origins;
 }
