@@ -24,7 +24,10 @@ import type { ViewerItem } from "./items";
 // keeps them from showing, so while a player is up (onPlayer) the pager
 // pages from swipes on the bars instead, and there is no drag down to
 // close. The controls' full screen button is the platform's player over
-// the whole screen, which comes back to this page.
+// the whole screen, which turns with the phone though the app doesn't,
+// and comes back to this page. On Android it is an activity of its own,
+// so the app counts as in the background while it is up: the sockets
+// close and catch up on the way back.
 // When the player gives up before the file has loaded, its first byte is
 // asked for (after, the error is the network's: couldn't load); and on
 // Android a file whose video tracks the phone says it can't decode is
