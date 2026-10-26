@@ -324,7 +324,7 @@ func TestFitCostCoversTheScaling(t *testing.T) {
 			sourceRows, width, height int
 			process                   func() error
 		}{
-			{"normalise", min(cfg.Width, cfg.Height), SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, contentType, SpaceIconSize); return err }},
+			{"normalise", min(cfg.Width, cfg.Height), SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, header.orientation, SpaceIconSize); return err }},
 			{"fit", cfg.Height, fitWidth, fitHeight, func() error {
 				_, _, _, _, err := processImageFit(data, LinkPreviewMaxDim)
 				return err

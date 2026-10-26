@@ -140,7 +140,8 @@ Three things fall out of the re-encode:
   happily allocate for them. At most 4096×4096 pixels, and what decoding
   and scaling would hold (`fitCost`: the decoder's reckoning, as for
   [thumbnails](#thumbnails), plus the scaler's buffer, which grows with
-  the rows it reads, the crop's for an avatar, and the result)
+  the rows it reads, the crop's for an avatar, the result, and its turned
+  copy when the EXIF orientation asks for one)
   within the same 288 MiB as a thumbnail. Pixels alone are not enough: a
   progressive JPEG keeps every coefficient, so a 4096² one holds about
   240 MiB before scaling, and a progressive CMYK one about 380 MiB. The

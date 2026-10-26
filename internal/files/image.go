@@ -65,21 +65,29 @@ func sniffImage(data []byte) (contentType string, cfg image.Config, err error) {
 // scaling to size×size would hold more than maxDecodeMemory. It returns
 // the sniffed type.
 func validateImage(data []byte, size int) (string, error) {
+	header, err := checkImage(data, size)
+	return header.contentType, err
+}
+
+// checkImage is validateImage, returning the header it read, whose
+// orientation the job's re-encode turns by.
+func checkImage(data []byte, size int) (imageHeader, error) {
 	if len(data) > MaxImageBytes {
-		return "", errTooLarge
+		return imageHeader{}, errTooLarge
 	}
 	contentType, cfg, err := sniffImage(data)
 	if err != nil {
-		return "", err
+		return imageHeader{}, err
 	}
 	if contentType == "image/webp" && webpAnimated(data) {
-		return "", errAnimatedWebP
+		return imageHeader{}, errAnimatedWebP
 	}
 	// The scaler reads the centre square, as many rows as the shorter side.
-	if _, ok := boundedHeader(data, contentType, cfg, min(cfg.Width, cfg.Height), size, size); !ok {
-		return "", errHugeImage
+	header, ok := boundedHeader(data, contentType, cfg, min(cfg.Width, cfg.Height), size, size)
+	if !ok {
+		return imageHeader{}, errHugeImage
 	}
-	return contentType, nil
+	return header, nil
 }
 
 // boundedHeader reads data's header (readImageHeader) and reports
@@ -112,14 +120,14 @@ func webpAnimated(data []byte) bool {
 	return len(data) > flagsOffset && string(data[12:16]) == "VP8X" && data[flagsOffset]&animationBit != 0
 }
 
-// normaliseImage decodes a validated image of the sniffed contentType,
-// centre-crops it to a square, scales it to size×size and turns it as
-// its EXIF orientation says, re-encoded as PNG. The decode drops any
-// metadata (EXIF, ICC, comments) the original carried; an animated GIF
-// keeps its first frame. The centre square of the turned picture is the
-// turned centre square, so cropping first is the same.
-func normaliseImage(data []byte, contentType string, size int) ([]byte, error) {
-	orientation := exifOrientation(bytes.NewReader(data), contentType)
+// normaliseImage decodes a validated image, centre-crops it to a
+// square, scales it to size×size and turns it as its EXIF orientation
+// (from the header checkImage read) says, re-encoded as PNG. The decode
+// drops any metadata (EXIF, ICC, comments) the original carried; an
+// animated GIF keeps its first frame. The centre square of the turned
+// picture is the turned centre square, to within the pixel the centre
+// rounds by, so cropping first is the same.
+func normaliseImage(data []byte, orientation, size int) ([]byte, error) {
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, errNotAnImage
@@ -142,11 +150,11 @@ func normaliseImage(data []byte, contentType string, size int) ([]byte, error) {
 // processImage validates and normalises in one step: what the
 // normalise_image job runs on the stored upload.
 func processImage(data []byte, size int) ([]byte, error) {
-	contentType, err := validateImage(data, size)
+	header, err := checkImage(data, size)
 	if err != nil {
 		return nil, err
 	}
-	return normaliseImage(data, contentType, size)
+	return normaliseImage(data, header.orientation, size)
 }
 
 // isRaster reports whether a content type may be rendered inline by the
