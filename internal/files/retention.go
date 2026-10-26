@@ -11,9 +11,10 @@ import (
 )
 
 // Attachment retention: attachments older than the instance's
-// attachment_retention_days lose their bytes and their name, and keep a
-// row marked expired so the message can still say a file was there.
-// Pinned messages' files, avatars, icons and preview images are kept. See
+// attachment_retention_days lose their bytes, their name and their
+// thumbnail, and keep a row marked expired so the message can still say
+// a file was there. Pinned messages' files (thumbnails included),
+// avatars, icons and preview images are kept. See
 // docs/architecture/files.md#retention.
 
 func retentionCutoff(now time.Time, days int) time.Time {
@@ -82,6 +83,9 @@ func (s *Service) SweepAttachments(ctx context.Context, now time.Time) (int64, e
 			}
 			ids = append(ids, r.ID)
 		}
+		if err := s.deleteThumbnailsOf(ctx, ids); err != nil {
+			return expired, err
+		}
 		if err := s.q.ExpireFiles(ctx, ids); err != nil {
 			return expired, fmt.Errorf("expire attachments: %w", err)
 		}
@@ -95,6 +99,22 @@ func (s *Service) SweepAttachments(ctx context.Context, now time.Time) (int64, e
 		s.log.Info("attachments past retention expired", "expired", expired, "days", days)
 	}
 	return expired, nil
+}
+
+// deleteThumbnailsOf removes the thumbnails of expiring attachments, rows
+// first: a blob left behind is a stray the sweep collects. One the
+// expiry misses is the sweep's too, since its original is expired.
+func (s *Service) deleteThumbnailsOf(ctx context.Context, ids []string) error {
+	keys, err := s.q.DeleteThumbnailsOf(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("delete thumbnails: %w", err)
+	}
+	for _, key := range keys {
+		if err := s.store.Delete(ctx, key); err != nil && !errors.Is(err, blob.ErrNotFound) {
+			s.log.Warn("could not delete an expiring attachment's thumbnail", "key", key, "err", err)
+		}
+	}
+	return nil
 }
 
 // SweepAttachmentsKind is the job kind internal/app registers for SweepAttachments.

@@ -97,7 +97,12 @@ func (s *Service) readyImage(ctx context.Context, file dbgen.File) (dbgen.File, 
 	if err != nil {
 		return dbgen.File{}, fmt.Errorf("read blob: %w", err)
 	}
-	encoded, err := processImage(data, imageSize(Kind(file.Kind)))
+	var encoded []byte
+	if waitErr := s.decodeOne(ctx, func() {
+		encoded, err = processImage(data, imageSize(Kind(file.Kind)))
+	}); waitErr != nil {
+		return dbgen.File{}, waitErr
+	}
 	if err != nil {
 		s.deleteFile(ctx, file.ID, file.StorageKey)
 		return dbgen.File{}, fmt.Errorf("%w: %w", ErrImageUnusable, err)

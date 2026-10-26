@@ -9,8 +9,9 @@ import { cardLabel, expiredLabel, imageLabel } from "./words";
 
 // A message's files on the message menu's card, small, in the look of
 // the composer's strip (screens/Channel/AttachmentStrip): an image as a
-// 64pt thumbnail, a video as a play mark, anything else as a chip with
-// its name and size, an expired file as a dashed chip. A full-size photo
+// 64pt thumbnail (the server's when there is one), a video as a play
+// mark, anything else as a chip with its name and size, an expired file
+// as a dashed chip. A full-size photo
 // would push the menu off the screen. The card takes no touches, so
 // they wrap rather than scroll.
 export default function Strip({
@@ -38,7 +39,7 @@ export default function Strip({
             >
               {kind === "image" ? (
                 <Image
-                  source={fileSource(origin, token, attachment.fileId)}
+                  source={fileSource(origin, token, attachment.thumbnailFileId || attachment.fileId)}
                   recyclingKey={attachment.fileId}
                   contentFit="cover"
                   style={StyleSheet.absoluteFill}

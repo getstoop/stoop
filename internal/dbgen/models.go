@@ -123,6 +123,7 @@ type File struct {
 	PrivateChannelID *string
 	Width            *int32
 	Height           *int32
+	ThumbnailOf      *string
 }
 
 type Group struct {

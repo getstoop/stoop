@@ -196,7 +196,7 @@ func writeStorageFull(writer http.ResponseWriter, err error) bool {
 // storeAttachment sniffs the first bytes for the content type, measures
 // an image from its header, then streams the whole part into the blob
 // store while hashing it. An image that won't measure is stored all the
-// same, with no size.
+// same, with no size; one worth a thumbnail has the job queued.
 func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID, privateChannelID string, part io.ReadSeeker, size int64, filename string) (Info, error) {
 	ctx := request.Context()
 	head := make([]byte, 512)
@@ -234,6 +234,9 @@ func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID, priva
 	})
 	if err != nil {
 		return Info{}, err
+	}
+	if width != nil && wantsThumbnail(contentType, head[:headLength], int(*width), int(*height)) {
+		s.queueThumbnail(ctx, file.ID)
 	}
 	return toInfo(file), nil
 }

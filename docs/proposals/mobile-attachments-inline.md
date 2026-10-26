@@ -329,21 +329,46 @@ Added at the operator's request on 2026-10-25, after the design pass.
   `jobs` service exists for: `normalise_image` already runs one decode
   at a time inside its 512m limit (files.md → Images). A new kind,
   `thumbnail_attachment`, does the same: queued when a PNG, JPEG or
-  still WebP attachment is uploaded (never a GIF), at most one in
-  flight. It decodes, applies the EXIF orientation (the reader from
-  step 1), scales to fit 1024×1024 with `x/image/draw` (already a
-  dependency), and encodes a JPEG (a PNG when the image has
-  transparency).
-- **Its own pixel bound.** Avatars' `maxImagePixels` (4096², 16.7 MP)
-  would skip the 24 and 48 MP photos recent phones take, so the job has
-  a separate bound, checked with `DecodeConfig` before decoding. It
-  decodes from the blob as it is read rather than reading the whole
-  file into memory first (attachments go up to 100 MB). The build sets
-  the bound by measuring 12, 24 and 48 MP JPEGs in the jobs container,
-  and records the numbers in files.md, as it does for avatars.
-- **Skipped** for an animated WebP (a still would stop the animation),
-  an image already within 1024 px, and anything above the bound. A
-  skipped image has no thumbnail and is served as today.
+  still WebP attachment larger than 1024 px is uploaded, at most one in
+  flight. It decodes from the blob as it is read (attachments go up to
+  100 MB), averages the image down to at most 2048 px while converting
+  a band of rows at a time, scales that to fit 1024×1024 with
+  `x/image/draw` (already a dependency), applies the EXIF orientation
+  (the reader from step 1) to the small result, and encodes a JPEG (a
+  PNG when the image has transparency). The averaging comes first
+  because the scaler's buffer grows with the source's height: scaled
+  straight from a 48 MP photo it is 196 MB.
+- **One decode at a time per process.** `MaxInFlight` caps each kind
+  separately, so a thumbnail and an avatar could otherwise decode side
+  by side in the same process (the server runs jobs itself unless
+  `STOOP_JOBS=external`). Both kinds share one decode slot, waited for
+  no longer than the job's context and given back however the decode
+  ends. The thumbnail job hands freed memory back to the system before
+  and after its decode (`debug.FreeOSMemory`): without it a run of
+  large photos fragmented the heap to 463 MiB.
+- **A bound on memory, not pixels.** Avatars' `maxImagePixels` (4096²,
+  16.7 MP) would skip the 24 and 48 MP photos recent phones take, and
+  no pixel bound works for every format: Go's progressive JPEG decoder
+  keeps every coefficient, so a 24 MP progressive file held 422 MiB and
+  a 48 MP one was killed at 512m, while a 48 MP baseline one holds
+  147 MiB. So the job reckons, from the header alone, what the decode
+  and the steps after it will hold, and skips anything over 288 MiB.
+  The decode is counted per format: JPEG by colour model (RGB at 7
+  bytes a pixel, decided by walking every marker as the decoder does,
+  since an APP14 after the first scan makes it RGB; CMYK at 8) plus
+  the coefficients when progressive; PNG at 4 or 8 bytes a pixel even
+  for grey, because a `tRNS` chunk the header doesn't show makes it
+  NRGBA, doubled when interlaced; WebP at 12. A test checks the
+  reckoning against what each decoder allocates.
+  Before any of that, the shape: no side over 20,000 px and nothing
+  longer than 20 to 1, since a 200,000,000×1 PNG is a 200 KB file. The
+  numbers, measured for 12, 24 and 48 MP JPEGs and the largest of each
+  kind admitted, are in files.md → Thumbnails.
+- **Skipped** for a GIF, an animated WebP or an APNG (a still would
+  stop the animation), an image already within 1024 px, one out of
+  shape or over the bound, and one whose thumbnail would be no smaller
+  than the original. A skipped image has no thumbnail and is served as
+  today.
 - **Storage.** The thumbnail is its own `files` row of a new kind,
   `attachment_thumbnail`, with `thumbnail_of` referencing the original
   (`ON DELETE CASCADE`), so deleting the original's row removes it.
@@ -357,7 +382,8 @@ Added at the operator's request on 2026-10-25, after the design pass.
 
   It is inserted without the quota check (it is made after the
   upload was already accepted), but `StorageUsage` counts it, so the
-  disk figure stays honest.
+  disk figure stays honest, and so does retention's preview of what
+  would be freed.
 - **Serving.** `mayDownload` authorises a thumbnail as its original:
   look up the original and check that. Copying the original's space or
   channel onto the row isn't enough, because a DM's readers are found

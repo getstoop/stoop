@@ -117,12 +117,14 @@ func TestSweep(t *testing.T) {
 }
 
 // queuedJob is one enqueue as the fake saw it; args is decoded for
-// normalise_image, the one kind files queues with arguments.
+// normalise_image and thumbnail for thumbnail_attachment, the kinds files
+// queues with arguments.
 type queuedJob struct {
-	kind     string
-	lane     string
-	sequence int64
-	args     files.NormaliseImageArgs
+	kind      string
+	lane      string
+	sequence  int64
+	args      files.NormaliseImageArgs
+	thumbnail files.ThumbnailAttachmentArgs
 }
 
 // fakeJobQueue records what was enqueued and answers with a counting id.
@@ -145,13 +147,20 @@ func (q *fakeJobQueue) record(kind string, args any, lane string, sequence int64
 		return "", q.fail
 	}
 	job := queuedJob{kind: kind, lane: lane, sequence: sequence}
-	if kind == files.NormaliseImageKind {
-		// Through JSON, as the real queue carries them.
+	// Through JSON, as the real queue carries them.
+	var into any
+	switch kind {
+	case files.NormaliseImageKind:
+		into = &job.args
+	case files.ThumbnailAttachmentKind:
+		into = &job.thumbnail
+	}
+	if into != nil {
 		encoded, err := json.Marshal(args)
 		if err != nil {
 			return "", err
 		}
-		if err := json.Unmarshal(encoded, &job.args); err != nil {
+		if err := json.Unmarshal(encoded, into); err != nil {
 			return "", err
 		}
 	}

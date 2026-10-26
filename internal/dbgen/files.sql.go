@@ -11,10 +11,18 @@ import (
 )
 
 const countExpiringAttachments = `-- name: CountExpiringAttachments :one
-SELECT count(*)::bigint AS files, COALESCE(SUM(size), 0)::bigint AS bytes FROM files
-WHERE kind = 'attachment' AND expired_at IS NULL
-  AND created_at < $1
-  AND NOT (id = ANY($2::uuid[]))
+WITH expiring AS (
+  SELECT original.id, original.size FROM files original
+  WHERE original.kind = 'attachment' AND original.expired_at IS NULL
+    AND original.created_at < $1
+    AND NOT (original.id = ANY($2::uuid[]))
+)
+SELECT count(*)::bigint AS files,
+  (COALESCE(SUM(expiring.size), 0) + COALESCE((
+    SELECT SUM(thumbnail.size) FROM files thumbnail
+    WHERE thumbnail.thumbnail_of IN (SELECT expiring.id FROM expiring)
+  ), 0))::bigint AS bytes
+FROM expiring
 `
 
 type CountExpiringAttachmentsParams struct {
@@ -27,6 +35,8 @@ type CountExpiringAttachmentsRow struct {
 	Bytes int64
 }
 
+// CountExpiringAttachments counts the originals, and their bytes with
+// their thumbnails'.
 func (q *Queries) CountExpiringAttachments(ctx context.Context, arg CountExpiringAttachmentsParams) (CountExpiringAttachmentsRow, error) {
 	row := q.db.QueryRow(ctx, countExpiringAttachments, arg.Before, arg.Keep)
 	var i CountExpiringAttachmentsRow
@@ -38,7 +48,7 @@ const createFile = `-- name: CreateFile :one
 
 INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, private_channel_id, width, height)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of
 `
 
 type CreateFileParams struct {
@@ -90,6 +100,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		&i.PrivateChannelID,
 		&i.Width,
 		&i.Height,
+		&i.ThumbnailOf,
 	)
 	return i, err
 }
@@ -97,7 +108,7 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 const createPendingFile = `-- name: CreatePendingFile :one
 INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, pending)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', true)
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of
 `
 
 type CreatePendingFileParams struct {
@@ -141,12 +152,71 @@ func (q *Queries) CreatePendingFile(ctx context.Context, arg CreatePendingFilePa
 		&i.PrivateChannelID,
 		&i.Width,
 		&i.Height,
+		&i.ThumbnailOf,
+	)
+	return i, err
+}
+
+const createThumbnail = `-- name: CreateThumbnail :one
+INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, thumbnail_of, width, height)
+VALUES ($1, 'attachment_thumbnail', $2, $3, $4, $5, $6, $7, '', $8::uuid, $9::integer, $10::integer)
+ON CONFLICT (thumbnail_of) WHERE thumbnail_of IS NOT NULL DO NOTHING
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of
+`
+
+type CreateThumbnailParams struct {
+	ID          string
+	OwnerID     string
+	SpaceID     *string
+	ContentType string
+	Size        int64
+	Sha256      []byte
+	StorageKey  string
+	ThumbnailOf string
+	Width       int32
+	Height      int32
+}
+
+// CreateThumbnail records an attachment's thumbnail. It is not checked
+// against the quota: the upload it was made from was. No row comes back
+// when the original already has one.
+func (q *Queries) CreateThumbnail(ctx context.Context, arg CreateThumbnailParams) (File, error) {
+	row := q.db.QueryRow(ctx, createThumbnail,
+		arg.ID,
+		arg.OwnerID,
+		arg.SpaceID,
+		arg.ContentType,
+		arg.Size,
+		arg.Sha256,
+		arg.StorageKey,
+		arg.ThumbnailOf,
+		arg.Width,
+		arg.Height,
+	)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.OwnerID,
+		&i.SpaceID,
+		&i.ContentType,
+		&i.Size,
+		&i.Sha256,
+		&i.StorageKey,
+		&i.CreatedAt,
+		&i.Name,
+		&i.ExpiredAt,
+		&i.Pending,
+		&i.PrivateChannelID,
+		&i.Width,
+		&i.Height,
+		&i.ThumbnailOf,
 	)
 	return i, err
 }
 
 const deleteFile = `-- name: DeleteFile :one
-DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height
+DELETE FROM files WHERE id = $1 RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
@@ -168,14 +238,17 @@ func (q *Queries) DeleteFile(ctx context.Context, id string) (File, error) {
 		&i.PrivateChannelID,
 		&i.Width,
 		&i.Height,
+		&i.ThumbnailOf,
 	)
 	return i, err
 }
 
 const deleteFilesByIDs = `-- name: DeleteFilesByIDs :many
-DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height
+DELETE FROM files WHERE id = ANY($1::uuid[]) OR thumbnail_of = ANY($1::uuid[]) RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of
 `
 
+// DeleteFilesByIDs takes the files' thumbnails too, returned with them
+// so their blobs go as well (the cascade would take only the rows).
 func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
 	rows, err := q.db.Query(ctx, deleteFilesByIDs, dollar_1)
 	if err != nil {
@@ -201,10 +274,37 @@ func (q *Queries) DeleteFilesByIDs(ctx context.Context, dollar_1 []string) ([]Fi
 			&i.PrivateChannelID,
 			&i.Width,
 			&i.Height,
+			&i.ThumbnailOf,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteThumbnailsOf = `-- name: DeleteThumbnailsOf :many
+DELETE FROM files WHERE thumbnail_of = ANY($1::uuid[]) RETURNING storage_key
+`
+
+// DeleteThumbnailsOf removes the thumbnails of originals that are
+// expiring, and returns their keys for the blobs.
+func (q *Queries) DeleteThumbnailsOf(ctx context.Context, ids []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, deleteThumbnailsOf, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var storage_key string
+		if err := rows.Scan(&storage_key); err != nil {
+			return nil, err
+		}
+		items = append(items, storage_key)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -224,7 +324,7 @@ func (q *Queries) ExpireFiles(ctx context.Context, ids []string) error {
 }
 
 const getFile = `-- name: GetFile :one
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height FROM files WHERE id = $1
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of FROM files WHERE id = $1
 `
 
 func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
@@ -246,12 +346,13 @@ func (q *Queries) GetFile(ctx context.Context, id string) (File, error) {
 		&i.PrivateChannelID,
 		&i.Width,
 		&i.Height,
+		&i.ThumbnailOf,
 	)
 	return i, err
 }
 
 const getFilesByIDs = `-- name: GetFilesByIDs :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height FROM files WHERE id = ANY($1::uuid[])
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of FROM files WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File, error) {
@@ -279,6 +380,7 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []string) ([]File,
 			&i.PrivateChannelID,
 			&i.Width,
 			&i.Height,
+			&i.ThumbnailOf,
 		); err != nil {
 			return nil, err
 		}
@@ -334,9 +436,13 @@ func (q *Queries) ListExpiringAttachments(ctx context.Context, arg ListExpiringA
 }
 
 const listFilesOlderThan = `-- name: ListFilesOlderThan :many
-SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height FROM files
-WHERE created_at < $1 AND id > $2
-ORDER BY id
+SELECT id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of FROM files
+WHERE files.created_at < $1 AND files.id > $2
+  AND NOT EXISTS (
+    SELECT 1 FROM files original
+    WHERE original.id = files.thumbnail_of AND original.expired_at IS NULL
+  )
+ORDER BY files.id
 LIMIT $3
 `
 
@@ -346,7 +452,9 @@ type ListFilesOlderThanParams struct {
 	Limit   int32
 }
 
-// The sweep pages through files older than a grace period by id.
+// The sweep pages through files older than a grace period by id. A
+// thumbnail is left out while its original is live: nothing points at it
+// but the original, which takes it when it goes.
 func (q *Queries) ListFilesOlderThan(ctx context.Context, arg ListFilesOlderThanParams) ([]File, error) {
 	rows, err := q.db.Query(ctx, listFilesOlderThan, arg.Before, arg.AfterID, arg.Limit)
 	if err != nil {
@@ -372,6 +480,7 @@ func (q *Queries) ListFilesOlderThan(ctx context.Context, arg ListFilesOlderThan
 			&i.PrivateChannelID,
 			&i.Width,
 			&i.Height,
+			&i.ThumbnailOf,
 		); err != nil {
 			return nil, err
 		}
@@ -407,6 +516,36 @@ func (q *Queries) ListStorageKeysAmong(ctx context.Context, keys []string) ([]st
 	return items, nil
 }
 
+const listThumbnailsOf = `-- name: ListThumbnailsOf :many
+SELECT id, thumbnail_of::uuid AS original_id FROM files WHERE thumbnail_of = ANY($1::uuid[])
+`
+
+type ListThumbnailsOfRow struct {
+	ID         string
+	OriginalID string
+}
+
+// ListThumbnailsOf answers which of these originals have a thumbnail.
+func (q *Queries) ListThumbnailsOf(ctx context.Context, ids []string) ([]ListThumbnailsOfRow, error) {
+	rows, err := q.db.Query(ctx, listThumbnailsOf, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListThumbnailsOfRow
+	for rows.Next() {
+		var i ListThumbnailsOfRow
+		if err := rows.Scan(&i.ID, &i.OriginalID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockStorageQuota = `-- name: LockStorageQuota :exec
 SELECT pg_advisory_xact_lock(4207011)
 `
@@ -421,7 +560,7 @@ func (q *Queries) LockStorageQuota(ctx context.Context) error {
 const readyPendingFile = `-- name: ReadyPendingFile :one
 UPDATE files SET pending = false, content_type = $1, size = $2, sha256 = $3
 WHERE id = $4 AND pending
-RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height
+RETURNING id, kind, owner_id, space_id, content_type, size, sha256, storage_key, created_at, name, expired_at, pending, private_channel_id, width, height, thumbnail_of
 `
 
 type ReadyPendingFileParams struct {
@@ -457,6 +596,7 @@ func (q *Queries) ReadyPendingFile(ctx context.Context, arg ReadyPendingFilePara
 		&i.PrivateChannelID,
 		&i.Width,
 		&i.Height,
+		&i.ThumbnailOf,
 	)
 	return i, err
 }

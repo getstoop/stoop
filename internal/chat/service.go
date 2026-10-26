@@ -76,6 +76,8 @@ type FileRecord struct {
 	Expired bool
 	// Width and Height: an image's displayed size; 0 when unknown.
 	Width, Height int32
+	// ThumbnailFileID: the image's smaller copy; "" when it has none.
+	ThumbnailFileID string
 }
 
 // label is how a preview names the file.

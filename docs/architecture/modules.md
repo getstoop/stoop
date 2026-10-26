@@ -126,7 +126,7 @@ rather than by what the provider happens to expose, and it stays small.
 | `files` | `Spaces` | chat | Authorise an icon upload; set the icon pointer once the job has normalised it; authorise downloads; report referenced files. |
 | `files` | `SessionVerifier` | auth | Authenticate the plain-HTTP download handler: the identity and its credential. |
 | `files` | `Policy` | instance | The storage quota and the per-upload cap. |
-| `files` | `JobQueue` | jobs | Queue the file sweep by hand, and a `normalise_image` job per avatar or icon upload in a lane per target; the two kinds files performs. |
+| `files` | `JobQueue` | jobs | Queue the file sweep by hand, a `normalise_image` job per avatar or icon upload in a lane per target, and a `thumbnail_attachment` job per large image attachment; the kinds files performs. |
 | `integrations` | `Poster` | chat | Post a message with the hook's bot identity and credential already on the context. |
 | `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
 | `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |

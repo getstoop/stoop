@@ -10,12 +10,13 @@ import type { Box, Fit } from "./layout";
 
 // An image in its box, the size layout.ts gave it, so the row never
 // moves when it lands: the box on the panel with a faint image glyph
-// while it loads (no spinner, as web shows none), then the picture,
-// fetched from /files with the session and decoded at the size it is
-// drawn (expo-image, which keeps it in its memory and disk caches). One
-// that won't load turns into a card in its place that says so and tries
-// again on a tap, or, as a grid's tile, says so inside the tile; a
-// remount tries again too. A long press is the row's.
+// while it loads (no spinner, as web shows none), then the picture (its
+// thumbnail when the server made one), fetched from /files with the
+// session and decoded at the size it is drawn (expo-image, which keeps
+// it in its memory and disk caches). One that won't load turns into a
+// card in its place that says so and tries again on a tap, or, as a
+// grid's tile, says so inside the tile; a remount tries again too. A
+// long press is the row's.
 export default function Picture({
   attachment,
   box,
@@ -84,7 +85,7 @@ export default function Picture({
       {state === "loading" && <PhotoIcon color={theme.border} size={GLYPH} />}
       <Image
         key={attempt}
-        source={fileSource(origin, token, attachment.fileId)}
+        source={fileSource(origin, token, attachment.thumbnailFileId || attachment.fileId)}
         recyclingKey={attachment.fileId}
         contentFit={fit}
         style={StyleSheet.absoluteFill}

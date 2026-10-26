@@ -17,6 +17,7 @@ knows how bytes are stored.
 | `space_icon` | 2 MB in | Stored as sent, then re-encoded to a 512 px PNG by the same job. |
 | `attachment` | 100 MB, or the operator's lower `max_upload_bytes` | Stored exactly as uploaded; an image's size is read from its header ([Attachment image sizes](#attachment-image-sizes)). |
 | `link_preview` | fetched, bounded at 5 MB | Re-encoded like an icon; an animated GIF frame by frame, kept as a GIF. |
+| `attachment_thumbnail` | made by the server | An image attachment scaled to fit 1024 px, by the `thumbnail_attachment` job ([Thumbnails](#thumbnails)). |
 
 Kind decides the size cap, the image treatment, and who may download it.
 
@@ -152,6 +153,113 @@ Measuring never fails an upload: anything else, a header that won't
 read, or a file uploaded before the columns existed has no size, and the
 proto says 0×0.
 
+### Thumbnails
+
+A photo is drawn in the timeline at most 420 px wide on web and 312 pt
+on a phone, and its original is often several megabytes. So a PNG, JPEG
+or still WebP attachment larger than 1024 px on a side gets a smaller
+copy, made by the `thumbnail_attachment` job (`thumbnail.go`), which the
+upload queues once the file is stored. Never for a GIF, an animated WebP
+or an APNG (an `acTL` chunk before the image data, or more than 256
+chunks before it, which might hide one), whose still would stop the
+animation, and none is kept that would be no smaller than its
+original. The message carries it as `Attachment.thumbnail_file_id`, and
+the clients draw it inline when it is set; the preview, downloads and
+the phone's Share use the original.
+
+The job decodes the original as it reads the blob, averages it down to
+at most 2048 px on its longer side while converting (`shrinkBy`, a band
+of rows at a time), scales that to fit 1024×1024 with Catmull-Rom, turns
+it as its EXIF orientation says (the reader above), and encodes a JPEG,
+or a PNG when any of it is transparent. The averaging comes first
+because the scaler's buffer grows with the source's height (32 bytes per
+destination column per source row: 196 MB straight from a 48 MP photo).
+The re-encode drops the metadata, a photo's location included. It is
+stored as its own `files` row of kind `attachment_thumbnail`, with
+`thumbnail_of` naming the original (`ON DELETE CASCADE`, at most one per
+original). It is inserted without the quota check, since the upload it
+came from passed it, and `StorageUsage` counts it, as does retention's
+preview. The cascade takes only the row, so every path that removes an
+original takes the thumbnail's blob too: `DeleteFiles` (a deleted
+message), the sweep, and retention, below. A failed decode or a
+vanished original is permanent; anything else is retried. Nothing is
+announced when it lands: a client sees it the next time it fetches the
+message. Images uploaded before this have none.
+
+**The shape comes first:** no side over 20,000 px and nothing longer
+than 20 to 1, refused from the size alone. A 200,000,000×1 grey PNG is
+under 200 KB, and the decode's buffers follow the long side.
+
+**The bound is on what the job holds, not on pixels**, since that
+differs by format: a progressive JPEG's decoder keeps every coefficient
+as well as the picture, so no pixel count admits 48 MP baseline photos
+without also admitting progressive files that exhaust the container.
+`thumbnailCost` reckons it from the header alone, before a pixel is
+decoded: `decodeCost` (below) plus the band, the averaged image, the
+scaler's buffer and the thumbnail, and the job skips anything over
+288 MiB. `decodeCost` counts:
+
+- JPEG: 3 bytes a pixel for YCbCr, as if unsubsampled; 7 for one the
+  decoder reads as RGB, which it converts into an RGBA image of its
+  own; 1 for grey; 8 for CMYK, which the decoder holds as YCbCr and
+  converts; and when progressive, 4 more per component for the
+  coefficients. Whether three components are RGB is the decoder's
+  rule: no JFIF APP0, and an Adobe APP14 with transform 0 or components
+  named R, G, B. An APP14 may come after the first scan, where
+  `DecodeConfig` has stopped, so `jpegDecodesAsRGB` walks every marker
+  to the end of the image (stepping over scan data) and keeps the
+  decoder's state; anything it can't follow counts as RGB. A phone
+  photo carries EXIF and no JFIF, but no APP14 and components 1, 2, 3,
+  so it is YCbCr.
+- PNG: 4 bytes a pixel for 8-bit grey, RGB or RGBA and 8 for 16-bit
+  (a `tRNS` chunk, which the header doesn't show, turns grey into
+  NRGBA), 1 for paletted, doubled when Adam7-interlaced (each pass is
+  decoded into an image of its own first).
+- WebP: 12 bytes a pixel: the lossless decoder holds two copies, a
+  lossy picture with alpha decodes the alpha losslessly beside its
+  planes (7.1 bytes a pixel measured), and the header doesn't always
+  say which kind it is.
+
+`TestDecodeCostCoversTheDecoders` decodes every PNG colour type with
+and without `tRNS` and interlacing, and each kind of JPEG and WebP, and
+checks that what was allocated stays within the reckoning. The bound
+admits a baseline YCbCr JPEG up to about 75 MP (4:4:4), an RGB one of
+about 32 MP, a 48 MP 8-bit PNG, grey with `tRNS` included, an
+interlaced one of about 28 MP, a 24 MP CMYK JPEG, a 16 MP WebP, and
+progressive JPEGs of about 16 MP (YCbCr) and 12 MP (RGB). A skipped
+image is served as it is.
+
+The kind runs one at a time (`MaxInFlight: 1`), shares one decode slot
+per process with `normalise_image` (the server runs both when jobs are
+embedded), waits for it no longer than the job's context, gives it back
+however the decode ends, and hands freed memory back to the system
+before and after each decode (`debug.FreeOSMemory`). Measured in a
+container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
+
+| Image | Peak | Time |
+| ----- | ---- | ---- |
+| 12 MP JPEG (4032×3024, 4:2:0) | 95 MiB | 0.3 s |
+| 24 MP JPEG (5712×4284, 4:2:0) | 109 MiB | 0.5 s |
+| 48 MP JPEG (8064×6048, 4:2:0) | 147 MiB | 0.9 s |
+| 48 MP JPEG, 4:4:4 | 217 MiB | 1.3 s |
+| 75 MP JPEG, 4:4:4 (the largest admitted) | 293 MiB | 2.0 s |
+| 16 MP progressive JPEG, 4:4:4 (the largest admitted) | 291 MiB | 0.7 s |
+| 48 MP 8-bit PNG, with alpha | 269 MiB | 1.2 s |
+| 48 MP grey PNG with `tRNS` | 265 MiB | 0.5 s |
+| 28 MP interlaced RGBA PNG (the largest admitted) | 279 MiB | 0.3 s |
+| 32 MP RGB JPEG (the largest admitted) | 279 MiB | 1.3 s |
+| 12 MP progressive RGB JPEG (the largest admitted) | 295 MiB | 0.8 s |
+| 12 of the largest, one after another | 297 MiB | |
+
+Refused ones cost nothing: a 24 MP progressive JPEG, a 48 MP RGB JPEG,
+a 14400² grey PNG with `tRNS` and a 200,000,000×1 PNG each peaked at
+16 MiB. These are the job's own numbers: with jobs embedded in the
+server ([runtime.md](runtime.md#background-work)) the server's heap
+shares the limit. Before the
+bound counted them, a 24 MP progressive JPEG peaked at 422 MiB, a 48 MP
+one was killed at 512m, and the grey 14400² held 829 MB; without
+handing memory back, a run of twelve large ones grew to 463 MiB.
+
 ## Serving
 
 `GET|HEAD /files/{id}` is plain HTTP so that `<img>`, `<video>` and the
@@ -170,6 +278,7 @@ authorisation: nothing serves bytes the job has not finished.
 | `attachment` (space) | The space's members, and instance admins — as chat's `MayReadSpace` decides, which includes the credential's grant and bounds (`messages.read` in that space). |
 | `attachment` (private channel) | The uploader and the channel's people — **no admin bypass** — with a credential that covers `messages.read`. The upload records the channel on the file's row (`private_channel_id`), and a message takes such a file only in that channel, so it can't be posted anywhere else. |
 | `attachment` (DM) | The uploader and the DM's participants — **no admin bypass** — with a credential that covers `dms.read`. |
+| `attachment_thumbnail` | Whoever may download its original: the handler looks the original up and asks the rule above about it, since a DM's readers are found through `message_attachments`, which holds only the original's id. `410` once the original has expired. |
 
 The invite rule gives away nothing the code doesn't already: `LookupInvite`
 answers the same code with the space's name, description and icon id. A
@@ -273,11 +382,12 @@ The admin page's **Clean now** (`SweepFiles`) enqueues one and returns the
 job id; the Diagnostics tab shows the pass. It:
 
 1. Pages the `files` table (500 at a time) for rows older than the grace
-   period.
+   period, less thumbnails whose original is live: nothing else points
+   at one, and its original takes it when it goes.
 2. Asks the owning modules, through ports, **which of these ids do you
    still point at?** — `Spaces.ReferencedFiles` (chat: attachments, preview
    images, icons) and `Avatars.ReferencedFiles` (auth).
-3. Deletes the rest, with their blobs.
+3. Deletes the rest, with their blobs and their thumbnails'.
 4. Walks the store (`blob.Store.Walk`) for blobs old enough that no row
    names them.
 
@@ -301,8 +411,10 @@ same method.
 through `files.Policy`. `internal/files/retention.go` runs hourly and
 takes attachments older than the period, in batches of 500, less the
 files on pinned messages (asked of chat through `Spaces.PinnedFileIDs`).
-For each it deletes the blob first, then sets `files.expired_at` and
-blanks `files.name`. The blob goes first because a row already marked
+For each it deletes the blob first, then the thumbnail's row and blob,
+then sets `files.expired_at` and blanks `files.name`; a pinned file
+keeps its thumbnail. A thumbnail whose original expired without it is
+the sweep's. The blob goes first because a row already marked
 expired is never looked at again, so its blob would leak.
 
 The row stays so the message still says a file was there: deleting it

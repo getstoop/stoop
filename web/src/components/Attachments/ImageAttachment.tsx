@@ -4,7 +4,8 @@ import { usePreview } from "./gallery";
 import { MediaCaption } from "./MediaCaption";
 import { MediaPreview } from "./MediaPreview";
 
-// An inline image: click for the preview, hover for the name and download.
+// An inline image, drawn from its thumbnail when the server made one:
+// click for the preview (the original), hover for the name and download.
 export function ImageAttachment({ attachment: a }: { attachment: Attachment }) {
   const preview = usePreview(a);
   return (
@@ -15,7 +16,11 @@ export function ImageAttachment({ attachment: a }: { attachment: Attachment }) {
         aria-haspopup="dialog"
         onClick={preview.open}
       >
-        <img src={fileUrl(a.fileId)} alt={a.name} loading="lazy" />
+        <img
+          src={fileUrl(a.thumbnailFileId || a.fileId)}
+          alt={a.name}
+          loading="lazy"
+        />
       </button>
       <MediaCaption attachment={a} overlay />
       {preview.shown && (
