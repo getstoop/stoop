@@ -27,6 +27,7 @@ import MessageRow from "../Channel/MessageRow";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
+import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
 import MuteButton from "./MuteButton";
 import { muteItem } from "./muteItem";
@@ -165,6 +166,7 @@ export default function Thread({
   });
   const { send, edit, muteThread } = engine;
   const links = useChannelLinks(server, spaceId, channelId, header, true);
+  const mentionNames = useMentionNames(header);
   const viewer = useViewer(shown);
   // Audio stops when the screen is covered or left, the app leaves the
   // front, or the viewer opens.
@@ -340,6 +342,7 @@ export default function Thread({
               ref={actions.composer}
               key={rootId}
               channelName={channel.name}
+              mentionNames={mentionNames}
               inThread
               send={sendHere}
               upload={engine.upload}

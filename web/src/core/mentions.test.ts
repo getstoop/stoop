@@ -22,6 +22,7 @@ import {
   soleMention,
   splitEveryone,
   tokensAsText,
+  withTypedMentions,
 } from "./mentions";
 
 const member = (username: string, displayName = ""): Member =>
@@ -276,6 +277,61 @@ describe("soleMention and currentHandle", () => {
         crew,
       ),
     ).toBeNull();
+  });
+});
+
+describe("withTypedMentions", () => {
+  const ada = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a01";
+  const bea = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a02";
+  const crew = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a03";
+  const twin = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a04";
+  const garden = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a05";
+  const names = {
+    members: mentionMembers([
+      { userId: ada, username: "Ada", displayName: "Ada W." } as Member,
+      { userId: bea, username: "bea", displayName: "" } as Member,
+    ]),
+    groups: mentionGroups([
+      { id: crew, handle: "gardeners", name: "Garden crew" } as Group,
+      { id: twin, handle: "bea", name: "Not Bea" } as Group,
+    ]),
+    channels: linkableChannels([
+      { id: garden, name: "garden", kind: ChannelKind.TEXT } as Channel,
+    ]),
+  };
+  const typed = (text: string) => withTypedMentions(text, names);
+
+  it("writes a handle with one owner as its token", () => {
+    expect(typed("@ada hi")).toBe(`<@u:${ada}:ada> hi`);
+    expect(typed("hi @ADA.")).toBe(`hi <@u:${ada}:ada>.`);
+    expect(typed("ask @gardeners")).toBe(`ask <@g:${crew}:gardeners>`);
+    expect(typed("see #garden, then")).toBe(`see <#${garden}:garden>, then`);
+    expect(typed("@ada\n@gardeners")).toBe(
+      `<@u:${ada}:ada>\n<@g:${crew}:gardeners>`,
+    );
+  });
+
+  it("leaves words that name nobody, or more than one", () => {
+    expect(typed("@nobody and #nowhere")).toBe("@nobody and #nowhere");
+    expect(typed("@bea, a person and a group")).toBe(
+      "@bea, a person and a group",
+    );
+    expect(typed("@channel and @here")).toBe("@channel and @here");
+  });
+
+  it("leaves a handle that runs into a word", () => {
+    expect(typed("ada@ada.example")).toBe("ada@ada.example");
+    expect(typed("@adam")).toBe("@adam");
+    expect(typed("C#garden")).toBe("C#garden");
+  });
+
+  it("leaves web addresses and the tokens already there", () => {
+    expect(typed("https://a.example/@ada?#garden")).toBe(
+      "https://a.example/@ada?#garden",
+    );
+    const picked = `<@u:${ada}:ada> and <#${garden}:garden>`;
+    expect(typed(picked)).toBe(picked);
+    expect(typed(`${picked} @ada`)).toBe(`${picked} <@u:${ada}:ada>`);
   });
 });
 

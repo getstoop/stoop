@@ -2,6 +2,8 @@ import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { ChannelKind, ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
+import { GroupSchema } from "../gen/stoop/chat/v1/group_pb";
+import { MemberSchema } from "../gen/stoop/chat/v1/member_pb";
 import { SpaceRole, SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ServerEvent,
@@ -9,6 +11,8 @@ import {
 } from "../gen/stoop/realtime/v1/realtime_pb";
 import {
   type ChannelHeader,
+  changesMentionNames,
+  headerMentionNames,
   losesChannel,
   withHeaderEvent,
 } from "./channelHeader";
@@ -22,6 +26,8 @@ const header = (init: Partial<ChannelHeader> = {}): ChannelHeader => ({
   space: create(SpaceSchema, { id: "s1", name: "The Porch" }),
   channel: create(ChannelSchema, { id: "c1", name: "general" }),
   memberCount: 3,
+  members: [],
+  groups: [],
   myUserId: "me",
   channels: NO_CHANNELS,
   ...init,
@@ -289,5 +295,81 @@ describe("withHeaderEvent", () => {
         }),
       ).memberCount,
     ).toBe(3);
+  });
+});
+
+describe("headerMentionNames", () => {
+  const members = [create(MemberSchema, { userId: "u1", username: "ada" })];
+  const groups = [create(GroupSchema, { id: "g1", handle: "crew" })];
+  const channels = linkableChannels([
+    create(ChannelSchema, { id: "c2", name: "garden", kind: ChannelKind.TEXT }),
+  ]);
+
+  it("names the people, groups and channels of a public channel", () => {
+    const names = headerMentionNames(header({ members, groups, channels }));
+    expect([...names.members.keys()]).toEqual(["u1"]);
+    expect([...names.groups.keys()]).toEqual(["g1"]);
+    expect([...names.channels.keys()]).toEqual(["c2"]);
+  });
+
+  it("names only the people of a private channel", () => {
+    const names = headerMentionNames(
+      header({
+        channel: create(ChannelSchema, { id: "c1", private: true }),
+        members,
+        groups,
+        channels,
+      }),
+    );
+    expect([...names.members.keys()]).toEqual(["u1"]);
+    expect(names.groups.size).toBe(0);
+    expect(names.channels.size).toBe(0);
+  });
+});
+
+describe("changesMentionNames", () => {
+  const changes = (payload: Parameters<typeof event>[0], closed = false) =>
+    changesMentionNames(event(payload), "s1", "c1", closed);
+
+  it("is someone joining, leaving or renamed in the space, or its groups", () => {
+    for (const kind of ["memberJoined", "memberUpdated", "memberRemoved"]) {
+      const value = { spaceId: "s1", userId: "u2" };
+      expect(
+        changes({ case: kind, value } as Parameters<typeof event>[0]),
+      ).toBe(true);
+      expect(
+        changes({
+          case: kind,
+          value: { ...value, spaceId: "s2" },
+        } as Parameters<typeof event>[0]),
+      ).toBe(false);
+    }
+    expect(changes({ case: "groupsChanged", value: { spaceId: "s1" } })).toBe(
+      true,
+    );
+    expect(changes({ case: "groupsChanged", value: { spaceId: "s2" } })).toBe(
+      false,
+    );
+  });
+
+  it("is someone joining or leaving the channel, when it is private", () => {
+    const joined = {
+      case: "channelMemberJoined" as const,
+      value: { channelId: "c1", userId: "u2" },
+    };
+    expect(changes(joined, true)).toBe(true);
+    expect(changes(joined)).toBe(false);
+    expect(
+      changes(
+        { case: "channelMemberLeft", value: { channelId: "c2", userId: "u2" } },
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it("is nothing else", () => {
+    expect(
+      changes({ case: "channelDeleted", value: { channelId: "c1" } }),
+    ).toBe(false);
   });
 });

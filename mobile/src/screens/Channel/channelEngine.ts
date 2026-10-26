@@ -1,5 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { UploadedFile } from "@stoop/core/attachments";
+import { changesMentionNames } from "@stoop/core/channelHeader";
 import {
   type ChannelLog,
   channelItems,
@@ -103,9 +104,24 @@ type Lifetime = {
   catchingUp: Promise<void> | null;
   // Ends a catch-up's wait before a retry early, when the socket is back.
   wake: (() => void) | null;
+  // The header being loaded again for who a mention may name, and whether
+  // an event asked again while it was out, or before the first header.
+  renaming: boolean;
+  renameAgain: boolean;
+  // How many events have changed the header, so a load they overtook is
+  // made again rather than put over them.
+  headerChanges: number;
 };
 
-const newLifetime = (): Lifetime => ({ ended: false, opens: 0, catchingUp: null, wake: null });
+const newLifetime = (): Lifetime => ({
+  ended: false,
+  opens: 0,
+  catchingUp: null,
+  wake: null,
+  renaming: false,
+  renameAgain: false,
+  headerChanges: 0,
+});
 
 export type ChannelEngine = ReturnType<typeof createEngine>;
 
@@ -247,22 +263,44 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       if (stale()) return;
       dispatch({ type: "opened", header, res: page, token, generation });
       if (state.log.needsCatchUp) void catchUp();
+      if (mine.renameAgain) void reloadNames();
     } catch (err) {
       if (!stale()) dispatch({ type: "failed", outcome: outcomeOf(err) });
     }
   }
 
   // After a reconnect the header's facts may have changed too (a rename,
-  // a member count), and the channel may be gone.
-  async function refreshHeader() {
+  // a member count), and the channel may be gone. An event changing the
+  // header while this was out may be newer than what it read, so then it
+  // is asked for again.
+  async function refreshHeader(): Promise<void> {
     const mine = life;
+    const changes = mine.headerChanges;
     try {
       const header = await loadHeader(server.origin, state.token, spaceId, channelId);
-      if (!mine.ended) dispatch({ type: "header", header });
+      if (mine.ended) return;
+      if (mine.headerChanges !== changes) return refreshHeader();
+      dispatch({ type: "header", header });
     } catch (err) {
       const outcome = outcomeOf(err);
       if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
     }
+  }
+
+  // The header again for a change to who a mention may name: a burst of
+  // events asks once more after the load out, never once each.
+  async function reloadNames() {
+    const mine = life;
+    if (mine.renaming) {
+      mine.renameAgain = true;
+      return;
+    }
+    mine.renaming = true;
+    do {
+      mine.renameAgain = false;
+      await refreshHeader();
+    } while (mine.renameAgain && !mine.ended);
+    mine.renaming = false;
   }
 
   // A send naming a root or a quote refused as not found: whether the
@@ -328,7 +366,9 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
 
   function onEvent(event: ServerEvent) {
     if (event.payload.case !== "ready") {
+      const before = state.header;
       dispatch({ type: "event", event });
+      if (before && state.header !== before) life.headerChanges++;
       if (state.log.needsCatchUp) void catchUp();
       // A new role for the reader says nothing about what it permits; the
       // header fetched again carries the space's my_permissions.
@@ -340,6 +380,12 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         event.payload.value.userId === header.myUserId
       )
         void refreshHeader();
+      else if (!state.outcome && changesMentionNames(event, spaceId, channelId, header?.channel.private ?? true)) {
+        // Before the first header, the open out may have read the server
+        // before this; it asks again once it lands.
+        if (header) void reloadNames();
+        else life.renameAgain = true;
+      }
       return;
     }
     // The socket is back. A channel or a thread not yet open is opened

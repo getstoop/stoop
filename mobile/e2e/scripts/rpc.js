@@ -83,6 +83,17 @@ var steps = {
     for (var i = 0; i < messages.length; i++) if (messages[i].content === TEXT) count++;
     output.count = count;
   },
+  // In CHANNEL_ID (mentions.yaml): whether the newest page holds ada's
+  // message naming dee, the group readers and #random as tokens, and
+  // @nobody as words, as the server holds it.
+  typedMentions: function () {
+    var expected =
+      "<@u:" + POSTER_ID + ":" + POSTER.toLowerCase() + "> and <@g:" + READERS_ID + ":readers>, " +
+      "snacks in <#" + RANDOM_ID + ":random>? cc @nobody";
+    var messages = rpc("ListMessages", OWNER_TOKEN, { channelId: CHANNEL_ID, limit: 50 }).messages || [];
+    output.typedMentions = false;
+    for (var i = 0; i < messages.length; i++) if (messages[i].content === expected) output.typedMentions = true;
+  },
   // In CHANNEL_ID (message-more.yaml): the id of the newest page's message
   // reading TEXT, as the server holds it, for the link the flow expects.
   messageId: function () {

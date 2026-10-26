@@ -1,8 +1,14 @@
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import type { Group } from "../gen/stoop/chat/v1/group_pb";
+import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
 import {
   type MentionChannels,
+  type MentionNames,
+  mentionGroups,
+  mentionMembers,
+  NO_CHANNELS,
   withLinkableChannel,
   withoutChannel,
 } from "./mentions";
@@ -17,14 +23,29 @@ import {
 // space's channels a channel link in a message may open
 // (linkableChannels), kept current by the channel events. A private
 // channel's links open nothing, as on web: its reader checks
-// channel.private.
+// channel.private. And who a mention may name there: the people who can
+// read it (the space's members, or a private channel's), and the space's
+// groups (none in a private channel), loaded again when they change.
 export type ChannelHeader = {
   space: Space;
   channel: Channel;
   memberCount: number;
   myUserId: string;
   channels: MentionChannels;
+  members: Member[];
+  groups: Group[];
 };
+
+// Who and what a handle typed in the channel names: groups and channel
+// links only in a public channel, as the server keeps them.
+export function headerMentionNames(header: ChannelHeader): MentionNames {
+  const closed = header.channel.private;
+  return {
+    members: mentionMembers(header.members),
+    groups: mentionGroups(closed ? [] : header.groups),
+    channels: closed ? NO_CHANNELS : header.channels,
+  };
+}
 
 // Whether an event means the reader can no longer see the channel: it, or
 // its space, was deleted, or they were taken out of either.
@@ -49,6 +70,32 @@ export function losesChannel(
         payload.value.channelId === channelId &&
         payload.value.userId === myUserId
       );
+    default:
+      return false;
+  }
+}
+
+// Whether an event changes who a mention may name in the channel: someone
+// joining, leaving or renamed in its space, someone joining or leaving it
+// when it is private (`closed`; taken as so before the header says), or
+// the space's groups changing. The events say who, not what changed, so
+// the header is loaded again for it.
+export function changesMentionNames(
+  event: ServerEvent,
+  spaceId: string,
+  channelId: string,
+  closed: boolean,
+): boolean {
+  const payload = event.payload;
+  switch (payload.case) {
+    case "memberJoined":
+    case "memberUpdated":
+    case "memberRemoved":
+    case "groupsChanged":
+      return payload.value.spaceId === spaceId;
+    case "channelMemberJoined":
+    case "channelMemberLeft":
+      return closed && payload.value.channelId === channelId;
     default:
       return false;
   }

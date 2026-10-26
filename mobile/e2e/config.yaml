@@ -15,6 +15,7 @@ executionOrder:
     - "Pick a reaction from the emoji picker, and copy a message's link"
     - "Quote a message in a reply, cancel it, send it, and see the quote go with its message"
     - "Write in a channel and see it land, once, where it was sent"
+    - "Type mentions in full and see them sent as mentions"
     - "Add a second server from the switcher, see the first one's badge, switch back"
     - "Add a server, sign in, see Spaces, change the theme, sign out"
     - "Open a space and see its channels, with what is waiting in each, kept live"

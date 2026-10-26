@@ -12,6 +12,7 @@ import {
   mentionClass,
 } from "../../api/mentionClasses";
 import {
+  ADDRESS,
   currentHandle,
   type MentionChannels,
   type MentionGroups,
@@ -24,6 +25,8 @@ import {
   soleChannel,
   soleMention,
   splitEveryone,
+  TYPED_CHANNEL,
+  TYPED_HANDLE,
 } from "../../core/mentions";
 import { schema } from "./schema";
 
@@ -116,15 +119,6 @@ export function mentionDecorations(
   });
   return DecorationSet.create(doc, decos);
 }
-
-// "@handle" with something after it that can't be part of a handle, or
-// nothing after it: the handle is typed in full. Not after a letter, a
-// digit or another "@".
-const TYPED_HANDLE = /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_]|$)/gi;
-// "#name" the same way, not after what channelQueryAt skips.
-const TYPED_CHANNEL =
-  /(^|[^a-z0-9_#&/])#([a-z0-9][a-z0-9_-]{0,31})(?=[^a-z0-9_-]|$)/gi;
-const ADDRESS = /https?:\/\/[^\s<>]+/gi;
 
 // The transaction that turns typed handles into mentions and brings each
 // mention's handle up to date, or null when there is nothing to change.

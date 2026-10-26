@@ -35,6 +35,8 @@ const header = (init: Partial<ChannelHeader> = {}): ChannelHeader => ({
     lastReadMessageId: id(3),
   }),
   memberCount: 3,
+  members: [],
+  groups: [],
   myUserId: "me",
   channels: NO_CHANNELS,
   ...init,

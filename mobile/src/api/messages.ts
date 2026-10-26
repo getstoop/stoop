@@ -6,11 +6,13 @@ import { authClient, chatClient } from "./clients";
 
 // A channel's screen: the channel and its space for the title, how many
 // people can read it, who is reading (for the "New" line and what
-// mentions them), the space's channels a message's channel link opens, and the pages and changes of its channel log
-// (core/channelLog): the newest page on opening, older pages as the
-// reader scrolls up, and ListChanges from the position held after a
-// reconnect or a gap in the events), a thread's replies and its root,
-// the reader's own message, and what the message menu does to one.
+// mentions them), the space's channels a message's channel link opens,
+// the people and groups a mention typed there may name, and the pages
+// and changes of its channel log (core/channelLog): the newest page on
+// opening, older pages as the reader scrolls up, and ListChanges from
+// the position held after a reconnect or a gap in the events), a
+// thread's replies and its root, the reader's own message, and what the
+// message menu does to one.
 
 const TIMEOUT_MS = 10000;
 export const PAGE = 50;
@@ -29,18 +31,29 @@ export async function loadHeader(
 ): Promise<ChannelHeader> {
   const chat = chatClient(origin, token);
   const options = { timeoutMs: TIMEOUT_MS };
-  const [{ space }, { channels }, { user }] = await Promise.all([
+  const [{ space }, { channels }, { user }, { members }, { groups }] = await Promise.all([
     chat.getSpace({ spaceId }, options),
     chat.listChannels({ spaceId }, options),
     authClient(origin, token).getMe({}, options),
+    chat.listMembers({ spaceId }, options),
+    chat.listGroups({ spaceId }, options),
   ]);
   const channel = channels.find((candidate) => candidate.id === channelId);
   if (!space || !user) throw new Error("The server answered with nothing.");
   if (!channel) throw new ChannelGone();
-  const memberCount = channel.private
-    ? (await chat.listChannelMembers({ channelId }, options)).userIds.length
-    : (await chat.listMembers({ spaceId }, options)).members.length;
-  return { space, channel, memberCount, myUserId: user.id, channels: linkableChannels(channels) };
+  // A private channel's people are some of the space's members.
+  const inChannel = channel.private
+    ? new Set((await chat.listChannelMembers({ channelId }, options)).userIds)
+    : null;
+  return {
+    space,
+    channel,
+    memberCount: inChannel ? inChannel.size : members.length,
+    myUserId: user.id,
+    channels: linkableChannels(channels),
+    members: inChannel ? members.filter((member) => inChannel.has(member.userId)) : members,
+    groups,
+  };
 }
 
 // The header and the newest page together, for opening.

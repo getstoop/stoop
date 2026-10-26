@@ -219,7 +219,9 @@ typed as words. Plain `@casey` is text, from a person, a bot or a hook,
 so a person and a group may share a handle without either being
 mistaken for the other. The web composer writes the tokens: picking from
 the picker, or typing a handle in full that only one person or group
-has, makes a pill. Bots and hooks write them directly
+has, makes a pill. The phone's plain composer does the same on send
+(`withTypedMentions` in `core/mentions.ts`, sharing the editor's rule
+for a handle typed in full). Bots and hooks write them directly
 ([integrations.md](integrations.md#mentions)).
 
 `mention_tokens.go` checks every token on send and edit:
