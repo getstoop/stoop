@@ -11,10 +11,11 @@ import { mentionText, mentionTokenAt } from "./mentions";
 // The rule: a @handle or #name the original carried only as a token
 // becomes that token again wherever it stands now, so a mention moved
 // or repeated keeps its token, one removed stays removed, and a @name
-// the original had no token for stays words, as a new message's do
-// today. Where the original had the same words in more than one form
-// (as a token and as plain text, or as a person's token and a group's)
-// the n-th occurrence stays what the n-th was, and any beyond those
+// the original had no token for stays words (a new message's become
+// tokens on send, core/mentions withTypedMentions; an edit's don't).
+// Where the original had the same words in more than one form (as a
+// token and as plain text, or as a person's token and a group's) the
+// n-th occurrence stays what the n-th was, and any beyond those
 // stays as typed; so content put back unchanged comes out unchanged.
 // Only tokens are ever written back: words stay spelt as typed. A token
 // stuck to a word ("cc<@u:…:ada>", two tokens with nothing between) is

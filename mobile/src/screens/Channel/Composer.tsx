@@ -1,6 +1,7 @@
 import type { UploadedFile } from "@stoop/core/attachments";
 import { editableText, withTokensRestored } from "@stoop/core/editableText";
 import { isBlankMessage } from "@stoop/core/markdown";
+import { type MentionNames, withTypedMentions } from "@stoop/core/mentions";
 import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
@@ -62,6 +63,10 @@ import { useAttachments } from "./useAttachments";
 // server's words under it, and the quote back unless another was picked
 // meanwhile (web's rule); pressing Send again is the retry.
 //
+// Sent, a @handle or #name typed in full that exactly one person, group
+// or channel has goes as its token (core/mentions withTypedMentions), as
+// web's editor makes one; the words come back as typed on a refusal.
+//
 // In a thread (`inThread`) the pill says "Reply in thread", and the card
 // has "Also send to #channel" over the field, a checkbox that sends the
 // reply to the channel's timeline as well. As on web it is cleared by
@@ -100,6 +105,8 @@ export default forwardRef<
   ComposerHandle,
   {
     channelName: string;
+    // Who and what a handle typed here names.
+    mentionNames: MentionNames;
     // A thread's composer, with Also send to the channel.
     inThread?: boolean;
     send: (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => Promise<void>;
@@ -118,7 +125,7 @@ export default forwardRef<
     onEditDone: () => void;
   }
 >(function Composer(
-  { channelName, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
+  { channelName, mentionNames, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
   ref,
 ) {
   const theme = useTheme();
@@ -258,7 +265,7 @@ export default forwardRef<
     setAlsoSend(false);
     if (quoted) onCancelReply();
     try {
-      await send(blank ? "" : typed.trim(), quoted?.id ?? "", also, attachmentIds);
+      await send(blank ? "" : withTypedMentions(typed.trim(), mentionNames), quoted?.id ?? "", also, attachmentIds);
     } catch (err) {
       setAlsoSend(also);
       attachments.restore(held);

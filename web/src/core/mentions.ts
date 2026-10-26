@@ -195,6 +195,65 @@ export function soleMention(
   return found.length === 1 ? found[0] : null;
 }
 
+// "@handle" with something after it that can't be part of a handle, or
+// nothing after it: the handle is typed in full. Not after a letter, a
+// digit or another "@".
+export const TYPED_HANDLE =
+  /(^|[^a-z0-9_@])@([a-z0-9_]{3,32})(?=[^a-z0-9_]|$)/gi;
+// "#name" the same way, not after what channelQueryAt skips.
+export const TYPED_CHANNEL =
+  /(^|[^a-z0-9_#&/])#([a-z0-9][a-z0-9_-]{0,31})(?=[^a-z0-9_-]|$)/gi;
+export const ADDRESS = /https?:\/\/[^\s<>]+/gi;
+
+// Who and what a typed handle may name.
+export interface MentionNames {
+  members: MentionMembers;
+  groups: MentionGroups;
+  channels: MentionChannels;
+}
+
+// Text with each @handle or #name typed in full that exactly one person,
+// group or channel has written as its token, as web's editor turns one
+// into a pill: the phone's plain field on send. Web addresses, @channel
+// and @here are left as they are, and so are tokens already there, which
+// the patterns can't match into (an "@" is followed by a one-letter kind,
+// a "#" by an ID too long for a name). Code, spoilers and links' words
+// are not told apart: a token there is saved as text by the server.
+export function withTypedMentions(
+  text: string,
+  { members, groups, channels }: MentionNames,
+): string {
+  const addresses = [...text.matchAll(ADDRESS)].map((match) => [
+    match.index,
+    match.index + match[0].length,
+  ]);
+  const typed = [
+    ...[...text.matchAll(TYPED_HANDLE)].map((match) => ({
+      match,
+      ref: soleMention(match[2], members, groups),
+    })),
+    ...[...text.matchAll(TYPED_CHANNEL)].map((match) => ({
+      match,
+      ref: soleChannel(match[2], channels),
+    })),
+  ];
+  const replacements: { start: number; end: number; ref: MentionRef }[] = [];
+  for (const { match, ref } of typed) {
+    if (!ref) continue;
+    const start = match.index + match[1].length;
+    if (addresses.some(([from, to]) => start >= from && start < to)) continue;
+    replacements.push({ start, end: start + match[2].length + 1, ref });
+  }
+  replacements.sort((a, b) => a.start - b.start);
+  let out = "";
+  let last = 0;
+  for (const { start, end, ref } of replacements) {
+    out += text.slice(last, start) + mentionToken(ref);
+    last = end;
+  }
+  return out + text.slice(last);
+}
+
 // The handle a mention reads as now: the person's, group's or channel's
 // current one, or null when it can't be found here.
 export function currentHandle(

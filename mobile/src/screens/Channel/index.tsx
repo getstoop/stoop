@@ -28,6 +28,7 @@ import Unavailable from "./Unavailable";
 import { olderFits } from "./channelEngine";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
+import { useMentionNames } from "./useMentionNames";
 import { useMessageActions } from "./useMessageActions";
 
 // A channel, pushed over its space: its messages newest at the bottom,
@@ -162,6 +163,7 @@ export default function Channel({
   });
   const { menuFor, menuMessage } = actions;
   const links = useChannelLinks(server, spaceId, channelId, header);
+  const mentionNames = useMentionNames(header);
   const viewer = useViewer(messages);
   // Audio stops when the screen is covered or left, the app leaves the
   // front, or the viewer opens.
@@ -292,6 +294,7 @@ export default function Channel({
             ref={actions.composer}
             key={channelId}
             channelName={channel.name}
+            mentionNames={mentionNames}
             send={sendHere}
             upload={engine.upload}
             maxUploadBytes={status.maxUploadBytes}

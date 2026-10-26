@@ -11,7 +11,8 @@
 // has no thread yet; ada has read the channel. bea has an account but no
 // space; cleo has neither and arrives through the invite. formatting
 // holds ada's messages in Markdown, read, and links her messages with
-// link previews, read. In photos dee has sent files, read by ada.
+// link previews, read. In photos dee has sent files, read by ada. Book
+// club's group readers is ada and dee.
 
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -222,6 +223,12 @@ await sendFiles("The wind up there", ["ridge-wind.m4a"]);
 const old = await sendFiles("Last year's map", ["trail-map.jpg"]);
 await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: photos.channel.id, messageId: old.id }, ada);
 
+const readers = await rpc(
+  "chat.v1.ChatService/CreateGroup",
+  { spaceId: s.space.id, handle: "readers", name: "Readers", userIds: [s.ids.ada, s.ids.dee] },
+  ada,
+);
+
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);
 await rpc(
@@ -254,6 +261,7 @@ const env = {
   POSTER_TOKEN: dee,
   CHAPTERS_ID: chapters.channel.id,
   RANDOM_ID: s.channels.random,
+  READERS_ID: readers.group.id,
   NINE_ID: nine.channel.id,
   NINE_ROOT_ID: root.id,
   EXPIRE_FILE_ID: old.attachments[0].fileId,
