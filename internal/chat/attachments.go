@@ -133,7 +133,10 @@ func (s *Service) fileRecords(ctx context.Context, ids []string) (map[string]Fil
 }
 
 func toProtoAttachment(r FileRecord) *chatv1.Attachment {
-	return &chatv1.Attachment{FileId: r.ID, Name: r.Name, ContentType: r.ContentType, Size: r.Size, Expired: r.Expired}
+	return &chatv1.Attachment{
+		FileId: r.ID, Name: r.Name, ContentType: r.ContentType, Size: r.Size, Expired: r.Expired,
+		Width: r.Width, Height: r.Height,
+	}
 }
 
 func toProtoAttachments(records []FileRecord) []*chatv1.Attachment {

@@ -15,7 +15,7 @@ knows how bytes are stored.
 | ---- | --- | --------- |
 | `avatar` | 2 MB in | Stored as sent, then re-encoded to a 256 px PNG by the `normalise_image` job. |
 | `space_icon` | 2 MB in | Stored as sent, then re-encoded to a 512 px PNG by the same job. |
-| `attachment` | 100 MB, or the operator's lower `max_upload_bytes` | Stored exactly as uploaded. |
+| `attachment` | 100 MB, or the operator's lower `max_upload_bytes` | Stored exactly as uploaded; an image's size is read from its header ([Attachment image sizes](#attachment-image-sizes)). |
 | `link_preview` | fetched, bounded at 5 MB | Re-encoded like an icon; an animated GIF frame by frame, kept as a GIF. |
 
 Kind decides the size cap, the image treatment, and who may download it.
@@ -127,6 +127,26 @@ Three things fall out of the re-encode:
 - **The decode is bounded**: at most 4096×4096 pixels, because a 2 MB PNG
   can declare almost any dimensions and a naive decoder would happily
   allocate for them.
+
+### Attachment image sizes
+
+An attachment is never decoded, but a PNG, JPEG, GIF or WebP has its
+width and height read from its header at upload (`image.DecodeConfig`
+on the spooled part, which decodes no pixels), so a client can lay the
+image out before it loads. They go in `files.width` and `files.height`
+and reach the message as `Attachment.width` and `Attachment.height`.
+
+The size is the one a person sees: a phone photo is usually stored
+sideways with an EXIF Orientation of 6 or 8, which every display honours
+and `DecodeConfig` does not, so orientations 5–8 swap the two. Go has no
+EXIF reader; `image_size.go` walks just far enough to find the tag (a
+JPEG's APP1 segment, or a WebP's `EXIF` chunk when its VP8X flags say
+there is one, then the TIFF block's first IFD), checks every length
+against what is there, and holds at most 64 KiB.
+
+Measuring never fails an upload: anything else, a header that won't
+read, or a file uploaded before the columns existed has no size, and the
+proto says 0×0.
 
 ## Serving
 

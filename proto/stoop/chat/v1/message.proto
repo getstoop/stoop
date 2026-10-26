@@ -44,6 +44,12 @@ message Attachment {
   // Deleted by the server's attachment retention setting: no bytes, and
   // name is empty. The content type and size stay for the placeholder.
   bool expired = 5;
+  // An image's size in pixels as it is displayed (EXIF orientation
+  // applied), read from its header at upload. 0 when unknown: not a PNG,
+  // JPEG, GIF or WebP, a header that would not read, or uploaded before
+  // the server measured.
+  int32 width = 6;
+  int32 height = 7;
 }
 
 message Message {

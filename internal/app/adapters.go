@@ -143,6 +143,7 @@ func (d fileDirectory) GetFiles(ctx context.Context, ids []string) ([]chat.FileR
 		out[i] = chat.FileRecord{
 			ID: f.ID, Kind: string(f.Kind), OwnerID: f.OwnerID, SpaceID: f.SpaceID, PrivateChannelID: f.PrivateChannelID,
 			Name: f.Name, ContentType: f.ContentType, Size: f.Size, Expired: f.Expired,
+			Width: f.Width, Height: f.Height,
 		}
 	}
 	return out, nil

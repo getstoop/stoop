@@ -193,8 +193,10 @@ func writeStorageFull(writer http.ResponseWriter, err error) bool {
 	return true
 }
 
-// storeAttachment sniffs the first bytes for the content type, then
-// streams the whole part into the blob store while hashing it.
+// storeAttachment sniffs the first bytes for the content type, measures
+// an image from its header, then streams the whole part into the blob
+// store while hashing it. An image that won't measure is stored all the
+// same, with no size.
 func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID, privateChannelID string, part io.ReadSeeker, size int64, filename string) (Info, error) {
 	ctx := request.Context()
 	head := make([]byte, 512)
@@ -203,6 +205,10 @@ func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID, priva
 		return Info{}, fmt.Errorf("read head: %w", err)
 	}
 	contentType := sniffContentType(head[:headLength])
+	var width, height *int32
+	if measuredWidth, measuredHeight, ok := measureImage(part, contentType); ok {
+		width, height = &measuredWidth, &measuredHeight
+	}
 	if _, err := part.Seek(0, io.SeekStart); err != nil {
 		return Info{}, fmt.Errorf("rewind: %w", err)
 	}
@@ -223,6 +229,7 @@ func (s *Service) storeAttachment(request *http.Request, ownerID, spaceID, priva
 			ID: id, Kind: string(KindAttachment), OwnerID: ownerID, SpaceID: space,
 			ContentType: contentType, Size: size, Sha256: hasher.Sum(nil), StorageKey: key,
 			Name: sanitizeFilename(filename), PrivateChannelID: privateChannel,
+			Width: width, Height: height,
 		})
 	})
 	if err != nil {

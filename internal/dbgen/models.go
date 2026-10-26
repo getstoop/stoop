@@ -121,6 +121,8 @@ type File struct {
 	ExpiredAt        *time.Time
 	Pending          bool
 	PrivateChannelID *string
+	Width            *int32
+	Height           *int32
 }
 
 type Group struct {

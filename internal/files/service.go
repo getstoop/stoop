@@ -109,6 +109,9 @@ type Info struct {
 	Size             int64
 	// Expired: deleted by attachment retention; no bytes and no name.
 	Expired bool
+	// Width and Height: an image attachment's displayed size, measured at
+	// upload; 0 when unknown.
+	Width, Height int32
 }
 
 // SessionVerifier authenticates the download handler's plain HTTP requests
@@ -172,6 +175,9 @@ func toInfo(f dbgen.File) Info {
 	}
 	if f.PrivateChannelID != nil {
 		info.PrivateChannelID = *f.PrivateChannelID
+	}
+	if f.Width != nil && f.Height != nil {
+		info.Width, info.Height = *f.Width, *f.Height
 	}
 	return info
 }
