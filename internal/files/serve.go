@@ -58,7 +58,22 @@ func (s *Service) Handler() http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		ok, err := s.mayDownload(r.Context(), identity, file)
+		// A thumbnail is shown to whoever may see its original, and goes
+		// when the original expires.
+		subject := file
+		if file.ThumbnailOf != nil {
+			subject, err = s.q.GetFile(r.Context(), *file.ThumbnailOf)
+			if errors.Is(err, pgx.ErrNoRows) {
+				http.NotFound(w, r)
+				return
+			}
+			if err != nil {
+				s.log.Error("look up a thumbnail's original", "file_id", file.ID, "err", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+		}
+		ok, err := s.mayDownload(r.Context(), identity, subject)
 		if err != nil {
 			s.log.Error("authorise download", "file_id", file.ID, "err", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -68,7 +83,7 @@ func (s *Service) Handler() http.Handler {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		if file.ExpiredAt != nil {
+		if subject.ExpiredAt != nil {
 			http.Error(w, "this attachment has expired", http.StatusGone)
 			return
 		}
@@ -160,7 +175,8 @@ func (s *Service) serveBlob(w http.ResponseWriter, r *http.Request, f dbgen.File
 }
 
 // mayDownload is the per-kind authorisation rule: the table in
-// docs/architecture/files.md → Serving.
+// docs/architecture/files.md → Serving. A thumbnail is not asked about:
+// the handler asks about its original instead.
 func (s *Service) mayDownload(ctx context.Context, id authctx.Identity, f dbgen.File) (bool, error) {
 	ctx = authctx.WithIdentity(ctx, id)
 	switch Kind(f.Kind) {

@@ -286,10 +286,11 @@ See [runtime.md](runtime.md).
 ### files
 
 **`files`** — `kind` (`avatar` | `space_icon` | `attachment` |
-`link_preview`), `owner_id`, optional `space_id`, `name`, `content_type`,
-`size`, `sha256`, `storage_key UNIQUE`, `expired_at` (set by attachment
-retention), optional `width` and `height` (an image attachment's size,
-read at upload). The bytes live in the blob store
+`link_preview` | `attachment_thumbnail`), `owner_id`, optional `space_id`,
+`name`, `content_type`, `size`, `sha256`, `storage_key UNIQUE`,
+`expired_at` (set by attachment retention), optional `width` and
+`height` (an image attachment's size, read at upload), and
+`thumbnail_of` (a thumbnail's original, `ON DELETE CASCADE`, unique). The bytes live in the blob store
 under `storage_key`; this table is the record of truth for everything
 *about* them, including the content type used to serve them. See
 [files.md](files.md).

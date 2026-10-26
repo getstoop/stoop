@@ -50,6 +50,11 @@ message Attachment {
   // the server measured.
   int32 width = 6;
   int32 height = 7;
+  // A smaller copy of an image (at most 1024 px on a side, a JPEG or a
+  // PNG), for showing it inline; download and preview the original. ""
+  // when there is none: not a PNG, JPEG or still WebP larger than that,
+  // not made yet, or uploaded before the server made them.
+  string thumbnail_file_id = 8;
 }
 
 message Message {

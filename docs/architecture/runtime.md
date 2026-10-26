@@ -298,14 +298,17 @@ except the last, which the module owns:
 | `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
 | `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |
 
-Three one-shot kinds. `fan_out_webhook_event` is queued by the
+Four one-shot kinds. `fan_out_webhook_event` is queued by the
 integrations module per event a hook wants, and queues a
 `deliver_webhook` per outgoing delivery
 ([integrations.md](integrations.md#outgoing)).
 `normalise_image` is queued by the files module per avatar, bot avatar or
 space icon upload and re-encodes the picture off the request
 ([files.md](files.md#images)); it is capped at one running at a time.
-All three use a lane: a job with `lane` and `sequence` set runs only when no
+`thumbnail_attachment` is queued by the files module per large image
+attachment and makes its smaller copy ([files.md](files.md#thumbnails)),
+also one at a time, with no lane.
+The first three use a lane: a job with `lane` and `sequence` set runs only when no
 earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane. A
 hook is a lane, and so is a space for its fan-outs; so is one user's

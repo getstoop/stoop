@@ -26,7 +26,9 @@ type dbFiles struct {
 
 func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord, error) {
 	rows, err := d.pool.Query(ctx,
-		`SELECT id, kind, owner_id, COALESCE(space_id::text, ''), COALESCE(private_channel_id::text, ''), name, content_type, size, expired_at IS NOT NULL, COALESCE(width, 0), COALESCE(height, 0) FROM files WHERE id = ANY($1::uuid[])`, ids)
+		`SELECT id, kind, owner_id, COALESCE(space_id::text, ''), COALESCE(private_channel_id::text, ''), name, content_type, size, expired_at IS NOT NULL, COALESCE(width, 0), COALESCE(height, 0),
+			COALESCE((SELECT thumbnail.id::text FROM files thumbnail WHERE thumbnail.thumbnail_of = files.id), '')
+		 FROM files WHERE id = ANY($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +36,7 @@ func (d *dbFiles) GetFiles(ctx context.Context, ids []string) ([]chat.FileRecord
 	var out []chat.FileRecord
 	for rows.Next() {
 		var record chat.FileRecord
-		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.PrivateChannelID, &record.Name, &record.ContentType, &record.Size, &record.Expired, &record.Width, &record.Height); err != nil {
+		if err := rows.Scan(&record.ID, &record.Kind, &record.OwnerID, &record.SpaceID, &record.PrivateChannelID, &record.Name, &record.ContentType, &record.Size, &record.Expired, &record.Width, &record.Height, &record.ThumbnailFileID); err != nil {
 			return nil, err
 		}
 		out = append(out, record)
@@ -108,8 +110,13 @@ func TestAttachments(t *testing.T) {
 		t.Fatalf("attachments on send: %+v", m1.Attachments)
 	}
 	f2 := newFile(t, pool, owner, spaceID, "attachment", "photo.png")
-	// The size the upload measured travels with the attachment.
+	// The size the upload measured, and the thumbnail the job made,
+	// travel with the attachment.
 	if _, err := pool.Exec(context.Background(), `UPDATE files SET width = 30, height = 40 WHERE id = $1`, f2); err != nil {
+		t.Fatal(err)
+	}
+	thumbnail := newFile(t, pool, owner, spaceID, "attachment_thumbnail", "")
+	if _, err := pool.Exec(context.Background(), `UPDATE files SET thumbnail_of = $1 WHERE id = $2`, f2, thumbnail); err != nil {
 		t.Fatal(err)
 	}
 	m2, err := send(owner, "", f2)
@@ -123,11 +130,11 @@ func TestAttachments(t *testing.T) {
 	if got := list.Msg.Messages; len(got) != 2 || len(got[0].Attachments) != 1 || got[1].Attachments[0].Name != "photo.png" {
 		t.Fatalf("ListMessages attachments: %+v", got)
 	}
-	if photo := list.Msg.Messages[1].Attachments[0]; photo.Width != 30 || photo.Height != 40 {
-		t.Errorf("photo size = %d×%d, want 30×40", photo.Width, photo.Height)
+	if photo := list.Msg.Messages[1].Attachments[0]; photo.Width != 30 || photo.Height != 40 || photo.ThumbnailFileId != thumbnail {
+		t.Errorf("photo = %d×%d with thumbnail %q, want 30×40 with %s", photo.Width, photo.Height, photo.ThumbnailFileId, thumbnail)
 	}
-	if file := list.Msg.Messages[0].Attachments[0]; file.Width != 0 || file.Height != 0 {
-		t.Errorf("text file size = %d×%d, want none", file.Width, file.Height)
+	if file := list.Msg.Messages[0].Attachments[0]; file.Width != 0 || file.Height != 0 || file.ThumbnailFileId != "" {
+		t.Errorf("text file = %d×%d with thumbnail %q, want none", file.Width, file.Height, file.ThumbnailFileId)
 	}
 
 	// A reply to an attachment-only message previews the file name.

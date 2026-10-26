@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,6 +35,10 @@ const (
 	// KindLinkPreview is a page's preview image, fetched and re-encoded by
 	// the server for link unfurling. Visible to any signed-in user.
 	KindLinkPreview Kind = "link_preview"
+	// KindAttachmentThumbnail is an image attachment's smaller copy, made
+	// by the thumbnail_attachment job. Visible to whoever sees the
+	// original.
+	KindAttachmentThumbnail Kind = "attachment_thumbnail"
 )
 
 // MaxAttachmentBytes caps one message attachment. 100 MB is deliberately
@@ -112,6 +117,9 @@ type Info struct {
 	// Width and Height: an image attachment's displayed size, measured at
 	// upload; 0 when unknown.
 	Width, Height int32
+	// ThumbnailFileID: the attachment's thumbnail, once the job has made
+	// one; "" otherwise.
+	ThumbnailFileID string
 }
 
 // SessionVerifier authenticates the download handler's plain HTTP requests
@@ -136,12 +144,16 @@ type Service struct {
 	// jobs is the queue SweepFiles and the image uploads enqueue on; nil
 	// until UseJobs, and those refuse without it.
 	jobs JobQueue
-	log  *slog.Logger
+	// decoding lets one image decode run at a time in this process,
+	// whichever job asked for it.
+	decoding sync.Mutex
+	log      *slog.Logger
 }
 
 // JobQueue is the files module's port onto the job queue, wired in
 // internal/app. The module enqueues only the kinds it performs: the file
-// sweep, and normalise_image for its avatar and icon uploads.
+// sweep, normalise_image for its avatar and icon uploads, and
+// thumbnail_attachment for its image attachments.
 type JobQueue interface {
 	Enqueue(ctx context.Context, kind string, args any) (string, error)
 	// EnqueueInLane queues kind in lane at sequence: one job per lane runs
@@ -192,15 +204,27 @@ func (s *Service) GetFiles(ctx context.Context, ids []string) ([]Info, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get files: %w", err)
 	}
+	thumbnails, err := s.q.ListThumbnailsOf(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("get thumbnails: %w", err)
+	}
+	thumbnailOf := make(map[string]string, len(thumbnails))
+	for _, thumbnail := range thumbnails {
+		thumbnailOf[thumbnail.OriginalID] = thumbnail.ID
+	}
 	out := make([]Info, len(rows))
 	for i, r := range rows {
 		out[i] = toInfo(r)
+		if !out[i].Expired {
+			out[i].ThumbnailFileID = thumbnailOf[r.ID]
+		}
 	}
 	return out, nil
 }
 
-// DeleteFiles removes rows and blobs. Exposed for chat's port (a deleted
-// message takes its attachments with it). A blob that can't be removed is
+// DeleteFiles removes rows and blobs, an attachment's thumbnail with it.
+// Exposed for chat's port (a deleted message takes its attachments with
+// it). A blob that can't be removed is
 // logged and left for the GC sweep; the rows are gone regardless.
 func (s *Service) DeleteFiles(ctx context.Context, ids []string) error {
 	if len(ids) == 0 {

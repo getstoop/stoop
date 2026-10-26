@@ -74,6 +74,9 @@ type fakeSpaces struct {
 	pinned           []string        // files on pinned messages (retention)
 	setIconErr       error           // what SetSpaceIcon answers when set
 	invite           string          // a usable invite code to the space
+	// readableFiles, when set, are the only files IsAttachmentReadable
+	// answers for: the attachments on a DM's messages.
+	readableFiles map[string]bool
 }
 
 func (f *fakeSpaces) InviteShowsIcon(_ context.Context, code, fileID string) (bool, error) {
@@ -126,7 +129,10 @@ func (f *fakeSpaces) MayReadSpace(ctx context.Context, _ string) (bool, error) {
 func (f *fakeSpaces) ListSpaceIDs(context.Context, string) ([]string, error) {
 	return []string{f.spaceID}, nil
 }
-func (f *fakeSpaces) IsAttachmentReadable(_ context.Context, userID, _ string) (bool, error) {
+func (f *fakeSpaces) IsAttachmentReadable(_ context.Context, userID, fileID string) (bool, error) {
+	if f.readableFiles != nil && !f.readableFiles[fileID] {
+		return false, nil
+	}
 	return f.members[userID], nil
 }
 func (f *fakeSpaces) ChannelSpaceToPostIn(_ context.Context, userID, channelID string) (string, bool, error) {

@@ -23,8 +23,28 @@ RETURNING *;
 -- name: GetFilesByIDs :many
 SELECT * FROM files WHERE id = ANY($1::uuid[]);
 
+-- DeleteFilesByIDs takes the files' thumbnails too, returned with them
+-- so their blobs go as well (the cascade would take only the rows).
 -- name: DeleteFilesByIDs :many
-DELETE FROM files WHERE id = ANY($1::uuid[]) RETURNING *;
+DELETE FROM files WHERE id = ANY($1::uuid[]) OR thumbnail_of = ANY($1::uuid[]) RETURNING *;
+
+-- CreateThumbnail records an attachment's thumbnail. It is not checked
+-- against the quota: the upload it was made from was. No row comes back
+-- when the original already has one.
+-- name: CreateThumbnail :one
+INSERT INTO files (id, kind, owner_id, space_id, content_type, size, sha256, storage_key, name, thumbnail_of, width, height)
+VALUES ($1, 'attachment_thumbnail', $2, $3, $4, $5, $6, $7, '', sqlc.arg(thumbnail_of)::uuid, sqlc.arg(width)::integer, sqlc.arg(height)::integer)
+ON CONFLICT (thumbnail_of) WHERE thumbnail_of IS NOT NULL DO NOTHING
+RETURNING *;
+
+-- ListThumbnailsOf answers which of these originals have a thumbnail.
+-- name: ListThumbnailsOf :many
+SELECT id, thumbnail_of::uuid AS original_id FROM files WHERE thumbnail_of = ANY(sqlc.arg(ids)::uuid[]);
+
+-- DeleteThumbnailsOf removes the thumbnails of originals that are
+-- expiring, and returns their keys for the blobs.
+-- name: DeleteThumbnailsOf :many
+DELETE FROM files WHERE thumbnail_of = ANY(sqlc.arg(ids)::uuid[]) RETURNING storage_key;
 
 -- name: GetFile :one
 SELECT * FROM files WHERE id = $1;
@@ -32,11 +52,17 @@ SELECT * FROM files WHERE id = $1;
 -- name: DeleteFile :one
 DELETE FROM files WHERE id = $1 RETURNING *;
 
--- The sweep pages through files older than a grace period by id.
+-- The sweep pages through files older than a grace period by id. A
+-- thumbnail is left out while its original is live: nothing points at it
+-- but the original, which takes it when it goes.
 -- name: ListFilesOlderThan :many
 SELECT * FROM files
-WHERE created_at < sqlc.arg(before) AND id > sqlc.arg(after_id)
-ORDER BY id
+WHERE files.created_at < sqlc.arg(before) AND files.id > sqlc.arg(after_id)
+  AND NOT EXISTS (
+    SELECT 1 FROM files original
+    WHERE original.id = files.thumbnail_of AND original.expired_at IS NULL
+  )
+ORDER BY files.id
 LIMIT sqlc.arg('limit');
 
 -- name: ListStorageKeysAmong :many

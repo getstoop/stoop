@@ -75,18 +75,22 @@ func (s *Service) Sweep(ctx context.Context) (SweepReport, error) {
 			if referenced[f.ID] {
 				continue
 			}
-			if _, err := s.q.DeleteFile(ctx, f.ID); err != nil {
+			// An attachment's thumbnail goes with it.
+			deleted, err := s.q.DeleteFilesByIDs(ctx, []string{f.ID})
+			if err != nil {
 				s.log.Warn("sweep: could not delete file row", "file_id", f.ID, "err", err)
 				rep.Errors++
 				continue
 			}
-			if err := s.store.Delete(ctx, f.StorageKey); err != nil && !errors.Is(err, blob.ErrNotFound) {
-				s.log.Warn("sweep: could not delete blob", "key", f.StorageKey, "err", err)
-				rep.Errors++
-				continue
+			for _, gone := range deleted {
+				if err := s.store.Delete(ctx, gone.StorageKey); err != nil && !errors.Is(err, blob.ErrNotFound) {
+					s.log.Warn("sweep: could not delete blob", "key", gone.StorageKey, "err", err)
+					rep.Errors++
+					continue
+				}
+				rep.Files++
+				rep.Bytes += gone.Size
 			}
-			rep.Files++
-			rep.Bytes += f.Size
 		}
 		if len(rows) < sweepBatch {
 			break

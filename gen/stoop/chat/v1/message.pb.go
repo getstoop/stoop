@@ -195,10 +195,15 @@ type Attachment struct {
 	// applied), read from its header at upload. 0 when unknown: not a PNG,
 	// JPEG, GIF or WebP, a header that would not read, or uploaded before
 	// the server measured.
-	Width         int32 `protobuf:"varint,6,opt,name=width,proto3" json:"width,omitempty"`
-	Height        int32 `protobuf:"varint,7,opt,name=height,proto3" json:"height,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Width  int32 `protobuf:"varint,6,opt,name=width,proto3" json:"width,omitempty"`
+	Height int32 `protobuf:"varint,7,opt,name=height,proto3" json:"height,omitempty"`
+	// A smaller copy of an image (at most 1024 px on a side, a JPEG or a
+	// PNG), for showing it inline; download and preview the original. ""
+	// when there is none: not a PNG, JPEG or still WebP larger than that,
+	// not made yet, or uploaded before the server made them.
+	ThumbnailFileId string `protobuf:"bytes,8,opt,name=thumbnail_file_id,json=thumbnailFileId,proto3" json:"thumbnail_file_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Attachment) Reset() {
@@ -278,6 +283,13 @@ func (x *Attachment) GetHeight() int32 {
 		return x.Height
 	}
 	return 0
+}
+
+func (x *Attachment) GetThumbnailFileId() string {
+	if x != nil {
+		return x.ThumbnailFileId
+	}
+	return ""
 }
 
 type Message struct {
@@ -725,7 +737,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
 	"\x06author\x18\x02 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\x06author\x12\x18\n" +
-	"\apreview\x18\x03 \x01(\tR\apreview\"\xb8\x01\n" +
+	"\apreview\x18\x03 \x01(\tR\apreview\"\xe4\x01\n" +
 	"\n" +
 	"Attachment\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12\x12\n" +
@@ -734,7 +746,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x04size\x18\x04 \x01(\x03R\x04size\x12\x18\n" +
 	"\aexpired\x18\x05 \x01(\bR\aexpired\x12\x14\n" +
 	"\x05width\x18\x06 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\a \x01(\x05R\x06height\"\x80\a\n" +
+	"\x06height\x18\a \x01(\x05R\x06height\x12*\n" +
+	"\x11thumbnail_file_id\x18\b \x01(\tR\x0fthumbnailFileId\"\x80\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +

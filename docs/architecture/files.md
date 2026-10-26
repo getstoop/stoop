@@ -17,6 +17,7 @@ knows how bytes are stored.
 | `space_icon` | 2 MB in | Stored as sent, then re-encoded to a 512 px PNG by the same job. |
 | `attachment` | 100 MB, or the operator's lower `max_upload_bytes` | Stored exactly as uploaded; an image's size is read from its header ([Attachment image sizes](#attachment-image-sizes)). |
 | `link_preview` | fetched, bounded at 5 MB | Re-encoded like an icon; an animated GIF frame by frame, kept as a GIF. |
+| `attachment_thumbnail` | made by the server | An image attachment scaled to fit 1024 px, by the `thumbnail_attachment` job ([Thumbnails](#thumbnails)). |
 
 Kind decides the size cap, the image treatment, and who may download it.
 
@@ -152,6 +153,62 @@ Measuring never fails an upload: anything else, a header that won't
 read, or a file uploaded before the columns existed has no size, and the
 proto says 0×0.
 
+### Thumbnails
+
+A photo is drawn in the timeline at most 420 px wide on web and 312 pt
+on a phone, and its original is often several megabytes. So a PNG, JPEG
+or still WebP attachment larger than 1024 px on a side gets a smaller
+copy, made by the `thumbnail_attachment` job (`thumbnail.go`), which the
+upload queues once the file is stored. Never for a GIF or an animated
+WebP, whose still would stop the animation. The message carries it as
+`Attachment.thumbnail_file_id`, and the clients draw it inline when it is
+set; the preview, downloads and the phone's Share use the original.
+
+The job decodes the original as it reads the blob, averages it down to
+at most 2048 px on its longer side while converting (`shrinkBy`, a band
+of rows at a time), scales that to fit 1024×1024 with Catmull-Rom, turns
+it as its EXIF orientation says (the reader above), and encodes a JPEG,
+or a PNG when any of it is transparent. The re-encode drops the
+metadata, a photo's location included. It is stored as its own `files`
+row of kind `attachment_thumbnail`, with `thumbnail_of` naming the
+original (`ON DELETE CASCADE`, at most one per original). It is inserted
+without the quota check, since the upload it came from passed it, and
+`StorageUsage` counts it. The cascade takes only the row, so every path
+that removes an original takes the thumbnail's blob too: `DeleteFiles`
+(a deleted message), the sweep, and retention, below. A failed decode or a vanished original is
+permanent; anything else is retried. Nothing is announced when it
+lands: a client sees it the next time it fetches the message. Images
+uploaded before this have none.
+
+**The bound is on what the decode holds, not on pixels**, since that
+differs by format: a progressive JPEG's decoder keeps every coefficient
+as well as the picture. `decodeCost` reckons it from the header alone
+(three bytes a pixel for a JPEG, as if unsubsampled; five times that
+when progressive; the colour model's size for a PNG; eight for any
+WebP) and the job skips anything over 200 MiB. That admits a 48 MP
+baseline JPEG (up to about 69 MP), a 48 MP 8-bit PNG, a 24 MP WebP and
+a progressive JPEG of about 14 MP. A skipped image is served as it is.
+
+The kind runs one at a time (`MaxInFlight: 1`), shares one decode slot
+per process with `normalise_image`, and hands freed memory back to the
+system before and after each decode (`debug.FreeOSMemory`). Measured in
+a container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
+
+| Image | Peak | Time |
+| ----- | ---- | ---- |
+| 12 MP JPEG (4032×3024, 4:2:0) | 96 MiB | 0.3 s |
+| 24 MP JPEG (5712×4284, 4:2:0) | 108 MiB | 0.5 s |
+| 48 MP JPEG (8064×6048, 4:2:0) | 147 MiB | 0.9 s |
+| 48 MP JPEG, 4:4:4 | 215 MiB | 1.3 s |
+| 69 MP JPEG, 4:4:4 (the largest the bound admits) | 272 MiB | 1.8 s |
+| 14 MP progressive JPEG, 4:4:4 (the largest admitted) | 258 MiB | 0.6 s |
+| 48 MP 8-bit PNG, with alpha | 267 MiB | 1.2 s |
+| 12 of the largest, one after another | 271 MiB | |
+
+Without the bound counting progressive JPEGs apart, a 24 MP one peaked
+at 422 MiB and a 48 MP one was killed at 512m; without handing memory
+back, the run of twelve grew to 463 MiB.
+
 ## Serving
 
 `GET|HEAD /files/{id}` is plain HTTP so that `<img>`, `<video>` and the
@@ -170,6 +227,7 @@ authorisation: nothing serves bytes the job has not finished.
 | `attachment` (space) | The space's members, and instance admins — as chat's `MayReadSpace` decides, which includes the credential's grant and bounds (`messages.read` in that space). |
 | `attachment` (private channel) | The uploader and the channel's people — **no admin bypass** — with a credential that covers `messages.read`. The upload records the channel on the file's row (`private_channel_id`), and a message takes such a file only in that channel, so it can't be posted anywhere else. |
 | `attachment` (DM) | The uploader and the DM's participants — **no admin bypass** — with a credential that covers `dms.read`. |
+| `attachment_thumbnail` | Whoever may download its original: the handler looks the original up and asks the rule above about it, since a DM's readers are found through `message_attachments`, which holds only the original's id. `410` once the original has expired. |
 
 The invite rule gives away nothing the code doesn't already: `LookupInvite`
 answers the same code with the space's name, description and icon id. A
@@ -273,11 +331,12 @@ The admin page's **Clean now** (`SweepFiles`) enqueues one and returns the
 job id; the Diagnostics tab shows the pass. It:
 
 1. Pages the `files` table (500 at a time) for rows older than the grace
-   period.
+   period, less thumbnails whose original is live: nothing else points
+   at one, and its original takes it when it goes.
 2. Asks the owning modules, through ports, **which of these ids do you
    still point at?** — `Spaces.ReferencedFiles` (chat: attachments, preview
    images, icons) and `Avatars.ReferencedFiles` (auth).
-3. Deletes the rest, with their blobs.
+3. Deletes the rest, with their blobs and their thumbnails'.
 4. Walks the store (`blob.Store.Walk`) for blobs old enough that no row
    names them.
 
@@ -301,8 +360,10 @@ same method.
 through `files.Policy`. `internal/files/retention.go` runs hourly and
 takes attachments older than the period, in batches of 500, less the
 files on pinned messages (asked of chat through `Spaces.PinnedFileIDs`).
-For each it deletes the blob first, then sets `files.expired_at` and
-blanks `files.name`. The blob goes first because a row already marked
+For each it deletes the blob first, then the thumbnail's row and blob,
+then sets `files.expired_at` and blanks `files.name`; a pinned file
+keeps its thumbnail. A thumbnail whose original expired without it is
+the sweep's. The blob goes first because a row already marked
 expired is never looked at again, so its blob would leak.
 
 The row stays so the message still says a file was there: deleting it
