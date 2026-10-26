@@ -1,24 +1,27 @@
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { createVideoPlayer, type VideoPlayer } from "expo-video";
 import { createContext, useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { fileSource } from "../../api/downloads";
+import { fileAnswers, fileSource } from "../../api/downloads";
 import { markUnplayable } from "./unplayable";
 
 // The audio a screen of messages plays: one file at a time, on one
 // expo-video player with no view (AVPlayer, ExoPlayer play audio files
 // as well as video), made when a file's Play is first tapped and
-// released when another starts, the file fails, its row goes or the
-// screen does. Starting one stops the other. The screen pauses it
+// released when another starts, the file fails, its last row goes or
+// the screen does. Starting one stops the other. The screen pauses it
 // whenever it is not the one in front (useAudioPlayback): a player with
 // no view isn't paused by the system when the app goes to the
 // background, and nothing here plays there.
 //
 // A file that fails before it loads while the server still hands it
-// over (a HEAD with the session answers 2xx) is one the phone can't
-// decode: it joins the unplayable ones, and the timeline draws it as
+// over (its first byte, with the session: fileAnswers) is one the phone
+// can't decode: it joins the unplayable ones, and the timeline draws it as
 // the card that shares it. Any other failure (offline, a session gone,
 // the connection dropping mid-way) leaves the player, whose row says
-// "Couldn't play · tap to retry" until Play is tapped again.
+// "Couldn't play · tap to retry" until Play is tapped again. A failure
+// once the file has loaded is taken for the network's, even when it
+// was the decoder's part-way through: a retry costs a tap, a card would
+// stand for the rest of the run.
 //
 // The player keeps expo-video's audio session: on iOS the playback
 // category, so a tapped Play is heard with the silent switch on, as a
@@ -46,6 +49,11 @@ export class AudioPlayback {
   // Files whose last try failed in a way a retry may mend.
   private failed: ReadonlySet<string> = new Set();
   private listeners = new Set<() => void>();
+  // How many rows show each file: a row moved in the list unmounts and
+  // mounts again, and the player stays for it.
+  private mounted = new Map<string, number>();
+  // Each try at a file, so a late answer about an earlier one is dropped.
+  private attempt = 0;
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -98,14 +106,25 @@ export class AudioPlayback {
     if (this.state) this.set(null);
   }
 
-  // Lets the player go if it is this file's: its row has left the list.
-  releaseFile(fileId: string) {
-    if (this.state?.fileId === fileId) this.release();
+  // A row showing the file; what it returns is called as the row goes.
+  // The player goes with the file's last row, a moment later, so a row
+  // that only moved (a message above it deleted, a reply landing after
+  // it) keeps it.
+  mount(fileId: string) {
+    this.mounted.set(fileId, (this.mounted.get(fileId) ?? 0) + 1);
+    return () => {
+      const left = (this.mounted.get(fileId) ?? 1) - 1;
+      if (left > 0) this.mounted.set(fileId, left);
+      else this.mounted.delete(fileId);
+      setTimeout(() => {
+        if (!this.mounted.has(fileId) && this.state?.fileId === fileId) this.release();
+      }, 0);
+    };
   }
 
   private start(origin: string, token: string, fileId: string) {
-    const source = fileSource(origin, token, fileId);
-    const player = createVideoPlayer(source);
+    const player = createVideoPlayer(fileSource(origin, token, fileId));
+    const attempt = ++this.attempt;
     player.timeUpdateEventInterval = TICK;
     if (this.failed.has(fileId)) this.failed = new Set([...this.failed].filter((id) => id !== fileId));
     // Playing goes only once sound has come out and the player is not
@@ -148,10 +167,11 @@ export class AudioPlayback {
         if (status !== "error") return;
         this.release();
         if (loaded) return this.markFailed(fileId);
-        fetch(source.uri, { method: "HEAD", headers: source.headers }).then(
-          (res) => (res.ok ? markUnplayable(fileId) : this.markFailed(fileId)),
-          () => this.markFailed(fileId),
-        );
+        fileAnswers(origin, token, fileId).then((answers) => {
+          if (this.attempt !== attempt) return;
+          if (answers) markUnplayable(fileId);
+          else this.markFailed(fileId);
+        });
       }),
     ];
     this.player = player;
@@ -197,7 +217,7 @@ export function useAudioPlayback(active: boolean) {
 
 // One file's part of it: its state while it is the one being played,
 // its length once known, and whether its last try failed. The player
-// goes with the file's row.
+// goes with the file's last row.
 export function useAudioFile(playback: AudioPlayback, fileId: string) {
   const state = useSyncExternalStore(
     playback.subscribe,
@@ -211,6 +231,6 @@ export function useAudioFile(playback: AudioPlayback, fileId: string) {
     playback.subscribe,
     useCallback(() => playback.durationOf(fileId), [playback, fileId]),
   );
-  useEffect(() => () => playback.releaseFile(fileId), [playback, fileId]);
+  useEffect(() => playback.mount(fileId), [playback, fileId]);
   return { state, duration: state?.duration || duration, failed };
 }

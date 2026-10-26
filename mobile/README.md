@@ -226,8 +226,9 @@ import a screen; the screens themselves live in `src/screens`, so
   silent switch on and stops other apps' sound, as a video does. A file
   the phone can't decode (Ogg on an iPhone) becomes the card, which a
   tap shares, as an unplayable video does; told apart from a failure a
-  retry may mend (offline, a session ended, a dropped connection) by a
-  HEAD for the file, which says "Couldn't play · tap to retry" in the
+  retry may mend (offline, a session ended, a dropped connection) by
+  asking the server for the file's first byte (`fileAnswers`, as the
+  viewer's video does); one it can mend says "Couldn't play · tap to retry" in the
   time's place instead. Two known limits: nothing keeps the screen
   awake for a player with no view, so a long file stops when the phone
   locks itself; and `expo-video` leaves the audio session active after
