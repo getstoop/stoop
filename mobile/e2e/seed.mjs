@@ -103,7 +103,11 @@ const { message: question } = await rpc(
 );
 await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: nine.channel.id, messageId: question.id }, ada);
 
-// In formatting, ada's own messages in Markdown, all read by her: every
+// In formatting, ada's own messages in Markdown, all read by her. First
+// the blocks: a quote; a nested bulleted list with a link in a row; a
+// numbered list, edited; a code block too long for a line, with marks,
+// @here and a link left as written; and a quote with a spoiler filling
+// the middle of its line, so a tap there lands on it. Then, newest, every
 // inline mark with a link, a channel link to random, @here and dee
 // mentioned, emoji among the words; a link whose words hide a spoiler; a
 // message that is one spoiler, a line long, so a tap on the middle of the
@@ -113,6 +117,24 @@ const formatting = await rpc(
   { spaceId: s.space.id, name: "formatting", kind: "CHANNEL_KIND_TEXT" },
   ada,
 );
+const blocks = [
+  "> Every tree was once a nut\n> that held its ground",
+  "Packing list:\n- rope\n  - 60 m\n  - dry treated\n- the [route topo](https://example.com/topo)",
+  "1. Warm up\n2. Climb\n  - lead\n3. Stretch",
+  "```\n// **left as written** @here https://example.com\n" +
+    'const route = { grade: "5.10a", pitches: 3, notes: "traverse left at the second bolt" };\n```',
+  "> Who? ||The gardener, with a trowel||",
+];
+for (const content of blocks) {
+  const { message } = await rpc(
+    "chat.v1.ChatService/SendMessage",
+    { channelId: formatting.channel.id, content },
+    ada,
+  );
+  if (content.startsWith("1.")) {
+    await rpc("chat.v1.ChatService/EditMessage", { messageId: message.id, content: `${content}\n4. Eat` }, ada);
+  }
+}
 const formatted = [
   "**Bold** *italic* __underline__ ~~strike~~ `code` and [the docs](https://example.com), " +
     `over in <#${s.channels.random}:random> for @here and <@u:${s.ids.dee}:dee${s.suffix}>, ` +

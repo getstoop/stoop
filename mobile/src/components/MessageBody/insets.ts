@@ -1,7 +1,7 @@
 // How much narrower than the window a message's words are, in each place
-// that draws a message. Where our native view draws them (NativeBody, on
+// that draws a message. Where our native view draws them (NativeParagraph, on
 // iOS and Android) the words are measured before they are laid
-// out (NativeBody), at the window's width less this, so a row renders at
+// out (NativeParagraph), at the window's width less this, so a row renders at
 // its height the first time; a wrong inset still lays out right, a frame
 // later and with a jump, once onLayout reports the real width.
 //
@@ -18,3 +18,9 @@ export const BODY_INSETS = {
 } as const;
 
 export type BodyPlace = keyof typeof BODY_INSETS;
+
+// The width a paragraph is measured at before layout: the window's less
+// the place's inset and the room its block takes beside it (blocks.ts
+// QUOTE_INDENT, rowIndent).
+export const paragraphWidth = (windowWidth: number, place: BodyPlace, indent: number) =>
+  windowWidth - BODY_INSETS[place] - indent;

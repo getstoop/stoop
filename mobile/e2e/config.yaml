@@ -21,5 +21,5 @@ executionOrder:
     - "Open a thread from its replies line and from Reply in thread, and read it, kept live"
     - "Reply in a thread, also to the channel, and edit, react and delete there"
     - "Mute a thread, see a reply in it counted as nothing new, and unmute it"
-    - "Read messages in Markdown, reveal a spoiler and open a channel from its link"
+    - "Read messages in Markdown, reveal a spoiler, open a channel from its link, and see its blocks"
     - "Attach from the library, the camera and files, see it in the card and the pill, and send it"
