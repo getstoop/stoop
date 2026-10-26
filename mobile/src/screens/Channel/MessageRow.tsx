@@ -123,7 +123,7 @@ export default memo(function MessageRow({
       {!card && (
         <LinkPreviews message={message} myUserId={myUserId} origin={origin} token={token} onLongPress={hold} />
       )}
-      {alsoSentTo &&<Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
+      {alsoSentTo && <Text style={styles.time}>Also sent to {alsoSentTo}</Text>}
       {!card && onReact && <Reactions message={message} myUserId={myUserId} onReact={onReact} onLongPress={hold} />}
       {thread}
     </>

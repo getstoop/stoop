@@ -35,6 +35,8 @@ export default function Card({
   const { imageOnly, landscape, image } = layout;
   const site = previewSite(preview);
   const words = [site, preview.title, preview.description].filter((part) => part !== "").join(", ");
+  // An image alone that won't load leaves nothing to draw, not even the ×.
+  if (imageOnly && failed) return null;
 
   return (
     <View style={[styles.frame, imageOnly && styles.imageOnlyFrame]}>
