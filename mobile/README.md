@@ -156,8 +156,11 @@ import a screen; the screens themselves live in `src/screens`, so
   menu's card draws the files small, in the composer strip's look. A
   tap on an image opens it full screen (`src/components/Viewer`, a
   modal over the channel or the thread, as the message menu is): on
-  black, fitted, its thumbnail drawn until the original lands, with
-  every other picture the screen has loaded a swipe sideways away,
+  black, shrunk to fit and never enlarged, as web's preview, its
+  thumbnail drawn in the same box until the original lands (decoded
+  whole only up to 16 MP), with every other picture the screen has
+  loaded a swipe sideways away (a pan of its own, not a paging list,
+  which on Android never pages under the pictures' gestures),
   oldest first across messages, as web's preview steps through them
   (`core/attachments` `galleryMedia`; videos join when the phone plays
   them). Pinch zooms, a double tap zooms in on that spot or back out,

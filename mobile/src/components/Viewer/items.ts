@@ -20,6 +20,9 @@ export function viewerItems(messages: Message[]): ViewerItem[] {
   );
 }
 
+// One file can come in more than one message.
+export const itemKey = (item: ViewerItem) => `${item.message.id}:${item.attachment.fileId}`;
+
 // Who sent it, as the rows name them.
 export const senderName = (item: ViewerItem) => authorName(item.message.author);
 

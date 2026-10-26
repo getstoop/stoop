@@ -18,7 +18,10 @@ export function useViewer(messages: Message[]) {
   shown.current = messages;
   const open = useCallback((attachment: Attachment) => {
     const items = viewerItems(shown.current);
-    const index = items.findIndex((item) => item.attachment.fileId === attachment.fileId);
+    // The tapped file is the one the log holds, the same object, which
+    // tells apart one file sent in two messages; else its id.
+    const same = items.findIndex((item) => item.attachment === attachment);
+    const index = same >= 0 ? same : items.findIndex((item) => item.attachment.fileId === attachment.fileId);
     if (index >= 0) setViewing({ items, index });
   }, []);
   const close = useCallback(() => setViewing(null), []);

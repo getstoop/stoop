@@ -22,11 +22,13 @@ import { tokens } from "../../theme";
 import { PhotoIcon } from "../Icons";
 import type { ViewerItem } from "./items";
 
-// One picture in the viewer, fitted to the screen, its thumbnail drawn
-// until the original lands. Only the page on screen (`active`) decodes
-// the original at full size, so a zoom stays sharp; its neighbours
-// decode at the screen's size. Pinch zooms about the fingers, a double
-// tap zooms in on that spot or back out, and while zoomed a drag pans it
+// One picture in the viewer, shrunk to fit the screen and never
+// enlarged, as web's preview draws it, its thumbnail drawn in the same
+// box until the original lands. Only the page on screen (`active`)
+// decodes the original at full size, so a zoom stays sharp, and only
+// when it is small enough to; its neighbours decode at the screen's
+// size. Pinch zooms about the fingers, a double tap zooms in on that
+// spot or back out, and while zoomed a drag pans it
 // (the pager doesn't page then: onZoom). Unzoomed, a drag down follows
 // the finger (`drag`, which the viewer shrinks and fades by) and closes
 // it when far or fast enough (onSwipeClose), or springs back. A single
@@ -35,9 +37,15 @@ import type { ViewerItem } from "./items";
 
 const MAX_SCALE = 4;
 const DOUBLE_TAP_SCALE = 2.5;
+// The most pixels decoded whole: Android refuses to draw a bitmap over
+// about 100 MB (26 MP), and a 48 MP photo whole is a memory risk on iOS.
+const FULL_SIZE_PIXELS = 16_000_000;
 // The longest gap between a double tap's taps, in ms: the library's
 // default (200) misses many, the simulator's included.
 const DOUBLE_TAP_DELAY = 300;
+// How far a finger may move and still tap: further is a swipe, which
+// Android otherwise counts as a tap too, and the pager never pages.
+const TAP_SLOP = 10;
 // How far, or how fast, a drag down must go to close the viewer.
 const CLOSE_DY = 120;
 const CLOSE_VY = 800;
@@ -51,7 +59,7 @@ export default function Page({
   height,
   active,
   label,
-  focus,
+  takeFocus,
   drag,
   onTap,
   onZoom,
@@ -65,8 +73,9 @@ export default function Page({
   height: number;
   active: boolean;
   label: string;
-  // The page a screen reader starts on.
-  focus: boolean;
+  // Whether a screen reader's focus should come here now; true once per
+  // request (the viewer's opening, a step).
+  takeFocus: () => boolean;
   drag: { x: SharedValue<number>; y: SharedValue<number> };
   onTap: () => void;
   onZoom: (zoomed: boolean) => void;
@@ -102,18 +111,16 @@ export default function Page({
   }, [active, scale, x, y]);
 
   useEffect(() => {
-    if (!focus) return;
+    if (!active || !takeFocus()) return;
     const timer = setTimeout(() => page.current && AccessibilityInfo.sendAccessibilityEvent(page.current, "focus"), 300);
     return () => clearTimeout(timer);
-  }, [focus]);
+  }, [active, takeFocus]);
 
   // How far the picture may move each way at a scale: none until it
   // overflows the screen.
   const bounds = (at: number) => {
     "worklet";
-    const own = natural.value;
-    const fit = own.width > 0 && own.height > 0 ? Math.min(width / own.width, height / own.height) : 1;
-    const shown = own.width > 0 && own.height > 0 ? { width: own.width * fit, height: own.height * fit } : { width, height };
+    const shown = fitted(natural.value, width, height);
     return {
       x: Math.max(0, (shown.width * at - width) / 2),
       y: Math.max(0, (shown.height * at - height) / 2),
@@ -141,6 +148,9 @@ export default function Page({
 
   const pinch = usePinchGesture({
     onActivate: (event) => {
+      // Zoomed from the first moment, so the pager doesn't page under
+      // the fingers.
+      scheduleOnRN(onZoom, true);
       start.value = {
         scale: scale.value,
         x: x.value,
@@ -188,7 +198,8 @@ export default function Page({
       drag.y.value = event.translationY;
     },
     onDeactivate: (event) => {
-      if (event.translationY > CLOSE_DY || event.velocityY > CLOSE_VY) {
+      // Far enough and not flung back up, or flung down.
+      if ((event.translationY > CLOSE_DY && event.velocityY >= 0) || event.velocityY > CLOSE_VY) {
         drag.y.value = withTiming(height, { duration: tokens.dur });
         scheduleOnRN(onSwipeClose);
         return;
@@ -201,6 +212,7 @@ export default function Page({
   const doubleTap = useTapGesture({
     numberOfTaps: 2,
     maxDelay: DOUBLE_TAP_DELAY,
+    maxDistance: TAP_SLOP,
     onActivate: (event) => {
       if (scale.value > 1) {
         scale.value = withTiming(1, { duration: tokens.dur });
@@ -223,6 +235,7 @@ export default function Page({
   // Waits for a second tap before it counts.
   const singleTap = useTapGesture({
     requireToFail: doubleTap,
+    maxDistance: TAP_SLOP,
     onActivate: () => {
       scheduleOnRN(onTap);
     },
@@ -234,7 +247,18 @@ export default function Page({
     transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
   }));
 
+  const thumbnail = attachment.thumbnailFileId ? fileSource(origin, token, attachment.thumbnailFileId) : undefined;
+  const known = attachment.width > 0 && attachment.height > 0;
+  const fullSize = active && known && attachment.width * attachment.height <= FULL_SIZE_PIXELS;
+  // With the size known, the original and its thumbnail fill the same
+  // box, so nothing moves when one replaces the other.
+  const box = known ? fitted(attachment, width, height) : { width, height };
+  const fit = known ? "cover" : "scale-down";
+
+  // A size the server didn't measure comes from the original once it
+  // lands.
   const loaded = (event: ImageLoadEventData) => {
+    if (known) return;
     natural.value = { width: event.source.width, height: event.source.height };
   };
 
@@ -242,7 +266,6 @@ export default function Page({
     setFailed(false);
     setAttempt((count) => count + 1);
   };
-  const thumbnail = attachment.thumbnailFileId ? fileSource(origin, token, attachment.thumbnailFileId) : undefined;
 
   return (
     <View
@@ -259,34 +282,46 @@ export default function Page({
       testID="viewer-page"
       style={{ width, height }}
     >
-      {failed ? (
-        <View style={styles.failed}>
-          <PhotoIcon color={MUTED} size={28} />
-          <Text style={styles.failedWords}>Couldn't load this image.</Text>
-          <Pressable onPress={retry} style={styles.retry}>
-            <Text style={styles.retryWords}>Try again</Text>
-          </Pressable>
+      {/* Untransformed, so the fingers' points are the screen's. */}
+      <GestureDetector gesture={gesture}>
+        <View style={styles.fill}>
+          {failed ? (
+            <View style={styles.failed}>
+              <PhotoIcon color={MUTED} size={28} />
+              <Text style={styles.failedWords}>Couldn't load this image.</Text>
+              <Pressable onPress={retry} style={styles.retry}>
+                <Text style={styles.retryWords}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Animated.View style={[styles.fill, styles.center, moved]}>
+              <Image
+                key={attempt}
+                source={fileSource(origin, token, attachment.fileId)}
+                placeholder={thumbnail}
+                placeholderContentFit={fit}
+                contentFit={fit}
+                allowDownscaling={!fullSize}
+                recyclingKey={attachment.fileId}
+                style={box}
+                onLoad={loaded}
+                onError={() => setFailed(true)}
+              />
+            </Animated.View>
+          )}
         </View>
-      ) : (
-        <GestureDetector gesture={gesture}>
-          <Animated.View style={[styles.fill, moved]}>
-            <Image
-              key={attempt}
-              source={fileSource(origin, token, attachment.fileId)}
-              placeholder={thumbnail}
-              placeholderContentFit="contain"
-              contentFit="contain"
-              allowDownscaling={!active}
-              recyclingKey={attachment.fileId}
-              style={styles.fill}
-              onLoad={loaded}
-              onError={() => setFailed(true)}
-            />
-          </Animated.View>
-        </GestureDetector>
-      )}
+      </GestureDetector>
     </View>
   );
+}
+
+// A picture's size on screen: its own, shrunk to fit and never
+// enlarged, as web's preview; the whole screen while it is unknown.
+function fitted(own: { width: number; height: number }, width: number, height: number) {
+  "worklet";
+  if (!(own.width > 0 && own.height > 0)) return { width, height };
+  const scale = Math.min(1, width / own.width, height / own.height);
+  return { width: own.width * scale, height: own.height * scale };
 }
 
 // On the viewer's black, whatever the theme.
@@ -295,6 +330,10 @@ const MUTED = "rgba(255, 255, 255, 0.6)";
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
+  },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   failed: {
     flex: 1,
