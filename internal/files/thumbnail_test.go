@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"image"
+	"image/jpeg"
+	"math/rand/v2"
 	"net/http"
 	"testing"
 	"time"
@@ -137,6 +139,24 @@ func TestThumbnailJob(t *testing.T) {
 	if infos, _ := fixture.svc.GetFiles(ctx, []string{small}); len(infos) != 1 || infos[0].ThumbnailFileID != "" {
 		t.Errorf("a small image got a thumbnail: %+v", infos)
 	}
+	// Nor is one whose thumbnail would be no smaller: noise saved at the
+	// lowest quality, against a thumbnail at a good one.
+	noise := image.NewGray(image.Rect(0, 0, 1100, 1000))
+	random := rand.New(rand.NewPCG(1, 2))
+	for i := range noise.Pix {
+		noise.Pix[i] = uint8(random.IntN(256))
+	}
+	var coarse bytes.Buffer
+	if err := jpeg.Encode(&coarse, noise, &jpeg.Options{Quality: 1}); err != nil {
+		t.Fatal(err)
+	}
+	cheap := fixture.uploadImage(t, "coarse.jpg", coarse.Bytes())
+	if err := fixture.svc.ThumbnailAttachment(ctx, files.ThumbnailAttachmentArgs{FileID: cheap}); err != nil {
+		t.Errorf("a coarse image: %v", err)
+	}
+	if infos, _ := fixture.svc.GetFiles(ctx, []string{cheap}); len(infos) != 1 || infos[0].ThumbnailFileID != "" {
+		t.Errorf("a %d-byte image got a larger thumbnail: %+v", coarse.Len(), infos)
+	}
 }
 
 // A DM's attachment is readable through message_attachments, which holds
@@ -187,6 +207,15 @@ func TestThumbnailRemoval(t *testing.T) {
 	expiring, pinned := withThumbnail("old.jpg"), withThumbnail("pinned.jpg")
 	fixture.spaces.pinned = []string{pinned.original}
 	fixture.svc.UsePolicy(fakePolicy{retentionDays: 30})
+	var originalBytes, thumbnailBytes int64
+	if err := fixture.pool.QueryRow(ctx, `SELECT
+		(SELECT size FROM files WHERE id = $1), (SELECT size FROM files WHERE id = $2)`, expiring.original, expiring.thumbnail).
+		Scan(&originalBytes, &thumbnailBytes); err != nil {
+		t.Fatal(err)
+	}
+	if n, freed, err := fixture.svc.CountExpiringAttachments(ctx, time.Now().Add(31*24*time.Hour), 30); err != nil || n != 1 || freed != originalBytes+thumbnailBytes {
+		t.Errorf("retention preview: %d files, %d bytes, %v; want 1 and %d", n, freed, err, originalBytes+thumbnailBytes)
+	}
 	if n, err := fixture.svc.SweepAttachments(ctx, time.Now().Add(31*24*time.Hour)); err != nil || n != 1 {
 		t.Fatalf("retention: %d %v", n, err)
 	}

@@ -50,8 +50,9 @@ func (s *Service) queueThumbnail(ctx context.Context, fileID string) {
 // ThumbnailAttachment performs one thumbnail_attachment job: decode the
 // original from its blob, make the thumbnail and store it as the
 // original's attachment_thumbnail row. An image that needs none (small,
-// animated, over the bound) is a success with nothing stored, as is an
-// original that already has one.
+// animated, out of shape, over the bound, or one whose thumbnail would
+// be no smaller) is a success with nothing stored, as is an original
+// that already has one.
 func (s *Service) ThumbnailAttachment(ctx context.Context, args ThumbnailAttachmentArgs) error {
 	original, err := s.q.GetFile(ctx, args.FileID)
 	if err != nil {
@@ -76,6 +77,10 @@ func (s *Service) ThumbnailAttachment(ctx context.Context, args ThumbnailAttachm
 	}
 	if err != nil {
 		return err
+	}
+	// A thumbnail no smaller than the original saves nobody anything.
+	if int64(len(thumb.data)) >= original.Size {
+		return nil
 	}
 	sum := sha256.Sum256(thumb.data)
 	size := int64(len(thumb.data))
@@ -112,11 +117,14 @@ func (s *Service) thumbnailOf(ctx context.Context, original dbgen.File) (thumbna
 	if !ok {
 		return thumbnail{}, fmt.Errorf("%w: the store's reader can't seek", ErrNoThumbnail)
 	}
-	s.decoding.Lock()
-	defer s.decoding.Unlock()
-	debug.FreeOSMemory()
-	defer debug.FreeOSMemory()
-	thumb, err := makeThumbnail(file, original.ContentType)
+	var thumb thumbnail
+	if waitErr := s.decodeOne(ctx, func() {
+		debug.FreeOSMemory()
+		defer debug.FreeOSMemory()
+		thumb, err = makeThumbnail(file, original.ContentType)
+	}); waitErr != nil {
+		return thumbnail{}, waitErr
+	}
 	if errors.Is(err, errNotAnImage) {
 		return thumbnail{}, fmt.Errorf("%w: %w", ErrNoThumbnail, err)
 	}

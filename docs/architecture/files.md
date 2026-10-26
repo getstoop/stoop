@@ -159,55 +159,88 @@ A photo is drawn in the timeline at most 420 px wide on web and 312 pt
 on a phone, and its original is often several megabytes. So a PNG, JPEG
 or still WebP attachment larger than 1024 px on a side gets a smaller
 copy, made by the `thumbnail_attachment` job (`thumbnail.go`), which the
-upload queues once the file is stored. Never for a GIF or an animated
-WebP, whose still would stop the animation. The message carries it as
-`Attachment.thumbnail_file_id`, and the clients draw it inline when it is
-set; the preview, downloads and the phone's Share use the original.
+upload queues once the file is stored. Never for a GIF, an animated WebP
+or an APNG (an `acTL` chunk before the image data), whose still would
+stop the animation, and none is kept that would be no smaller than its
+original. The message carries it as `Attachment.thumbnail_file_id`, and
+the clients draw it inline when it is set; the preview, downloads and
+the phone's Share use the original.
 
 The job decodes the original as it reads the blob, averages it down to
 at most 2048 px on its longer side while converting (`shrinkBy`, a band
 of rows at a time), scales that to fit 1024×1024 with Catmull-Rom, turns
 it as its EXIF orientation says (the reader above), and encodes a JPEG,
-or a PNG when any of it is transparent. The re-encode drops the
-metadata, a photo's location included. It is stored as its own `files`
-row of kind `attachment_thumbnail`, with `thumbnail_of` naming the
-original (`ON DELETE CASCADE`, at most one per original). It is inserted
-without the quota check, since the upload it came from passed it, and
-`StorageUsage` counts it. The cascade takes only the row, so every path
-that removes an original takes the thumbnail's blob too: `DeleteFiles`
-(a deleted message), the sweep, and retention, below. A failed decode or a vanished original is
-permanent; anything else is retried. Nothing is announced when it
-lands: a client sees it the next time it fetches the message. Images
-uploaded before this have none.
+or a PNG when any of it is transparent. The averaging comes first
+because the scaler's buffer grows with the source's height (32 bytes per
+destination column per source row: 196 MB straight from a 48 MP photo).
+The re-encode drops the metadata, a photo's location included. It is
+stored as its own `files` row of kind `attachment_thumbnail`, with
+`thumbnail_of` naming the original (`ON DELETE CASCADE`, at most one per
+original). It is inserted without the quota check, since the upload it
+came from passed it, and `StorageUsage` counts it, as does retention's
+preview. The cascade takes only the row, so every path that removes an
+original takes the thumbnail's blob too: `DeleteFiles` (a deleted
+message), the sweep, and retention, below. A failed decode or a
+vanished original is permanent; anything else is retried. Nothing is
+announced when it lands: a client sees it the next time it fetches the
+message. Images uploaded before this have none.
 
-**The bound is on what the decode holds, not on pixels**, since that
+**The shape comes first:** no side over 20,000 px and nothing longer
+than 20 to 1, refused from the size alone. A 200,000,000×1 grey PNG is
+under 200 KB, and the decode's buffers follow the long side.
+
+**The bound is on what the job holds, not on pixels**, since that
 differs by format: a progressive JPEG's decoder keeps every coefficient
-as well as the picture. `decodeCost` reckons it from the header alone
-(three bytes a pixel for a JPEG, as if unsubsampled; five times that
-when progressive; the colour model's size for a PNG; eight for any
-WebP) and the job skips anything over 200 MiB. That admits a 48 MP
-baseline JPEG (up to about 69 MP), a 48 MP 8-bit PNG, a 24 MP WebP and
-a progressive JPEG of about 14 MP. A skipped image is served as it is.
+as well as the picture, so no pixel count admits 48 MP baseline photos
+without also admitting progressive files that exhaust the container.
+`thumbnailCost` reckons it from the header alone, before a pixel is
+decoded: `decodeCost` (below) plus the band, the averaged image, the
+scaler's buffer and the thumbnail, and the job skips anything over
+288 MiB. `decodeCost` counts:
+
+- JPEG: 3 bytes a pixel for YCbCr, as if unsubsampled; 1 for grey; 8
+  for CMYK, which the decoder holds as YCbCr and converts; and when
+  progressive, 4 more per component for the coefficients.
+- PNG: 4 bytes a pixel for 8-bit grey, RGB or RGBA and 8 for 16-bit
+  (a `tRNS` chunk, which the header doesn't show, turns grey into
+  NRGBA), 1 for paletted, doubled when Adam7-interlaced (each pass is
+  decoded into an image of its own first).
+- WebP: 8 bytes a pixel, since the lossless decoder holds two copies
+  and the header doesn't always say which kind it is.
+
+`TestDecodeCostCoversTheDecoders` decodes every PNG colour type with
+and without `tRNS` and interlacing, and each kind of JPEG and WebP, and
+checks that what was allocated stays within the reckoning. The bound
+admits a baseline JPEG up to about 75 MP (4:4:4), a 48 MP 8-bit PNG,
+grey with `tRNS` included, an interlaced one of about 28 MP, a 24 MP
+WebP or CMYK JPEG, and a progressive JPEG of about 16 MP. A skipped
+image is served as it is.
 
 The kind runs one at a time (`MaxInFlight: 1`), shares one decode slot
-per process with `normalise_image`, and hands freed memory back to the
-system before and after each decode (`debug.FreeOSMemory`). Measured in
-a container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
+per process with `normalise_image` (the server runs both when jobs are
+embedded), waits for it no longer than the job's context, gives it back
+however the decode ends, and hands freed memory back to the system
+before and after each decode (`debug.FreeOSMemory`). Measured in a
+container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
 
 | Image | Peak | Time |
 | ----- | ---- | ---- |
-| 12 MP JPEG (4032×3024, 4:2:0) | 96 MiB | 0.3 s |
-| 24 MP JPEG (5712×4284, 4:2:0) | 108 MiB | 0.5 s |
+| 12 MP JPEG (4032×3024, 4:2:0) | 95 MiB | 0.3 s |
+| 24 MP JPEG (5712×4284, 4:2:0) | 109 MiB | 0.5 s |
 | 48 MP JPEG (8064×6048, 4:2:0) | 147 MiB | 0.9 s |
-| 48 MP JPEG, 4:4:4 | 215 MiB | 1.3 s |
-| 69 MP JPEG, 4:4:4 (the largest the bound admits) | 272 MiB | 1.8 s |
-| 14 MP progressive JPEG, 4:4:4 (the largest admitted) | 258 MiB | 0.6 s |
-| 48 MP 8-bit PNG, with alpha | 267 MiB | 1.2 s |
-| 12 of the largest, one after another | 271 MiB | |
+| 48 MP JPEG, 4:4:4 | 217 MiB | 1.3 s |
+| 75 MP JPEG, 4:4:4 (the largest admitted) | 293 MiB | 2.0 s |
+| 16 MP progressive JPEG, 4:4:4 (the largest admitted) | 291 MiB | 0.7 s |
+| 48 MP 8-bit PNG, with alpha | 269 MiB | 1.2 s |
+| 48 MP grey PNG with `tRNS` | 265 MiB | 0.5 s |
+| 28 MP interlaced RGBA PNG (the largest admitted) | 279 MiB | 0.3 s |
+| 12 of the largest, one after another | 294 MiB | |
 
-Without the bound counting progressive JPEGs apart, a 24 MP one peaked
-at 422 MiB and a 48 MP one was killed at 512m; without handing memory
-back, the run of twelve grew to 463 MiB.
+Refused ones cost nothing: a 24 MP progressive JPEG, a 14400² grey PNG
+with `tRNS` and a 200,000,000×1 PNG each peaked at 16 MiB. Before the
+bound counted them, a 24 MP progressive JPEG peaked at 422 MiB, a 48 MP
+one was killed at 512m, and the grey 14400² held 829 MB; without
+handing memory back, a run of twelve large ones grew to 463 MiB.
 
 ## Serving
 

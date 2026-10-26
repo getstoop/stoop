@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -144,10 +143,10 @@ type Service struct {
 	// jobs is the queue SweepFiles and the image uploads enqueue on; nil
 	// until UseJobs, and those refuse without it.
 	jobs JobQueue
-	// decoding lets one image decode run at a time in this process,
-	// whichever job asked for it.
-	decoding sync.Mutex
-	log      *slog.Logger
+	// decodeSlot lets one image decode run at a time in this process,
+	// whichever job asked for it (decodeOne).
+	decodeSlot chan struct{}
+	log        *slog.Logger
 }
 
 // JobQueue is the files module's port onto the job queue, wired in
@@ -170,8 +169,22 @@ func New(pool *pgxpool.Pool, store blob.Store, bus events.Bus, avatars Avatars, 
 		q: dbgen.New(pool), pool: pool, store: store, bus: bus,
 		avatars: avatars, spaces: spaces, sessions: sessions, log: log,
 		grace: DefaultSweepGrace, inflight: newInflight(MaxInflightUploads),
-		uploadIdle: uploadIdle,
+		uploadIdle: uploadIdle, decodeSlot: make(chan struct{}, 1),
 	}
+}
+
+// decodeOne runs decode in the process's one decode slot, waiting for it
+// no longer than ctx allows. The slot is given back however decode
+// ends.
+func (s *Service) decodeOne(ctx context.Context, decode func()) error {
+	select {
+	case s.decodeSlot <- struct{}{}:
+	case <-ctx.Done():
+		return fmt.Errorf("wait to decode: %w", ctx.Err())
+	}
+	defer func() { <-s.decodeSlot }()
+	decode()
+	return nil
 }
 
 // storageKey is the blob key for a file: {kind}/{id}, never a client name.

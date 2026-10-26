@@ -88,11 +88,21 @@ WHERE kind = 'attachment' AND expired_at IS NULL
 ORDER BY created_at
 LIMIT sqlc.arg('limit');
 
+-- CountExpiringAttachments counts the originals, and their bytes with
+-- their thumbnails'.
 -- name: CountExpiringAttachments :one
-SELECT count(*)::bigint AS files, COALESCE(SUM(size), 0)::bigint AS bytes FROM files
-WHERE kind = 'attachment' AND expired_at IS NULL
-  AND created_at < sqlc.arg(before)
-  AND NOT (id = ANY(sqlc.arg(keep)::uuid[]));
+WITH expiring AS (
+  SELECT original.id, original.size FROM files original
+  WHERE original.kind = 'attachment' AND original.expired_at IS NULL
+    AND original.created_at < sqlc.arg(before)
+    AND NOT (original.id = ANY(sqlc.arg(keep)::uuid[]))
+)
+SELECT count(*)::bigint AS files,
+  (COALESCE(SUM(expiring.size), 0) + COALESCE((
+    SELECT SUM(thumbnail.size) FROM files thumbnail
+    WHERE thumbnail.thumbnail_of IN (SELECT expiring.id FROM expiring)
+  ), 0))::bigint AS bytes
+FROM expiring;
 
 -- ExpireFiles marks files expired and drops their names; the blobs are
 -- already gone.

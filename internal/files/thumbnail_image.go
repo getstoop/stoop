@@ -20,10 +20,16 @@ import (
 const (
 	// ThumbnailSize is the square a thumbnail fits inside.
 	ThumbnailSize = 1024
-	// maxThumbnailDecode bounds what a decode may hold, in bytes, as
-	// decodeCost reckons it. It admits a 48 MP baseline JPEG or 8-bit
-	// PNG; the resident peak it allows is measured in files.md.
-	maxThumbnailDecode = 200 << 20
+	// maxThumbnailMemory bounds what making a thumbnail may hold, in
+	// bytes, as thumbnailCost reckons it. It admits a 48 MP baseline
+	// JPEG or 8-bit PNG; the resident peak it allows is measured in
+	// files.md.
+	maxThumbnailMemory = 288 << 20
+	// No side over maxThumbnailSide and no shape longer than
+	// maxThumbnailAspect to one: a picture that thin is not a photo, and
+	// the scaling's buffers grow with the long side.
+	maxThumbnailSide   = 20000
+	maxThumbnailAspect = 20
 	thumbnailQuality   = 82
 )
 
@@ -32,52 +38,140 @@ const (
 var thumbnailTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true}
 
 // errNoThumbnailNeeded is a skip, not a failure: the image is already
-// small, animated, or over the bound, and is served as it is.
+// small, animated, out of shape or over the bound, and is served as it
+// is.
 var errNoThumbnailNeeded = errors.New("no thumbnail needed")
 
 // wantsThumbnail is whether an image of this type, first bytes and size
 // is worth a thumbnail: a still PNG, JPEG or WebP larger than
-// ThumbnailSize on a side. The upload asks it before queueing the job;
-// the job asks it again, then checks the bound.
+// ThumbnailSize on a side and within the shape limits. The upload asks
+// it before queueing the job; the job asks it again, then checks the
+// bound. An APNG whose animation chunk lies past head is caught by the
+// job, which reads the whole header.
 func wantsThumbnail(contentType string, head []byte, width, height int) bool {
-	if !thumbnailTypes[contentType] || (contentType == "image/webp" && webpAnimated(head)) {
+	if !thumbnailTypes[contentType] ||
+		(contentType == "image/webp" && webpAnimated(head)) ||
+		(contentType == "image/png" && pngAnimated(bytes.NewReader(head))) {
 		return false
 	}
-	return width > ThumbnailSize || height > ThumbnailSize
+	longer, shorter := max(width, height), min(width, height)
+	return longer > ThumbnailSize && longer <= maxThumbnailSide && shorter > 0 && longer <= shorter*maxThumbnailAspect
 }
 
-// decodeCost is what decoding an image holds, in bytes, from its header
-// alone: the bitmap the colour model implies (a JPEG's YCbCr counted as
-// unsubsampled), five times that for a progressive JPEG, whose decoder
-// keeps every coefficient as well, and eight bytes a pixel for any WebP,
-// whose lossless decoder holds two copies and whose header doesn't
-// always say which kind it is.
-func decodeCost(cfg image.Config, contentType string, progressive bool) int64 {
-	pixels := int64(cfg.Width) * int64(cfg.Height)
-	if contentType == "image/webp" {
+// pngAnimated reports whether a PNG has an acTL chunk before its image
+// data: an APNG, whose still would stop the animation. It steps from
+// chunk to chunk by their lengths, at most 256 of them; a header that
+// ends or won't read first counts as still.
+func pngAnimated(file io.ReadSeeker) bool {
+	if _, err := file.Seek(8, io.SeekStart); err != nil {
+		return false
+	}
+	var chunk [8]byte
+	for range 256 {
+		if _, err := io.ReadFull(file, chunk[:]); err != nil {
+			return false
+		}
+		switch string(chunk[4:]) {
+		case "acTL":
+			return true
+		case "IDAT":
+			return false
+		}
+		// The data, then its CRC.
+		if _, err := file.Seek(int64(binary.BigEndian.Uint32(chunk[:4]))+4, io.SeekCurrent); err != nil {
+			return false
+		}
+	}
+	return false
+}
+
+// imageHeader is what the bound is reckoned from, all of it read before
+// a pixel is decoded.
+type imageHeader struct {
+	image.Config
+	contentType string
+	// progressive: a JPEG whose decoder keeps every coefficient.
+	progressive bool
+	// interlaced: a PNG in Adam7, decoded a pass at a time into images
+	// of their own before they are put together.
+	interlaced bool
+}
+
+// decodeCost is what decoding an image holds, in bytes:
+//   - a JPEG's bitmap, YCbCr counted as unsubsampled (3 bytes a pixel),
+//     grey 1, CMYK 8 (the decoder keeps it as YCbCr and converts), and
+//     for a progressive one its coefficients too, four bytes a sample
+//     per component;
+//   - a PNG's bitmap, grey counted as 4 or 8 because a tRNS chunk, which
+//     the header doesn't show, makes it NRGBA, and doubled when
+//     interlaced;
+//   - eight bytes a pixel for any WebP, whose lossless decoder holds two
+//     copies and whose header doesn't always say which kind it is.
+//
+// TestDecodeCostCoversTheDecoders checks these against what the
+// decoders allocate.
+func decodeCost(header imageHeader) int64 {
+	pixels := int64(header.Width) * int64(header.Height)
+	switch header.contentType {
+	case "image/webp":
 		return pixels * 8
+	case "image/jpeg":
+		perPixel, components := int64(3), int64(3)
+		switch header.ColorModel {
+		case color.GrayModel:
+			perPixel, components = 1, 1
+		case color.CMYKModel:
+			perPixel, components = 8, 4
+		}
+		if header.progressive {
+			perPixel += 4 * components
+		}
+		return pixels * perPixel
 	}
 	var perPixel int64
-	switch cfg.ColorModel {
-	case color.GrayModel:
-		perPixel = 1
-	case color.Gray16Model:
-		perPixel = 2
-	case color.YCbCrModel:
-		perPixel = 3
-	case color.RGBAModel, color.NRGBAModel, color.CMYKModel, color.NYCbCrAModel:
+	switch header.ColorModel {
+	case color.GrayModel, color.RGBAModel, color.NRGBAModel:
 		perPixel = 4
 	default:
-		if _, paletted := cfg.ColorModel.(color.Palette); paletted {
+		if _, paletted := header.ColorModel.(color.Palette); paletted {
 			perPixel = 1
 		} else {
 			perPixel = 8
 		}
 	}
-	if progressive {
-		perPixel *= 5
+	if header.interlaced {
+		perPixel *= 2
 	}
 	return pixels * perPixel
+}
+
+// thumbnailCost is decodeCost plus what the steps after the decode
+// allocate: shrinkBy's band and result, the scaler's buffer (eight
+// float64s per destination column per source row), the scaled and the
+// turned thumbnail.
+func thumbnailCost(header imageHeader) int64 {
+	width, height := int64(header.Width), int64(header.Height)
+	factor := reductionFactor(header.Width, header.Height)
+	reducedWidth, reducedHeight := (width+factor-1)/factor, (height+factor-1)/factor
+	thumbWidth, thumbHeight := thumbnailSize(header.Width, header.Height)
+	band := width * min(factor, height) * 4
+	reduced := reducedWidth * reducedHeight * 4
+	scaler := int64(thumbWidth) * reducedHeight * 32
+	thumb := int64(thumbWidth) * int64(thumbHeight) * 4 * 2
+	return decodeCost(header) + band + reduced + scaler + thumb
+}
+
+// reductionFactor is the block shrinkBy averages, so the longer side
+// comes out at most twice ThumbnailSize.
+func reductionFactor(width, height int) int64 {
+	longer := int64(max(width, height))
+	return (longer + 2*ThumbnailSize - 1) / (2 * ThumbnailSize)
+}
+
+// thumbnailSize fits width×height inside ThumbnailSize×ThumbnailSize.
+func thumbnailSize(width, height int) (int, int) {
+	longer := max(width, height)
+	return max(1, width*ThumbnailSize/longer), max(1, height*ThumbnailSize/longer)
 }
 
 // jpegProgressive reports whether a JPEG's frame header is progressive
@@ -137,7 +231,8 @@ type thumbnail struct {
 // drops the metadata. errNoThumbnailNeeded is a skip; errNotAnImage
 // means the bytes would not decode.
 func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
-	var head [21]byte
+	// Through the PNG header's interlace byte.
+	var head [29]byte
 	headLength, _ := io.ReadFull(file, head[:])
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return thumbnail{}, err
@@ -149,14 +244,20 @@ func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
 	if !wantsThumbnail(contentType, head[:headLength], cfg.Width, cfg.Height) {
 		return thumbnail{}, errNoThumbnailNeeded
 	}
-	progressive := false
-	if contentType == "image/jpeg" {
+	header := imageHeader{Config: cfg, contentType: contentType}
+	switch contentType {
+	case "image/jpeg":
 		if _, err := file.Seek(0, io.SeekStart); err != nil {
 			return thumbnail{}, err
 		}
-		progressive = jpegProgressive(file)
+		header.progressive = jpegProgressive(file)
+	case "image/png":
+		if pngAnimated(file) {
+			return thumbnail{}, errNoThumbnailNeeded
+		}
+		header.interlaced = headLength == len(head) && head[28] == 1
 	}
-	if decodeCost(cfg, contentType, progressive) > maxThumbnailDecode {
+	if thumbnailCost(header) > maxThumbnailMemory {
 		return thumbnail{}, errNoThumbnailNeeded
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
@@ -171,9 +272,7 @@ func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
 		return thumbnail{}, err
 	}
 	opaque := reduced.Opaque()
-	longer := max(cfg.Width, cfg.Height)
-	width := max(1, cfg.Width*ThumbnailSize/longer)
-	height := max(1, cfg.Height*ThumbnailSize/longer)
+	width, height := thumbnailSize(cfg.Width, cfg.Height)
 	scaled := image.NewRGBA(image.Rect(0, 0, width, height))
 	draw.CatmullRom.Scale(scaled, scaled.Bounds(), reduced, reduced.Bounds(), draw.Src, nil)
 	turned := orient(scaled, orientation)
@@ -202,14 +301,12 @@ func decodeReduced(file io.Reader, cfg image.Config) (*image.RGBA, error) {
 	if err != nil {
 		return nil, errNotAnImage
 	}
-	longer := max(cfg.Width, cfg.Height)
-	factor := (longer + 2*ThumbnailSize - 1) / (2 * ThumbnailSize)
-	return shrinkBy(src, factor), nil
+	return shrinkBy(src, int(reductionFactor(cfg.Width, cfg.Height))), nil
 }
 
 // shrinkBy averages each factor×factor block of src into one pixel,
-// converting factor rows at a time into a band so only the band and the
-// result are allocated. The average is of premultiplied colour, so a
+// converting factor rows at a time (fewer if the image has fewer) into a
+// band so only the band and the result are allocated. The average is of premultiplied colour, so a
 // transparent pixel adds nothing to its neighbours. Blocks at the right
 // and bottom edges may be partial.
 func shrinkBy(src image.Image, factor int) *image.RGBA {
@@ -218,7 +315,7 @@ func shrinkBy(src image.Image, factor int) *image.RGBA {
 	width := (srcWidth + factor - 1) / factor
 	height := (bounds.Dy() + factor - 1) / factor
 	dst := image.NewRGBA(image.Rect(0, 0, width, height))
-	band := image.NewRGBA(image.Rect(0, 0, srcWidth, factor))
+	band := image.NewRGBA(image.Rect(0, 0, srcWidth, min(factor, bounds.Dy())))
 	sums := make([]uint32, width*4)
 	counts := make([]uint32, width)
 	for outRow := range height {
