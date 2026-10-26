@@ -134,10 +134,14 @@ import a screen; the screens themselves live in `src/screens`, so
   never jumps; `docs/proposals/mobile-attachments-inline.md`): one
   image at its own size, shrunk to the words' width and 320 high, on
   the panel; one the server has no size for in a fixed 4:3 box with
-  the image fitted inside; two or more in a grid of square tiles, two
-  to a row, all shown, and the other files after them; any other file,
-  video and audio included for now, as web's card; an expired file as
-  web's dashed placeholder, which fetches nothing. An image loads from
+  the image fitted inside; one video as web's frame, 280 by 158 on
+  black with its round play badge and its name and size in a bar over
+  its foot (no still, as the server makes none, and nothing plays in
+  the list); two or more images and videos in a grid of square tiles,
+  two to a row, all shown, a video's black with the badge, and the
+  other files after them; any other file, audio included for now, as
+  web's card; an expired file as web's dashed placeholder, which
+  fetches nothing. An image loads from
   `/files` with the session through `expo-image` (a native module, so
   a build on the phone needs `make mobile-ios` again), decoded at the
   size it is drawn and cached on disk, over a faint image glyph until
@@ -152,9 +156,10 @@ import a screen; the screens themselves live in `src/screens`, so
   download" there until the next tap. Signing out forgets every cached
   picture and downloaded file, for every server. Each file is its own
   element for a screen reader, named by its kind and name ("Image 2 of
-  4, IMG_2111.jpg"). A long press on any of them is the row's, and the
+  4, IMG_2111.jpg", "Video, IMG_2042.mov, 18.6 MB. Plays full
+  screen"). A long press on any of them is the row's, and the
   menu's card draws the files small, in the composer strip's look. A
-  tap on an image opens it full screen (`src/components/Viewer`, a
+  tap on an image or a video opens it full screen (`src/components/Viewer`, a
   modal over the channel or the thread, as the message menu is): on
   black, shrunk to fit and never enlarged, as web's preview, its
   thumbnail drawn in the same box until the original lands (decoded
@@ -162,8 +167,7 @@ import a screen; the screens themselves live in `src/screens`, so
   loaded a swipe sideways away (a pan of its own, not a paging list,
   which on Android never pages under the pictures' gestures),
   oldest first across messages, as web's preview steps through them
-  (`core/attachments` `galleryMedia`; videos join when the phone plays
-  them). Pinch zooms, a double tap zooms in on that spot or back out,
+  (`core/attachments` `galleryMedia`, videos among them). Pinch zooms, a double tap zooms in on that spot or back out,
   and a drag pans while zoomed; a drag down follows the finger as the
   black fades and closes it once far or fast enough, or springs back.
   A single tap hides and shows the bars: Close (×, or ← on Android,
@@ -173,11 +177,29 @@ import a screen; the screens themselves live in `src/screens`, so
   there and otherwise downloaded as a card's file is. For a screen
   reader the picture is one adjustable element ("IMG_2041.jpg, image 2
   of 4, from NAME, 9:31 AM") whose increment and decrement page, and
-  the bars stay. The gestures are `react-native-gesture-handler` and
-  `react-native-reanimated` (native modules, so a build on the phone
-  needs `make mobile-ios` again), under a `GestureHandlerRootView` at
-  the app's root; `babel-preset-expo` adds the worklets plugin on its
-  own.
+  the bars stay. A video's page plays it (`expo-video`, a native
+  module, so a build on the phone needs `make mobile-ios` again; its
+  config plugin is left out, so there is no background playback or
+  picture in picture): from `/files` with the session, by Range
+  requests, with sound and the platform's own controls, starting as
+  its page comes on screen and pausing as it leaves; a neighbour
+  fetches nothing until it is paged to, and a page left behind by
+  more than one, or closing, releases it. Every touch on the video is
+  its controls': a gesture over it keeps them from showing, so the
+  pager's swipe is off on a video's page and a sideways swipe from
+  either edge pages instead, there is no drag down to close, and the
+  bars stay up. For a screen reader the page is adjustable as a
+  picture's is ("…, video 5 of 5, …"), and activating it plays or
+  pauses. One the phone can't play (a
+  WebM on an iPhone, HEVC on some Androids) shows web's card and "This
+  phone can't play this video. Share it to open it elsewhere."; the
+  card's tap shares it as Share does, and for as long as the app runs
+  the timeline draws it as that card, which a tap shares, as web turns
+  a video it can't decode into its download card. The gestures are
+  `react-native-gesture-handler` and `react-native-reanimated` (native
+  modules, so a build on the phone needs `make mobile-ios` again),
+  under a `GestureHandlerRootView` at the app's root;
+  `babel-preset-expo` adds the worklets plugin on its own.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions
@@ -568,7 +590,7 @@ server, open the menu from one and remove one, see a message's files (a
 landscape and a portrait photo, the two in a grid, a PDF and a file
 `scripts/mobile-e2e.sh` marks expired after the seed), open the menu
 from a photo, open a photo full screen, page to the next and close
-it, and share the PDF to the system's sheet, attach a photo
+it, play a clip full screen, and share the PDF to the system's sheet, attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it

@@ -7,21 +7,23 @@ import { scheduleOnRN } from "react-native-worklets";
 import { downloadAttachment, shareDownloaded } from "../../api/downloads";
 import { tokens } from "../../theme";
 import Bars, { type Sharing } from "./Bars";
-import { itemKey, pageLabel, type ViewerItem } from "./items";
+import { isVideo, itemKey, pageLabel, type ViewerItem } from "./items";
 import Page from "./Page";
 import Pager from "./Pager";
+import VideoPage from "./VideoPage";
 
 // The full-screen viewer, the phone's counterpart of web's MediaPreview,
 // opened by a tap on a picture in a channel or a thread (useViewer): the
-// picture on black, fitted, with the screen's other pictures a swipe
-// sideways away (web's list, items.ts). A modal over the screen, as the
-// message menu is, not a route, so a cold open never lands here. A
-// single tap hides and shows the bars, which never hide while a screen
-// reader is on; Close, Android's back, a drag down (Page) and the
-// screen reader's escape close it. Share hands the original, never the
-// thumbnail, to the system's sheet: the copy expo-image already holds
-// when there is one, else a download (api/downloads). The status bar
-// hides while it is open.
+// picture on black, fitted, with the screen's other pictures and videos
+// a swipe sideways away (web's list, items.ts), a video playing
+// (VideoPage). A modal over the screen, as the message menu is, not a
+// route, so a cold open never lands here. A single tap hides and shows
+// the bars, which never hide while a screen reader is on, nor over a
+// video, whose touches are its controls'; Close, Android's back, a drag
+// down on a picture (Page) and the screen reader's escape close it.
+// Share hands the original, never the thumbnail, to the system's sheet:
+// the copy expo-image already holds when there is one, else a download
+// (api/downloads). The status bar hides while it is open.
 
 export default function Viewer({
   items,
@@ -179,30 +181,43 @@ export default function Viewer({
                   index={index}
                   width={size.width}
                   height={size.height}
-                  enabled={!zoomed}
+                  enabled={!zoomed && !isVideo(items[index])}
                   keyOf={(at) => itemKey(items[at])}
                   onIndex={paged}
-                  renderPage={(at) => (
-                    <Page
-                      item={items[at]}
-                      origin={origin}
-                      token={token}
-                      width={size.width}
-                      height={size.height}
-                      active={at === index}
-                      label={pageLabel(items[at], at, items.length)}
-                      takeFocus={() => takeFocus(at)}
-                      drag={{ x: dragX, y: dragY }}
-                      onTap={() => setBars((on) => !on)}
-                      onZoom={setZoomed}
-                      onSwipeClose={close}
-                      onStep={(delta) => step(at, delta)}
-                    />
-                  )}
+                  renderPage={(at) =>
+                    isVideo(items[at]) ? (
+                      <VideoPage
+                        item={items[at]}
+                        origin={origin}
+                        token={token}
+                        active={at === index}
+                        label={pageLabel(items[at], at, items.length)}
+                        takeFocus={() => takeFocus(at)}
+                        onShare={share}
+                        onStep={(delta) => step(at, delta)}
+                      />
+                    ) : (
+                      <Page
+                        item={items[at]}
+                        origin={origin}
+                        token={token}
+                        width={size.width}
+                        height={size.height}
+                        active={at === index}
+                        label={pageLabel(items[at], at, items.length)}
+                        takeFocus={() => takeFocus(at)}
+                        drag={{ x: dragX, y: dragY }}
+                        onTap={() => setBars((on) => !on)}
+                        onZoom={setZoomed}
+                        onSwipeClose={close}
+                        onStep={(delta) => step(at, delta)}
+                      />
+                    )
+                  }
                 />
               )}
             </Animated.View>
-            {(bars || reader) && item && (
+            {item && (bars || reader || isVideo(item)) && (
               <Animated.View style={[StyleSheet.absoluteFill, chrome]} pointerEvents="box-none">
                 <Bars
                   item={item}

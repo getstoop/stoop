@@ -4,21 +4,18 @@ import { dayAndTime, sameDay } from "@stoop/core/dates";
 import type { Attachment, Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { authorName } from "../../api/authors";
 
-// What the viewer steps through, and what it says about each picture.
+// What the viewer steps through, and what it says about each page.
 
 export type ViewerItem = { attachment: Attachment; message: Message };
 
 // Web's list (core/attachments galleryMedia): every image and video in
 // the loaded messages, oldest first, across messages, each with the
-// message it came in so the top bar can say whose it is. Images only
-// until the phone plays video; then a video page joins them.
+// message it came in so the top bar can say whose it is.
 export function viewerItems(messages: Message[]): ViewerItem[] {
-  return messages.flatMap((message) =>
-    galleryMedia([message])
-      .filter((attachment) => attachmentKind(attachment) === "image")
-      .map((attachment) => ({ attachment, message })),
-  );
+  return messages.flatMap((message) => galleryMedia([message]).map((attachment) => ({ attachment, message })));
 }
+
+export const isVideo = (item: ViewerItem) => attachmentKind(item.attachment) === "video";
 
 // One file can come in more than one message.
 export const itemKey = (item: ViewerItem) => `${item.message.id}:${item.attachment.fileId}`;
@@ -38,8 +35,9 @@ export function sentAt(item: ViewerItem, now: Date = new Date()): string {
 export const positionText = (index: number, count: number) => `${index + 1} of ${count}`;
 
 // The page as a screen reader reads it: "IMG_2041.jpg, image 2 of 4,
-// from Theo Kim, 9:31 AM".
+// from Theo Kim, 9:31 AM", or "…, video 3 of 4, …".
 export function pageLabel(item: ViewerItem, index: number, count: number, now: Date = new Date()): string {
   const time = sentAt(item, now);
-  return `${item.attachment.name}, image ${positionText(index, count)}, from ${senderName(item)}${time ? `, ${time}` : ""}`;
+  const kind = isVideo(item) ? "video" : "image";
+  return `${item.attachment.name}, ${kind} ${positionText(index, count)}, from ${senderName(item)}${time ? `, ${time}` : ""}`;
 }
