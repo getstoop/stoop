@@ -4,6 +4,7 @@ import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { MessageSchema } from "../gen/stoop/chat/v1/message_pb";
+import shared from "./markdown/shared-cases.json";
 import {
   candidateMention,
   channelCandidates,
@@ -11,6 +12,7 @@ import {
   currentHandle,
   filterMembers,
   linkableChannels,
+  MAX_MESSAGE_LENGTH,
   mentionCandidates,
   mentionGroups,
   mentionMembers,
@@ -23,6 +25,7 @@ import {
   splitEveryone,
   tokensAsText,
   withTypedMentions,
+  writtenLength,
 } from "./mentions";
 
 const member = (username: string, displayName = ""): Member =>
@@ -396,4 +399,18 @@ describe("mentionsMe", () => {
     ).toBe(false);
     expect(mentionsMe(message({}), "me")).toBe(false);
   });
+});
+
+// The limit and how it counts, as the server has them
+// (internal/chat/shared_cases_internal_test.go).
+describe("the message limit, shared with the server", () => {
+  it("is the server's", () => {
+    expect(MAX_MESSAGE_LENGTH).toBe(shared.maxMessageLength);
+  });
+
+  for (const { in: input, want } of shared.writtenLength) {
+    it(`counts ${JSON.stringify(input)} as ${want}`, () => {
+      expect(writtenLength(input)).toBe(want);
+    });
+  }
 });

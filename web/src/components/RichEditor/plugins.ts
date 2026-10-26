@@ -17,7 +17,7 @@ import {
   type Transaction,
 } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
-import { writtenLength } from "../../core/mentions";
+import { MAX_MESSAGE_LENGTH, writtenLength } from "../../core/mentions";
 import { newLine } from "./commands";
 import { fromMarkdown, readableAddress, toMarkdown } from "./markdown";
 import { type MentionContext, mentions, NO_MENTIONS } from "./mentions";
@@ -244,6 +244,6 @@ export function editorPlugins(
     autolink,
     mentions(mentionContext),
     placeholder(placeholderText),
-    maxLength(4000),
+    maxLength(MAX_MESSAGE_LENGTH),
   ];
 }

@@ -191,8 +191,10 @@ document, and Markdown is what it sends and what it loads to edit.
 `plainText` (`internal/chat/markdown.go`) strips markers for reply-quote
 and activity previews, including bullets and `||`, so a preview reads
 as the words themselves. It is the client's parser ported to Go, not a
-second set of rules, and the same test cases run on both sides: a
-preview never shows an address or a word the rendered message does not.
+second set of rules, and the same test cases run on both sides, from one
+file (`web/src/core/markdown/shared-cases.json`, read by vitest and by
+`internal/chat/shared_cases_internal_test.go`): a preview never shows an
+address or a word the rendered message does not.
 The link extractor for previews walks the same parse, and so does the
 mention check: a token counts where the parse reads it as a mention,
 never by a separate scan for backticks.
@@ -243,7 +245,9 @@ for a handle typed in full). Bots and hooks write them directly
 - Any other token is saved as `@handle` text and reaches nobody. **A
   mention is an address, not a permission**: one for someone outside the
   channel doesn't error, because a stale ID shouldn't fail a message.
-- The 4000-character limit counts each token as its handle.
+- The 4000-character limit counts each token as its handle, and each
+  character (code point) once. Clients read it as `MAX_MESSAGE_LENGTH`
+  in `core/mentions.ts`; the shared cases hold the two to one number.
 - An edit checks its tokens but tells nobody new.
 
 `content` carries the tokens as stored, to clients, bots and outgoing
