@@ -13,7 +13,9 @@ import { uploadWithoutCookies } from "./fetch";
 // Where a file is fetched from, GET /files/<id>, with the session as a
 // bearer token: one place, so expo-image's cache key and a download's
 // address agree (api/downloads reuses what the image cache holds) and
-// every picture drawn from /files goes into the cache sign-out clears.
+// every picture drawn with the session goes into the cache sign-out
+// clears. (An invite's space icon, drawn before sign-in with the invite's
+// code, is the one picture from /files without it.)
 export const fileUrl = (origin: string, fileId: string) => `${origin}/files/${fileId}`;
 
 export const fileHeaders = (token: string) => ({ Authorization: `Bearer ${token}` });

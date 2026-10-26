@@ -103,10 +103,12 @@ export default function VideoPage({
   const failed = useCallback(
     (loaded: boolean) => {
       whyFailed(origin, token, fileId, loaded).then((why) => {
-        if (mounted.current) setState(why);
+        if (!mounted.current) return;
+        if (why === "unplayable") unplayable();
+        else setState("unloaded");
       });
     },
-    [origin, token, fileId],
+    [origin, token, fileId, unplayable],
   );
   const retry = () => {
     setState("playing");

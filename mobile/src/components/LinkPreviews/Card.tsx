@@ -13,8 +13,8 @@ import type { CardLayout } from "./layout";
 // message's surface behind the accent bar, with the image beside or
 // under them, or the image alone. The image is the server's copy, from
 // /files with the session (as an avatar is, through expo-image's cache,
-// which sign-out clears), so nothing reaches the
-// linked site; one that won't load is left out. A tap opens the link in
+// which sign-out clears), so nothing reaches the linked site; one that
+// won't load is left out. A tap opens the link in
 // the browser; a long press is the row's. `onDismiss`, for whoever may
 // delete the message, puts web's × over the card's corner.
 export default function Card({

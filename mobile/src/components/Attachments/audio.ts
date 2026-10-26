@@ -2,7 +2,7 @@ import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { createVideoPlayer, type VideoPlayer } from "expo-video";
 import { createContext, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { fileSource } from "../../api/files";
-import { whyFailed } from "./unplayable";
+import { markUnplayable, whyFailed } from "./unplayable";
 
 // The audio a screen of messages plays: one file at a time, on one
 // expo-video player with no view (AVPlayer, ExoPlayer play audio files
@@ -162,7 +162,9 @@ export class AudioPlayback {
         if (status !== "error") return;
         this.release();
         whyFailed(origin, token, fileId, loaded).then((why) => {
-          if (this.attempt === attempt && why === "unloaded") this.markFailed(fileId);
+          if (this.attempt !== attempt) return;
+          if (why === "unplayable") markUnplayable(fileId);
+          else this.markFailed(fileId);
         });
       }),
     ];
