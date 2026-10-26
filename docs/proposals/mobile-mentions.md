@@ -95,8 +95,7 @@ The artboards show it; in words:
 - **Screen readers.** Each row is a button labelled with what it shows
   ("Priya Shah, at priya"; "Organisers, 3 people, at organisers";
   "channel reading-list"). Opening the list announces how many
-  suggestions there are (iOS `announceForAccessibility`; an
-  `accessibilityLiveRegion` on Android).
+  suggestions there are (`announceForAccessibility`, on both).
 - **Threads** use the same composer, so the same list.
 - **Editing** keeps its behaviour. The list works in the field there
   too, and a pick inserts a token beside the `@handle` words edit mode
@@ -172,8 +171,13 @@ In step 2 the composer is also told `channelAndHere`, the rest of web's
   Maestro flow proves both before the rest is built.
 - The panel is a sibling above the card in `ComposerDock`, so it rides
   the keyboard with it; it is laid out from the card's measured height.
+  The composer hands it to the dock through a context
+  (`composerAbove.ts`): drawn inside the card's own view it would sit
+  outside that view's bounds, where Android delivers no taps.
 - New files: `screens/Channel/MentionList.tsx` (the panel and rows),
-  `screens/Channel/useMentionQuery.ts` (caret, query, candidates, pick).
+  `screens/Channel/useMentionQuery.tsx` (caret, query, candidates, pick),
+  `screens/Channel/Surface.tsx` (the card's glass or panel, now shared),
+  `core/mentionPicks.ts` (what a pick and the @ button write).
 
 ## Split
 
@@ -222,5 +226,9 @@ whole suite once at the end with your OK.
 - Emoji `:shortcode` suggestions in the same panel.
 - Presence in the rows (the phone holds no one else's presence yet).
 - Ranking candidates (recent authors, people in the thread).
+- A pick while editing: Save restores the original's tokens by position
+  (`withTokensRestored`), so a picked token placed before an original
+  `@handle` of the same name can leave that one as words. Rare; the rich
+  editor drops the restore.
 - Timeline mentions drawn with the current handle (`currentHandle`) now
   that the phone holds members and groups.

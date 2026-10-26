@@ -343,6 +343,8 @@ export default function Thread({
               key={rootId}
               channelName={channel.name}
               mentionNames={mentionNames}
+              origin={server.origin}
+              token={token}
               inThread
               send={sendHere}
               upload={engine.upload}

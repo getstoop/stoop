@@ -295,6 +295,8 @@ export default function Channel({
             key={channelId}
             channelName={channel.name}
             mentionNames={mentionNames}
+            origin={server.origin}
+            token={token}
             send={sendHere}
             upload={engine.upload}
             maxUploadBytes={status.maxUploadBytes}

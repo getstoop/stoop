@@ -3,12 +3,14 @@ import { KeyboardAvoidingView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
+import { ComposerAbove } from "./composerAbove";
 import type { Notice } from "./useMessageActions";
 
-// A list of messages with the composer floating over its foot, riding up
-// with the keyboard, and a refusal's line over the composer: the channel's
-// layout, and a thread's. The list is drawn by the screen, given how far
-// its newest row must stay clear of the composer.
+// A list of messages with the composer floating over its foot, riding
+// up with the keyboard, and a refusal's line over the composer, or what
+// the composer shows over itself (ComposerAbove): the channel's layout,
+// and a thread's. The list is drawn by the screen, given how far its
+// newest row must stay clear of the composer.
 export default function ComposerDock({
   keyboard,
   list,
@@ -24,6 +26,7 @@ export default function ComposerDock({
   const insets = useSafeAreaInsets();
   // The composer's height as drawn, for the list to clear.
   const [composerHeight, setComposerHeight] = useState(PILL);
+  const [above, setAbove] = useState<ReactNode>(null);
   // Where the dock starts in the window (under the stack's header): the
   // avoiding view measures itself against its parent and needs that
   // offset to know how much of it the keyboard covers.
@@ -48,7 +51,7 @@ export default function ComposerDock({
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
           >
-            {composer}
+            <ComposerAbove.Provider value={setAbove}>{composer}</ComposerAbove.Provider>
           </View>
           {notice && (
             <View
@@ -65,6 +68,9 @@ export default function ComposerDock({
               )}
             </View>
           )}
+          {above && (
+            <View style={[styles.above, { bottom: composerBottom + composerHeight + GAP }]}>{above}</View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -80,6 +86,12 @@ function makeStyles(theme: Theme) {
       position: "absolute",
       left: 0,
       right: 0,
+    },
+    // Over the composer's card, as wide.
+    above: {
+      position: "absolute",
+      left: 8,
+      right: 8,
     },
     toast: {
       position: "absolute",

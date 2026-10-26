@@ -1,11 +1,11 @@
 import type { UploadedFile } from "@stoop/core/attachments";
 import { editableText, withTokensRestored } from "@stoop/core/editableText";
 import { isBlankMessage } from "@stoop/core/markdown";
-import { type MentionNames, withTypedMentions } from "@stoop/core/mentions";
+import { withTypedMentions } from "@stoop/core/mentions";
 import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { type ComponentRef, forwardRef, type ReactNode, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,7 +28,10 @@ import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
 import AttachSheet from "./AttachSheet";
 import FormatRow from "./FormatRow";
+import Surface from "./Surface";
 import { useAttachments } from "./useAttachments";
+import type { ComposerMentions } from "./useMentionNames";
+import { useMentionQuery } from "./useMentionQuery";
 
 // Where a message is written: one control in two states. At rest it is a
 // pill floating over the list, Attach and "Message #channel"; tapped, it
@@ -62,6 +65,10 @@ import { useAttachments } from "./useAttachments";
 // A refusal puts the draft back ahead of anything typed since, with the
 // server's words under it, and the quote back unless another was picked
 // meanwhile (web's rule); pressing Send again is the retry.
+//
+// Typing a @handle or #name in the card lists who or what it may name over
+// the card (useMentionQuery, MentionList), and a pick puts the token in
+// the field; the @ button beside Aa types an "@" that opens the list.
 //
 // Sent, a @handle or #name typed in full that exactly one person, group
 // or channel has goes as its token (core/mentions withTypedMentions), as
@@ -105,8 +112,11 @@ export default forwardRef<
   ComposerHandle,
   {
     channelName: string;
-    // Who and what a handle typed here names.
-    mentionNames: MentionNames;
+    // Who and what a handle typed here names, and the server and session
+    // the list's avatars are fetched with.
+    mentionNames: ComposerMentions;
+    origin: string;
+    token: string;
     // A thread's composer, with Also send to the channel.
     inThread?: boolean;
     send: (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => Promise<void>;
@@ -125,7 +135,7 @@ export default forwardRef<
     onEditDone: () => void;
   }
 >(function Composer(
-  { channelName, mentionNames, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
+  { channelName, mentionNames, origin, token, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
   ref,
 ) {
   const theme = useTheme();
@@ -177,6 +187,15 @@ export default forwardRef<
   const replyToRef = useRef(replyTo);
   replyToRef.current = replyTo;
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
+  const mentions = useMentionQuery({
+    draft,
+    setDraft,
+    writing,
+    replaced: editingId,
+    names: mentionNames,
+    origin,
+    token,
+  });
 
   // The card, with the field focused: mounted so (autoFocus), and focused
   // once more on the frame after it is up, since Android does not always
@@ -384,6 +403,8 @@ export default forwardRef<
           multiline
           value={draft}
           onChangeText={setDraft}
+          selection={mentions.selection}
+          onSelectionChange={mentions.onSelectionChange}
           onBlur={() => setWriting(false)}
           placeholder={placeholder}
           placeholderTextColor={theme.textMuted}
@@ -408,6 +429,9 @@ export default forwardRef<
           >
             <Text style={styles.aa}>Aa</Text>
           </Round>
+          <Round label="Mention someone" onPress={mentions.typeAt}>
+            <Text style={styles.at}>@</Text>
+          </Round>
           <View style={styles.spacer} />
           {editing ? (
             <Round label="Save" disabled={sending} onPress={submit} style={styles.send}>
@@ -431,35 +455,6 @@ export default forwardRef<
 });
 
 const fileCount = (count: number) => (count === 1 ? "1 file" : `${count} files`);
-
-// The composer's surface: Liquid Glass where iOS has it, else drawn with
-// the theme's panel and border under a light shadow, as the composing
-// mockup for Android draws it.
-function Surface({ glass, children, style }: { glass: boolean; children: ReactNode; style: ViewStyle }) {
-  const theme = useTheme();
-  if (glass) {
-    return (
-      <GlassView glassEffectStyle="regular" colorScheme={theme.scheme} style={[style, { overflow: "hidden" }]}>
-        {children}
-      </GlassView>
-    );
-  }
-  return (
-    <View
-      style={[
-        style,
-        {
-          backgroundColor: theme.panel,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.border,
-          boxShadow: theme.scheme === "dark" ? "0 6px 20px rgba(0, 0, 0, 0.35)" : "0 6px 20px rgba(30, 25, 20, 0.16)",
-        },
-      ]}
-    >
-      {children}
-    </View>
-  );
-}
 
 // A 40px round button.
 function Round({
@@ -622,6 +617,11 @@ function makeStyles(theme: Theme) {
     aa: {
       color: theme.text,
       fontSize: 17,
+      fontWeight: "600",
+    },
+    at: {
+      color: theme.text,
+      fontSize: 19,
       fontWeight: "600",
     },
     send: {

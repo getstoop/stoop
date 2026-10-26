@@ -1,0 +1,110 @@
+appId: ${APP_ID}
+name: Pick mentions from the list, from @, the @ button and #, and see them sent
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+- tapOn: "Message #chapters"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+# "@" lists @channel and @here (ada owns the space), the group, then
+# people; typing on narrows it.
+- inputText: "Over to @"
+- extendedWaitUntil:
+    visible:
+      id: "mention-list"
+    timeout: 5000
+- assertVisible: "at channel, Everyone in this channel"
+- assertVisible: "Readers, 2 people, at readers"
+- assertVisible: ".*, at ${POSTER}"
+- inputText: "re"
+- extendedWaitUntil:
+    notVisible: "at channel, Everyone in this channel"
+    timeout: 5000
+- assertNotVisible: ".*, at ${POSTER}"
+# A pick puts the group's token in the field, with a space, and the list
+# goes.
+- tapOn: "Readers, 2 people, at readers"
+- extendedWaitUntil:
+    notVisible:
+      id: "mention-list"
+    timeout: 5000
+- assertVisible:
+    id: "composer"
+    text: "Over to <@g:${READERS_ID}:readers> "
+# The @ button types an "@", which opens the list the same way.
+- tapOn: "Mention someone"
+- extendedWaitUntil:
+    visible:
+      id: "mention-list"
+    timeout: 5000
+- inputText: "${POSTER}"
+- tapOn: ".*, at ${POSTER}"
+- extendedWaitUntil:
+    notVisible:
+      id: "mention-list"
+    timeout: 5000
+# "#" lists the space's channels.
+- inputText: "in #ra"
+- extendedWaitUntil:
+    visible: "channel random.*"
+    timeout: 5000
+- tapOn: "channel random.*"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: ".*Over to .*"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: pickedMentions
+      CHANNEL_ID: ${CHAPTERS_ID}
+- assertTrue: ${output.pickedMentions}
+# Mid-text, the caret a pick sets is where the next words go: the @
+# button at the start of "there", a pick, then "hi" typed after the
+# token and its space, not at the end of the field.
+- inputText: "there"
+- tapOn:
+    id: "composer"
+    point: "3%,50%"
+- tapOn: "Mention someone"
+- extendedWaitUntil:
+    visible:
+      id: "mention-list"
+    timeout: 5000
+- tapOn: "Readers, 2 people, at readers"
+- inputText: "hi"
+- assertVisible:
+    id: "composer"
+    text: "<@g:${READERS_ID}:readers> hithere"
