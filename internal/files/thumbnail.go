@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime/debug"
 
 	"github.com/jackc/pgx/v5"
 
@@ -98,11 +97,8 @@ func (s *Service) ThumbnailAttachment(ctx context.Context, args ThumbnailAttachm
 	return err
 }
 
-// thumbnailOf reads the original's blob and makes its thumbnail, one
-// image decode at a time in this process, and hands the memory back to
-// the system on either side, so a run of large photos peaks no higher
-// than one (files.md → Thumbnails). Bytes that won't decode wrap
-// ErrNoThumbnail.
+// thumbnailOf reads the original's blob and makes its thumbnail in the
+// decode slot (decodeOne). Bytes that won't decode wrap ErrNoThumbnail.
 func (s *Service) thumbnailOf(ctx context.Context, original dbgen.File) (thumbnail, error) {
 	reader, _, err := s.store.Open(ctx, original.StorageKey)
 	if errors.Is(err, blob.ErrNotFound) {
@@ -119,8 +115,6 @@ func (s *Service) thumbnailOf(ctx context.Context, original dbgen.File) (thumbna
 	}
 	var thumb thumbnail
 	if waitErr := s.decodeOne(ctx, func() {
-		debug.FreeOSMemory()
-		defer debug.FreeOSMemory()
 		thumb, err = makeThumbnail(file, original.ContentType)
 	}); waitErr != nil {
 		return thumbnail{}, waitErr

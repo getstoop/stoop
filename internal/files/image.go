@@ -60,21 +60,42 @@ func sniffImage(data []byte) (contentType string, cfg image.Config, err error) {
 }
 
 // validateImage is what an avatar or icon upload refuses in the request:
-// the byte cap, what sniffImage refuses, and an animated WebP, which
-// passes the sniff but the decoder will not read. It returns the sniffed
-// type.
-func validateImage(data []byte) (string, error) {
+// the byte cap, what sniffImage refuses, an animated WebP, which passes
+// the sniff but the decoder will not read, and an image whose decode and
+// scaling to size×size would hold more than maxDecodeMemory. It returns
+// the sniffed type.
+func validateImage(data []byte, size int) (string, error) {
 	if len(data) > MaxImageBytes {
 		return "", errTooLarge
 	}
-	contentType, _, err := sniffImage(data)
+	contentType, cfg, err := sniffImage(data)
 	if err != nil {
 		return "", err
 	}
 	if contentType == "image/webp" && webpAnimated(data) {
 		return "", errAnimatedWebP
 	}
+	if !fitsDecodeMemory(data, contentType, cfg, size, size) {
+		return "", errHugeImage
+	}
 	return contentType, nil
+}
+
+// fitsDecodeMemory reports whether decoding data and scaling it to
+// width×height stays within maxDecodeMemory, as fitCost reckons it.
+func fitsDecodeMemory(data []byte, contentType string, cfg image.Config, width, height int) bool {
+	header, err := readImageHeader(bytes.NewReader(data), contentType, cfg)
+	return err == nil && fitCost(header, width, height) <= maxDecodeMemory
+}
+
+// fitCost is decodeCost plus what scaling the decode to width×height
+// allocates: the scaler's buffer (eight float64s per destination column
+// per source row, the whole height counted though a crop may use less)
+// and the result.
+func fitCost(header imageHeader, width, height int) int64 {
+	scaler := int64(width) * int64(header.Height) * 32
+	result := int64(width) * int64(height) * 4
+	return decodeCost(header) + scaler + result
 }
 
 // webpAnimated reports whether a WebP's VP8X header has its animation
@@ -113,7 +134,7 @@ func normaliseImage(data []byte, size int) ([]byte, error) {
 // processImage validates and normalises in one step: what the
 // normalise_image job runs on the stored upload.
 func processImage(data []byte, size int) ([]byte, error) {
-	if _, err := validateImage(data); err != nil {
+	if _, err := validateImage(data, size); err != nil {
 		return nil, err
 	}
 	return normaliseImage(data, size)
@@ -140,7 +161,7 @@ const (
 // processImageFit re-encodes an image to fit within maxDim on its longer
 // side, keeping the aspect ratio (never upscaling), and returns the type
 // it wrote: PNG, or GIF for an animation. Same validation and metadata
-// stripping as processImage.
+// stripping as processImage, and the same memory bound.
 func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) {
 	sniffed, cfg, err := sniffImage(data)
 	if err != nil {
@@ -166,28 +187,24 @@ func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) 
 			return out.Bytes(), "image/gif", cfg.Width, cfg.Height, nil
 		}
 	}
+	width, height := cfg.Width, cfg.Height
+	if longer := max(width, height); longer > maxDim {
+		width, height = max(1, width*maxDim/longer), max(1, height*maxDim/longer)
+	}
+	if !fitsDecodeMemory(data, sniffed, cfg, width, height) {
+		return nil, "", 0, 0, errHugeImage
+	}
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, "", 0, 0, errNotAnImage
 	}
-	b := src.Bounds()
-	w, h := b.Dx(), b.Dy()
-	if longer := max(w, h); longer > maxDim {
-		w, h = w*maxDim/longer, h*maxDim/longer
-		if w == 0 {
-			w = 1
-		}
-		if h == 0 {
-			h = 1
-		}
-	}
-	dst := image.NewNRGBA(image.Rect(0, 0, w, h))
-	draw.CatmullRom.Scale(dst, dst.Bounds(), src, b, draw.Src, nil)
+	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
+	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
 	var out bytes.Buffer
 	if err := (&png.Encoder{CompressionLevel: png.BestCompression}).Encode(&out, dst); err != nil {
 		return nil, "", 0, 0, fmt.Errorf("encode png: %w", err)
 	}
-	return out.Bytes(), "image/png", w, h, nil
+	return out.Bytes(), "image/png", width, height, nil
 }
 
 // gifFrames counts the image descriptors in a GIF by walking its blocks,

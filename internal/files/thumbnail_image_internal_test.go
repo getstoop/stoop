@@ -9,6 +9,7 @@ import (
 	"hash/crc32"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"os"
@@ -283,7 +284,7 @@ func TestThumbnailBound(t *testing.T) {
 		"32 MP RGB JPEG":               {rgbJPEG(6528, 4896), true},
 		"48 MP RGB JPEG":               {rgbJPEG(8064, 6048), false},
 	} {
-		if fits := thumbnailCost(tc.header) <= maxThumbnailMemory; fits != tc.fits {
+		if fits := thumbnailCost(tc.header) <= maxDecodeMemory; fits != tc.fits {
 			t.Errorf("%s: fits %v, want %v", name, fits, tc.fits)
 		}
 	}
@@ -399,7 +400,7 @@ func readTestdata(t *testing.T, name string) []byte {
 const decodeSlack = 192 << 10
 
 // decodeCost is an upper bound on what each decoder allocates, for every
-// PNG colour type with and without tRNS and Adam7, and JPEG and WebP of
+// PNG colour type with and without tRNS and Adam7, a still GIF, and JPEG and WebP of
 // each kind. TotalAlloc counts everything allocated, so it is above the
 // peak.
 func TestDecodeCostCoversTheDecoders(t *testing.T) {
@@ -426,6 +427,11 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 	}
 	cases["grey baseline JPEG"] = grey.Bytes()
 	cases["YCbCr baseline JPEG"] = encodeJPEG(t, quadrants(1000, 800), 0)
+	var still bytes.Buffer
+	if err := gif.Encode(&still, quadrants(1000, 800), nil); err != nil {
+		t.Fatal(err)
+	}
+	cases["still GIF"] = still.Bytes()
 	for _, name := range []string{
 		"smooth-444.progressive.jpeg", "video-005.gray.q50.progressive.jpeg", "video-001.cmyk.jpeg",
 		"smooth-rgb.jpeg", "smooth-rgb.progressive.jpeg",
@@ -439,13 +445,9 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		header := imageHeader{Config: cfg, contentType: "image/" + format}
-		switch format {
-		case "jpeg":
-			header.progressive = jpegProgressive(bytes.NewReader(data))
-			header.rgb = jpegDecodesAsRGB(bytes.NewReader(data))
-		case "png":
-			header.interlaced = data[28] == 1
+		header, err := readImageHeader(bytes.NewReader(data), "image/"+format, cfg)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
 		}
 		runtime.GC()
 		var before, after runtime.MemStats

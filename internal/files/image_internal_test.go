@@ -2,12 +2,14 @@ package files
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"image"
 	"image/color"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"runtime"
 	"testing"
 )
 
@@ -207,12 +209,131 @@ func vp8xHeader(flags byte, width, height int) []byte {
 
 func TestValidateImageRefusesAnimatedWebP(t *testing.T) {
 	const animation = 0x02
-	_, err := validateImage(vp8xHeader(animation, 267, 199))
+	_, err := validateImage(vp8xHeader(animation, 267, 199), AvatarSize)
 	if !errors.Is(err, errAnimatedWebP) {
 		t.Fatalf("animated webp: err = %v, want %v", err, errAnimatedWebP)
 	}
-	contentType, err := validateImage(vp8xHeader(0, 267, 199))
+	contentType, err := validateImage(vp8xHeader(0, 267, 199), AvatarSize)
 	if err != nil || contentType != "image/webp" {
 		t.Fatalf("still vp8x webp: %q, %v; want image/webp, nil", contentType, err)
+	}
+}
+
+// An avatar, icon or link preview image is refused, before anything is
+// decoded, when decoding it and scaling it would hold more than
+// maxDecodeMemory: a 4096² 16-bit PNG fits, a progressive JPEG that size
+// does not.
+func TestImageDecodeBound(t *testing.T) {
+	progressive := jpegHeader(0xC2, 4096, 4096)
+	if _, err := validateImage(progressive, SpaceIconSize); !errors.Is(err, errHugeImage) {
+		t.Errorf("4096² progressive icon: %v, want errHugeImage", err)
+	}
+	if _, _, _, _, err := processImageFit(progressive, LinkPreviewMaxDim); !errors.Is(err, errHugeImage) {
+		t.Errorf("4096² progressive preview: %v, want errHugeImage", err)
+	}
+	baseline := jpegHeader(0xC0, 4096, 4096)
+	if _, err := validateImage(baseline, SpaceIconSize); err != nil {
+		t.Errorf("4096² baseline icon: %v, want it accepted", err)
+	}
+	if _, _, _, _, err := processImageFit(baseline, LinkPreviewMaxDim); !errors.Is(err, errNotAnImage) {
+		t.Errorf("4096² baseline preview: %v, want it decoded (and fail)", err)
+	}
+
+	sized := func(model color.Model, width, height int, contentType string) imageHeader {
+		return imageHeader{Config: image.Config{ColorModel: model, Width: width, Height: height}, contentType: contentType}
+	}
+	progressiveJPEG := func(model color.Model, side int) imageHeader {
+		header := sized(model, side, side, "image/jpeg")
+		header.progressive = true
+		return header
+	}
+	interlacedPNG := func(model color.Model, side int) imageHeader {
+		header := sized(model, side, side, "image/png")
+		header.interlaced = true
+		return header
+	}
+	for name, tc := range map[string]struct {
+		header imageHeader
+		fits   bool
+	}{
+		"4096² 16-bit PNG":            {sized(color.RGBA64Model, 4096, 4096, "image/png"), true},
+		"4096² baseline JPEG":         {sized(color.YCbCrModel, 4096, 4096, "image/jpeg"), true},
+		"4096² CMYK JPEG":             {sized(color.CMYKModel, 4096, 4096, "image/jpeg"), true},
+		"4096² WebP":                  {sized(color.YCbCrModel, 4096, 4096, "image/webp"), true},
+		"3000² progressive JPEG":      {progressiveJPEG(color.YCbCrModel, 3000), true},
+		"4096² progressive JPEG":      {progressiveJPEG(color.YCbCrModel, 4096), false},
+		"3000² progressive CMYK JPEG": {progressiveJPEG(color.CMYKModel, 3000), true},
+		"4096² progressive CMYK JPEG": {progressiveJPEG(color.CMYKModel, 4096), false},
+		"4096² interlaced 16-bit PNG": {interlacedPNG(color.RGBA64Model, 4096), false},
+	} {
+		if fits := fitCost(tc.header, SpaceIconSize, SpaceIconSize) <= maxDecodeMemory; fits != tc.fits {
+			t.Errorf("%s: fits %v, want %v", name, fits, tc.fits)
+		}
+	}
+}
+
+// fitCost is an upper bound on what normaliseImage and processImageFit
+// allocate: the decode, the scaler's buffer and the result, with the PNG
+// encoder's own state within the slack.
+func TestFitCostCoversTheScaling(t *testing.T) {
+	cases := map[string][]byte{
+		"PNG":              encodePNG(t, solid(1000, 800, color.NRGBA{R: 200, A: 255})),
+		"baseline JPEG":    encodeJPEG(t, quadrants(1000, 800), 0),
+		"progressive JPEG": readTestdata(t, "smooth-444.progressive.jpeg"),
+		"lossless WebP":    readTestdata(t, "blue-purple-pink.lossless.webp"),
+	}
+	for name, data := range cases {
+		contentType, cfg, err := sniffImage(data)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		header, err := readImageHeader(bytes.NewReader(data), contentType, cfg)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, run := range []struct {
+			what          string
+			width, height int
+			process       func() error
+		}{
+			{"normalise", SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, SpaceIconSize); return err }},
+			{"fit", min(cfg.Width, LinkPreviewMaxDim), min(cfg.Height, LinkPreviewMaxDim), func() error {
+				_, _, _, _, err := processImageFit(data, LinkPreviewMaxDim)
+				return err
+			}},
+		} {
+			runtime.GC()
+			var before, after runtime.MemStats
+			runtime.ReadMemStats(&before)
+			if err := run.process(); err != nil {
+				t.Fatalf("%s %s: %v", name, run.what, err)
+			}
+			runtime.ReadMemStats(&after)
+			allocated := int64(after.TotalAlloc - before.TotalAlloc)
+			if cost := fitCost(header, run.width, run.height); allocated > cost+fitSlack {
+				t.Errorf("%s %s (%d×%d): allocated %d bytes, fitCost %d", name, run.what, cfg.Width, cfg.Height, allocated, cost)
+			}
+		}
+	}
+}
+
+// fitSlack covers what a re-encode allocates beyond the pixels: the
+// header walks, and the PNG encoder's compressor and output.
+const fitSlack = 2 << 20
+
+// A link preview waits for the decode slot like a job does, and gives up
+// when its context ends.
+func TestLinkPreviewWaitsForTheDecodeSlot(t *testing.T) {
+	svc := &Service{decodeSlot: make(chan struct{}, 1)}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := svc.decodeOne(context.Background(), func() {
+		data := encodePNG(t, solid(10, 10, color.Black))
+		if _, _, _, err := svc.StoreLinkPreviewImage(cancelled, "owner", data); !errors.Is(err, context.Canceled) {
+			t.Errorf("with the slot held: %v, want context.Canceled", err)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
