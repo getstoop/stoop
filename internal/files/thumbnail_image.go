@@ -20,11 +20,12 @@ import (
 const (
 	// ThumbnailSize is the square a thumbnail fits inside.
 	ThumbnailSize = 1024
-	// maxThumbnailMemory bounds what making a thumbnail may hold, in
-	// bytes, as thumbnailCost reckons it. It admits a 48 MP baseline
-	// JPEG or 8-bit PNG; the resident peak it allows is measured in
-	// files.md.
-	maxThumbnailMemory = 288 << 20
+	// maxDecodeMemory bounds what any one decode in the slot may hold,
+	// in bytes: a thumbnail as thumbnailCost reckons it, an avatar, icon
+	// or link preview image as fitCost does. It admits a 48 MP baseline
+	// JPEG or 8-bit PNG thumbnail; the resident peak it allows is
+	// measured in files.md.
+	maxDecodeMemory = 288 << 20
 	// No side over maxThumbnailSide and no shape longer than
 	// maxThumbnailAspect to one: a picture that thin is not a photo, and
 	// the scaling's buffers grow with the long side.
@@ -103,6 +104,35 @@ type imageHeader struct {
 	interlaced bool
 }
 
+// readImageHeader reads what decodeCost needs beyond cfg: whether a
+// JPEG is progressive and whether it decodes as RGB, whether a PNG is
+// interlaced.
+func readImageHeader(file io.ReadSeeker, contentType string, cfg image.Config) (imageHeader, error) {
+	header := imageHeader{Config: cfg, contentType: contentType}
+	switch contentType {
+	case "image/jpeg":
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			return imageHeader{}, err
+		}
+		header.progressive = jpegProgressive(file)
+		if cfg.ColorModel == color.YCbCrModel || cfg.ColorModel == color.RGBAModel {
+			if _, err := file.Seek(0, io.SeekStart); err != nil {
+				return imageHeader{}, err
+			}
+			header.rgb = jpegDecodesAsRGB(file)
+		}
+	case "image/png":
+		// The IHDR's interlace byte.
+		if _, err := file.Seek(28, io.SeekStart); err != nil {
+			return imageHeader{}, err
+		}
+		var interlace [1]byte
+		_, err := io.ReadFull(file, interlace[:])
+		header.interlaced = err == nil && interlace[0] == 1
+	}
+	return header, nil
+}
+
 // decodeCost is what decoding an image holds, in bytes:
 //   - a JPEG's bitmap, YCbCr counted as unsubsampled (3 bytes a pixel),
 //     RGB 7 (decoded as three planes, then converted to RGBA), grey 1,
@@ -112,6 +142,9 @@ type imageHeader struct {
 //   - a PNG's bitmap, grey counted as 4 or 8 because a tRNS chunk, which
 //     the header doesn't show, makes it NRGBA, and doubled when
 //     interlaced;
+//   - a GIF's first frame, no larger than the screen the header gives:
+//     one byte a pixel (paletted), two when interlaced, which the
+//     decoder rewrites into a second copy, and the header doesn't show;
 //   - twelve bytes a pixel for any WebP: the lossless decoder holds two
 //     copies, a lossy one with alpha decodes the alpha losslessly beside
 //     its planes, and the header doesn't always say which kind it is.
@@ -121,6 +154,8 @@ type imageHeader struct {
 func decodeCost(header imageHeader) int64 {
 	pixels := int64(header.Width) * int64(header.Height)
 	switch header.contentType {
+	case "image/gif":
+		return pixels * 2
 	case "image/webp":
 		return pixels * 12
 	case "image/jpeg":
@@ -323,7 +358,7 @@ type thumbnail struct {
 // drops the metadata. errNoThumbnailNeeded is a skip; errNotAnImage
 // means the bytes would not decode.
 func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
-	// Through the PNG header's interlace byte.
+	// Enough for wantsThumbnail to read a WebP's VP8X flags.
 	var head [29]byte
 	headLength, _ := io.ReadFull(file, head[:])
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
@@ -336,26 +371,14 @@ func makeThumbnail(file io.ReadSeeker, contentType string) (thumbnail, error) {
 	if !wantsThumbnail(contentType, head[:headLength], cfg.Width, cfg.Height) {
 		return thumbnail{}, errNoThumbnailNeeded
 	}
-	header := imageHeader{Config: cfg, contentType: contentType}
-	switch contentType {
-	case "image/jpeg":
-		if _, err := file.Seek(0, io.SeekStart); err != nil {
-			return thumbnail{}, err
-		}
-		header.progressive = jpegProgressive(file)
-		if cfg.ColorModel == color.YCbCrModel || cfg.ColorModel == color.RGBAModel {
-			if _, err := file.Seek(0, io.SeekStart); err != nil {
-				return thumbnail{}, err
-			}
-			header.rgb = jpegDecodesAsRGB(file)
-		}
-	case "image/png":
-		if pngAnimated(file) {
-			return thumbnail{}, errNoThumbnailNeeded
-		}
-		header.interlaced = headLength == len(head) && head[28] == 1
+	if contentType == "image/png" && pngAnimated(file) {
+		return thumbnail{}, errNoThumbnailNeeded
 	}
-	if thumbnailCost(header) > maxThumbnailMemory {
+	header, err := readImageHeader(file, contentType, cfg)
+	if err != nil {
+		return thumbnail{}, err
+	}
+	if thumbnailCost(header) > maxDecodeMemory {
 		return thumbnail{}, errNoThumbnailNeeded
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {

@@ -9,6 +9,7 @@ import (
 	"hash/crc32"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"os"
@@ -283,7 +284,7 @@ func TestThumbnailBound(t *testing.T) {
 		"32 MP RGB JPEG":               {rgbJPEG(6528, 4896), true},
 		"48 MP RGB JPEG":               {rgbJPEG(8064, 6048), false},
 	} {
-		if fits := thumbnailCost(tc.header) <= maxThumbnailMemory; fits != tc.fits {
+		if fits := thumbnailCost(tc.header) <= maxDecodeMemory; fits != tc.fits {
 			t.Errorf("%s: fits %v, want %v", name, fits, tc.fits)
 		}
 	}
@@ -399,7 +400,7 @@ func readTestdata(t *testing.T, name string) []byte {
 const decodeSlack = 192 << 10
 
 // decodeCost is an upper bound on what each decoder allocates, for every
-// PNG colour type with and without tRNS and Adam7, and JPEG and WebP of
+// PNG colour type with and without tRNS and Adam7, a still GIF, and JPEG and WebP of
 // each kind. TotalAlloc counts everything allocated, so it is above the
 // peak.
 func TestDecodeCostCoversTheDecoders(t *testing.T) {
@@ -426,6 +427,12 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 	}
 	cases["grey baseline JPEG"] = grey.Bytes()
 	cases["YCbCr baseline JPEG"] = encodeJPEG(t, quadrants(1000, 800), 0)
+	var still bytes.Buffer
+	if err := gif.Encode(&still, quadrants(1000, 800), nil); err != nil {
+		t.Fatal(err)
+	}
+	cases["still GIF"] = still.Bytes()
+	cases["interlaced GIF"] = interlacedGIF(t, still.Bytes())
 	for _, name := range []string{
 		"smooth-444.progressive.jpeg", "video-005.gray.q50.progressive.jpeg", "video-001.cmyk.jpeg",
 		"smooth-rgb.jpeg", "smooth-rgb.progressive.jpeg",
@@ -439,13 +446,9 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		header := imageHeader{Config: cfg, contentType: "image/" + format}
-		switch format {
-		case "jpeg":
-			header.progressive = jpegProgressive(bytes.NewReader(data))
-			header.rgb = jpegDecodesAsRGB(bytes.NewReader(data))
-		case "png":
-			header.interlaced = data[28] == 1
+		header, err := readImageHeader(bytes.NewReader(data), "image/"+format, cfg)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
 		}
 		runtime.GC()
 		var before, after runtime.MemStats
@@ -459,6 +462,31 @@ func TestDecodeCostCoversTheDecoders(t *testing.T) {
 			t.Errorf("%s (%d×%d): allocated %d bytes, decodeCost %d", name, cfg.Width, cfg.Height, allocated, cost)
 		}
 	}
+}
+
+// interlacedGIF sets the interlace flag on a one-frame GIF's image
+// descriptor, which Go's encoder never writes. The rows come out
+// shuffled, but the decoder rewrites them into a second copy all the
+// same, and that copy is what the case measures.
+func interlacedGIF(t *testing.T, data []byte) []byte {
+	t.Helper()
+	out := bytes.Clone(data)
+	index := 13
+	if out[10]&0x80 != 0 {
+		index += 3 << ((out[10] & 7) + 1)
+	}
+	for out[index] == 0x21 {
+		index += 2
+		for out[index] != 0 {
+			index += int(out[index]) + 1
+		}
+		index++
+	}
+	if out[index] != 0x2C {
+		t.Fatalf("no image descriptor at %d", index)
+	}
+	out[index+9] |= 0x40
+	return out
 }
 
 // pngSpec is a PNG for rawPNG to write: its header fields, and whether

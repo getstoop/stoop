@@ -86,7 +86,7 @@ func (s *Service) queueImage(ctx context.Context, kind Kind, ownerID string, spa
 	if s.jobs == nil {
 		return "", connect.NewError(connect.CodeUnavailable, errors.New("the job queue is not running"))
 	}
-	contentType, err := validateImage(data)
+	contentType, err := validateImage(data, imageSize(kind))
 	if err != nil {
 		return "", connect.NewError(connect.CodeInvalidArgument, err)
 	}

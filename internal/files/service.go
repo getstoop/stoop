@@ -144,7 +144,7 @@ type Service struct {
 	// until UseJobs, and those refuse without it.
 	jobs JobQueue
 	// decodeSlot lets one image decode run at a time in this process,
-	// whichever job asked for it (decodeOne).
+	// whichever job or link preview asked for it (decodeOne).
 	decodeSlot chan struct{}
 	log        *slog.Logger
 }

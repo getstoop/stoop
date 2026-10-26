@@ -91,8 +91,8 @@ resized, and re-encoded as PNG at a fixed size, by the `normalise_image`
 job ([runtime.md](runtime.md#background-work)), not in the request.
 
 The request keeps the cheap refusals inline, so a person sees them beside
-the picker: empty, over 2 MB, not an image by sniffing, dimensions over
-the bound, an animated WebP (read from the VP8X flags; the decoder reads
+the picker: empty, over 2 MB, not an image by sniffing, over the bound
+(below), an animated WebP (read from the VP8X flags; the decoder reads
 still WebP only, where an animated GIF keeps its first frame). It then stores the original bytes as a **pending** file row and
 queues the job in a lane per user or space, so two uploads for one target
 apply in the order the server received them, and returns the file id. The job decodes
@@ -109,15 +109,21 @@ else is retried on the kind's ladder, and the last failed attempt
 discards the file too, so no pending file outlives its job. The uploader
 is told nothing on a failure; the image simply stays as it was.
 
-The kind runs one at a time across every dispatcher (`MaxInFlight: 1`).
-The largest decode the bound allows, a 4096×4096 16-bit PNG, holds about
-195 MiB while it runs (128 MiB of pixels and a 64 MiB resampling buffer)
-and peaks at 330 MiB of resident memory over repeated jobs, inside the
-`jobs` compose service's 512m limit; two at once reached 650 MiB even
-under `GOMEMLIMIT`, which the service sets as insurance. A normalise
-takes tens of milliseconds for a typical picture and under half a second
-for the largest, so a second upload waits that long. Link preview images
-are still re-encoded in the request that fetched them (`preview.go`).
+The kind runs one at a time across every dispatcher (`MaxInFlight: 1`),
+in the process's one decode slot (`decodeOne`, shared with thumbnails and
+link preview images). A 4096×4096 16-bit PNG holds about 195 MiB while
+it runs (128 MiB of pixels and a 64 MiB resampling buffer) and peaks at
+330 MiB of resident memory over repeated jobs, inside the `jobs` compose
+service's 512m limit; two at once reached 650 MiB even under
+`GOMEMLIMIT`, which the service sets as insurance. A normalise takes tens
+of milliseconds for a typical picture and under half a second for the
+largest, so a second upload waits that long.
+
+Link preview images are re-encoded in the request that fetched them
+(`preview.go`), fitted within 480 px, and wait for the same slot, so up
+to four fetches at once decode one at a time and never beside a job's
+decode. The wait comes out of the fetch's own time budget; one that runs
+out saves nothing, and the next message with that link fetches again.
 
 Three things fall out of the re-encode:
 
@@ -125,9 +131,22 @@ Three things fall out of the re-encode:
   not also upload where it was taken.
 - **The stored bytes are ours**, so a malformed file that survived
   decoding cannot be served back to someone else's parser.
-- **The decode is bounded**: at most 4096×4096 pixels, because a 2 MB PNG
-  can declare almost any dimensions and a naive decoder would happily
-  allocate for them.
+- **The decode is bounded**, before a pixel is decoded, because a 2 MB
+  PNG can declare almost any dimensions and a naive decoder would
+  happily allocate for them. At most 4096×4096 pixels, and what decoding
+  and scaling would hold (`fitCost`: the decoder's reckoning, as for
+  [thumbnails](#thumbnails), plus the scaler's buffer, which grows with
+  the rows it reads, the crop's for an avatar, and the result)
+  within the same 288 MiB as a thumbnail. Pixels alone are not enough: a
+  progressive JPEG keeps every coefficient, so a 4096² one holds about
+  240 MiB before scaling, and a progressive CMYK one about 380 MiB. The
+  bound admits any baseline JPEG, GIF, WebP or non-interlaced PNG up to
+  4096², an interlaced 16-bit PNG up to about 15 MP, and progressive
+  JPEGs up to about 15 MP (YCbCr), 12 MP (RGB) or 10 MP (CMYK) when
+  square, more for an avatar or icon cropped from a long one; an
+  avatar or icon over it is refused in the request ("image dimensions
+  are too large"), a link preview loses its image. `TestFitCostCoversTheScaling`
+  checks the reckoning against what the re-encodes allocate.
 
 ### Attachment image sizes
 
@@ -230,10 +249,11 @@ progressive JPEGs of about 16 MP (YCbCr) and 12 MP (RGB). A skipped
 image is served as it is.
 
 The kind runs one at a time (`MaxInFlight: 1`), shares one decode slot
-per process with `normalise_image` (the server runs both when jobs are
-embedded), waits for it no longer than the job's context, gives it back
-however the decode ends, and hands freed memory back to the system
-before and after each decode (`debug.FreeOSMemory`). Measured in a
+per process with `normalise_image` and link preview images (the server
+runs all three when jobs are embedded), waits for it no longer than the
+job's context, gives it back however the decode ends, and hands freed
+memory back to the system before and after each decode
+(`debug.FreeOSMemory`; the smaller avatar and preview decodes skip it). Measured in a
 container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
 
 | Image | Peak | Time |
