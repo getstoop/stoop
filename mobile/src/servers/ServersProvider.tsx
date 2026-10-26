@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { clearFileCaches } from "../api/downloads";
 import { forgetServer, loadServers, moveToFront, type SavedServer, saveSignIn } from "../api/servers";
 
 type ServersState = {
@@ -59,9 +60,12 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
     [change],
   );
 
+  // Forgetting a server is signing out of it, which also forgets every
+  // picture and file the app has fetched (api/downloads).
   const forget = useCallback(
     async (id: string) => {
       await change((list) => forgetServer(list, id));
+      await clearFileCaches();
     },
     [change],
   );

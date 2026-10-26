@@ -11,8 +11,9 @@
 // has no thread yet; ada has read the channel. bea has an account but no
 // space; cleo has neither and arrives through the invite. formatting
 // holds ada's messages in Markdown, read, and links her messages with
-// link previews, read.
+// link previews, read. In photos dee has sent files, read by ada.
 
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { BASE, seed } from "../../web/e2e/seed.mjs";
 
@@ -195,6 +196,29 @@ site.close();
 await rpc("instance.v1.InstanceService/UpdateSettings", { linkPreviews: false }, ada);
 await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: links.channel.id, messageId: lastLinked.id }, ada);
 
+// In photos, dee's files, oldest first: a landscape photo and a portrait
+// one (sizes the server measures), the two together, a PDF, and a photo
+// whose file scripts/mobile-e2e.sh then marks expired, as attachment
+// retention would (EXPIRE_FILE_ID) (attachments.yaml).
+const photos = await rpc(
+  "chat.v1.ChatService/CreateChannel",
+  { spaceId: s.space.id, name: "photos", kind: "CHANNEL_KIND_TEXT" },
+  ada,
+);
+const media = (name) => new URL(`media/${name}`, import.meta.url);
+const sendFiles = async (content, names) => {
+  const attachmentIds = [];
+  for (const name of names) attachmentIds.push((await upload(photos.channel.id, media(name), dee)).id);
+  return (await rpc("chat.v1.ChatService/SendMessage", { channelId: photos.channel.id, content, attachmentIds }, dee))
+    .message;
+};
+await sendFiles("From the ridge", ["ridge-landscape.jpg"]);
+await sendFiles("The hut", ["hut-portrait.jpg"]);
+await sendFiles("Both", ["ridge-landscape.jpg", "hut-portrait.jpg"]);
+await sendFiles("Notes for Saturday", ["trail-notes.pdf"]);
+const old = await sendFiles("Last year's map", ["trail-map.jpg"]);
+await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: photos.channel.id, messageId: old.id }, ada);
+
 const crew = await rpc("chat.v1.ChatService/CreateSpace", { name: "Climbing crew" }, ada);
 await rpc("chat.v1.ChatService/AddMember", { spaceId: crew.space.id, userId: s.ids.dee }, ada);
 await rpc(
@@ -229,6 +253,7 @@ const env = {
   RANDOM_ID: s.channels.random,
   NINE_ID: nine.channel.id,
   NINE_ROOT_ID: root.id,
+  EXPIRE_FILE_ID: old.attachments[0].fileId,
   INVITE_LINK: s.invite.url,
   // What the web's open-in-app page fires for that invite.
   OPEN_LINK: `stoop://open?${new URLSearchParams({ server: BASE, path })}`,
@@ -287,6 +312,22 @@ async function previewsLanded(channelId, token, counts) {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(`link previews never landed in ${channelId}`);
+}
+
+// POST /files/upload, as the app sends a picked file.
+async function upload(channelId, path, token) {
+  const name = path.pathname.split("/").at(-1);
+  const form = new FormData();
+  form.append("channel_id", channelId);
+  form.append("file", new Blob([await readFile(path)]), name);
+  const res = await fetch(`${BASE}/files/upload`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const out = await res.json();
+  if (!res.ok) throw new Error(`upload ${name}: ${res.status} ${JSON.stringify(out)}`);
+  return out;
 }
 
 async function rpc(proc, body, token) {

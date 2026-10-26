@@ -126,8 +126,35 @@ import a screen; the screens themselves live in `src/screens`, so
   too); leaving the channel or the thread drops them, stopping any
   upload still going (as removing one does), and a picker answering
   after that is ignored; and while a message is edited they are out of
-  sight and Attach is dimmed. A sent file shows in the row as "📎 name"
-  for now; drawing it inline is its own step.
+  sight and Attach is dimmed. A sent file shows in the row as the next
+  item says.
+- A message's files are drawn under its words, in the channel and the
+  thread (`src/components/Attachments`, sized before layout by its
+  `layout.ts` from the width and height the server measured, so a row
+  never jumps; `docs/proposals/mobile-attachments-inline.md`): one
+  image at its own size, shrunk to the words' width and 320 high, on
+  the panel; one the server has no size for in a fixed 4:3 box with
+  the image fitted inside; two or more in a grid of square tiles, two
+  to a row, all shown, and the other files after them; any other file,
+  video and audio included for now, as web's card; an expired file as
+  web's dashed placeholder, which fetches nothing. An image loads from
+  `/files` with the session through `expo-image` (a native module, so
+  a build on the phone needs `make mobile-ios` again), decoded at the
+  size it is drawn and cached on disk, over a faint image glyph until
+  it lands; one that won't load becomes a card saying "Couldn't load ·
+  tap to retry" (in a grid, the tile says so), and a tap tries again.
+  A tap on a card downloads the file into the app's cache, counting
+  what has arrived in its size's place over an accent line, and opens
+  the system share sheet on it (`src/api/downloads.ts`, with
+  `expo-file-system` and `expo-sharing`; the server's file id must be a
+  UUID and the name is made safe and short, `api/fileNames.ts`, and the
+  file is written beside its place and moved in whole); a failure says "Couldn't
+  download" there until the next tap. Signing out forgets every cached
+  picture and downloaded file, for every server. Each file is its own
+  element for a screen reader, named by its kind and name ("Image 2 of
+  4, IMG_2111.jpg"). A long press on any of them is the row's, and the
+  menu's card draws the files small, in the composer strip's look. A
+  tap on an image opens nothing yet: the viewer is the next step.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions
@@ -488,7 +515,8 @@ native rebuild.
 ## Tests
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
-`MessageBody/blocks.ts`, `LinkPreviews/layout.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
+`Attachments/layout.ts`, `api/fileNames.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
@@ -513,7 +541,10 @@ nested and numbered lists, a code block dragged sideways), see link
 previews under messages (served by the seed from 127.0.0.1 while it
 turns previews on, so the server runs with
 `STOOP_UNFURL_ALLOW_PRIVATE`), none for a link to a message on this
-server, open the menu from one and remove one, attach a photo
+server, open the menu from one and remove one, see a message's files (a
+landscape and a portrait photo, the two in a grid, a PDF and a file
+`scripts/mobile-e2e.sh` marks expired after the seed), open the menu
+from a photo and share the PDF to the system's sheet, attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it
