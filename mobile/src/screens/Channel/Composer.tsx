@@ -339,9 +339,8 @@ export default forwardRef<
     }
   };
 
-  // A format from the row: the inline marks, and Link, which opens the
-  // link dialog on what the field says it would link; the blocks come in
-  // their own steps. A screen reader hears a mark go on or off, as the
+  // A format from the row: the inline marks and the blocks, and Link,
+  // which opens the link dialog on what the field says it would link. A screen reader hears a mark go on or off, as the
   // field next reports it (a tap that changes nothing says nothing).
   const announcing = useRef<Format | null>(null);
   const applyFormat = (format: Format) => {
@@ -349,7 +348,7 @@ export default forwardRef<
       void openLink();
       return;
     }
-    if (!MARK_FORMATS.has(format)) return;
+    if (!FIELD_FORMATS.has(format)) return;
     announcing.current = format;
     input.current?.format(format);
   };
@@ -558,7 +557,8 @@ export default forwardRef<
   );
 });
 
-const MARK_FORMATS = new Set<Format>(["bold", "italic", "underline", "strike", "code", "spoiler"]);
+// What the field toggles itself (lists come with their step).
+const FIELD_FORMATS = new Set<Format>(["bold", "italic", "underline", "strike", "code", "spoiler", "quote", "codeblock"]);
 
 const FORMAT_LABELS: Record<Format, string> = {
   bold: "Bold",

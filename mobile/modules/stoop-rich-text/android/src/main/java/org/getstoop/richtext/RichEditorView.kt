@@ -230,6 +230,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     if (!changing && pendingMarks != null && (field.selectionStart != pendingAt || field.selectionEnd != pendingAt)) {
       pendingMarks = null
     }
+    field.text?.let { plainKeyboard(lineBlock(it, max(0, field.selectionStart)).block == Block.CODE) }
     field.invalidate()
     onEditorSelection(selectionPayload())
   }
@@ -403,6 +404,175 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     return formats
   }
 
+  // MARK: Blocks
+
+  private data class TouchedLine(val start: Int, val end: Int, val info: BlockInfo)
+
+  // The lines a caret or selection touches, each with its block (start
+  // and end before its newline); an empty last line with its typing block.
+  private fun touchedLines(): List<TouchedLine> {
+    val text = field.text ?: return emptyList()
+    val from = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val to = max(from, maxOf(field.selectionStart, field.selectionEnd))
+    val out = ArrayList<TouchedLine>()
+    var start = EditorDocument.lineStart(text, from)
+    while (true) {
+      val end = EditorDocument.lineEnd(text, start)
+      out.add(TouchedLine(start, end, lineBlock(text, start)))
+      if (end >= to || end >= text.length) break
+      start = end + 1
+    }
+    return out
+  }
+
+  // A line given a block: its span replaced (an empty last line's through
+  // its typing block). A code block holds plain text: marks, links and
+  // pills go, the words stay.
+  private fun setLineBlock(text: Editable, start: Int, end: Int, info: BlockInfo) {
+    if (end == start && start == text.length) {
+      explicitTrailing = info
+      return
+    }
+    val spanEnd = if (end < text.length) end + 1 else end
+    for (span in text.getSpans(start, spanEnd, BlockSpan::class.java)) {
+      val s = text.getSpanStart(span)
+      val e = text.getSpanEnd(span)
+      if (s >= spanEnd || e <= start) continue
+      text.removeSpan(span)
+      if (s < start) text.setSpan(BlockSpan(span.info), s, start, Spanned.SPAN_PARAGRAPH)
+      if (e > spanEnd) text.setSpan(BlockSpan(span.info), spanEnd, e, Spanned.SPAN_PARAGRAPH)
+    }
+    text.setSpan(BlockSpan(info.normalised()), start, spanEnd, Spanned.SPAN_PARAGRAPH)
+    if (info.block == Block.CODE && end > start) {
+      for (kind in listOf(MarksSpan::class.java, HrefSpan::class.java, MentionSpan::class.java)) {
+        for (span in text.getSpans(start, end, kind)) {
+          val s = text.getSpanStart(span)
+          val e = text.getSpanEnd(span)
+          if (s >= end || e <= start) continue
+          text.removeSpan(span)
+          if (kind == MentionSpan::class.java) continue
+          if (s < start) text.setSpan(remake(span), s, start, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+          if (e > end) text.setSpan(remake(span), end, e, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+        }
+      }
+    }
+  }
+
+  // A fresh copy of a meaning span, for the part of it a cut leaves.
+  private fun remake(span: Any): Any =
+    when (span) {
+      is MarksSpan -> MarksSpan(span.marks)
+      is HrefSpan -> HrefSpan(span.href)
+      else -> span
+    }
+
+  private fun setBlocks(lines: List<TouchedLine>) {
+    val text = field.text ?: return
+    if (lines.isEmpty()) return
+    // An empty last line left out keeps the block it has now, which comes
+    // from the line before it unless pinned.
+    if (explicitTrailing == null && text.isNotEmpty() && text[text.length - 1] == '\n' &&
+      lines.none { it.start == text.length }
+    ) {
+      explicitTrailing = trailingBlock()
+    }
+    applying = true
+    for (line in lines) setLineBlock(text, line.start, line.end, line.info)
+    restyle(text, lines.first().start, lines.last().end)
+    applying = false
+    emitChange()
+    keyboardFor(text)
+  }
+
+  // The keyboard for where the caret now is, after a change that didn't
+  // move it; restarted after any change the keyboard is making.
+  private fun keyboardFor(text: Spanned) {
+    val code = lineBlock(text, max(0, field.selectionStart)).block == Block.CODE
+    if (changing) post { plainKeyboard(code) } else plainKeyboard(code)
+  }
+
+  private var codeGroups = 0
+
+  // Quote or code block on every line the caret or selection touches, or
+  // off (back to plain lines) when all of them have it already. Lines
+  // made a code block become one new block.
+  private fun toggleBlock(kind: Block) {
+    // On or off by the first line, as web decides (in one, out of it).
+    val lines = touchedLines()
+    val on = lines.firstOrNull()?.info?.block != kind
+    codeGroups++
+    val made = if (on) BlockInfo(kind, 0, if (kind == Block.CODE) 1_000_000 + codeGroups else 0) else BlockInfo.PARAGRAPH
+    setBlocks(lines.map { it.copy(info = made) })
+  }
+
+  // Return on an empty quote line, or on a code block's blank last line,
+  // leaves the block: the line becomes a plain one. Backspace at the start
+  // of a quote line, or of a code block's first line, makes it a plain
+  // line rather than joining it to the one before. Seen by the input
+  // filter (soft keyboards send text, not keys); true when handled, and
+  // the change is then made after the filter returns.
+  internal fun blockKey(inserted: CharSequence, dstart: Int, dend: Int): Boolean {
+    // Not the field's own edits (a load, a pill), only typing.
+    if (applying) return false
+    val text = field.text ?: return false
+    if (field.selectionStart != field.selectionEnd) return false
+    if (inserted.toString() == "\n" && dstart == dend) {
+      val start = EditorDocument.lineStart(text, dstart)
+      val end = EditorDocument.lineEnd(text, dstart)
+      if (end > start) return false
+      val info = lineBlock(text, start)
+      val leaves = info.block == Block.QUOTE || (info.block == Block.CODE && lastOfCodeBlock(text, end, info))
+      if (!leaves) return false
+      post { blockAtCaret(info) { BlockInfo.PARAGRAPH } }
+      return true
+    }
+    if (inserted.isEmpty() && dend == dstart + 1 && text[dstart] == '\n' && field.selectionStart == dend) {
+      val info = lineBlock(text, dend)
+      val previous = EditorDocument.blockAt(text, EditorDocument.lineStart(text, dstart))
+      // A later quote line joins the one above, as on web; the first
+      // leaves the quote.
+      val starts = (info.block == Block.QUOTE && previous?.block != Block.QUOTE) ||
+        (info.block == Block.CODE && !(previous?.block == Block.CODE && previous.group == info.group))
+      if (!starts) return false
+      post { blockAtCaret(info) { BlockInfo.PARAGRAPH } }
+      return true
+    }
+    return false
+  }
+
+  // A key's change, made after the input filter: on the caret's line as
+  // it is now (keys queued meanwhile may have moved it), and only if that
+  // line still has the block the key was pressed in.
+  private fun blockAtCaret(was: BlockInfo, made: () -> BlockInfo) {
+    val text = field.text ?: return
+    val caret = max(0, field.selectionStart)
+    val start = EditorDocument.lineStart(text, caret)
+    val end = EditorDocument.lineEnd(text, caret)
+    if (lineBlock(text, start) != was) return
+    setBlocks(listOf(TouchedLine(start, end, made())))
+  }
+
+  private fun lastOfCodeBlock(text: Spanned, lineEnd: Int, info: BlockInfo): Boolean {
+    if (lineEnd >= text.length) return true
+    val next = EditorDocument.blockAt(text, lineEnd + 1)
+    return !(next?.block == Block.CODE && next.group == info.group)
+  }
+
+  // In a code block the keyboard doesn't suggest or correct, which would
+  // change the code.
+  private var plainKeyboard = false
+
+  private fun plainKeyboard(code: Boolean) {
+    if (plainKeyboard == code) return
+    plainKeyboard = code
+    val base = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+    field.setRawInputType(
+      if (code) base or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+      else base or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT,
+    )
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(field)
+  }
+
   // MARK: Links
 
   // The whole link a caret is in (not at its edge: typing there isn't
@@ -517,6 +687,10 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   // has it already (web's rule); at a caret, for what is typed next,
   // until the caret moves. Not in a code block, which holds no marks.
   fun format(name: String) {
+    when (name) {
+      "quote" -> return toggleBlock(Block.QUOTE)
+      "codeblock" -> return toggleBlock(Block.CODE)
+    }
     val bit = Marks.named.firstOrNull { it.first == name }?.second ?: return
     val text = field.text ?: return
     val start = max(0, minOf(field.selectionStart, field.selectionEnd))
@@ -643,7 +817,17 @@ internal class EditorText(context: Context, private val owner: RichEditorView) :
     setPadding((10 * d).roundToInt(), (11 * d).roundToInt(), (10 * d).roundToInt(), (8 * d).roundToInt())
     // Lines end in "\n" only: a pasted "\r", or a line or paragraph
     // separator, is put in as one, so both platforms read the same lines.
-    filters = arrayOf(InputFilter { source, start, end, _, _, _ ->
+    filters = arrayOf(
+      InputFilter { source, start, end, _, dstart, dend ->
+        // Return and Backspace at a block's edge (RichEditorView.blockKey):
+        // the change refused here and made by the owner.
+        if (ready && owner.blockKey(source.subSequence(start, end), dstart, dend)) {
+          text?.subSequence(dstart, dend) ?: ""
+        } else {
+          null
+        }
+      },
+      InputFilter { source, start, end, _, _, _ ->
       val piece = source.subSequence(start, end)
       if (piece.none { it == '\r' || it == '\u2028' || it == '\u2029' }) {
         null

@@ -171,6 +171,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   // Lines end in "\n" only: a pasted "\r", or a line or paragraph
   // separator, is put in as one, so both platforms read the same lines.
   func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+    if blockKey(range, text) { return false }
     // A suggestion or correction for a pill's words (they look like a word
     // to the keyboard) would rewrite the pill: it is let go.
     if range.length > 0, !text.isEmpty, let pill = pill(around: range.location), range.location > pill.location {
@@ -309,6 +310,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
 
   func textViewDidChangeSelection(_ textView: UITextView) {
     snapSelection()
+    plainKeyboard((meaning(at: textView.selectedRange.location)[.editorBlock] as? BlockBox)?.block == .code)
     textView.typingAttributes = styler.look(for: meaning(at: textView.selectedRange.location))
     container.trailingBlock = trailingBlock()
     onEditorSelection(selectionPayload())
@@ -535,7 +537,160 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   func format(_ name: String) {
     if let mark = EditorMarks.named.first(where: { $0.0 == name })?.1 {
       toggle(mark)
+      return
     }
+    switch name {
+    case "quote": toggleBlock(.quote)
+    case "codeblock": toggleBlock(.code)
+    default: break
+    }
+  }
+
+  // MARK: Blocks
+
+  // In a code block the keyboard doesn't correct, capitalise, curl quotes
+  // or join dashes, which would change the code.
+  private func plainKeyboard(_ code: Bool) {
+    let correction: UITextAutocorrectionType = code ? .no : .default
+    guard textView.autocorrectionType != correction else { return }
+    textView.autocorrectionType = correction
+    textView.smartQuotesType = code ? .no : .default
+    textView.smartDashesType = code ? .no : .default
+    textView.spellCheckingType = code ? .no : .default
+    textView.autocapitalizationType = code ? .none : .sentences
+    if textView.isFirstResponder { textView.reloadInputViews() }
+  }
+
+  // The lines a caret or selection touches, each with its block: an empty
+  // last line (no character) as a zero-length range.
+  private func touchedLines() -> [(range: NSRange, block: BlockBox)] {
+    let string = storage.string as NSString
+    let selected = textView.selectedRange
+    var out: [(NSRange, BlockBox)] = []
+    var location = selected.location
+    while true {
+      let line = string.lineRange(for: NSRange(location: min(location, string.length), length: 0))
+      if line.length == 0 {
+        out.append((line, trailingBlock() ?? .paragraph))
+        break
+      }
+      let block = (storage.attribute(.editorBlock, at: line.location, effectiveRange: nil) as? BlockBox) ?? .paragraph
+      out.append((line, block))
+      let end = NSMaxRange(line)
+      // A caret touches its own line; a selection every line it reaches,
+      // one whose start it ends at included (web's rule), and the empty
+      // last line when it runs to the end.
+      if selected.length == 0 || end > NSMaxRange(selected) { break }
+      if end >= string.length {
+        if string.character(at: end - 1) == 10 {
+          out.append((NSRange(location: end, length: 0), trailingBlock() ?? .paragraph))
+        }
+        break
+      }
+      location = end
+    }
+    return out
+  }
+
+  // Each line given a block (an empty last line through its typing
+  // block), then restyled and reported.
+  func setBlocks(_ lines: [(range: NSRange, block: BlockBox)]) {
+    // An empty last line left out keeps the block it has now, which comes
+    // from the line before it unless pinned.
+    let string = storage.string as NSString
+    if explicitTrailing == nil, string.length > 0, string.character(at: string.length - 1) == 10,
+      !lines.contains(where: { $0.range.length == 0 && $0.range.location == string.length }) {
+      explicitTrailing = trailingBlock()
+    }
+    storage.beginEditing()
+    for (range, block) in lines where range.length > 0 {
+      storage.addAttribute(.editorBlock, value: block, range: range)
+      if block.block == .code {
+        // A code block holds plain text: marks, links and pills go, the
+        // words stay.
+        var content = range
+        let string = storage.string as NSString
+        if content.length > 0, string.character(at: NSMaxRange(content) - 1) == 10 { content.length -= 1 }
+        storage.removeAttribute(.editorMarks, range: content)
+        storage.removeAttribute(.editorHref, range: content)
+        storage.removeAttribute(.editorMention, range: content)
+      }
+      styler.restyle(storage, lines: range)
+    }
+    storage.endEditing()
+    if let empty = lines.last(where: { $0.range.length == 0 }) { explicitTrailing = empty.block }
+    let selected = textView.selectedRange
+    textView.selectedRange = selected
+    textViewDidChange(textView)
+    textViewDidChangeSelection(textView)
+  }
+
+  private var codeGroups = 0
+
+  // Quote or code block on every line the caret or selection touches, or
+  // off (back to plain lines) when all of them have it already. Lines
+  // made a code block become one new block.
+  func toggleBlock(_ kind: EditorBlock) {
+    // On or off by the first line, as web decides (in one, out of it).
+    let lines = touchedLines()
+    let on = lines.first?.block.block != kind
+    codeGroups += 1
+    let group = 1_000_000 + codeGroups
+    setBlocks(lines.map { ($0.range, on ? BlockBox(kind, group: kind == .code ? group : 0) : .paragraph) })
+  }
+
+  // Return on an empty quote line, or on a code block's blank last line,
+  // leaves the block: the line becomes a plain one. Backspace at the start
+  // of a quote line, or of a code block's first line, makes it a plain
+  // line rather than joining it to the one before. True when handled.
+  private func blockKey(_ range: NSRange, _ text: String) -> Bool {
+    let string = storage.string as NSString
+    let caret = textView.selectedRange
+    guard caret.length == 0 else { return false }
+    let line = string.lineRange(for: NSRange(location: caret.location, length: 0))
+    let block = line.length == 0
+      ? (trailingBlock() ?? .paragraph)
+      : ((storage.attribute(.editorBlock, at: line.location, effectiveRange: nil) as? BlockBox) ?? .paragraph)
+    var content = line
+    if content.length > 0, string.character(at: NSMaxRange(content) - 1) == 10 { content.length -= 1 }
+    if text == "\n", range.length == 0 {
+      guard content.length == 0 else { return false }
+      if block.block == .quote || (block.block == .code && isLastOfCodeBlock(line, block)) {
+        setBlocks([(line, .paragraph)])
+        return true
+      }
+      return false
+    }
+    if text.isEmpty, range.length == 1, caret.location == line.location, range.location == line.location - 1 {
+      // A later quote line joins the one above, as on web; the first
+      // leaves the quote.
+      let startsBlock = (block.block == .quote && !continuesQuote(line))
+        || (block.block == .code && !continuesCodeBlock(line, block))
+      if startsBlock {
+        setBlocks([(line, .paragraph)])
+        return true
+      }
+    }
+    return false
+  }
+
+  private func isLastOfCodeBlock(_ line: NSRange, _ block: BlockBox) -> Bool {
+    let next = NSMaxRange(line)
+    guard next < storage.length else { return true }
+    let after = storage.attribute(.editorBlock, at: next, effectiveRange: nil) as? BlockBox
+    return !(after?.block == .code && after?.group == block.group)
+  }
+
+  private func continuesQuote(_ line: NSRange) -> Bool {
+    guard line.location > 0 else { return false }
+    return (storage.attribute(.editorBlock, at: line.location - 1, effectiveRange: nil) as? BlockBox)?.block == .quote
+  }
+
+  // The line before is the same code block.
+  private func continuesCodeBlock(_ line: NSRange, _ block: BlockBox) -> Bool {
+    guard line.location > 0 else { return false }
+    let before = storage.attribute(.editorBlock, at: line.location - 1, effectiveRange: nil) as? BlockBox
+    return before?.block == .code && before?.group == block.group
   }
 
   func linesJSON() -> [[String: Any]] {

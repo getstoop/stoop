@@ -38,6 +38,7 @@ export default function FormatRow({ active, onFormat }: { active: Format[]; onFo
       horizontal
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="always"
+      testID="format-row"
       contentContainerStyle={styles.row}
     >
       {formats.map(({ format, label, glyph }) => {
