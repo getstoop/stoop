@@ -359,3 +359,32 @@ export function PaperclipIcon({ color, size = 14 }: IconProps) {
     </Svg>
   );
 }
+
+// The viewer's: Android's back arrow, which closes it there, and each
+// platform's own share glyph (a box with an arrow up out of it on iOS,
+// three joined nodes on Android).
+export function BackIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M19 12H5" />
+      <Path d="M12 19l-7-7 7-7" />
+    </Stroke>
+  );
+}
+
+export function ShareIcon({ color, size = 24, android = false }: IconProps & { android?: boolean }) {
+  return android ? (
+    <Stroke color={color} size={size}>
+      <Circle cx={18} cy={5} r={3} />
+      <Circle cx={6} cy={12} r={3} />
+      <Circle cx={18} cy={19} r={3} />
+      <Path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+    </Stroke>
+  ) : (
+    <Stroke color={color} size={size}>
+      <Path d="M12 3v12" />
+      <Path d="M8 7l4-4 4 4" />
+      <Path d="M8 10H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2" />
+    </Stroke>
+  );
+}

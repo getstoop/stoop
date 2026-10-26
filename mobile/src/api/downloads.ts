@@ -8,7 +8,8 @@ import { isFileId, localName } from "./fileNames";
 // session as a bearer token, into the app's cache under the file's own
 // name (a folder per file id, so two files of one name don't meet),
 // then the share sheet on it, which reaches Files, other apps, AirDrop
-// and Print. One already there whole isn't downloaded again. The id and
+// and Print. One already there whole isn't downloaded again, nor is a
+// picture expo-image already holds as it came (the viewer's). The id and
 // the name come from the server, so they are made safe first
 // (api/fileNames).
 
@@ -57,6 +58,7 @@ async function fetchToCache(
     file.delete();
   }
   folder.create({ intermediates: true, idempotent: true });
+  if (await copiedFromImageCache(origin, attachment, file)) return file.uri;
   // Written beside it and moved into place whole, so an app killed
   // halfway (Android writes as it reads) leaves no file to share.
   const part = new File(folder, `${name}.part`);
@@ -72,6 +74,22 @@ async function fetchToCache(
     throw error;
   }
   return file.uri;
+}
+
+// The original from expo-image's disk cache, copied under its own name,
+// when what is there is the whole file the message names.
+async function copiedFromImageCache(origin: string, attachment: Attachment, file: File): Promise<boolean> {
+  const path = await Image.getCachePathAsync(`${origin}/files/${attachment.fileId}`).catch(() => null);
+  if (!path) return false;
+  try {
+    const cached = new File(path.startsWith("file://") ? path : `file://${path}`);
+    if (!cached.exists || cached.size !== Number(attachment.size)) return false;
+    await cached.copy(file);
+    return true;
+  } catch {
+    if (file.exists) file.delete();
+    return false;
+  }
 }
 
 const trimmed = (uri: string) => uri.replace(/\/+$/, "");

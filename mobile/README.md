@@ -154,7 +154,27 @@ import a screen; the screens themselves live in `src/screens`, so
   element for a screen reader, named by its kind and name ("Image 2 of
   4, IMG_2111.jpg"). A long press on any of them is the row's, and the
   menu's card draws the files small, in the composer strip's look. A
-  tap on an image opens nothing yet: the viewer is the next step.
+  tap on an image opens it full screen (`src/components/Viewer`, a
+  modal over the channel or the thread, as the message menu is): on
+  black, fitted, its thumbnail drawn until the original lands, with
+  every other picture the screen has loaded a swipe sideways away,
+  oldest first across messages, as web's preview steps through them
+  (`core/attachments` `galleryMedia`; videos join when the phone plays
+  them). Pinch zooms, a double tap zooms in on that spot or back out,
+  and a drag pans while zoomed; a drag down follows the finger as the
+  black fades and closes it once far or fast enough, or springs back.
+  A single tap hides and shows the bars: Close (×, or ← on Android,
+  whose back closes it too), who sent it and when, and Share at the
+  top; its name, size and "2 of 4" at the foot. Share hands the
+  original to the system's sheet, from `expo-image`'s cache when it is
+  there and otherwise downloaded as a card's file is. For a screen
+  reader the picture is one adjustable element ("IMG_2041.jpg, image 2
+  of 4, from NAME, 9:31 AM") whose increment and decrement page, and
+  the bars stay. The gestures are `react-native-gesture-handler` and
+  `react-native-reanimated` (native modules, so a build on the phone
+  needs `make mobile-ios` again), under a `GestureHandlerRootView` at
+  the app's root; `babel-preset-expo` adds the worklets plugin on its
+  own.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions
@@ -516,7 +536,7 @@ native rebuild.
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
-`Attachments/layout.ts`, `api/fileNames.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
@@ -544,7 +564,8 @@ turns previews on, so the server runs with
 server, open the menu from one and remove one, see a message's files (a
 landscape and a portrait photo, the two in a grid, a PDF and a file
 `scripts/mobile-e2e.sh` marks expired after the seed), open the menu
-from a photo and share the PDF to the system's sheet, attach a photo
+from a photo, open a photo full screen, page to the next and close
+it, and share the PDF to the system's sheet, attach a photo
 from the library (a JPEG of the flow's own, `e2e/media`, dated 2099 in
 its EXIF so the picker's label finds it, added to the simulator's
 library by the flow, a copy each run), remove it, pick it

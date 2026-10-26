@@ -1,10 +1,11 @@
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Image } from "expo-image";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useContext, useState } from "react";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { fileSource } from "../../api/downloads";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { PhotoIcon } from "../Icons";
+import { ViewerContext } from "../Viewer/useViewer";
 import Card from "./Card";
 import type { Box, Fit } from "./layout";
 
@@ -15,8 +16,9 @@ import type { Box, Fit } from "./layout";
 // session and decoded at the size it is drawn (expo-image, which keeps
 // it in its memory and disk caches). One that won't load turns into a
 // card in its place that says so and tries again on a tap, or, as a
-// grid's tile, says so inside the tile; a remount tries again too. A
-// long press is the row's.
+// grid's tile, says so inside the tile; a remount tries again too. In a
+// timeline a tap opens the viewer on it (ViewerContext), which a lone
+// image's label says and a tile's hint. A long press is the row's.
 export default function Picture({
   attachment,
   box,
@@ -38,6 +40,7 @@ export default function Picture({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const view = useContext(ViewerContext);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<"loading" | "shown" | "failed">("loading");
   const retry = () => {
@@ -75,10 +78,13 @@ export default function Picture({
     );
   }
   return (
-    <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={label}
+    <Pressable
+      accessibilityRole={view ? "imagebutton" : "image"}
+      accessibilityLabel={view && !tile ? `${label}. Opens full screen` : label}
+      accessibilityHint={view && tile ? "Opens full screen" : undefined}
+      onPress={view ? () => view(attachment) : undefined}
+      onLongPress={onLongPress}
+      disabled={!view && !onLongPress}
       testID="attachment-image"
       style={[styles.frame, box]}
     >
@@ -92,7 +98,7 @@ export default function Picture({
         onLoad={() => setState("shown")}
         onError={() => setState("failed")}
       />
-    </View>
+    </Pressable>
   );
 }
 

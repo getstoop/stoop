@@ -11,6 +11,8 @@ import { useServerStatus } from "../../api/instance";
 import { threadMessageLink } from "../../api/shareLinks";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
 import MessageContexts from "../../components/MessageContexts";
+import Viewer from "../../components/Viewer";
+import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -49,7 +51,8 @@ import ThreadTitle from "./ThreadTitle";
 // press on the root or a reply opens the channel's menu, with no Reply
 // in thread since everything here is in it already; Quote in reply and
 // Edit message act on this composer (useMessageActions, as the
-// channel's). The header's bell mutes the thread, or unmutes it, as
+// channel's). A tap on a picture opens the viewer over the thread,
+// stepping through its pictures. The header's bell mutes the thread, or unmutes it, as
 // web's thread panel does: once it has replies, and only where its
 // channel isn't muted, which silences it already.
 
@@ -160,6 +163,7 @@ export default function Thread({
   });
   const { send, edit, muteThread } = engine;
   const links = useChannelLinks(server, spaceId, channelId, header, true);
+  const viewer = useViewer(shown);
   const previews = useLinkPreviewActions(status.origins, header?.space, actions.dismissPreview);
   // A mute asked for: the bell waits for the server's answer, as web's,
   // and a second tap meanwhile does nothing. Each tap turns over what
@@ -267,7 +271,7 @@ export default function Thread({
         keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
-          <MessageContexts links={links} previews={previews}>
+          <MessageContexts links={links} previews={previews} view={viewer.open}>
             <FlatList
               ref={list}
               inverted
@@ -361,6 +365,15 @@ export default function Thread({
           />
         )}
       </MessageContexts>
+      {viewer.viewing && (
+        <Viewer
+          items={viewer.viewing.items}
+          start={viewer.viewing.index}
+          origin={server.origin}
+          token={token}
+          onClose={viewer.close}
+        />
+      )}
     </Screen>
   );
 }
