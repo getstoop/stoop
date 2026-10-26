@@ -160,7 +160,8 @@ await rpc(
 // from a site this seed serves for as long as that takes
 // (STOOP_UNFURL_ALLOW_PRIVATE, scripts/mobile-e2e.sh), with previews on
 // only meanwhile, so no other message's link is fetched: a page with a
-// wide image, under its words; a page with a square one, beside them,
+// wide image, under its words, the message then edited; a page with a
+// square one, beside them,
 // and an image on its own; and, newest, a link to one of formatting's
 // messages, whose card ("Stoop", this server's page) the app leaves out
 // as web does (link-previews.yaml).
@@ -176,11 +177,19 @@ const linked = [
   `The hut, and a photo of it: ${site.url}/hut ${site.url}/photo.png`,
   `As we said: ${BASE}/s/${s.space.id}/c/${formatting.channel.id}?m=${lastFormatted.id}`,
 ];
-let lastLinked;
+const sentLinked = [];
 for (const content of linked) {
   const sent = await rpc("chat.v1.ChatService/SendMessage", { channelId: links.channel.id, content }, ada);
-  lastLinked = sent.message;
+  sentLinked.push(sent.message);
 }
+const lastLinked = sentLinked.at(-1);
+await previewsLanded(links.channel.id, ada, [1, 2, 1]);
+// The trail's message edited, its card kept: "(edited)" goes after it.
+await rpc(
+  "chat.v1.ChatService/EditMessage",
+  { messageId: sentLinked[0].id, content: `${linked[0]}, meet at eight` },
+  ada,
+);
 await previewsLanded(links.channel.id, ada, [1, 2, 1]);
 site.close();
 await rpc("instance.v1.InstanceService/UpdateSettings", { linkPreviews: false }, ada);

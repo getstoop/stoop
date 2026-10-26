@@ -44,6 +44,12 @@ name: See link previews under messages, open a message's menu from one, and remo
 # No site name: the link's host stands in.
 - assertVisible: "127\\.0\\.0\\.1:\\d+, The hut, Bunks for twelve, a stove and a view of the valley\\."
 - assertVisible: "127\\.0\\.0\\.1:\\d+"
+# The trail's message was edited: "(edited)" comes after its card, as
+# on web, not after its words.
+- assertVisible:
+    text: "\\(edited\\)"
+    below: "Example Trails, Ridge loop.*"
+- assertNotVisible: "Trail map for Saturday.*\\(edited\\)"
 # A link to a message on this server gets no card of this server's page.
 - assertNotVisible: "localhost:\\d+, Stoop.*"
 # A long press on a card is the row's: the message menu opens.
@@ -70,3 +76,5 @@ name: See link previews under messages, open a message's menu from one, and remo
     notVisible: "Example Trails, Ridge loop.*"
     timeout: 10000
 - assertVisible: "127\\.0\\.0\\.1:\\d+, The hut, .*"
+# With no card left, "(edited)" closes the words again.
+- assertVisible: "Trail map for Saturday.*\\(edited\\)"

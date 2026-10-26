@@ -308,7 +308,9 @@ import a screen; the screens themselves live in `src/screens`, so
   browser and a long press is the row's. The author, or whoever
   moderates the space, gets web's × on each card, which asks first and
   takes it off for everyone (`DismissLinkPreview`); the server's update
-  for the message redraws the row.
+  for the message redraws the row. An edited message with files or
+  cards says "(edited)" after them, as web's row does, rather than
+  after its words.
 - On iOS the server's tabs are the system tab bar (`NativeTabs`,
   `src/app/s/[id]/(tabs)/_layout.ios.tsx`): Liquid Glass from iOS 26, SF
   Symbols for icons. Android keeps the drawn bar in `(tabs)/_layout.tsx` until

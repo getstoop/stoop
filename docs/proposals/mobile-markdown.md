@@ -267,13 +267,21 @@ and no Markdown library. Rules follow web's `MessageBody`:
      then `DismissLinkPreview`, an RPC the server already has, and the
      message's update redraws the row. A refusal is said over the
      composer. There is no remove for the reader alone; web has none.
-   - **"(edited)"** stays after the words, above the cards; web's marker
-     comes after the cards. Left as is (Decisions).
+   - **"(edited)"** goes where web's row puts it: after the words when
+     the message has no files and no cards drawn, otherwise at the very
+     end, after the files and the cards and before "Also sent to" and
+     the reactions. The row tells `MessageBody` not to mark the words
+     (`markEdited`) and draws "(edited)" itself, as the body draws it on
+     a line of its own, read as its own element after the cards. A card
+     removed, or a link to a message here (no card), puts it back after
+     the words.
    - **Flow**: `link-previews.yaml`, on a channel the seed fills while
      it serves a page from 127.0.0.1 and turns previews on (then off, so
      no other flow's links are fetched); the server runs with
      `STOOP_UNFURL_ALLOW_PRIVATE`. It asserts the three cards, no card
-     for the link to a message here, the long press, and the remove. It
+     for the link to a message here, "(edited)" after the edited
+     message's card and back after its words once the card is removed,
+     the long press, and the remove. It
      uses no "Back", so it runs whole on the Android emulator too.
 
 ## Split
@@ -338,16 +346,16 @@ marks), one assertion proved to bite, and the operator's phone check.
   2026-10-25).
 
 - **Link previews are drawn by the row, not `MessageBody`**, and not on
-  the menu's card, following web (step 4, 2026-10-25; Tech → 9). Open
-  for the operator's review.
-- **Remove a preview is in step 4**: one RPC the server has, behind the
-  system's confirm, for the author or a moderator, as on web (step 4,
-  2026-10-25). Open for the operator's review.
-- **"(edited)" stays with the words, above the cards** (web's is under
-  them): moving it out of `MessageBody` only for messages with cards
-  isn't worth it now (step 4, 2026-10-25). Open for the operator's
-  review.
-- **The pasted message link is its own PR** (step 4, 2026-10-25): web's
+  the menu's card, following web (operator, 2026-10-25; Tech → 9).
+- **Remove a preview stays in step 4**: one RPC the server has, behind
+  the system's confirm, for the author or a moderator, as on web
+  (operator, 2026-10-25).
+- **"(edited)" goes where web's row puts it**: at the very end, after
+  the files and the cards and before the reactions, when the message
+  has either; after the words otherwise (operator, 2026-10-25; Tech →
+  9).
+- **The pasted message link waits for its own PR**, STOOP-520
+  (operator, 2026-10-25). Why it isn't small (step 4): web's
   `MessageLink` swaps the address for "who in #channel" once three
   lookups land (the spaces, that space's channels, the message by
   `ListMessages` around it). The app has no shared cache to hold those
@@ -359,8 +367,8 @@ marks), one assertion proved to bite, and the operator's phone check.
 
 ## Later
 
-- **A pasted link to a message on this server** read as who said it and
-  where (web's `MessageLink`), and under it the message's card (web's
+- **A pasted link to a message on this server** (STOOP-520) read as who
+  said it and where (web's `MessageLink`), and under it the message's card (web's
   `LinkedMessages`), with only the RPCs the app already uses
   (`ListSpaces`, `ListChannels`, `ListMessages` around it). Needs
   landing on a message in the channel (`?m=`) first. Until then the
