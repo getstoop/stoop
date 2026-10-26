@@ -71,6 +71,23 @@
   --md-preview-image-only-max-width: 400px;
   --md-preview-dismiss-inset: 4px;
   --md-preview-dismiss-bg: var(--surface);
+
+  /* A message's files (attachments.css). attachments-: the row of them;
+     attachment-: one file. media- is the video and audio frame's cap;
+     the bar is the name strip over an image or a video's still. */
+  --md-attachments-gap: 8px;
+  --md-attachments-margin-top: 6px;
+  --md-attachment-image-max-width: 420px;
+  --md-attachment-image-max-height: 320px;
+  --md-attachment-video-width: 280px; /* a thumbnail's width */
+  --md-attachment-video-max-height: 200px; /* caps a portrait clip's still */
+  --md-attachment-media-max-width: 480px;
+  --md-attachment-bar-pad-y: 6px;
+  --md-attachment-bar-pad-x: 8px;
+  --md-attachment-bar-pad-start: 12px;
+  --md-attachment-card-pad-y: 8px;
+  --md-attachment-card-pad-x: 12px;
+  --md-attachment-icon-color: var(--accent);
 }
 
 .md-code {

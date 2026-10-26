@@ -1,7 +1,9 @@
-// Message attachments as both apps' composers handle them: the limits, the
-// queue that keeps uploads inside the server's per-account allowance, the
-// rule that puts a refused send's files back, and how a file's size and
-// type are shown.
+// Message attachments as both apps handle them: the limits, the queue
+// that keeps uploads inside the server's per-account allowance, the rule
+// that puts a refused send's files back, how a file's size and type are
+// shown, and how a received file is drawn.
+
+import type { Attachment, Message } from "../gen/stoop/chat/v1/message_pb";
 
 // The server's own cap on one file when the operator sets none
 // (GetInstanceStatus max_upload_bytes is the one in force).
@@ -79,4 +81,28 @@ export function formatBytes(size: number | bigint): string {
   if (bytes < 1024 * 1024)
     return `${(bytes / 1024).toFixed(bytes < 10240 ? 1 : 0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// How a received attachment is drawn, first match wins: a placeholder
+// once expired, then a video, an audio player, an inline image, or a
+// card for anything else.
+export type AttachmentKind = "expired" | "video" | "audio" | "image" | "file";
+
+export function attachmentKind(attachment: Attachment): AttachmentKind {
+  if (attachment.expired) return "expired";
+  if (isPlayableVideo(attachment.contentType)) return "video";
+  if (isPlayableAudio(attachment.contentType)) return "audio";
+  if (isInlineImage(attachment.contentType)) return "image";
+  return "file";
+}
+
+// What a preview steps through: the images and videos of a message
+// list, oldest first.
+export function galleryMedia(messages: Message[]): Attachment[] {
+  return messages.flatMap((message) =>
+    message.attachments.filter((attachment) => {
+      const kind = attachmentKind(attachment);
+      return kind === "image" || kind === "video";
+    }),
+  );
 }

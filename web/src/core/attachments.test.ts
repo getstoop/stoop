@@ -1,6 +1,13 @@
+import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import {
+  AttachmentSchema,
+  MessageSchema,
+} from "../gen/stoop/chat/v1/message_pb";
+import {
+  attachmentKind,
   formatBytes,
+  galleryMedia,
   isInlineImage,
   isPlayableVideo,
   restoreFiles,
@@ -79,5 +86,47 @@ describe("inline types", () => {
     expect(isInlineImage("image/heic")).toBe(false);
     expect(isPlayableVideo("video/quicktime")).toBe(true);
     expect(isPlayableVideo("application/octet-stream")).toBe(false);
+  });
+});
+
+const file = (fileId: string, contentType: string, expired = false) =>
+  create(AttachmentSchema, { fileId, name: fileId, contentType, expired });
+
+describe("attachmentKind", () => {
+  it("names how each file is drawn", () => {
+    expect(attachmentKind(file("clip", "video/mp4"))).toBe("video");
+    expect(attachmentKind(file("song", "audio/mpeg"))).toBe("audio");
+    expect(attachmentKind(file("photo", "image/png"))).toBe("image");
+    expect(attachmentKind(file("notes", "text/plain"))).toBe("file");
+    expect(attachmentKind(file("raw", "image/heic"))).toBe("file");
+  });
+
+  it("puts expired ahead of the type it kept", () => {
+    expect(attachmentKind(file("photo", "image/png", true))).toBe("expired");
+    expect(attachmentKind(file("clip", "video/mp4", true))).toBe("expired");
+  });
+});
+
+describe("galleryMedia", () => {
+  it("lists the images and videos of every message, oldest first", () => {
+    const messages = [
+      create(MessageSchema, {
+        id: "m1",
+        attachments: [
+          file("photo", "image/jpeg"),
+          file("notes", "application/pdf"),
+          file("gone", "image/png", true),
+        ],
+      }),
+      create(MessageSchema, { id: "m2" }),
+      create(MessageSchema, {
+        id: "m3",
+        attachments: [file("song", "audio/ogg"), file("clip", "video/webm")],
+      }),
+    ];
+    expect(galleryMedia(messages).map((media) => media.fileId)).toEqual([
+      "photo",
+      "clip",
+    ]);
   });
 });
