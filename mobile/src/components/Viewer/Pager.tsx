@@ -14,7 +14,10 @@ import { tokens } from "../../theme";
 // back.
 // An `index` set from outside (a screen reader's step) slides there.
 // Only the page shown and its neighbours are drawn. Off while a page is
-// zoomed (`enabled`), when a drag pans the picture instead.
+// zoomed (`enabled`), when a drag pans the picture instead. With `bands`
+// (a video's page, whose player takes every touch over it) it pages only
+// from a strip that tall along its top and its foot, under the viewer's
+// bars, which let those touches through.
 
 // How fast a fling must be to page, in points a second.
 const FLING = 500;
@@ -25,6 +28,7 @@ export default function Pager({
   width,
   height,
   enabled,
+  bands,
   keyOf,
   renderPage,
   onIndex,
@@ -34,6 +38,7 @@ export default function Pager({
   width: number;
   height: number;
   enabled: boolean;
+  bands?: { top: number; bottom: number };
   keyOf: (at: number) => string;
   renderPage: (at: number) => ReactNode;
   onIndex: (at: number) => void;
@@ -111,7 +116,12 @@ export default function Pager({
       },
     };
   }, [enabled, count, width, at, target, grabbed, settled]);
-  const pan = usePanGesture(config);
+  const mainConfig = useMemo(() => (bands ? { ...config, enabled: false } : config), [config, bands]);
+  const pan = usePanGesture(mainConfig);
+  // A gesture goes on one detector, so each band has its own.
+  const bandConfig = useMemo(() => ({ ...config, enabled: config.enabled && bands !== undefined }), [config, bands]);
+  const topPan = usePanGesture(bandConfig);
+  const bottomPan = usePanGesture(bandConfig);
 
   const row = useAnimatedStyle(() => ({
     transform: [{ translateX: -at.value * width }],
@@ -128,6 +138,16 @@ export default function Pager({
             </View>
           ))}
         </Animated.View>
+        {bands && (
+          <>
+            <GestureDetector gesture={topPan}>
+              <View style={[styles.band, { top: 0, height: bands.top }]} />
+            </GestureDetector>
+            <GestureDetector gesture={bottomPan}>
+              <View style={[styles.band, { bottom: 0, height: bands.bottom }]} />
+            </GestureDetector>
+          </>
+        )}
       </View>
     </GestureDetector>
   );
@@ -140,5 +160,10 @@ const styles = StyleSheet.create({
   page: {
     position: "absolute",
     top: 0,
+  },
+  band: {
+    position: "absolute",
+    left: 0,
+    right: 0,
   },
 });

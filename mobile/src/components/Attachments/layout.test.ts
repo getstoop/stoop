@@ -66,12 +66,36 @@ describe("attachmentsLayout", () => {
     expect(attachmentsLayout([pdf, image], BODY).map((part) => part.kind)).toEqual(["card", "image"]);
   });
 
-  it("draws video and audio as cards for now", () => {
-    const parts = attachmentsLayout(
-      [file({ contentType: "video/mp4" }), file({ contentType: "audio/mpeg" }), photo(10, 10)],
-      BODY,
-    );
-    expect(parts.map((part) => part.kind)).toEqual(["card", "card", "image"]);
+  it("draws one video as web's 280 frame in a fixed 16:9 box", () => {
+    const clip = file({ contentType: "video/quicktime" });
+    expect(attachmentsLayout([clip], BODY)).toEqual([
+      { kind: "video", attachment: clip, box: { width: 280, height: 158 } },
+    ]);
+    const [narrow] = attachmentsLayout([clip], 240);
+    expect(narrow).toMatchObject({ box: { width: 240, height: 135 } });
+  });
+
+  it("puts a video in the grid with the images, in their order", () => {
+    const clip = file({ contentType: "video/mp4" });
+    const image = photo(100, 100);
+    const pdf = file({ contentType: "application/pdf" });
+    expect(attachmentsLayout([clip, pdf, image], BODY)).toEqual([
+      { kind: "grid", attachments: [clip, image], tile: 152 },
+      { kind: "card", attachment: pdf },
+    ]);
+  });
+
+  it("draws audio as a card for now", () => {
+    const parts = attachmentsLayout([file({ contentType: "audio/mpeg" }), photo(10, 10)], BODY);
+    expect(parts.map((part) => part.kind)).toEqual(["card", "image"]);
+  });
+
+  it("draws a video this phone can't play as a card, out of the grid", () => {
+    const clip = file({ contentType: "video/webm" });
+    const image = photo(100, 100);
+    const unplayable = new Set([clip.fileId]);
+    expect(attachmentsLayout([clip], BODY, unplayable)).toEqual([{ kind: "card", attachment: clip }]);
+    expect(attachmentsLayout([clip, image], BODY, unplayable).map((part) => part.kind)).toEqual(["card", "image"]);
   });
 });
 

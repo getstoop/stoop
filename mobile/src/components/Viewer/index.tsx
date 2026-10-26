@@ -6,22 +6,26 @@ import Animated, { interpolate, useAnimatedStyle, useSharedValue, withTiming } f
 import { scheduleOnRN } from "react-native-worklets";
 import { downloadAttachment, shareDownloaded } from "../../api/downloads";
 import { tokens } from "../../theme";
-import Bars, { type Sharing } from "./Bars";
-import { itemKey, pageLabel, type ViewerItem } from "./items";
+import Bars, { type BarHeights, type Sharing } from "./Bars";
+import { isVideo, itemKey, pageLabel, type ViewerItem } from "./items";
 import Page from "./Page";
 import Pager from "./Pager";
+import VideoPage from "./VideoPage";
 
 // The full-screen viewer, the phone's counterpart of web's MediaPreview,
 // opened by a tap on a picture in a channel or a thread (useViewer): the
-// picture on black, fitted, with the screen's other pictures a swipe
-// sideways away (web's list, items.ts). A modal over the screen, as the
-// message menu is, not a route, so a cold open never lands here. A
-// single tap hides and shows the bars, which never hide while a screen
-// reader is on; Close, Android's back, a drag down (Page) and the
-// screen reader's escape close it. Share hands the original, never the
-// thumbnail, to the system's sheet: the copy expo-image already holds
-// when there is one, else a download (api/downloads). The status bar
-// hides while it is open.
+// picture on black, fitted, with the screen's other pictures and videos
+// a swipe sideways away (web's list, items.ts), a video playing
+// (VideoPage). A modal over the screen, as the message menu is, not a
+// route, so a cold open never lands here. A single tap hides and shows
+// the bars, which never hide while a screen reader is on, nor over a
+// video, which is drawn between them so they cover none of its controls
+// and pages from swipes on them (Pager's bands); Close, Android's back,
+// a drag down on a picture (Page) and the screen reader's escape close
+// it.
+// Share hands the original, never the thumbnail, to the system's sheet:
+// the copy expo-image already holds when there is one, else a download
+// (api/downloads). The status bar hides while it is open.
 
 export default function Viewer({
   items,
@@ -48,6 +52,13 @@ export default function Viewer({
   const [zoomed, setZoomed] = useState(false);
   const [reader, setReader] = useState(false);
   const [sharing, setSharing] = useState<{ fileId: string; state: Sharing }>({ fileId: "", state: "idle" });
+  // How tall the bars are, for a video's box between them, and whether
+  // the page on screen is a video's player, which takes every touch over
+  // it (the pager then pages from the bars).
+  const [barHeights, setBarHeights] = useState<BarHeights | null>(null);
+  const [playerUp, setPlayerUp] = useState(false);
+  // Set as closing begins, so a video stops before the fade.
+  const [leaving, setLeaving] = useState(false);
   const mounted = useRef(true);
   const closing = useRef(false);
   // In and out, and how far a drag down has taken the picture.
@@ -80,6 +91,7 @@ export default function Viewer({
   const close = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
+    setLeaving(true);
     shown.value = withTiming(0, { duration: tokens.dur }, () => {
       scheduleOnRN(onClose);
     });
@@ -99,6 +111,7 @@ export default function Viewer({
   const paged = useCallback((next: number) => {
     setIndex(next);
     setZoomed(false);
+    setPlayerUp(false);
   }, []);
 
   // Where a screen reader's focus goes next: the page it opened on, then
@@ -180,37 +193,55 @@ export default function Viewer({
                   width={size.width}
                   height={size.height}
                   enabled={!zoomed}
+                  bands={playerUp && barHeights ? barHeights : undefined}
                   keyOf={(at) => itemKey(items[at])}
                   onIndex={paged}
-                  renderPage={(at) => (
-                    <Page
-                      item={items[at]}
-                      origin={origin}
-                      token={token}
-                      width={size.width}
-                      height={size.height}
-                      active={at === index}
-                      label={pageLabel(items[at], at, items.length)}
-                      takeFocus={() => takeFocus(at)}
-                      drag={{ x: dragX, y: dragY }}
-                      onTap={() => setBars((on) => !on)}
-                      onZoom={setZoomed}
-                      onSwipeClose={close}
-                      onStep={(delta) => step(at, delta)}
-                    />
-                  )}
+                  renderPage={(at) =>
+                    isVideo(items[at]) ? (
+                      <VideoPage
+                        item={items[at]}
+                        origin={origin}
+                        token={token}
+                        active={at === index && !leaving}
+                        box={barHeights ?? NO_BARS}
+                        label={pageLabel(items[at], at, items.length)}
+                        takeFocus={() => takeFocus(at)}
+                        onPlayer={setPlayerUp}
+                        onShare={share}
+                        onStep={(delta) => step(at, delta)}
+                      />
+                    ) : (
+                      <Page
+                        item={items[at]}
+                        origin={origin}
+                        token={token}
+                        width={size.width}
+                        height={size.height}
+                        active={at === index}
+                        label={pageLabel(items[at], at, items.length)}
+                        takeFocus={() => takeFocus(at)}
+                        drag={{ x: dragX, y: dragY }}
+                        onTap={() => setBars((on) => !on)}
+                        onZoom={setZoomed}
+                        onSwipeClose={close}
+                        onStep={(delta) => step(at, delta)}
+                      />
+                    )
+                  }
                 />
               )}
             </Animated.View>
-            {(bars || reader) && item && (
+            {item && (bars || reader || isVideo(item)) && (
               <Animated.View style={[StyleSheet.absoluteFill, chrome]} pointerEvents="box-none">
                 <Bars
                   item={item}
                   index={index}
                   count={items.length}
                   sharing={sharing.fileId === item.attachment.fileId ? sharing.state : "idle"}
+                  passThrough={playerUp}
                   onClose={close}
                   onShare={share}
+                  onHeights={setBarHeights}
                 />
               </Animated.View>
             )}
@@ -222,6 +253,8 @@ export default function Viewer({
 }
 
 const BARS_SETTLE_MS = 100;
+// A video's box before the bars have been measured.
+const NO_BARS = { top: 0, bottom: 0 };
 
 const styles = StyleSheet.create({
   root: {

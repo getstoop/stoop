@@ -1,3 +1,4 @@
+import { attachmentKind } from "@stoop/core/attachments";
 import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { markdown, useTheme } from "../../theme";
@@ -8,11 +9,14 @@ import FileCard from "./FileCard";
 import { attachmentsLayout } from "./layout";
 import Picture from "./Picture";
 import Strip from "./Strip";
-import { expiredLabel, expiredText, imageLabel, tileLabel } from "./words";
+import { useUnplayable } from "./unplayable";
+import VideoTile from "./VideoTile";
+import { expiredLabel, expiredText, imageLabel, tileLabel, videoLabel } from "./words";
 
 // A message's files, under its words, as web's Attachments draws them
-// where a phone can (layout.ts says where it can't): an image inline, two
-// or more in a grid, any other file as a card that a tap shares, an
+// where a phone can (layout.ts says where it can't): an image inline, a
+// video as a tile that plays full screen, two or more of them in a
+// grid, any other file as a card that a tap shares, an
 // expired one as its placeholder, which nothing fetches. The same in a
 // channel's rows and a thread's; on the message menu's card (`compact`)
 // a strip of thumbnails and chips. A long press anywhere is the row's.
@@ -31,9 +35,10 @@ export default function Attachments({
 }) {
   const theme = useTheme();
   const window = useWindowDimensions();
+  const unplayable = useUnplayable();
   if (attachments.length === 0) return null;
   if (compact) return <Strip attachments={attachments} origin={origin} token={token} />;
-  const parts = attachmentsLayout(attachments, paragraphWidth(window.width, "row", 0));
+  const parts = attachmentsLayout(attachments, paragraphWidth(window.width, "row", 0), unplayable);
   const shared = { origin, token, onLongPress };
   return (
     <View style={styles.column}>
@@ -50,20 +55,43 @@ export default function Attachments({
                 {...shared}
               />
             );
+          case "video":
+            return (
+              <VideoTile
+                key={part.attachment.fileId}
+                attachment={part.attachment}
+                box={part.box}
+                label={videoLabel(part.attachment)}
+                onLongPress={onLongPress}
+              />
+            );
           case "grid":
             return (
               <View key="grid" style={[styles.grid, { width: 2 * part.tile + markdown.attachmentsGap }]}>
-                {part.attachments.map((attachment, index) => (
-                  <Picture
-                    key={attachment.fileId}
-                    attachment={attachment}
-                    box={{ width: part.tile, height: part.tile }}
-                    fit="cover"
-                    label={tileLabel(attachment, index, part.attachments.length)}
-                    tile
-                    {...shared}
-                  />
-                ))}
+                {part.attachments.map((attachment, index) => {
+                  const box = { width: part.tile, height: part.tile };
+                  const count = part.attachments.length;
+                  return attachmentKind(attachment) === "video" ? (
+                    <VideoTile
+                      key={attachment.fileId}
+                      attachment={attachment}
+                      box={box}
+                      label={tileLabel(attachment, index, count, true)}
+                      tile
+                      onLongPress={onLongPress}
+                    />
+                  ) : (
+                    <Picture
+                      key={attachment.fileId}
+                      attachment={attachment}
+                      box={box}
+                      fit="cover"
+                      label={tileLabel(attachment, index, count)}
+                      tile
+                      {...shared}
+                    />
+                  );
+                })}
               </View>
             );
           case "card":

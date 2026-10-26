@@ -197,9 +197,10 @@ await rpc("instance.v1.InstanceService/UpdateSettings", { linkPreviews: false },
 await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: links.channel.id, messageId: lastLinked.id }, ada);
 
 // In photos, dee's files, oldest first: a landscape photo and a portrait
-// one (sizes the server measures), the two together, a PDF, and a photo
-// whose file scripts/mobile-e2e.sh then marks expired, as attachment
-// retention would (EXPIRE_FILE_ID) (attachments.yaml).
+// one (sizes the server measures), the two together, a PDF, a short
+// H.264 clip, and a photo whose file scripts/mobile-e2e.sh then marks
+// expired, as attachment retention would (EXPIRE_FILE_ID)
+// (attachments.yaml).
 const photos = await rpc(
   "chat.v1.ChatService/CreateChannel",
   { spaceId: s.space.id, name: "photos", kind: "CHANNEL_KIND_TEXT" },
@@ -216,6 +217,7 @@ await sendFiles("From the ridge", ["ridge-landscape.jpg"]);
 await sendFiles("The hut", ["hut-portrait.jpg"]);
 await sendFiles("Both", ["ridge-landscape.jpg", "hut-portrait.jpg"]);
 await sendFiles("Notes for Saturday", ["trail-notes.pdf"]);
+await sendFiles("Up the path", ["ridge-walk.mp4"]);
 const old = await sendFiles("Last year's map", ["trail-map.jpg"]);
 await rpc("chat.v1.ChatService/MarkChannelRead", { channelId: photos.channel.id, messageId: old.id }, ada);
 

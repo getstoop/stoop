@@ -1,9 +1,9 @@
 appId: ${APP_ID}
-name: See files under messages, a photo, two in a grid, a PDF and an expired file, page through the photos full screen, and share the PDF
+name: See files under messages, a photo, two in a grid, a PDF, a video and an expired file, page through the photos full screen, play the video, and share the PDF
 ---
 # photos (seed.mjs): dee's landscape photo, then a portrait one, the two
-# together, a PDF, and, newest, a photo since expired. Each file is one
-# element, read by its kind and name.
+# together, a PDF, a short clip, and, newest, a photo since expired. Each
+# file is one element, read by its kind and name.
 - clearKeychain
 - launchApp:
     clearState: true
@@ -39,6 +39,7 @@ name: See files under messages, a photo, two in a grid, a PDF and an expired fil
 - extendedWaitUntil:
     visible: "Expired attachment, \\d+(\\.\\d)? KB"
     timeout: 15000
+- assertVisible: "Video, ridge-walk\\.mp4, 93 KB\\. Plays full screen"
 - assertVisible: "trail-notes\\.pdf, 585 B"
 - assertVisible: "Image 1 of 2, ridge-landscape\\.jpg"
 - assertVisible: "Image 2 of 2, hut-portrait\\.jpg"
@@ -63,25 +64,49 @@ name: See files under messages, a photo, two in a grid, a PDF and an expired fil
     notVisible: "Quote in reply"
     timeout: 5000
 # A tap on a photo opens it full screen, as the first of the channel's
-# four (the expired one is none of them), read with who sent it; a swipe
-# pages to the next, and Close goes back to the channel.
+# five pictures and videos (the expired one is none of them), read with
+# who sent it; a swipe pages to the next, and Close goes back to the
+# channel.
 - tapOn: "Image, ridge-landscape\\.jpg\\. Opens full screen"
 - extendedWaitUntil:
-    visible: "ridge-landscape\\.jpg, image 1 of 4, from .*"
+    visible: "ridge-landscape\\.jpg, image 1 of 5, from .*"
     timeout: 5000
-- assertVisible: "1 of 4"
+- assertVisible: "1 of 5"
 - swipe:
     direction: LEFT
 - extendedWaitUntil:
-    visible: "hut-portrait\\.jpg, image 2 of 4, from .*"
+    visible: "hut-portrait\\.jpg, image 2 of 5, from .*"
     timeout: 5000
-- assertVisible: "2 of 4"
+- assertVisible: "2 of 5"
 - tapOn:
     id: "viewer-close"
 - extendedWaitUntil:
-    notVisible: "2 of 4"
+    notVisible: "2 of 5"
     timeout: 5000
 - assertVisible: "Image, ridge-landscape\\.jpg\\. Opens full screen"
+# A tap on the video opens it full screen, the last of the five, in the
+# system's player, which plays it: the page, one element for a screen
+# reader, has the value Playing once the player says so, and never comes
+# to say it can't play or couldn't load (its label gains either at the
+# end). The player's own controls are out of Maestro's sight under it,
+# so pausing from them is checked by hand.
+- scrollUntilVisible:
+    element: "Video, ridge-walk\\.mp4, .*"
+    direction: DOWN
+- tapOn: "Video, ridge-walk\\.mp4, .*"
+- extendedWaitUntil:
+    visible: "ridge-walk\\.mp4, video 5 of 5, from [^,]+, [^,]+"
+    timeout: 5000
+- assertVisible: "5 of 5"
+- extendedWaitUntil:
+    visible: "Playing"
+    timeout: 15000
+- assertNotVisible: "ridge-walk\\.mp4, video 5 of 5, .*, (can't play|couldn't load)"
+- tapOn:
+    id: "viewer-close"
+- extendedWaitUntil:
+    notVisible: "5 of 5"
+    timeout: 5000
 # A tap on the PDF downloads it and opens the system's share sheet on it.
 - scrollUntilVisible:
     element: "trail-notes\\.pdf, 585 B"

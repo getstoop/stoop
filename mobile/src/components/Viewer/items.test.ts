@@ -29,11 +29,15 @@ describe("viewerItems", () => {
     ]);
   });
 
-  it("leaves out expired files and, until the phone plays them, videos", () => {
+  it("takes videos in their place and leaves out expired files", () => {
     const items = viewerItems([
-      message("a", [file("gone.jpg", "image/jpeg", true), file("clip.mp4", "video/mp4"), file("kept.jpg", "image/jpeg")]),
+      message("a", [
+        file("gone.jpg", "image/jpeg", true),
+        file("clip.mp4", "video/mp4"),
+        file("kept.jpg", "image/jpeg"),
+      ]),
     ]);
-    expect(items.map((item) => item.attachment.name)).toEqual(["kept.jpg"]);
+    expect(items.map((item) => item.attachment.name)).toEqual(["clip.mp4", "kept.jpg"]);
   });
 });
 
@@ -48,6 +52,11 @@ describe("pageLabel", () => {
   it("says the day for an older one", () => {
     const [item] = viewerItems([message("a", [file("old.jpg", "image/jpeg")], new Date(2026, 9, 20, 9, 31))]);
     expect(pageLabel(item, 0, 1, NOW)).toMatch(/^old\.jpg, image 1 of 1, from Theo Kim, .+ at 9:31\sAM$/);
+  });
+
+  it("says a video is one", () => {
+    const [item] = viewerItems([message("a", [file("clip.mov", "video/quicktime")], new Date(2026, 9, 26, 9, 31))]);
+    expect(pageLabel(item, 0, 2, NOW)).toMatch(/^clip\.mov, video 1 of 2, from Theo Kim, 9:31\sAM$/);
   });
 
   it("counts from one", () => {
