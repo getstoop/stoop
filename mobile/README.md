@@ -139,7 +139,8 @@ import a screen; the screens themselves live in `src/screens`, so
   its foot (no still, as the server makes none, and nothing plays in
   the list); two or more images and videos in a grid of square tiles,
   two to a row, all shown, a video's black with the badge, and the
-  other files after them; any other file, audio included for now, as
+  other files after them; an audio file as web's player, its name and
+  size over a player of the app's own (below); any other file as
   web's card; an expired file as web's dashed placeholder, which
   fetches nothing. An image loads from
   `/files` with the session through `expo-image` (a native module, so
@@ -209,6 +210,30 @@ import a screen; the screens themselves live in `src/screens`, so
   modules, so a build on the phone needs `make mobile-ios` again),
   under a `GestureHandlerRootView` at the app's root;
   `babel-preset-expo` adds the worklets plugin on its own.
+  An audio file plays in the row (`Attachments/AudioPlayer.tsx`): a
+  round Play in the accent, the track and the time, its length at rest
+  once it has been played and "0:27 / 1:12" once started; nothing plays
+  until Play is tapped, which says "Play NAME" or "Pause NAME" to a
+  screen reader, and once it has started a tap or a drag along the
+  track, or a screen reader's adjusting, moves it. The screen plays one
+  file at a time on one `expo-video` player with no view (no audio
+  module of its own: AVPlayer and ExoPlayer play audio files too),
+  released when another starts and with the screen
+  (`Attachments/audio.ts`, `useAudioPlayback`). It pauses when the
+  screen is covered or left, the viewer opens, or the app leaves the
+  front: the system pauses a player only when it has a view. It keeps
+  `expo-video`'s audio session, so on an iPhone it is heard with the
+  silent switch on and stops other apps' sound, as a video does. A file
+  the phone can't decode (Ogg on an iPhone) becomes the card, which a
+  tap shares, as an unplayable video does; told apart from a failure a
+  retry may mend (offline, a session ended, a dropped connection) by
+  asking the server for the file's first byte (`fileAnswers`, as the
+  viewer's video does); one it can mend says "Couldn't play · tap to retry" in the
+  time's place instead. Two known limits: nothing keeps the screen
+  awake for a player with no view, so a long file stops when the phone
+  locks itself; and `expo-video` leaves the audio session active after
+  a pause, so music another app was playing doesn't come back on its
+  own (the viewer's video is the same).
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions

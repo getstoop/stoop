@@ -343,6 +343,15 @@ export function PlayIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+export function PauseIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Rect x={6} y={5} width={4} height={14} rx={1} />
+      <Rect x={14} y={5} width={4} height={14} rx={1} />
+    </Svg>
+  );
+}
+
 export function PaperclipIcon({ color, size = 14 }: IconProps) {
   return (
     <Svg

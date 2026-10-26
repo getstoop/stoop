@@ -1,9 +1,10 @@
 appId: ${APP_ID}
-name: See files under messages, a photo, two in a grid, a PDF, a video and an expired file, page through the photos full screen, play the video, and share the PDF
+name: See files under messages, a photo, two in a grid, a PDF, a video, an audio file and an expired file, page through the photos full screen, play the video and the audio, and share the PDF
 ---
 # photos (seed.mjs): dee's landscape photo, then a portrait one, the two
-# together, a PDF, a short clip, and, newest, a photo since expired. Each
-# file is one element, read by its kind and name.
+# together, a PDF, a short clip, ten seconds of audio, and, newest, a
+# photo since expired. Each file is one element, read by its kind and
+# name.
 - clearKeychain
 - launchApp:
     clearState: true
@@ -115,9 +116,32 @@ name: See files under messages, a photo, two in a grid, a PDF, a video and an ex
 - extendedWaitUntil:
     visible: "Save to Files"
     timeout: 15000
-# The system draws no close button on it; this is its dismiss area.
-- tapOn: "dismiss popup"
+# The system draws no close button on it, and a tap on its dismiss area
+# reaches the row under it too, so it is swiped down from its header.
+- swipe:
+    from:
+      text: "PDF Document.*"
+    direction: DOWN
 - extendedWaitUntil:
     notVisible: "Save to Files"
     timeout: 5000
 - assertVisible: "trail-notes\\.pdf, 585 B"
+# The audio file is the app's own player: nothing plays until Play, which
+# becomes Pause while the time moves on against the file's length, and
+# Pause stops it there.
+- scrollUntilVisible:
+    element: "Play ridge-wind\\.m4a"
+    direction: DOWN
+- assertVisible: "0:00"
+- tapOn: "Play ridge-wind\\.m4a"
+- extendedWaitUntil:
+    visible: "Pause ridge-wind\\.m4a"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "0:0[1-5] / 0:10"
+    timeout: 10000
+- tapOn: "Pause ridge-wind\\.m4a"
+- extendedWaitUntil:
+    visible: "Play ridge-wind\\.m4a"
+    timeout: 5000
+- assertVisible: "0:0\\d / 0:10"
