@@ -4,7 +4,10 @@ Status: draft 2026-10-24, shape agreed with the operator the same day
 (Decisions). Steps 1 (shared values + drift check) and 2 (inline marks,
 drawn by our own native view: TextKit on iOS, a `StaticLayout` on
 Android) are merged. Step 3 (blocks) is built on branch
-`mobile-markdown-blocks`, not yet merged (Tech → 8). Plane STOOP-517,
+`mobile-markdown-blocks`, not yet merged (Tech → 8). Step 4 (link
+previews; the pasted message link left for its own PR) is built on
+branch `mobile-markdown-extras`, on top of step 3, not yet merged
+(Tech → 9). Plane STOOP-517,
 under STOOP-518 (timeline parity with web).
 Design: no new artboards. The look is web's, carried over through shared
 values (step 1), and checked on the phone.
@@ -217,6 +220,61 @@ and no Markdown library. Rules follow web's `MessageBody`:
      value), but it is read as "(edited)".
    - Every value was already named in `markdown.css` (`--md-pre-*`,
      `--md-quote-*`, `--md-list-*`); web is unchanged.
+9. **Link previews (step 4).** `mobile/src/components/LinkPreviews/`,
+   drawn by the row (`MessageRow`) after the files, not by
+   `MessageBody`: web's row draws `LinkPreviews` beside `MessageBody`,
+   and web's other places that draw a message (pins, search, a linked
+   message's card) draw no cards, so the menu's card draws none either.
+   - **Rules shared with web** in `core/linkPreviews.ts`, which web's
+     `LinkPreviews` now uses too: which show (`shownPreviews`: the
+     server's, in the message's order, less a link to a message on this
+     server, which web reads as that message), the shape
+     (`previewShape`: image-only with no title, landscape from 1.3 times
+     wider than tall) and the first line (`previewSite`: the site's
+     name, else the host without `www.`). `linkedMessage` moved from
+     web's `api/shareLinks.ts` into `core/shareLinks.ts` for it, with
+     `serverOrigins` (the address reached, plus `public_url`). The app
+     reads `public_url` from the `GetInstanceStatus` the channel and
+     thread already asked for the upload cap (`api/instance.ts`
+     `useServerStatus`, replacing `useUploadCap`).
+   - **Values**: `link-previews.css`'s literals are named in
+     `markdown.css`'s block as `--md-previews-*` (the column) and
+     `--md-preview-*` (a card), and the generator carries them over; web
+     computes the same styles and boxes as before (checked in Chromium,
+     every element of every card shape). The × keeps web's
+     `.icon-button` padding and 18 icon as literals, being the kit's,
+     not the card's.
+   - **Image size**: a browser sizes the image from the file; React
+     Native needs it up front, so `layout.ts` works it out from the
+     size the server measured, as Chromium draws `link-previews.css`
+     (measured): a squarish image is the 80 thumbnail beside the words;
+     a wide one under them is stretched to the card's width (up to 520,
+     less padding and bar) whatever its own size, its height by its
+     shape up to 260, cropped to fill; an image alone is up to 400 wide,
+     a wide one stretched to that and capped the same, any other at its
+     own size, shrunk to fit. Widths come from `BODY_INSETS.row`. An
+     image the server gave no size for is drawn as the thumbnail. The
+     image is React Native's `Image` from `/files/<id>` with the bearer
+     token, as `Avatar` loads one (no new dependency); one that fails is
+     left out.
+   - **Touch**: the card is one link element, read as its site, title
+     and description (an image alone as its site); a tap opens the link
+     in the browser, a long press is the row's (the menu).
+   - **Remove**: as on web, the author or whoever moderates the space
+     (`canDeleteAnyMessage`, DeleteMessage's rule) gets a × over each
+     card's corner, always shown (web shows it without hover on touch
+     screens); it asks "Remove this preview?" in the system's confirm,
+     then `DismissLinkPreview`, an RPC the server already has, and the
+     message's update redraws the row. A refusal is said over the
+     composer. There is no remove for the reader alone; web has none.
+   - **"(edited)"** stays after the words, above the cards; web's marker
+     comes after the cards. Left as is (Decisions).
+   - **Flow**: `link-previews.yaml`, on a channel the seed fills while
+     it serves a page from 127.0.0.1 and turns previews on (then off, so
+     no other flow's links are fetched); the server runs with
+     `STOOP_UNFURL_ALLOW_PRIVATE`. It asserts the three cards, no card
+     for the link to a message here, the long press, and the remove. It
+     uses no "Back", so it runs whole on the Android emulator too.
 
 ## Split
 
@@ -235,7 +293,9 @@ One PR each, in order:
 4. **Small extras.** Link previews under the message (the server already
    sends `link_previews`; web's `LinkPreviews`), and a pasted link to a
    message on this server read as who said it and where (web's
-   `MessageLink`), if it stays small; otherwise its own PR.
+   `MessageLink`), if it stays small; otherwise its own PR. Built:
+   link previews, with remove (Tech → 9). The message link is its own
+   PR (Later).
 
 Each PR: a Maestro flow asserting what it draws (seeded messages with the
 marks), one assertion proved to bite, and the operator's phone check.
@@ -277,7 +337,35 @@ marks), one assertion proved to bite, and the operator's phone check.
   left edge, as web's does in a narrow window; left as is (operator,
   2026-10-25).
 
+- **Link previews are drawn by the row, not `MessageBody`**, and not on
+  the menu's card, following web (step 4, 2026-10-25; Tech → 9). Open
+  for the operator's review.
+- **Remove a preview is in step 4**: one RPC the server has, behind the
+  system's confirm, for the author or a moderator, as on web (step 4,
+  2026-10-25). Open for the operator's review.
+- **"(edited)" stays with the words, above the cards** (web's is under
+  them): moving it out of `MessageBody` only for messages with cards
+  isn't worth it now (step 4, 2026-10-25). Open for the operator's
+  review.
+- **The pasted message link is its own PR** (step 4, 2026-10-25): web's
+  `MessageLink` swaps the address for "who in #channel" once three
+  lookups land (the spaces, that space's channels, the message by
+  `ListMessages` around it). The app has no shared cache to hold those
+  across rows, so each row would ask again; the paragraph's words would
+  change after it is measured (a jump per link); web's chat-bubble glyph
+  would be a new kind of run for both native views (a native rebuild);
+  and a tap should land on the message, which the channel screen can't
+  do yet (it opens at its newest or its "New" line). Not small.
+
 ## Later
+
+- **A pasted link to a message on this server** read as who said it and
+  where (web's `MessageLink`), and under it the message's card (web's
+  `LinkedMessages`), with only the RPCs the app already uses
+  (`ListSpaces`, `ListChannels`, `ListMessages` around it). Needs
+  landing on a message in the channel (`?m=`) first. Until then the
+  address shows as a link, which opens in the browser, and its preview
+  card is left out, as on web.
 
 - **Member card** (tap a person or group mention), then mention glyphs
   (person, bot, group) and current handles after renames: both need the
