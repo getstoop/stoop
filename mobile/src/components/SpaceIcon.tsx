@@ -1,10 +1,12 @@
+import { Image } from "expo-image";
 import { useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { fileSource } from "../api/files";
 import { type Theme, tokens, useTheme } from "../theme";
 
 // A space's icon, fetched with the session as a bearer token (the server
-// takes it on /files as on every RPC), or its first letter when it has
-// none or the icon won't load.
+// takes it on /files as on every RPC; expo-image, whose cache sign-out
+// clears), or its first letter when it has none or the icon won't load.
 export default function SpaceIcon({
   name,
   fileId,
@@ -24,7 +26,7 @@ export default function SpaceIcon({
   if (fileId && !failed) {
     return (
       <Image
-        source={{ uri: `${origin}/files/${fileId}`, headers: { Authorization: `Bearer ${token}` } }}
+        source={fileSource(origin, token, fileId)}
         style={styles.icon}
         onError={() => setFailed(true)}
       />

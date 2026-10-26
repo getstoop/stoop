@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { getThumbnailAsync } from "expo-video-thumbnails";
+import { fileHeaders, fileUrl } from "./files";
 import { isFileId } from "./fileNames";
 
 // A video's first frame, for its tile: the server makes none (it has no
@@ -106,10 +107,10 @@ function next() {
 async function makePoster(request: Request, fileId: string, asked: number): Promise<string | null> {
   let made: File | null = null;
   try {
-    const frame = await getThumbnailAsync(`${request.origin}/files/${fileId}`, {
+    const frame = await getThumbnailAsync(fileUrl(request.origin, fileId), {
       time: 0,
       quality: QUALITY,
-      headers: { Authorization: `Bearer ${request.token}` },
+      headers: fileHeaders(request.token),
     });
     made = new File(frame.uri);
     if (asked !== generation) return null;

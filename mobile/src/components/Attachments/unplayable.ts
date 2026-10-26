@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { fileAnswers } from "../../api/downloads";
 
 // The videos and audio files this phone has found it can't play, by file
 // id, for as long as the app runs: the viewer or the audio player finds
@@ -23,3 +24,24 @@ const subscribe = (listener: () => void) => {
 export const useUnplayable = () => useSyncExternalStore(subscribe, () => ids);
 
 export const isUnplayable = (fileId: string) => ids.has(fileId);
+
+// Why a player (the viewer's video, the inline audio) gave up on a file:
+// one this phone can't decode, which joins the ones above, or one it
+// couldn't load. A failure once the file has loaded is taken for the
+// network's, even when it was the decoder's part-way through: a retry
+// costs a tap, a card would stand for the rest of the run, and a drop
+// mid-play that recovers would answer the probe and be called
+// undecodable. One before is asked of the file's first byte with the
+// session (fileAnswers): a file the server still hands over is one the
+// phone can't decode; one that doesn't answer (offline, a session gone,
+// refused) couldn't load.
+export async function whyFailed(
+  origin: string,
+  token: string,
+  fileId: string,
+  loaded: boolean,
+): Promise<"unplayable" | "unloaded"> {
+  if (loaded || !(await fileAnswers(origin, token, fileId))) return "unloaded";
+  markUnplayable(fileId);
+  return "unplayable";
+}

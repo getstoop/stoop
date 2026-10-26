@@ -2,6 +2,7 @@ import type { Attachment } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Directory, File, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import { shareAsync } from "expo-sharing";
+import { fileHeaders, fileUrl } from "./files";
 import { isFileId, localName } from "./fileNames";
 import { clearPosters } from "./posters";
 
@@ -16,19 +17,13 @@ import { clearPosters } from "./posters";
 
 const downloads = () => new Directory(Paths.cache, "attachments");
 
-// A file to draw with expo-image, which caches it by this address.
-export const fileSource = (origin: string, token: string, fileId: string) => ({
-  uri: `${origin}/files/${fileId}`,
-  headers: { Authorization: `Bearer ${token}` },
-});
-
 // Whether the file answers at all: its first byte, with the session.
 // After a player's error this tells a file the phone can't decode (it
 // answers) from one it couldn't fetch (an error status or no network).
 export async function fileAnswers(origin: string, token: string, fileId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${origin}/files/${fileId}`, {
-      headers: { Authorization: `Bearer ${token}`, Range: "bytes=0-0" },
+    const res = await fetch(fileUrl(origin, fileId), {
+      headers: { ...fileHeaders(token), Range: "bytes=0-0" },
     });
     return res.status === 200 || res.status === 206;
   } catch {
@@ -79,8 +74,8 @@ async function fetchToCache(
   const part = new File(folder, `${name}.part`);
   if (part.exists) part.delete();
   try {
-    await File.downloadFileAsync(`${origin}/files/${attachment.fileId}`, part, {
-      headers: { Authorization: `Bearer ${token}` },
+    await File.downloadFileAsync(fileUrl(origin, attachment.fileId), part, {
+      headers: fileHeaders(token),
       onProgress: ({ bytesWritten }) => onProgress(bytesWritten),
     });
     await part.move(file);
@@ -94,7 +89,7 @@ async function fetchToCache(
 // The original from expo-image's disk cache, copied under its own name,
 // when what is there is the whole file the message names.
 async function copiedFromImageCache(origin: string, attachment: Attachment, file: File): Promise<boolean> {
-  const path = await Image.getCachePathAsync(`${origin}/files/${attachment.fileId}`).catch(() => null);
+  const path = await Image.getCachePathAsync(fileUrl(origin, attachment.fileId)).catch(() => null);
   if (!path) return false;
   try {
     const cached = new File(path.startsWith("file://") ? path : `file://${path}`);
