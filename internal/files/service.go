@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"runtime/debug"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -175,9 +174,8 @@ func New(pool *pgxpool.Pool, store blob.Store, bus events.Bus, avatars Avatars, 
 }
 
 // decodeOne runs decode in the process's one decode slot, waiting for it
-// no longer than ctx allows, and hands freed memory back to the system
-// on either side, so a run of large images peaks no higher than one
-// (files.md → Thumbnails). The slot is given back however decode ends.
+// no longer than ctx allows. The slot is given back however decode
+// ends.
 func (s *Service) decodeOne(ctx context.Context, decode func()) error {
 	select {
 	case s.decodeSlot <- struct{}{}:
@@ -185,8 +183,6 @@ func (s *Service) decodeOne(ctx context.Context, decode func()) error {
 		return fmt.Errorf("wait to decode: %w", ctx.Err())
 	}
 	defer func() { <-s.decodeSlot }()
-	debug.FreeOSMemory()
-	defer debug.FreeOSMemory()
 	decode()
 	return nil
 }

@@ -171,6 +171,26 @@ func TestProcessImageFitStillGIFIsPNG(t *testing.T) {
 	}
 }
 
+// A still GIF's frame may be smaller than its screen; the result keeps
+// the frame's own shape.
+func TestProcessImageFitSizesFromTheFrame(t *testing.T) {
+	frame := image.NewPaletted(image.Rect(0, 0, 100, 100), color.Palette{color.Black, color.White})
+	var buf bytes.Buffer
+	if err := gif.EncodeAll(&buf, &gif.GIF{
+		Image: []*image.Paletted{frame}, Delay: []int{0},
+		Config: image.Config{ColorModel: frame.Palette, Width: 1000, Height: 100},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	out, _, width, height, err := processImageFit(buf.Bytes(), LinkPreviewMaxDim)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, gotWidth, gotHeight := decodeSize(t, out); width != 100 || height != 100 || gotWidth != 100 || gotHeight != 100 {
+		t.Errorf("said %d×%d, wrote %d×%d, want 100×100", width, height, gotWidth, gotHeight)
+	}
+}
+
 func TestProcessImageFitCapsAnimation(t *testing.T) {
 	if _, _, _, _, err := processImageFit(encodeGIFFrames(t, 1, 1, maxGIFFrames+1), 480); !errors.Is(err, errHugeImage) {
 		t.Errorf("too many frames should be refused, got %v", err)
@@ -239,6 +259,13 @@ func TestImageDecodeBound(t *testing.T) {
 		t.Errorf("4096² baseline preview: %v, want it decoded (and fail)", err)
 	}
 
+	// A long screenshot is cropped to its width before scaling, so the
+	// scaler reads 1080 rows, not 15,000.
+	tall := rawPNG(t, pngSpec{width: 1080, height: 15000, depth: 8, colorType: 6})
+	if _, err := validateImage(tall, SpaceIconSize); err != nil {
+		t.Errorf("1080×15000 icon: %v, want it accepted", err)
+	}
+
 	sized := func(model color.Model, width, height int, contentType string) imageHeader {
 		return imageHeader{Config: image.Config{ColorModel: model, Width: width, Height: height}, contentType: contentType}
 	}
@@ -266,7 +293,7 @@ func TestImageDecodeBound(t *testing.T) {
 		"4096² progressive CMYK JPEG": {progressiveJPEG(color.CMYKModel, 4096), false},
 		"4096² interlaced 16-bit PNG": {interlacedPNG(color.RGBA64Model, 4096), false},
 	} {
-		if fits := fitCost(tc.header, SpaceIconSize, SpaceIconSize) <= maxDecodeMemory; fits != tc.fits {
+		if fits := fitCost(tc.header, tc.header.Height, SpaceIconSize, SpaceIconSize) <= maxDecodeMemory; fits != tc.fits {
 			t.Errorf("%s: fits %v, want %v", name, fits, tc.fits)
 		}
 	}
@@ -291,13 +318,14 @@ func TestFitCostCoversTheScaling(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
+		fitWidth, fitHeight := fitWithin(cfg.Width, cfg.Height, LinkPreviewMaxDim)
 		for _, run := range []struct {
-			what          string
-			width, height int
-			process       func() error
+			what                      string
+			sourceRows, width, height int
+			process                   func() error
 		}{
-			{"normalise", SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, SpaceIconSize); return err }},
-			{"fit", min(cfg.Width, LinkPreviewMaxDim), min(cfg.Height, LinkPreviewMaxDim), func() error {
+			{"normalise", min(cfg.Width, cfg.Height), SpaceIconSize, SpaceIconSize, func() error { _, err := normaliseImage(data, SpaceIconSize); return err }},
+			{"fit", cfg.Height, fitWidth, fitHeight, func() error {
 				_, _, _, _, err := processImageFit(data, LinkPreviewMaxDim)
 				return err
 			}},
@@ -310,7 +338,7 @@ func TestFitCostCoversTheScaling(t *testing.T) {
 			}
 			runtime.ReadMemStats(&after)
 			allocated := int64(after.TotalAlloc - before.TotalAlloc)
-			if cost := fitCost(header, run.width, run.height); allocated > cost+fitSlack {
+			if cost := fitCost(header, run.sourceRows, run.width, run.height); allocated > cost+fitSlack {
 				t.Errorf("%s %s (%d×%d): allocated %d bytes, fitCost %d", name, run.what, cfg.Width, cfg.Height, allocated, cost)
 			}
 		}

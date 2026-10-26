@@ -122,8 +122,8 @@ largest, so a second upload waits that long.
 Link preview images are re-encoded in the request that fetched them
 (`preview.go`), fitted within 480 px, and wait for the same slot, so up
 to four fetches at once decode one at a time and never beside a job's
-decode. A fetch whose context ends while it waits keeps its card without
-the image.
+decode. The wait comes out of the fetch's own time budget; one that runs
+out saves nothing, and the next message with that link fetches again.
 
 Three things fall out of the re-encode:
 
@@ -135,13 +135,15 @@ Three things fall out of the re-encode:
   PNG can declare almost any dimensions and a naive decoder would
   happily allocate for them. At most 4096×4096 pixels, and what decoding
   and scaling would hold (`fitCost`: the decoder's reckoning, as for
-  [thumbnails](#thumbnails), plus the scaler's buffer and the result)
+  [thumbnails](#thumbnails), plus the scaler's buffer, which grows with
+  the rows it reads, the crop's for an avatar, and the result)
   within the same 288 MiB as a thumbnail. Pixels alone are not enough: a
   progressive JPEG keeps every coefficient, so a 4096² one holds about
   240 MiB before scaling, and a progressive CMYK one about 380 MiB. The
   bound admits any baseline JPEG, GIF, WebP or non-interlaced PNG up to
   4096², an interlaced 16-bit PNG up to about 15 MP, and progressive
-  JPEGs up to about 15 MP (YCbCr), 12 MP (RGB) or 10 MP (CMYK); an
+  JPEGs up to about 15 MP (YCbCr), 12 MP (RGB) or 10 MP (CMYK) when
+  square, more for an avatar or icon cropped from a long one; an
   avatar or icon over it is refused in the request ("image dimensions
   are too large"), a link preview loses its image. `TestFitCostCoversTheScaling`
   checks the reckoning against what the re-encodes allocate.
@@ -251,7 +253,7 @@ per process with `normalise_image` and link preview images (the server
 runs all three when jobs are embedded), waits for it no longer than the
 job's context, gives it back however the decode ends, and hands freed
 memory back to the system before and after each decode
-(`debug.FreeOSMemory`, done by the slot for every decode). Measured in a
+(`debug.FreeOSMemory`; the smaller avatar and preview decodes skip it). Measured in a
 container limited to 512m with `GOMEMLIMIT=400MiB`, peak resident:
 
 | Image | Peak | Time |

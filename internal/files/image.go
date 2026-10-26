@@ -75,25 +75,26 @@ func validateImage(data []byte, size int) (string, error) {
 	if contentType == "image/webp" && webpAnimated(data) {
 		return "", errAnimatedWebP
 	}
-	if !fitsDecodeMemory(data, contentType, cfg, size, size) {
+	// The scaler reads the centre square, as many rows as the shorter side.
+	if !fitsDecodeMemory(data, contentType, cfg, min(cfg.Width, cfg.Height), size, size) {
 		return "", errHugeImage
 	}
 	return contentType, nil
 }
 
-// fitsDecodeMemory reports whether decoding data and scaling it to
-// width×height stays within maxDecodeMemory, as fitCost reckons it.
-func fitsDecodeMemory(data []byte, contentType string, cfg image.Config, width, height int) bool {
+// fitsDecodeMemory reports whether decoding data and scaling sourceRows
+// of it to width×height stays within maxDecodeMemory, as fitCost reckons
+// it.
+func fitsDecodeMemory(data []byte, contentType string, cfg image.Config, sourceRows, width, height int) bool {
 	header, err := readImageHeader(bytes.NewReader(data), contentType, cfg)
-	return err == nil && fitCost(header, width, height) <= maxDecodeMemory
+	return err == nil && fitCost(header, sourceRows, width, height) <= maxDecodeMemory
 }
 
-// fitCost is decodeCost plus what scaling the decode to width×height
-// allocates: the scaler's buffer (eight float64s per destination column
-// per source row, the whole height counted though a crop may use less)
-// and the result.
-func fitCost(header imageHeader, width, height int) int64 {
-	scaler := int64(width) * int64(header.Height) * 32
+// fitCost is decodeCost plus what scaling sourceRows of the decode to
+// width×height allocates: the scaler's buffer (eight float64s per
+// destination column per source row) and the result.
+func fitCost(header imageHeader, sourceRows, width, height int) int64 {
+	scaler := int64(width) * int64(sourceRows) * 32
 	result := int64(width) * int64(height) * 4
 	return decodeCost(header) + scaler + result
 }
@@ -187,17 +188,17 @@ func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) 
 			return out.Bytes(), "image/gif", cfg.Width, cfg.Height, nil
 		}
 	}
-	width, height := cfg.Width, cfg.Height
-	if longer := max(width, height); longer > maxDim {
-		width, height = max(1, width*maxDim/longer), max(1, height*maxDim/longer)
-	}
-	if !fitsDecodeMemory(data, sniffed, cfg, width, height) {
+	// Reckoned on the header's size, which a GIF's first frame never
+	// exceeds; the result is sized from the frame itself.
+	fitWidth, fitHeight := fitWithin(cfg.Width, cfg.Height, maxDim)
+	if !fitsDecodeMemory(data, sniffed, cfg, cfg.Height, fitWidth, fitHeight) {
 		return nil, "", 0, 0, errHugeImage
 	}
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, "", 0, 0, errNotAnImage
 	}
+	width, height := fitWithin(src.Bounds().Dx(), src.Bounds().Dy(), maxDim)
 	dst := image.NewNRGBA(image.Rect(0, 0, width, height))
 	draw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), draw.Src, nil)
 	var out bytes.Buffer
@@ -205,6 +206,16 @@ func processImageFit(data []byte, maxDim int) ([]byte, string, int, int, error) 
 		return nil, "", 0, 0, fmt.Errorf("encode png: %w", err)
 	}
 	return out.Bytes(), "image/png", width, height, nil
+}
+
+// fitWithin scales width×height down so the longer side is at most
+// maxDim, keeping the aspect ratio and never scaling up.
+func fitWithin(width, height, maxDim int) (int, int) {
+	longer := max(width, height)
+	if longer <= maxDim {
+		return width, height
+	}
+	return max(1, width*maxDim/longer), max(1, height*maxDim/longer)
 }
 
 // gifFrames counts the image descriptors in a GIF by walking its blocks,

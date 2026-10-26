@@ -142,8 +142,9 @@ func readImageHeader(file io.ReadSeeker, contentType string, cfg image.Config) (
 //   - a PNG's bitmap, grey counted as 4 or 8 because a tRNS chunk, which
 //     the header doesn't show, makes it NRGBA, and doubled when
 //     interlaced;
-//   - a GIF's first frame, one byte a pixel (paletted), no larger than
-//     the screen the header gives;
+//   - a GIF's first frame, no larger than the screen the header gives:
+//     one byte a pixel (paletted), two when interlaced, which the
+//     decoder rewrites into a second copy, and the header doesn't show;
 //   - twelve bytes a pixel for any WebP: the lossless decoder holds two
 //     copies, a lossy one with alpha decodes the alpha losslessly beside
 //     its planes, and the header doesn't always say which kind it is.
@@ -154,7 +155,7 @@ func decodeCost(header imageHeader) int64 {
 	pixels := int64(header.Width) * int64(header.Height)
 	switch header.contentType {
 	case "image/gif":
-		return pixels
+		return pixels * 2
 	case "image/webp":
 		return pixels * 12
 	case "image/jpeg":
