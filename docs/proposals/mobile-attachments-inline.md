@@ -1,7 +1,7 @@
 # Showing received attachments in the phone app
 
 Status: approved 2026-10-25 (the designs, every recommendation, and
-server thumbnails added as step 4). Being built.
+server thumbnails added as step 4). Being built: steps 1–3 done.
 Follows [mobile-attachments.md](mobile-attachments.md) (sending, #549,
 #550), whose Later section names this step.
 Design: canvas artboards, all in the "On a server" row after "8c":

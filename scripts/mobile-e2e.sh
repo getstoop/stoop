@@ -77,6 +77,12 @@ echo "scratch server on :$PORT (database $DB, log $LOG)"
 
 STOOP_E2E_BASE_URL="http://localhost:$PORT" node mobile/e2e/seed.mjs >"$SEEDED"
 
+# The file the seed names expired as attachment retention leaves one, a
+# step the API has no way to take.
+expire=$(sed -n 's/^EXPIRE_FILE_ID=//p' "$SEEDED")
+$COMPOSE exec -T postgres psql -U stoop -d "$DB" -v ON_ERROR_STOP=1 -q \
+  -c "UPDATE files SET expired_at = now(), name = '' WHERE id = '$expire'"
+
 # Each seeded KEY=value becomes a -e for the flows. Values may hold spaces.
 set -- -e "APP_ID=$APP_ID"
 while IFS= read -r line; do

@@ -6,6 +6,7 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo, useContext } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
+import Attachments from "../../components/Attachments";
 import Avatar from "../../components/Avatar";
 import LinkPreviews from "../../components/LinkPreviews";
 import { LinkPreviewsContext } from "../../components/LinkPreviews/context";
@@ -20,9 +21,9 @@ const AVATAR = 36;
 const GAP = 10;
 
 // One message: the author's face, name and time, unless it continues the
-// one before (same author, same minute); its words; and a line per file,
-// which opens nothing yet. A reply says whom it answers and the first
-// words of that message over its byline, as the mockup draws it (the
+// one before (same author, same minute); its words; and its files
+// (Attachments), small on the card. A reply says whom it answers and the
+// first words of that message over its byline, as the mockup draws it (the
 // server's preview; a quoted message since deleted reads as such). A
 // message that mentions the reader is tinted; the one the reader is
 // quoting or editing in the composer (`target`) is ringed in the accent
@@ -125,11 +126,13 @@ export default memo(function MessageRow({
           markEdited={!editedLast}
         />
       )}
-      {message.attachments.map((file) => (
-        <Text key={file.fileId} style={styles.file} numberOfLines={1}>
-          📎 {file.name}
-        </Text>
-      ))}
+      <Attachments
+        attachments={message.attachments}
+        origin={origin}
+        token={token}
+        compact={card}
+        onLongPress={hold}
+      />
       {!card && (
         <LinkPreviews message={message} myUserId={myUserId} origin={origin} token={token} onLongPress={hold} />
       )}
@@ -274,11 +277,6 @@ function makeStyles(theme: Theme) {
     time: {
       color: theme.textMuted,
       fontSize: tokens.textSm,
-    },
-    file: {
-      color: theme.textMuted,
-      fontSize: tokens.textUi,
-      lineHeight: tokens.textUi * tokens.leadingUi,
     },
     // As MessageBody's "(edited)" on a line of its own.
     edited: {
