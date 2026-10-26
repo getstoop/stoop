@@ -28,7 +28,10 @@ class StoopRichTextModule : Module() {
 
     // The composer's field (RichField.tsx).
     View(RichEditorView::class) {
-      Events("onEditorChange", "onEditorSelection", "onEditorHeight", "onEditorFocus", "onEditorBlur")
+      Events(
+        "onEditorChange", "onEditorSelection", "onEditorHeight", "onEditorFocus", "onEditorBlur",
+        "onEditorPaste", "onEditorCopy", "onEditorKey",
+      )
       Prop("editorStyle") { view: RichEditorView, style: EditorStyleRecord ->
         view.setStyle(style)
       }
@@ -74,6 +77,9 @@ class StoopRichTextModule : Module() {
       }.runOnQueue(Queues.MAIN)
       AsyncFunction("removeLink") { view: RichEditorView ->
         view.removeLink()
+      }.runOnQueue(Queues.MAIN)
+      AsyncFunction("insertLines") { view: RichEditorView, lines: List<EditorLineRecord> ->
+        view.insertLines(lines)
       }.runOnQueue(Queues.MAIN)
       AsyncFunction("commit") { view: RichEditorView ->
         view.commit()

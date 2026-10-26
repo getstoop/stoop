@@ -1,4 +1,5 @@
-import { docToLines, type EditorLine, linesToDoc } from "@stoop/core/editor/lines";
+import { docToLines, type EditorLine, linesToDoc, mentionsAsWords } from "@stoop/core/editor/lines";
+import * as Clipboard from "expo-clipboard";
 import type { Format } from "@stoop/core/editor/formats";
 import type { MentionRef } from "@stoop/core/mentions";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
@@ -23,6 +24,10 @@ import { fieldBlurred, fieldFocused, registerField } from "./fieldFocus";
 // refused send's words) is loaded into the field, each time `loadKey`
 // changes. Typing never waits on this: the field keeps its
 // own text and only reports it.
+//
+// Paste reads the clipboard's text as Markdown, so a message's source
+// pastes back formatted (in a code block it stays literal, natively);
+// Copy and Cut put Markdown on the clipboard, mentions as their words.
 //
 // The field grows with its text up to `maxHeight`, then scrolls.
 
@@ -65,6 +70,11 @@ export default forwardRef<
     onCaret: (before: string | null, formats: Format[]) => void;
     onBlur: () => void;
     onFocus?: () => void;
+    // Pasted text as the Markdown to read (the composer writes handles
+    // typed in full as their tokens, so they paste as pills).
+    preparePaste?: (text: string) => string;
+    // A hardware key left to the composer (⌘K: "link").
+    onKey?: (key: string) => void;
     placeholder: string;
     label: string;
     testID?: string;
@@ -74,7 +84,7 @@ export default forwardRef<
     style?: StyleProp<ViewStyle>;
   }
 >(function RichField(
-  { value, loadKey, onChange, onTyped, onCaret, onBlur, onFocus, placeholder, label, testID, autoFocus, minHeight, maxHeight, style },
+  { value, loadKey, onChange, onTyped, onCaret, onBlur, onFocus, preparePaste, onKey, placeholder, label, testID, autoFocus, minHeight, maxHeight, style },
   ref,
 ) {
   const theme = useTheme();
@@ -147,6 +157,14 @@ export default forwardRef<
         if (nativeEvent.revision === document.revision) caret(nativeEvent);
       }}
       onEditorHeight={({ nativeEvent }) => setHeight(nativeEvent.height)}
+      onEditorPaste={({ nativeEvent }) => {
+        const md = preparePaste ? preparePaste(nativeEvent.text) : nativeEvent.text;
+        void native.current?.insertLines(docToLines(fromMarkdown(md)));
+      }}
+      onEditorCopy={({ nativeEvent }) => {
+        void Clipboard.setStringAsync(toMd(mentionsAsWords(nativeEvent.lines)));
+      }}
+      onEditorKey={({ nativeEvent }) => onKey?.(nativeEvent.key)}
       onEditorFocus={() => {
         fieldFocused(focusKey);
         onFocus?.();

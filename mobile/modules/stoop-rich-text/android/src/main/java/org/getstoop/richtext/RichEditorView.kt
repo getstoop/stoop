@@ -1,6 +1,7 @@
 package org.getstoop.richtext
 
 import android.annotation.SuppressLint
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -16,6 +17,7 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
@@ -47,6 +49,9 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   private val onEditorHeight by EventDispatcher()
   private val onEditorFocus by EventDispatcher()
   private val onEditorBlur by EventDispatcher()
+  private val onEditorPaste by EventDispatcher()
+  private val onEditorCopy by EventDispatcher()
+  internal val onEditorKey by EventDispatcher()
 
   override val shouldUseAndroidLayout = true
 
@@ -147,6 +152,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
         restyle(s, changedFrom, changedTo, changedBlock, changedLine)
         applying = false
         if (s.isNotEmpty() && s[s.length - 1] != '\n') explicitTrailing = null
+        // Typed at the caret: the shortcut it completes, if any.
+        if (!deleted && changedTo > changedFrom && field.selectionStart == changedTo) applyTypedRules(s, changedTo)
         emitChange()
         post { reportHeight() }
       }
@@ -223,6 +230,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
 
   internal fun selectionChanged() {
     if (applying) return
+    lastRule?.let { if (!changing && (field.selectionStart != it.end || field.selectionEnd != it.end)) lastRule = null }
     if (changing) {
       // Moved by the text itself, not by the reader: where it settled.
       settledStart = max(0, field.selectionStart)
@@ -571,6 +579,14 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     // Not the field's own edits (a load, a pill), only typing.
     if (applying) return false
     val text = field.text ?: return false
+    // A backspace straight after a typing shortcut puts its markers back.
+    lastRule?.let { rule ->
+      lastRule = null
+      if (inserted.isEmpty() && dend == dstart + 1 && dend == rule.end && field.selectionStart == dend) {
+        post { undoRule(rule) }
+        return true
+      }
+    }
     if (field.selectionStart != field.selectionEnd) return false
     if (inserted.toString() == "\n" && dstart == dend) {
       val start = EditorDocument.lineStart(text, dstart)
@@ -631,6 +647,208 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     )
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(field)
   }
+
+  // MARK: Format as you type
+
+  // What a typing shortcut replaced, so a backspace straight after puts it
+  // back: where its result now is, the text it replaced, and (for a block
+  // marker) the block the line had.
+  internal data class TypedRule(val start: Int, val end: Int, val original: CharSequence, val block: BlockInfo?)
+
+  private var lastRule: TypedRule? = null
+
+  private val markRules: List<Pair<Regex, Int>> = run {
+    fun rule(open: String, bit: Int): Pair<Regex, Int> {
+      // Each marker character escaped (all are punctuation).
+      val d = open.map { "\\$it" }.joinToString("")
+      val c = "\\${open[0]}"
+      return Regex("(?:^|\\s)($d([^\\s$c](?:[^$c]*[^\\s$c])?)$d)$") to bit
+    }
+    listOf(
+      rule("**", Marks.BOLD), rule("__", Marks.UNDERLINE), rule("~~", Marks.STRIKE), rule("||", Marks.SPOILER),
+      rule("`", Marks.CODE),
+      // A lone "*", not the second star of "**".
+      Regex("(?:^|[^*])(\\*([^\\s*](?:[^*]*[^\\s*])?)\\*)$") to Marks.ITALIC,
+    )
+  }
+  private val linkRule = Regex("\\[([^\\[\\]]+)\\]\\((https?://[^\\s()]+)\\)$")
+  private val orderedMarker = Regex("^\\d{1,9}[.)] $")
+
+  // Web's input rules (RichEditor/plugins.ts), as on iOS: a marker pair
+  // typed around words styles them, "[words](https://address)" links them
+  // once its ")" is typed, and at a line's start "> ", "- " or "* ", "1. "
+  // or "1) ", and "```" make the line a quote, a list item or a code
+  // block. Never in a code block.
+  private fun applyTypedRules(text: Editable, caret: Int) {
+    val start = EditorDocument.lineStart(text, caret)
+    val block = lineBlock(text, start)
+    if (block.block == Block.CODE) return
+    val before = EditorDocument.textBefore(text, caret)
+    if (block.block == Block.PARAGRAPH && applyBlockRule(text, before, start)) return
+    linkRule.find(before)?.let { match ->
+      val words = match.groups[1]!!.range
+      val href = match.groupValues[2]
+      val all = start + match.range.first until start + match.range.last + 1
+      val linked = SpannableStringBuilder(text.subSequence(start + words.first, start + words.last + 1))
+      for (span in linked.getSpans(0, linked.length, MentionSpan::class.java)) linked.removeSpan(span)
+      linked.setSpan(HrefSpan(href), 0, linked.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      ruleEdit(text, all.first, all.last + 1, linked, null) { _, _ -> }
+      return
+    }
+    for ((pattern, bit) in markRules) {
+      val match = pattern.find(before) ?: continue
+      val marked = match.groups[1]!!.range
+      val words = match.groups[2]!!.range
+      val content = SpannableStringBuilder(text.subSequence(start + words.first, start + words.last + 1))
+      ruleEdit(text, start + marked.first, start + marked.last + 1, content, null) { from, to ->
+        EditorMarksEdit.apply(text, from, to) { it or bit }
+      }
+      // What is typed next isn't in the mark.
+      pendingMarks = caretMarks(text, field.selectionStart) and bit.inv()
+      pendingFrom = field.selectionStart
+      pendingAt = field.selectionStart
+      return
+    }
+  }
+
+  private fun applyBlockRule(text: Editable, before: String, lineStart: Int): Boolean {
+    val kind = when {
+      before == "> " -> Block.QUOTE
+      before == "- " || before == "* " -> Block.BULLET
+      orderedMarker.matches(before) -> Block.ORDERED
+      before == "```" -> Block.CODE
+      else -> return false
+    }
+    ruleEdit(text, lineStart, lineStart + before.length, "", BlockInfo.PARAGRAPH) { _, _ -> }
+    val end = EditorDocument.lineEnd(text, lineStart)
+    setBlocks(listOf(TouchedLine(lineStart, end, BlockInfo(kind, 0, if (kind == Block.CODE) 2_000_000 + lineStart else 0))))
+    return true
+  }
+
+  private fun ruleEdit(
+    text: Editable, from: Int, to: Int, with: CharSequence, block: BlockInfo?, after: (Int, Int) -> Unit,
+  ) {
+    val original = SpannableStringBuilder(text.subSequence(from, to))
+    applying = true
+    BaseInputConnection.removeComposingSpans(text)
+    text.replace(from, to, with)
+    val end = from + with.length
+    after(from, end)
+    restyle(text, from, end)
+    field.setSelection(end)
+    applying = false
+    lastRule = TypedRule(from, end, original, block)
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(field)
+  }
+
+  private fun undoRule(rule: TypedRule) {
+    val text = field.text ?: return
+    if (rule.end > text.length) return
+    applying = true
+    text.replace(rule.start, rule.end, rule.original)
+    val end = rule.start + rule.original.length
+    rule.block?.let { setLineBlock(text, EditorDocument.lineStart(text, rule.start), EditorDocument.lineEnd(text, rule.start), it) }
+    restyle(text, rule.start, end)
+    field.setSelection(end)
+    applying = false
+    emitChange()
+  }
+
+  // MARK: Paste, copy
+
+  private var pasteRange: IntRange? = null
+
+  private fun clipboardText(): String? {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+    return clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
+  }
+
+  // Paste: plain text read as Markdown (by JS, which hands back lines:
+  // insertLines), so a message's source pastes back formatted; in a code
+  // block, literal (the field's own paste). An address pasted over
+  // selected words on one line links them.
+  internal fun paste(): Boolean {
+    val text = field.text ?: return false
+    val pasted = clipboardText()?.takeIf { it.isNotEmpty() } ?: return false
+    val start = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val end = max(start, maxOf(field.selectionStart, field.selectionEnd))
+    if (lineBlock(text, start).block == Block.CODE) return false
+    val address = pasted.trim()
+    if (end > start && readable(address)) {
+      val words = text.subSequence(start, end).toString()
+      if (!words.contains('\n') && !Regex("https?://", RegexOption.IGNORE_CASE).containsMatchIn(words)) {
+        linkRange = start until end
+        linkWords = words
+        setLink(words, address)
+        return true
+      }
+    }
+    pasteRange = start until end
+    onEditorPaste(mapOf("text" to pasted.replace("\r\n", "\n").replace('\r', '\n')))
+    return true
+  }
+
+  // An address the message format reads back whole (core readableAddress).
+  private fun readable(href: String): Boolean {
+    if (!Regex("^https?://[^\\s<]+$", RegexOption.IGNORE_CASE).matches(href)) return false
+    var depth = 0
+    for (c in href) {
+      if (c == '(') depth++
+      if (c == ')' && --depth < 0) return false
+    }
+    return depth == 0
+  }
+
+  // The pasted lines in place of what was selected: the first joins the
+  // line pasted into (which keeps its block), the rest keep theirs, and
+  // the words after the paste end the last.
+  fun insertLines(lines: List<EditorLineRecord>) {
+    val text = field.text ?: return
+    val range = pasteRange ?: return
+    pasteRange = null
+    val from = range.first
+    val to = if (range.isEmpty()) from else range.last + 1
+    if (to > text.length) return
+    val built = EditorDocument.build(lines)
+    // Paragraph spans can't start mid-line: the blocks are set after.
+    for (span in built.getSpans(0, built.length, BlockSpan::class.java)) built.removeSpan(span)
+    if (lines.size == 1) {
+      val marks = caretMarks(text, from)
+      if (marks != 0) EditorMarksEdit.apply(built, 0, built.length) { it or marks }
+    }
+    applying = true
+    BaseInputConnection.removeComposingSpans(text)
+    pendingMarks = null
+    text.replace(from, to, built)
+    var lineStart = EditorDocument.lineEnd(text, from) + 1
+    for (line in lines.drop(1)) {
+      if (lineStart > text.length) break
+      val info = BlockInfo(Block.of(line.block), line.depth, line.group, line.lang).normalised()
+      setLineBlock(text, lineStart, EditorDocument.lineEnd(text, lineStart), info)
+      lineStart = EditorDocument.lineEnd(text, lineStart) + 1
+    }
+    val end = from + built.length
+    restyle(text, from, end)
+    field.setSelection(end)
+    applying = false
+    emitChange()
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(field)
+  }
+
+  // Copy and Cut: the selection's lines to JS, which puts their Markdown
+  // on the clipboard (mentions as their words); Cut then takes them out.
+  internal fun copySelection(cut: Boolean): Boolean {
+    val text = field.text ?: return false
+    val start = max(0, minOf(field.selectionStart, field.selectionEnd))
+    val end = max(start, maxOf(field.selectionStart, field.selectionEnd))
+    if (end <= start) return false
+    val piece = SpannableStringBuilder(text.subSequence(start, end))
+    onEditorCopy(mapOf("lines" to EditorDocument.lines(piece, null)))
+    if (cut) text.delete(start, end)
+    return true
+  }
+
+  internal val inList get() = field.text?.let { lineBlock(it, max(0, field.selectionStart)).block.isList } ?: false
 
   // MARK: Links
 
@@ -799,6 +1017,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   fun load(lines: List<EditorLineRecord>) {
     val text = field.text ?: return
     linkRange = null
+    pasteRange = null
+    lastRule = null
     val last = lines.lastOrNull()
     explicitTrailing = if (last != null && last.runs.isEmpty()) {
       BlockInfo(Block.of(last.block), last.depth, last.group, last.lang).normalised()
@@ -927,6 +1147,42 @@ internal class EditorText(context: Context, private val owner: RichEditorView) :
         return if (a < b) super.setComposingRegion(a, b) else finishComposingText()
       }
     }
+  }
+
+  // Paste, copy and cut go to the field, which knows what the text means.
+  override fun onTextContextMenuItem(id: Int): Boolean {
+    val handled = when (id) {
+      android.R.id.paste, android.R.id.pasteAsPlainText -> owner.paste()
+      android.R.id.copy -> owner.copySelection(cut = false)
+      android.R.id.cut -> owner.copySelection(cut = true)
+      else -> false
+    }
+    return handled || super.onTextContextMenuItem(id)
+  }
+
+  // Ctrl+B, I, U, E (code), Ctrl+Shift+X (strike) and Ctrl+K (link), as
+  // on web; Tab and Shift+Tab in a list take an item a level deeper or up.
+  override fun onKeyShortcut(keyCode: Int, event: KeyEvent): Boolean {
+    val format = when {
+      event.isShiftPressed && keyCode == KeyEvent.KEYCODE_X -> "strike"
+      event.isShiftPressed -> null
+      keyCode == KeyEvent.KEYCODE_B -> "bold"
+      keyCode == KeyEvent.KEYCODE_I -> "italic"
+      keyCode == KeyEvent.KEYCODE_U -> "underline"
+      keyCode == KeyEvent.KEYCODE_E -> "code"
+      keyCode == KeyEvent.KEYCODE_K -> "link"
+      else -> null
+    } ?: return super.onKeyShortcut(keyCode, event)
+    if (format == "link") owner.onEditorKey(mapOf("key" to "link")) else owner.format(format)
+    return true
+  }
+
+  override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+    if (keyCode == KeyEvent.KEYCODE_TAB && owner.inList) {
+      owner.format(if (event.isShiftPressed) "outdent" else "indent")
+      return true
+    }
+    return super.onKeyDown(keyCode, event)
   }
 
   override fun onSelectionChanged(selStart: Int, selEnd: Int) {

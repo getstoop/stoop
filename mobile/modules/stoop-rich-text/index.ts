@@ -112,6 +112,13 @@ export type RichEditorProps = ViewProps & {
   onEditorHeight?: (event: NativeSyntheticEvent<{ height: number }>) => void;
   onEditorFocus?: () => void;
   onEditorBlur?: () => void;
+  // Paste outside a code block: the clipboard's text, for JS to read as
+  // Markdown and hand back (insertLines).
+  onEditorPaste?: (event: NativeSyntheticEvent<{ text: string }>) => void;
+  // Copy or Cut: the selection's lines, for JS to put on the clipboard.
+  onEditorCopy?: (event: NativeSyntheticEvent<{ lines: EditorLine[] }>) => void;
+  // A hardware key the field leaves to JS (⌘K: "link").
+  onEditorKey?: (event: NativeSyntheticEvent<{ key: string }>) => void;
 };
 
 // The link dialog's starting values: the link being edited (`editing`),
@@ -135,6 +142,8 @@ export type RichEditorMethods = {
   linkDraft(): Promise<LinkDraft | null>;
   setLink(text: string, href: string): Promise<void>;
   removeLink(): Promise<void>;
+  // A paste's lines, in place of what was selected when it was asked.
+  insertLines(lines: EditorLine[]): Promise<void>;
   commit(): Promise<EditorLine[]>;
 };
 

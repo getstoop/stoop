@@ -20,6 +20,7 @@ executionOrder:
     - "Link words from the format row through the link dialog, and see the link sent"
     - "Quote lines and write a code block from the format row, leave each, and see them sent"
     - "Write bulleted and numbered lists from the format row, indent and leave them, and see them sent"
+    - "Format as you type, undo a shortcut with backspace, and paste Markdown, and see them sent"
     - "Type mentions in full and see them sent as mentions"
     - "Pick mentions from the list, from @, the @ button and #, and see them sent"
     - "Add a second server from the switcher, see the first one's badge, switch back"

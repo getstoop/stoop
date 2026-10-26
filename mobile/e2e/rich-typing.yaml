@@ -1,0 +1,105 @@
+appId: ${APP_ID}
+name: Format as you type, undo a shortcut with backspace, and paste Markdown, and see them sent
+---
+# As ada, in chapters, after send.yaml.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+# Read already when channel.yaml ran first.
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+- tapOn: "Message #chapters"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+# Markers typed around words style them, as web's editor does; the field
+# shows the words, never the markers.
+- inputText: "say **hi** and *you* ok"
+- assertVisible:
+    id: "composer"
+    text: "say hi and you ok"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "say hi and you ok"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "say **hi** and *you* ok"
+- assertTrue: ${output.count == 1}
+# "> " at a line's start makes it a quote; "- " a list item, and a
+# backspace straight after puts the markers back as typed.
+- inputText: "> quoted"
+- pressKey: Enter
+- pressKey: Enter
+- inputText: "- "
+- pressKey: Backspace
+- inputText: "x"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: ".*quoted.*"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "> quoted\n\\- x"
+- assertTrue: ${output.count == 1}
+# Cut puts the words on the clipboard as Markdown, a pill as its
+# @handle; pasted back, they are read as Markdown: the bold comes back,
+# and the handle, with one owner, is a pill again.
+- inputText: "**bold** and @${POSTER} "
+- longPressOn:
+    id: "composer"
+- tapOn: "Select All"
+- tapOn: "Cut"
+- assertNotVisible:
+    id: "composer"
+    text: "bold.*"
+- longPressOn:
+    id: "composer"
+- tapOn: "Paste"
+- assertVisible:
+    id: "composer"
+    text: "bold and @${POSTER} "
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "bold and .*"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "**bold** and <@u:${POSTER_ID}:${POSTER}>"
+- assertTrue: ${output.count == 1}

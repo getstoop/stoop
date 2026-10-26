@@ -14,12 +14,15 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   let onEditorHeight = EventDispatcher()
   let onEditorFocus = EventDispatcher()
   let onEditorBlur = EventDispatcher()
+  let onEditorPaste = EventDispatcher()
+  let onEditorCopy = EventDispatcher()
+  let onEditorKey = EventDispatcher()
 
   let styler = EditorStyler()
   let storage = NSTextStorage()
   let layout = EditorLayoutManager()
   let container = EditorTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-  let textView: UITextView
+  let textView: EditorTextView
   private let placeholderLabel = UILabel()
 
   var autoFocus = false
@@ -29,6 +32,11 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   // text was loaded with (or a command set), until the line has words.
   var explicitTrailing: BlockBox?
   private var loadedRevision = -1
+  // A typing shortcut just applied (EditorInput), the caret a character
+  // was just typed at, and where a paste lands once JS has read it.
+  var lastRule: TypedRule?
+  var typedAt: Int?
+  var pasteRange: NSRange?
 
   required init(appContext: AppContext? = nil) {
     layout.styler = styler
@@ -37,8 +45,9 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     layout.usesFontLeading = false
     layout.addTextContainer(container)
     storage.addLayoutManager(layout)
-    textView = UITextView(frame: .zero, textContainer: container)
+    textView = EditorTextView(frame: .zero, textContainer: container)
     super.init(appContext: appContext)
+    textView.editor = self
 
     storage.delegate = self
     textView.delegate = self
@@ -172,6 +181,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   // Lines end in "\n" only: a pasted "\r", or a line or paragraph
   // separator, is put in as one, so both platforms read the same lines.
   func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+    if undoRule(range, text) { return false }
     if blockKey(range, text) { return false }
     // A suggestion or correction for a pill's words (they look like a word
     // to the keyboard) would rewrite the pill: it is let go.
@@ -183,7 +193,11 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
       replace(whole, with: text)
       return false
     }
-    guard text.contains(where: { $0 == "\r" || $0 == "\r\n" || $0 == "\u{2028}" || $0 == "\u{2029}" }) else { return true }
+    guard text.contains(where: { $0 == "\r" || $0 == "\r\n" || $0 == "\u{2028}" || $0 == "\u{2029}" }) else {
+      // One character typed: after it lands, the shortcut it completes.
+      typedAt = range.length == 0 && (text as NSString).length == 1 ? range.location + 1 : nil
+      return true
+    }
     let plain = text.replacingOccurrences(of: "\r\n", with: "\n")
       .replacingOccurrences(of: "\r", with: "\n")
       .replacingOccurrences(of: "\u{2028}", with: "\n")
@@ -193,7 +207,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   }
 
   // Through the text input, so the keyboard and undo see it.
-  private func replace(_ range: NSRange, with text: String) {
+  func replace(_ range: NSRange, with text: String) {
     guard let start = textView.position(from: textView.beginningOfDocument, offset: range.location),
       let end = textView.position(from: start, offset: range.length),
       let textRange = textView.textRange(from: start, to: end)
@@ -302,6 +316,10 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   }
 
   func textViewDidChange(_ textView: UITextView) {
+    if let caret = typedAt {
+      typedAt = nil
+      applyTypedRules(caret: caret)
+    }
     let string = storage.string as NSString
     if string.length > 0, string.character(at: string.length - 1) != 10 { explicitTrailing = nil }
     updatePlaceholder()
@@ -310,6 +328,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   }
 
   func textViewDidChangeSelection(_ textView: UITextView) {
+    if let rule = lastRule, textView.selectedRange != NSRange(location: NSMaxRange(rule.range), length: 0) { lastRule = nil }
     snapSelection()
     plainKeyboard((meaning(at: textView.selectedRange.location)[.editorBlock] as? BlockBox)?.block == .code)
     textView.typingAttributes = styler.look(for: meaning(at: textView.selectedRange.location))
@@ -463,8 +482,8 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   // Where the link dialog's Save or Remove lands, from when it opened, and
   // the words there then: if the text has changed under the dialog (a
   // reload), Save and Remove do nothing rather than land elsewhere.
-  private var linkRange: NSRange?
-  private var linkWords = ""
+  var linkRange: NSRange?
+  var linkWords = ""
 
   private func linkStillThere(_ range: NSRange) -> Bool {
     NSMaxRange(range) <= storage.length && (storage.string as NSString).substring(with: range) == linkWords
@@ -795,6 +814,8 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
 
   func load(_ lines: [EditorLineRecord]) {
     linkRange = nil
+    pasteRange = nil
+    lastRule = nil
     let text = EditorDocument.attributed(lines)
     // The keyboard is told, so its capitals and suggestions start afresh.
     textView.inputDelegate?.textWillChange(textView)

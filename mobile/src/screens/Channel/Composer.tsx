@@ -509,6 +509,10 @@ export default forwardRef<
           onFocus={() => {
             if (!link) linking.current = false;
           }}
+          preparePaste={(text) => withTypedMentions(text, mentionNames)}
+          onKey={(key) => {
+            if (key === "link") applyFormat("link");
+          }}
           placeholder={placeholder}
           label={placeholder}
           minHeight={44}
