@@ -1,4 +1,4 @@
-import type { MentionRef } from "../mentions";
+import { type MentionRef, mentionText } from "../mentions";
 import type { JSONContent } from "./markdown";
 
 // The editor's document as the phone's native editor holds it: one entry
@@ -125,6 +125,20 @@ function runsOf(nodes: JSONContent[] = []): EditorRun[] {
     }
   }
   return runs;
+}
+
+// Lines with each mention as the words it shows (@handle, #name): what
+// Copy puts on the clipboard, where a token would read as noise. Pasted
+// back, a handle with one owner becomes a mention again.
+export function mentionsAsWords(lines: EditorLine[]): EditorLine[] {
+  return lines.map((line) => ({
+    ...line,
+    runs: line.runs.map((run) =>
+      "mention" in run
+        ? { text: mentionText(run.mention), marks: run.marks }
+        : run,
+    ),
+  }));
 }
 
 export function linesToDoc(lines: EditorLine[]): JSONContent {

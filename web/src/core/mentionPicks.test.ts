@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
-import { pickedWords, withAt, withPick } from "./mentionPicks";
+import {
+  atReplace,
+  pickedWords,
+  pickReplace,
+  withAt,
+  withPick,
+} from "./mentionPicks";
 import { type MentionCandidate, mentionQueryAt } from "./mentions";
 
 const ada = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a01";
@@ -32,6 +38,42 @@ describe("pickedWords", () => {
     expect(pickedWords(group)).toBe(`<@g:${crew}:gardeners>`);
     expect(pickedWords(channel)).toBe(`<#${garden}:garden>`);
     expect(pickedWords(everyone)).toBe("@channel");
+  });
+});
+
+describe("pickReplace", () => {
+  it("replaces the query with a pill for the pick and a space", () => {
+    expect(pickReplace("hi @ad", 3, person)).toEqual({
+      count: 3,
+      text: " ",
+      mention: { kind: "person", id: ada, handle: "ada" },
+    });
+    expect(pickReplace("see #ga", 4, channel)).toEqual({
+      count: 3,
+      text: " ",
+      mention: { kind: "channel", id: garden, handle: "garden" },
+    });
+  });
+
+  it("writes @channel as words", () => {
+    expect(pickReplace("@ch", 0, everyone)).toEqual({
+      count: 3,
+      text: "@channel ",
+    });
+  });
+});
+
+describe("atReplace", () => {
+  it("puts an @ at the caret that starts a query", () => {
+    expect(atReplace("")).toEqual({ count: 0, text: "@" });
+    expect(atReplace("hi ")).toEqual({ count: 0, text: "@" });
+  });
+
+  it("puts a space first where the @ would run into a word", () => {
+    const { text } = atReplace("cc");
+    expect(text).toBe(" @");
+    expect(mentionQueryAt(`cc${text}`, 4)).toEqual({ start: 3, query: "" });
+    expect(atReplace("@").text).toBe(" @");
   });
 });
 
