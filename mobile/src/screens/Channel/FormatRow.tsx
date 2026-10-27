@@ -1,49 +1,90 @@
+import type { Format } from "@stoop/core/editor/formats";
 import type { ReactNode } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text } from "react-native";
-import { BulletListIcon, LinkIcon, NumberedListIcon } from "../../components/Icons";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BulletListIcon, IndentIcon, LinkIcon, NumberedListIcon, OutdentIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // The formatting row above the composer's buttons, opened by Aa: the
 // browser composer's eleven formats (web/src/components/FormatToolbar),
 // in its order and with its labels, scrolling sideways where they don't
-// fit. Placement only for now: none of them does anything yet.
+// fit. A button shows pressed while its format is in effect at the caret
+// (or over all of the selection); the inline marks are dimmed in a code
+// block, which holds none. While the caret is in a list, Outdent and
+// Indent come first, before a divider. Taps keep the field focused.
 const MONO = Platform.select({ ios: "Menlo", default: "monospace" });
 const SERIF = Platform.select({ ios: "Georgia", default: "serif" });
 
-export default function FormatRow() {
+const MARKS: Format[] = ["bold", "italic", "underline", "strike", "code", "spoiler", "link"];
+
+export default function FormatRow({
+  active,
+  onFormat,
+  onIndent,
+}: {
+  active: Format[];
+  onFormat: (format: Format) => void;
+  // A level deeper (1) or up (-1), in a list.
+  onIndent: (step: 1 | -1) => void;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const formats: { label: string; glyph: ReactNode }[] = [
-    { label: "Bold", glyph: <Text style={[styles.glyph, styles.bold]}>B</Text> },
-    { label: "Italic", glyph: <Text style={[styles.glyph, styles.italic]}>I</Text> },
-    { label: "Underline", glyph: <Text style={[styles.glyph, styles.underline]}>U</Text> },
-    { label: "Strikethrough", glyph: <Text style={[styles.glyph, styles.strike]}>S</Text> },
-    { label: "Inline code", glyph: <Text style={[styles.glyph, styles.mono]}>{"</>"}</Text> },
-    { label: "Spoiler", glyph: <Text style={[styles.glyph, styles.spoiler]}>▚</Text> },
-    { label: "Link", glyph: <LinkIcon color={theme.text} /> },
-    { label: "Quote", glyph: <Text style={[styles.glyph, styles.quote]}>❝</Text> },
-    { label: "Bulleted list", glyph: <BulletListIcon color={theme.text} /> },
-    { label: "Numbered list", glyph: <NumberedListIcon color={theme.text} /> },
-    { label: "Code block", glyph: <Text style={[styles.glyph, styles.mono]}>{"{ }"}</Text> },
+  const formats: { format: Format; label: string; glyph: ReactNode }[] = [
+    { format: "bold", label: "Bold", glyph: <Text style={[styles.glyph, styles.bold]}>B</Text> },
+    { format: "italic", label: "Italic", glyph: <Text style={[styles.glyph, styles.italic]}>I</Text> },
+    { format: "underline", label: "Underline", glyph: <Text style={[styles.glyph, styles.underline]}>U</Text> },
+    { format: "strike", label: "Strikethrough", glyph: <Text style={[styles.glyph, styles.strike]}>S</Text> },
+    { format: "code", label: "Inline code", glyph: <Text style={[styles.glyph, styles.mono]}>{"</>"}</Text> },
+    { format: "spoiler", label: "Spoiler", glyph: <Text style={[styles.glyph, styles.spoiler]}>▚</Text> },
+    { format: "link", label: "Link", glyph: <LinkIcon color={theme.text} /> },
+    { format: "quote", label: "Quote", glyph: <Text style={[styles.glyph, styles.quote]}>❝</Text> },
+    { format: "list", label: "Bulleted list", glyph: <BulletListIcon color={theme.text} /> },
+    { format: "orderedList", label: "Numbered list", glyph: <NumberedListIcon color={theme.text} /> },
+    { format: "codeblock", label: "Code block", glyph: <Text style={[styles.glyph, styles.mono]}>{"{ }"}</Text> },
   ];
+  const inCode = active.includes("codeblock");
+  const inList = active.includes("list") || active.includes("orderedList");
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="always"
+      testID="format-row"
       contentContainerStyle={styles.row}
     >
-      {formats.map((format) => (
-        <Pressable
-          key={format.label}
-          accessibilityRole="button"
-          accessibilityLabel={format.label}
-          style={styles.button}
-        >
-          {format.glyph}
-        </Pressable>
-      ))}
+      {inList && (
+        <>
+          <Pressable accessibilityRole="button" accessibilityLabel="Outdent" onPress={() => onIndent(-1)} style={styles.button}>
+            <OutdentIcon color={theme.text} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Indent" onPress={() => onIndent(1)} style={styles.button}>
+            <IndentIcon color={theme.text} />
+          </Pressable>
+          <View style={styles.divider} />
+        </>
+      )}
+      {formats.map(({ format, label, glyph }) => {
+        const pressed = active.includes(format);
+        const disabled = inCode && MARKS.includes(format);
+        return (
+          <Pressable
+            key={format}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityState={{ selected: pressed, disabled }}
+            disabled={disabled}
+            onPress={() => onFormat(format)}
+            style={({ pressed: down }) => [
+              styles.button,
+              pressed && styles.pressed,
+              disabled && styles.disabled,
+              down && styles.down,
+            ]}
+          >
+            {glyph}
+          </Pressable>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -60,6 +101,21 @@ function makeStyles(theme: Theme) {
       borderRadius: tokens.radiusPill,
       alignItems: "center",
       justifyContent: "center",
+    },
+    divider: {
+      width: 1,
+      height: 24,
+      marginHorizontal: 4,
+      backgroundColor: theme.border,
+    },
+    pressed: {
+      backgroundColor: theme.accentSoft,
+    },
+    disabled: {
+      opacity: 0.35,
+    },
+    down: {
+      opacity: 0.85,
     },
     glyph: {
       color: theme.text,

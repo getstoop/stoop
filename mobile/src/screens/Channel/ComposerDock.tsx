@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
-import { ComposerAbove } from "./composerAbove";
+import { ComposerAbove, ComposerOverlay } from "./composerAbove";
 import type { Notice } from "./useMessageActions";
 
 // A list of messages with the composer floating over its foot, riding
@@ -27,6 +27,7 @@ export default function ComposerDock({
   // The composer's height as drawn, for the list to clear.
   const [composerHeight, setComposerHeight] = useState(PILL);
   const [above, setAbove] = useState<ReactNode>(null);
+  const [overlay, setOverlay] = useState<ReactNode>(null);
   // Where the dock starts in the window (under the stack's header): the
   // avoiding view measures itself against its parent and needs that
   // offset to know how much of it the keyboard covers.
@@ -45,13 +46,18 @@ export default function ComposerDock({
       <KeyboardAvoidingView style={styles.fill} behavior="padding" keyboardVerticalOffset={top}>
         {/* The avoiding view pads its bottom for the keyboard; the composer
             is placed from this view's bottom, which that padding moves. */}
-        <View style={styles.fill}>
+        {/* Under an overlay (the link dialog on Android, which is no window
+            of its own) the rest is out of a screen reader's reach, as under
+            a modal. */}
+        <View style={styles.fill} importantForAccessibility={overlay ? "no-hide-descendants" : "auto"}>
           {list(composerHeight + composerBottom)}
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
           >
-            <ComposerAbove.Provider value={setAbove}>{composer}</ComposerAbove.Provider>
+            <ComposerAbove.Provider value={setAbove}>
+              <ComposerOverlay.Provider value={setOverlay}>{composer}</ComposerOverlay.Provider>
+            </ComposerAbove.Provider>
           </View>
           {notice && (
             <View
@@ -72,6 +78,7 @@ export default function ComposerDock({
             <View style={[styles.above, { bottom: composerBottom + composerHeight + GAP }]}>{above}</View>
           )}
         </View>
+        {overlay && <View style={StyleSheet.absoluteFill}>{overlay}</View>}
       </KeyboardAvoidingView>
     </View>
   );
