@@ -10,6 +10,18 @@ import { useTheme } from "../../../theme";
 // pressing gets none of this layout's route params.
 export const unstable_settings = { anchor: "(tabs)" };
 
+// A channel's header, and a thread's, has no bar of its own: the list
+// scrolls under the back button and the title's pill, as it scrolls
+// under the composer at the foot (ComposerDock keeps iOS 26 from fading
+// it under the bar). The pill sits in the middle on both platforms
+// (Android's own titles start at the left). The screens pad their
+// lists by the header's height.
+const floating = {
+  headerTransparent: true,
+  headerTitleAlign: "center" as const,
+  headerStyle: { backgroundColor: "transparent" },
+};
+
 export default function ServerLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
@@ -29,6 +41,8 @@ export default function ServerLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="space/[spaceId]/channel/[channelId]/index" options={floating} />
+        <Stack.Screen name="space/[spaceId]/channel/[channelId]/thread/[rootId]" options={floating} />
       </Stack>
     </CurrentServer>
   );

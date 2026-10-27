@@ -1,8 +1,10 @@
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // What a channel or a thread screen says in place of its messages when it
-// can't show them, with the one thing to do about it, if any.
+// can't show them, with the one thing to do about it, if any. Under
+// the header, which floats over the screen.
 export default function Unavailable({
   message,
   action,
@@ -11,8 +13,9 @@ export default function Unavailable({
   action?: { label: string; onPress: () => void };
 }) {
   const styles = makeStyles(useTheme());
+  const headerHeight = useHeaderHeight();
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: headerHeight }]}>
       <View style={styles.notice} accessibilityRole="alert">
         <Text style={styles.body}>{message}</Text>
         {action && (

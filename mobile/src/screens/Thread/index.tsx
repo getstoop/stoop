@@ -3,6 +3,7 @@ import { firstUnreadReplyId, type GroupedRow, threadRows } from "@stoop/core/gro
 import { canDeleteAnyMessage } from "@stoop/core/permissions";
 import { threadRepliesClosed } from "@stoop/core/threadReplies";
 import { Stack, useIsFocused, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
@@ -77,6 +78,9 @@ export default function Thread({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  // The header floats over the list (the server's layout), so the list
+  // and the spinner in its place clear it by this much.
+  const headerHeight = useHeaderHeight();
   const router = useRouter();
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
@@ -263,7 +267,7 @@ export default function Thread({
   if (!header || !decided || !root) {
     return (
       <Screen title={title}>
-        <ActivityIndicator style={styles.center} color={theme.textMuted} />
+        <ActivityIndicator style={[styles.center, { marginTop: 24 + headerHeight }]} color={theme.textMuted} />
       </Screen>
     );
   }
@@ -313,8 +317,9 @@ export default function Thread({
               }}
               // As the channel's: on a drag, the card following the keyboard.
               keyboardDismissMode="on-drag"
-              // Drawn upside down, so the top padding is the bottom edge.
-              contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
+              // Drawn upside down, so the top padding is the bottom edge, and
+              // the bottom padding the top, under the floating header.
+              contentContainerStyle={{ paddingTop: 12 + clearance, paddingBottom: 12 + headerHeight }}
               maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
               ListFooterComponent={
                 thread?.loadingOlder ? (
@@ -407,9 +412,6 @@ function makeStyles(theme: Theme) {
     screen: {
       flex: 1,
       backgroundColor: theme.surface,
-    },
-    content: {
-      paddingVertical: 12,
     },
     center: {
       marginTop: 24,

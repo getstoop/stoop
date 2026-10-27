@@ -1,16 +1,22 @@
-import { type ComponentRef, type ReactNode, useRef, useState } from "react";
-import { KeyboardAvoidingView, StyleSheet, Text, View } from "react-native";
+import { type ComponentRef, type ReactElement, type ReactNode, useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { ScrollViewMarker } from "react-native-screens/experimental";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
 import { ComposerAbove, ComposerOverlay } from "./composerAbove";
+import TopFade from "./TopFade";
 import type { Notice } from "./useMessageActions";
 
 // A list of messages with the composer floating over its foot, riding
 // up with the keyboard, and a refusal's line over the composer, or what
 // the composer shows over itself (ComposerAbove): the channel's layout,
 // and a thread's. The list is drawn by the screen, given how far its
-// newest row must stay clear of the composer.
+// newest row must stay clear of the composer. The header floats over
+// the list's head the same way (the server's layout); on iOS 26 the
+// system would fade a list under a bar, which on this upside-down list
+// dims it whole, so the list is marked to have no such fade, and gets
+// its own under the status bar (TopFade).
 export default function ComposerDock({
   keyboard,
   list,
@@ -18,7 +24,7 @@ export default function ComposerDock({
   notice,
 }: {
   keyboard: number;
-  list: (clearance: number) => ReactNode;
+  list: (clearance: number) => ReactElement;
   composer: ReactNode;
   notice: Notice | null;
 }) {
@@ -50,7 +56,14 @@ export default function ComposerDock({
             of its own) the rest is out of a screen reader's reach, as under
             a modal. */}
         <View style={styles.fill} importantForAccessibility={overlay ? "no-hide-descendants" : "auto"}>
-          {list(composerHeight + composerBottom)}
+          {Platform.OS === "ios" ? (
+            <ScrollViewMarker style={styles.fill} scrollEdgeEffects={noFade}>
+              {list(composerHeight + composerBottom)}
+            </ScrollViewMarker>
+          ) : (
+            list(composerHeight + composerBottom)
+          )}
+          <TopFade />
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
@@ -83,6 +96,8 @@ export default function ComposerDock({
     </View>
   );
 }
+
+const noFade = { top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({

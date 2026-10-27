@@ -3,6 +3,7 @@ import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { canDeleteAnyMessage, canStartThreads } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
@@ -72,6 +73,9 @@ export default function Channel({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  // The header floats over the list (the server's layout), so the list
+  // and what stands in for it clear it by this much.
+  const headerHeight = useHeaderHeight();
   const router = useRouter();
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
@@ -212,7 +216,7 @@ export default function Channel({
   if (!header) {
     return (
       <View style={styles.screen}>
-        <ActivityIndicator style={styles.center} color={theme.textMuted} />
+        <ActivityIndicator style={[styles.center, { marginTop: 24 + headerHeight }]} color={theme.textMuted} />
       </View>
     );
   }
@@ -269,8 +273,9 @@ export default function Channel({
               // react-native-keyboard-controller, a follow-up.
               keyboardDismissMode="on-drag"
               // Drawn upside down, so the top padding is the bottom edge: the
-              // list scrolls under the composer, and its newest message clears it.
-              contentContainerStyle={[styles.content, { paddingTop: 12 + clearance }]}
+              // list scrolls under the composer, and its newest message clears
+              // it; the bottom padding is the top edge, under the header.
+              contentContainerStyle={{ paddingTop: 12 + clearance, paddingBottom: 12 + headerHeight }}
               // Rows in view stay put when that padding changes (the composer
               // growing a line) and when a row arrives, unless the reader is at
               // the newest edge, where the list follows it.
@@ -355,9 +360,6 @@ function makeStyles(theme: Theme) {
     screen: {
       flex: 1,
       backgroundColor: theme.surface,
-    },
-    content: {
-      paddingVertical: 12,
     },
     center: {
       marginTop: 24,

@@ -2,10 +2,11 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { StyleSheet, Text, View } from "react-native";
 import { LockIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import TitlePill from "./TitlePill";
 
-// The header's title: the channel's name with its # (a lock, as on the
-// space's screen, for a private one), and
-// under it the space and how many people can read the channel.
+// The header's title, in its pill: a tall # at the left (a lock, as on
+// the space's screen, for a private one), and beside it the channel's
+// name over the space and how many people can read the channel.
 export default function ChannelTitle({
   channel,
   spaceName,
@@ -19,38 +20,42 @@ export default function ChannelTitle({
   const styles = makeStyles(theme);
   const people = memberCount === 1 ? "1 member" : `${memberCount} members`;
   return (
-    <View style={styles.title} accessible accessibilityRole="header" accessibilityLabel={`${channel.name}, ${spaceName}, ${people}`}>
-      <View style={styles.line}>
-        {channel.private ? <LockIcon color={theme.textMuted} /> : <Text style={[styles.name, styles.mark]}>#</Text>}
-        <Text style={styles.name} numberOfLines={1}>
-          {channel.name}
-        </Text>
+    <TitlePill label={`${channel.name}, ${spaceName}, ${people}`}>
+      <View style={styles.row}>
+        {channel.private ? <LockIcon color={theme.textMuted} size={24} /> : <Text style={styles.mark}>#</Text>}
+        <View style={styles.lines}>
+          <Text style={styles.name} numberOfLines={1}>
+            {channel.name}
+          </Text>
+          <Text style={styles.about} numberOfLines={1}>
+            {spaceName} · {people}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.about} numberOfLines={1}>
-        {spaceName} · {people}
-      </Text>
-    </View>
+    </TitlePill>
   );
 }
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
-    title: {
-      gap: 1,
-    },
-    line: {
+    row: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 4,
-    },
-    name: {
-      flexShrink: 1,
-      color: theme.text,
-      fontSize: 17,
-      fontWeight: "700",
+      gap: 8,
     },
     mark: {
       color: theme.textMuted,
+      fontSize: 28,
+      fontWeight: "700",
+    },
+    lines: {
+      flexShrink: 1,
+      gap: 1,
+    },
+    name: {
+      color: theme.text,
+      fontSize: 17,
+      fontWeight: "700",
     },
     about: {
       color: theme.textMuted,
