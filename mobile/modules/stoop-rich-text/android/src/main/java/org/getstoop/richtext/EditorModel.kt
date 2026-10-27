@@ -145,10 +145,13 @@ internal object EditorDocument {
     return end
   }
 
+  // The block of the line starting at `lineStart`: only a span that starts
+  // there. A paragraph span ending at the text's end grows over what is
+  // typed on the empty line after it, which is not that line's block.
   fun blockAt(text: Spanned, lineStart: Int): BlockInfo? {
     if (lineStart >= text.length) return null
     return text.getSpans(lineStart, lineStart + 1, BlockSpan::class.java)
-      .firstOrNull { text.getSpanStart(it) <= lineStart }?.info
+      .firstOrNull { text.getSpanStart(it) == lineStart }?.info
   }
 
   fun marksAt(text: Spanned, start: Int, end: Int): Int =
