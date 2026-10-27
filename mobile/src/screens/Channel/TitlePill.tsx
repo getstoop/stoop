@@ -7,9 +7,9 @@ import Surface from "./Surface";
 // The header's title as a pill floating over the list, as the composer
 // floats over its foot and the back button over its head: Liquid Glass
 // where iOS has it, else the composer's panel. The channel's and the
-// thread's titles sit in one. Android hands the title the bar's whole
-// width, so the pill is a row's child, as wide as its words, in the
-// middle.
+// thread's titles sit in one, their lines starting at the left. Android
+// hands the title the bar's whole width, so the pill is a row's child,
+// as wide as its words, in the middle.
 export default function TitlePill({ label, children }: { label: string; children: ReactNode }) {
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
   return (
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 1,
   },
 });
