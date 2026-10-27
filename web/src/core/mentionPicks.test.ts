@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
-import { atReplace, pickedWords, pickReplace, withAt, withPick } from "./mentionPicks";
+import {
+  atReplace,
+  pickedWords,
+  pickReplace,
+  withAt,
+  withPick,
+} from "./mentionPicks";
 import { type MentionCandidate, mentionQueryAt } from "./mentions";
 
 const ada = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a01";
