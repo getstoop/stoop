@@ -11,11 +11,71 @@ public class StoopRichTextModule: Module {
       Double(RichLayout(doc: doc, width: CGFloat(width)).height)
     }
 
+    // The first view is the module's default: the timeline's paragraph.
     View(RichTextView.self) {
       Events("onPressLink", "onReveal")
       Prop("doc") { (view: RichTextView, doc: RichDoc) in
         view.doc = doc
       }
+    }
+
+    // The composer's field (RichField.tsx).
+    View(RichEditorView.self) {
+      Events(
+        "onEditorChange", "onEditorSelection", "onEditorHeight", "onEditorFocus", "onEditorBlur",
+        "onEditorPaste", "onEditorCopy", "onEditorKey")
+      Prop("editorStyle") { (view: RichEditorView, style: EditorStyleRecord) in
+        view.setStyle(style)
+      }
+      Prop("placeholder") { (view: RichEditorView, text: String) in
+        view.placeholder = text
+      }
+      Prop("label") { (view: RichEditorView, text: String) in
+        view.label = text
+      }
+      Prop("fieldId") { (view: RichEditorView, id: String) in
+        view.fieldId = id
+      }
+      Prop("autoFocus") { (view: RichEditorView, on: Bool) in
+        view.autoFocus = on
+      }
+      Prop("document") { (view: RichEditorView, document: EditorDocumentRecord) in
+        view.setDocument(document)
+      }
+
+      AsyncFunction("focus") { (view: RichEditorView) in
+        view.focus()
+      }.runOnQueue(.main)
+      AsyncFunction("blur") { (view: RichEditorView) in
+        view.blur()
+      }.runOnQueue(.main)
+      AsyncFunction("replaceBeforeCaret") { (view: RichEditorView, count: Int, text: String) in
+        view.replaceBeforeCaret(count, text)
+      }.runOnQueue(.main)
+      AsyncFunction("format") { (view: RichEditorView, name: String) in
+        view.format(name)
+      }.runOnQueue(.main)
+      AsyncFunction("insertMention") { (view: RichEditorView, count: Int, mention: EditorMentionRecord, after: String) in
+        view.insertMention(count, mention, after)
+      }.runOnQueue(.main)
+      AsyncFunction("markMention") { (view: RichEditorView, location: Int, typed: String, mention: EditorMentionRecord) in
+        view.markMention(location, typed, mention)
+      }.runOnQueue(.main)
+      AsyncFunction("linkDraft") { (view: RichEditorView) -> [String: Any]? in
+        view.linkDraft()
+      }.runOnQueue(.main)
+      AsyncFunction("setLink") { (view: RichEditorView, text: String, href: String) in
+        view.setLink(text, href)
+      }.runOnQueue(.main)
+      AsyncFunction("removeLink") { (view: RichEditorView) in
+        view.removeLink()
+      }.runOnQueue(.main)
+      AsyncFunction("insertLines") { (view: RichEditorView, lines: [EditorLineRecord]) in
+        view.insertLines(lines.map(\.line))
+      }.runOnQueue(.main)
+      AsyncFunction("commit") { (view: RichEditorView) -> [[String: Any]] in
+        view.commit()
+      }.runOnQueue(.main)
     }
   }
 }
