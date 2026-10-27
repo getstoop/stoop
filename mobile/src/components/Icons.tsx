@@ -218,6 +218,24 @@ function Format({ color, size, children }: { color: ColorValue; size: number; ch
   );
 }
 
+// Jump to the latest message: the send arrow, pointing down.
+export function ArrowDownIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d="M12 5v14M5 12l7 7 7-7" />
+    </Svg>
+  );
+}
+
 export function LinkIcon({ color, size = 20 }: IconProps) {
   return (
     <Format color={color} size={size}>

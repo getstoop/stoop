@@ -23,11 +23,16 @@ export default function ComposerDock({
   list,
   composer,
   notice,
+  corner,
 }: {
   keyboard: number;
   list: (clearance: number) => ReactElement;
   composer: ReactNode;
   notice: Notice | null;
+  // What sits over the composer's right end (the channel's jump to the
+  // latest message); a notice or what the composer shows over itself
+  // draws over it.
+  corner?: ReactNode;
 }) {
   const styles = makeStyles(useTheme());
   const insets = useSafeAreaInsets();
@@ -74,6 +79,9 @@ export default function ComposerDock({
               <ComposerOverlay.Provider value={setOverlay}>{composer}</ComposerOverlay.Provider>
             </ComposerAbove.Provider>
           </View>
+          {corner && (
+            <View style={[styles.corner, { bottom: composerBottom + composerHeight + GAP }]}>{corner}</View>
+          )}
           {notice && (
             <View
               style={[styles.toast, { bottom: composerBottom + composerHeight + GAP }]}
@@ -114,6 +122,10 @@ function makeStyles(theme: Theme) {
       position: "absolute",
       left: 0,
       right: 0,
+    },
+    corner: {
+      position: "absolute",
+      right: 12,
     },
     // Over the composer's card, as wide.
     above: {
