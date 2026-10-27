@@ -12,10 +12,17 @@ android {
     versionCode 1
     versionName "0.0.1"
   }
+  testOptions {
+    unitTests.includeAndroidResources = true
+  }
 }
 
 dependencies {
   // React Native itself, already in the app, for androidx's
   // ExploreByTouchHelper (customview), which it brings and uses.
   implementation 'com.facebook.react:react-android'
+  // The editor's rules run under Robolectric (src/test), which gives
+  // android.text a real implementation on the JVM: no emulator needed.
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.robolectric:robolectric:4.17'
 }
