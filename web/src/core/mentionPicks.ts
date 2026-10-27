@@ -45,3 +45,34 @@ export function atReplace(before: string): Replace {
     text: last !== undefined && RUNS_INTO_AT.test(last) ? " @" : "@",
   };
 }
+
+// The plain field's edits, kept while the composer still holds its own
+// text: the text after a pick or the @ button, and where the caret goes.
+// They go with the rich field (the composer's pull request).
+export type Edited = { text: string; caret: number };
+
+// The query typed from `start` (its "@" or "#") to the caret replaced by
+// the pick and a space, the caret after them.
+export function withPick(
+  text: string,
+  start: number,
+  caret: number,
+  candidate: MentionCandidate,
+): Edited {
+  const words = `${pickedWords(candidate)} `;
+  return {
+    text: text.slice(0, start) + words + text.slice(caret),
+    caret: start + words.length,
+  };
+}
+
+// An "@" put in at the caret, after a space where the character before
+// would run into it, so it starts a query and the list opens.
+export function withAt(text: string, caret: number): Edited {
+  const before = text[caret - 1];
+  const at = before !== undefined && RUNS_INTO_AT.test(before) ? " @" : "@";
+  return {
+    text: text.slice(0, caret) + at + text.slice(caret),
+    caret: caret + at.length,
+  };
+}
