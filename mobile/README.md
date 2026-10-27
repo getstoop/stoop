@@ -73,9 +73,11 @@ import a screen; the screens themselves live in `src/screens`, so
   the bar is transparent, the title sits in a pill of the same make in
   the middle (`src/screens/Channel/TitlePill.tsx`), beside the system's
   back button, and the list scrolls under all of it, padded by the
-  header's height at its head. On iOS 26 the list is marked to have none
-  of the system's fade under the bar (`ScrollViewMarker`), which on an
-  upside-down list dims the whole list. Dragging the list puts the
+  header's height at its head, and fading out under the status bar so
+  the time stays readable (`TopFade.tsx`). On iOS 26 the list is marked
+  to have none of the system's own fade under the bar
+  (`ScrollViewMarker`), which on an upside-down list dims the whole
+  list. Dragging the list puts the
   keyboard away (the card follows the keyboard's hide event; tracking
   the finger needs `react-native-keyboard-controller`, a follow-up). A
   message being quoted (Quote in reply, below) is the card's first line

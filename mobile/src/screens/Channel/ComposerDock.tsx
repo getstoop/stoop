@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
 import { ComposerAbove, ComposerOverlay } from "./composerAbove";
+import TopFade from "./TopFade";
 import type { Notice } from "./useMessageActions";
 
 // A list of messages with the composer floating over its foot, riding
@@ -14,7 +15,8 @@ import type { Notice } from "./useMessageActions";
 // newest row must stay clear of the composer. The header floats over
 // the list's head the same way (the server's layout); on iOS 26 the
 // system would fade a list under a bar, which on this upside-down list
-// dims it whole, so the list is marked to have no such fade.
+// dims it whole, so the list is marked to have no such fade, and gets
+// its own under the status bar (TopFade).
 export default function ComposerDock({
   keyboard,
   list,
@@ -61,6 +63,7 @@ export default function ComposerDock({
           ) : (
             list(composerHeight + composerBottom)
           )}
+          <TopFade />
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
