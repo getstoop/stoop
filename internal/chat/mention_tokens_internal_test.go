@@ -76,12 +76,6 @@ func TestStoredFormChannelTokens(t *testing.T) {
 	}
 }
 
-func TestWrittenLengthCountsTokensAsHandles(t *testing.T) {
-	if got := writtenLength("hi <@u:" + caseyID + ":casey>"); got != len("hi @casey") {
-		t.Errorf("written length = %d, want %d", got, len("hi @casey"))
-	}
-}
-
 // Only a token the message shows as a mention is kept as a token: one in
 // code, a spoiler or a link's words is saved as text, as the client
 // shows it. Every token here names someone who can be told.

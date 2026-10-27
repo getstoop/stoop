@@ -56,11 +56,18 @@ export function tokensAsText(content: string): string {
   );
 }
 
-// Content's length as people read it, each token counted as its handle:
-// the message limit, as the server counts it.
+// Content's length as people read it, each token counted as its handle
+// and each character (code point, not UTF-16 unit) once: the message
+// limit, as the server counts it.
 export function writtenLength(content: string): number {
-  return tokensAsText(content).length;
+  let count = 0;
+  for (const _ of tokensAsText(content)) count++;
+  return count;
 }
+
+// The server's limit on writtenLength (internal/chat maxMessageLen; the
+// shared cases check the two agree).
+export const MAX_MESSAGE_LENGTH = 4000;
 
 // The @query being typed at the caret, if any: e.g. "hi @be|" → "be".
 export function mentionQueryAt(

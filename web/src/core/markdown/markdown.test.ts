@@ -8,6 +8,7 @@ import {
   plainLines,
   plainText,
 } from ".";
+import shared from "./shared-cases.json";
 
 const text = (t: string): Inline => ({ type: "text", text: t });
 const code = (t: string): Inline => ({ type: "code", text: t });
@@ -465,71 +466,6 @@ describe("parseMarkdown", () => {
   });
 });
 
-describe("parseMarkdown agrees with the server on \\r", () => {
-  // Old messages may still hold \r; the server's parser reads it as text.
-  const cases: [string, string[]][] = [
-    ["- a\r\n- b", ["list"]],
-    ["> a\r\n> b", ["quote"]],
-    ["```a\rb```", ["codeblock"]],
-  ];
-  for (const [input, want] of cases) {
-    it(`reads ${JSON.stringify(input)} as ${want.join(", ")}`, () => {
-      expect(parseMarkdown(input).map((block) => block.type)).toEqual(want);
-    });
-  }
-});
-
-describe("plainText mirrors the server", () => {
-  const cases: [string, string][] = [
-    ["**bold** and *italic*", "bold and italic"],
-    ["__under__ ~~gone~~ `code`", "under gone code"],
-    ["***both***", "both"],
-    ["**hello *world***", "hello world"],
-    ["**a *******", "a *****"],
-    ["> quoted\n> lines", "quoted lines"],
-    ["```go\nfmt.Println()\n```", "fmt.Println()"],
-    ["```one liner```", "one liner"],
-    ["2 * 3 * 4", "2 * 3 * 4"],
-    ["@ada_w said hi", "@ada_w said hi"],
-    ["\\*not bold\\*", "*not bold*"],
-    ["first\nsecond", "first second"],
-    ["plain", "plain"],
-    ["", ""],
-    ["- milk\n- eggs", "milk eggs"],
-    ["* milk\n* eggs", "milk eggs"],
-    ["1. first\n2. second", "first second"],
-    ["1) first\n2) second", "first second"],
-    ["  - nested", "nested"],
-    ["||the butler did it||", "the butler did it"],
-    ["it was ||him|| all along", "it was him all along"],
-    ["- a ||secret|| item", "a secret item"],
-    ["**bold** and ||hidden||", "bold and hidden"],
-    ["*italic* line", "italic line"],
-    ["a || b", "a || b"],
-    ["\\- not a list", "- not a list"],
-    ["1\\. not a list", "1. not a list"],
-    ["see [the docs](https://example.com/a) now", "see the docs now"],
-    ["[**bold** words](https://a.b/x_(y))", "bold words"],
-    ["[a](not an address)", "[a](not an address)"],
-    [
-      "[https://a.example](https://b.example)",
-      "[https://a.example](https://b.example)",
-    ],
-    ["\\[a](https://a.b)", "[a](https://a.b)"],
-    [`hi ${TOKEN}`, "hi @casey"],
-    [`${UNDERLINE_HANDLE} hi`, "@a__b__c hi"],
-    [`\`${TOKEN}\``, "@casey"],
-    [`\`\`\`\n${TOKEN}\n\`\`\``, "@casey"],
-    [`||${TOKEN}||`, "@casey"],
-    [`[see ${TOKEN}](https://x.example)`, "see @casey"],
-  ];
-  for (const [input, want] of cases) {
-    it(`strips ${JSON.stringify(input)}`, () => {
-      expect(plainText(input)).toBe(want);
-    });
-  }
-});
-
 describe("plainLines", () => {
   it("keeps a blank line between paragraphs", () => {
     expect(plainLines("first\n\nsecond")).toBe("first\n\nsecond");
@@ -569,52 +505,6 @@ describe("plainLines", () => {
   });
 });
 
-describe("plainText", () => {
-  it("collapses blank lines and trims the ends", () => {
-    expect(plainText("  a\n\n  b  ")).toBe("a b");
-  });
-
-  it("runs a quote, a list and a fence together in one line", () => {
-    expect(plainText("> quoted\n- item\n```\ncode\n```")).toBe(
-      "quoted item code",
-    );
-  });
-
-  it("keeps a bare URL as the address it links to", () => {
-    expect(plainText("see https://example.com now")).toBe(
-      "see https://example.com now",
-    );
-  });
-});
-
-// Where the client and the server disagree. The client is the one that
-// renders the message, so each of these asserts the client's answer and
-// notes what the server says instead.
-describe("plainText where the server differs", () => {
-  it("keeps markers inside a code span", () => {
-    expect(plainText("`a *b* c`")).toBe("a *b* c"); // server: "a b c"
-  });
-
-  it("keeps markup inside a fenced block", () => {
-    expect(plainText("```\n- a\n```")).toBe("- a"); // server: "a"
-  });
-
-  it("keeps a URL whole", () => {
-    // server: "https://example.com/not", a different address
-    expect(plainText("https://example.com/**not**")).toBe(
-      "https://example.com/**not**",
-    );
-  });
-
-  it("does not let a marker span two lines", () => {
-    expect(plainText("a *b\nc* d")).toBe("a *b c* d"); // server: "a b c d"
-  });
-
-  it("keeps a bullet that is inside a quote", () => {
-    expect(plainText("> - item")).toBe("- item"); // server: "item"
-  });
-});
-
 describe("isBlankMessage", () => {
   // As the editor writes an empty block, before the send trims it.
   it.each([
@@ -646,34 +536,23 @@ describe("isBlankMessage", () => {
   });
 });
 
-describe("linksIn", () => {
-  it("lists each link once, in order, wherever it sits", () => {
-    expect(
-      linksIn(
-        "see https://a.example/x and **https://b.example**\n- https://a.example/x\n> https://c.example",
-      ),
-    ).toEqual([
-      "https://a.example/x",
-      "https://b.example",
-      "https://c.example",
-    ]);
-  });
-
-  it("takes an address in angle brackets without the >", () => {
-    expect(linksIn("write to <https://a.example/x>")).toEqual([
-      "https://a.example/x",
-    ]);
-  });
-
-  it("skips a fenced block whose language has symbols", () => {
-    expect(
-      linksIn("```c++\nhttps://a.example\n```\nhttps://b.example"),
-    ).toEqual(["https://b.example"]);
-  });
-
-  it("skips code", () => {
-    expect(linksIn("`https://a.example`\n```\nhttps://b.example\n```")).toEqual(
-      [],
-    );
-  });
+// The cases the server runs too (internal/chat/shared_cases_internal_test.go):
+// its parser is this one ported to Go, held to the same answers from one
+// copy. Add a case to shared-cases.json, not here.
+describe("shared with the server", () => {
+  for (const { in: input, want } of shared.plainText) {
+    it(`plainText strips ${JSON.stringify(input)}`, () => {
+      expect(plainText(input)).toBe(want);
+    });
+  }
+  for (const { in: input, want } of shared.blocks) {
+    it(`parseMarkdown reads ${JSON.stringify(input)} as ${want.join(", ")}`, () => {
+      expect(parseMarkdown(input).map((block) => block.type)).toEqual(want);
+    });
+  }
+  for (const { in: input, want } of shared.links) {
+    it(`linksIn finds the links in ${JSON.stringify(input)}`, () => {
+      expect(linksIn(input)).toEqual(want);
+    });
+  }
 });

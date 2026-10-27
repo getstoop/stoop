@@ -1,0 +1,153 @@
+{
+  "about": "Cases the client (web/src/core) and the server (internal/chat) both run, so the two read a message the same way. markdown.test.ts and internal/chat/shared_cases_internal_test.go read this file; add a case here, not to either.",
+  "maxMessageLength": 4000,
+  "plainText": [
+    { "in": "**bold** and *italic*", "want": "bold and italic" },
+    { "in": "__under__ ~~gone~~ `code`", "want": "under gone code" },
+    { "in": "***both***", "want": "both" },
+    { "in": "**hello *world***", "want": "hello world" },
+    { "in": "**a *******", "want": "a *****" },
+    { "in": "> quoted\n> lines", "want": "quoted lines" },
+    { "in": "```go\nfmt.Println()\n```", "want": "fmt.Println()" },
+    { "in": "```one liner```", "want": "one liner" },
+    { "in": "2 * 3 * 4", "want": "2 * 3 * 4" },
+    { "in": "@ada_w said hi", "want": "@ada_w said hi" },
+    { "in": "\\*not bold\\*", "want": "*not bold*" },
+    { "in": "first\nsecond", "want": "first second" },
+    { "in": "plain", "want": "plain" },
+    { "in": "", "want": "" },
+    { "in": "- milk\n- eggs", "want": "milk eggs" },
+    { "in": "* milk\n* eggs", "want": "milk eggs" },
+    { "in": "1. first\n2. second", "want": "first second" },
+    { "in": "1) first\n2) second", "want": "first second" },
+    { "in": "  - nested", "want": "nested" },
+    { "in": "||the butler did it||", "want": "the butler did it" },
+    { "in": "it was ||him|| all along", "want": "it was him all along" },
+    { "in": "- a ||secret|| item", "want": "a secret item" },
+    { "in": "**bold** and ||hidden||", "want": "bold and hidden" },
+    { "in": "*italic* line", "want": "italic line" },
+    { "in": "a || b", "want": "a || b" },
+    { "in": "\\- not a list", "want": "- not a list" },
+    { "in": "1\\. not a list", "want": "1. not a list" },
+    { "in": "  a\n\n  b  ", "want": "a b" },
+    { "in": "> quoted\n- item\n```\ncode\n```", "want": "quoted item code" },
+    {
+      "in": "see https://example.com now",
+      "want": "see https://example.com now"
+    },
+    {
+      "in": "see [the docs](https://example.com/a) now",
+      "want": "see the docs now"
+    },
+    { "in": "[**bold** words](https://a.b/x_(y))", "want": "bold words" },
+    { "in": "[a](not an address)", "want": "[a](not an address)" },
+    {
+      "in": "[https://a.example](https://b.example)",
+      "want": "[https://a.example](https://b.example)"
+    },
+    { "in": "\\[a](https://a.b)", "want": "[a](https://a.b)" },
+    { "in": "`a *b* c`", "want": "a *b* c" },
+    { "in": "```\n- a\n```", "want": "- a" },
+    {
+      "in": "https://example.com/**not**",
+      "want": "https://example.com/**not**"
+    },
+    { "in": "a *b\nc* d", "want": "a *b c* d" },
+    { "in": "> - item", "want": "- item" },
+    {
+      "in": "hi <@u:00000000-0000-4000-8000-000000000001:casey>",
+      "want": "hi @casey"
+    },
+    {
+      "in": "<@u:00000000-0000-4000-8000-000000000001:a__b__c> hi",
+      "want": "@a__b__c hi"
+    },
+    {
+      "in": "`<@u:00000000-0000-4000-8000-000000000001:casey>`",
+      "want": "@casey"
+    },
+    {
+      "in": "```\n<@u:00000000-0000-4000-8000-000000000001:casey>\n```",
+      "want": "@casey"
+    },
+    {
+      "in": "||<@u:00000000-0000-4000-8000-000000000001:casey>||",
+      "want": "@casey"
+    },
+    {
+      "in": "[see <@u:00000000-0000-4000-8000-000000000001:casey>](https://x.example)",
+      "want": "see @casey"
+    }
+  ],
+  "blocks": [
+    { "in": "a\nb", "want": ["lines"] },
+    { "in": "> a\n> b", "want": ["quote"] },
+    { "in": "> a\nb", "want": ["quote", "lines"] },
+    { "in": "- a\n1. b", "want": ["list"] },
+    { "in": "       - seven spaces", "want": ["lines"] },
+    { "in": "*italic* line", "want": ["lines"] },
+    { "in": "```\nx\n```\nafter", "want": ["codeblock", "lines"] },
+    { "in": "```\nnever closed", "want": ["codeblock"] },
+    { "in": "```c++\nint x;\n```\nafter", "want": ["codeblock", "lines"] },
+    { "in": "```objective-c\nx\n```\nafter", "want": ["codeblock", "lines"] },
+    { "in": "```f#\nx\n```\nafter", "want": ["codeblock", "lines"] },
+    { "in": "> - item", "want": ["quote"] },
+    { "in": "1\\. x", "want": ["lines"] },
+    { "in": "- a\r\n- b", "want": ["list"] },
+    { "in": "> a\r\n> b", "want": ["quote"] },
+    { "in": "```a\rb```", "want": ["codeblock"] }
+  ],
+  "links": [
+    {
+      "in": "see https://example.com/a?b=1.",
+      "want": ["https://example.com/a?b=1"]
+    },
+    {
+      "in": "(https://example.com/x) and http://foo.test/",
+      "want": ["https://example.com/x", "http://foo.test/"]
+    },
+    {
+      "in": "`https://code.example` and\n```\nhttps://block.example\n```\nbut https://ok.example",
+      "want": ["https://ok.example"]
+    },
+    {
+      "in": "```c++\nhttps://block.example\n```\nhttps://ok.example",
+      "want": ["https://ok.example"]
+    },
+    {
+      "in": "https://dup.example https://dup.example",
+      "want": ["https://dup.example"]
+    },
+    { "in": "`https://a.example`\n```\nhttps://b.example\n```", "want": [] },
+    { "in": "ftp://nope.example no links here", "want": [] },
+    { "in": "write to <https://a.example/x>", "want": ["https://a.example/x"] },
+    {
+      "in": "https://example.com/wiki/Ada_(mathematician)",
+      "want": ["https://example.com/wiki/Ada_(mathematician)"]
+    },
+    {
+      "in": "(see https://example.com/wiki/Ada_(mathematician)).",
+      "want": ["https://example.com/wiki/Ada_(mathematician)"]
+    },
+    {
+      "in": "[the docs](https://docs.example/a) and **[more](https://more.example)**",
+      "want": ["https://docs.example/a", "https://more.example"]
+    },
+    {
+      "in": "see https://a.example/x and **https://b.example**\n- https://a.example/x\n> https://c.example",
+      "want": ["https://a.example/x", "https://b.example", "https://c.example"]
+    }
+  ],
+  "writtenLength": [
+    { "in": "hi <@u:00000000-0000-4000-8000-000000000001:casey>", "want": 9 },
+    {
+      "in": "see <#00000000-0000-4000-8000-000000000002:garden> and <@u:00000000-0000-4000-8000-000000000001:casey>",
+      "want": 22
+    },
+    { "in": "<@g:00000000-0000-4000-8000-000000000003:crew>", "want": 5 },
+    { "in": "👍", "want": 1 },
+    { "in": "👍🏽 ok", "want": 5 },
+    { "in": "日本語", "want": 3 },
+    { "in": "<@u:------------------------------------:casey>", "want": 47 }
+  ]
+}
