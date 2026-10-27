@@ -7,7 +7,7 @@ import type { JSONContent } from "./markdown";
 // apart by each line's block, and which lines belong together by group.
 // toMarkdown and fromMarkdown stay the one reader and writer: these turn
 // lines into the document they work on, and back
-// (docs/proposals/mobile-rich-editor.md → The document as lines).
+// (docs/architecture/messaging.md → The phone's field).
 
 export type EditorMark =
   | "bold"

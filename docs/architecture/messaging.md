@@ -186,6 +186,69 @@ document, and Markdown is what it sends and what it loads to edit.
 - **A draft stays in its conversation.** Switching channel or thread
   starts an empty box, so unsent text is never sent somewhere else.
 
+### The phone's field
+
+The phone's composer is a native field of our own (`mobile/modules/
+stoop-rich-text`: `RichEditorView.swift`, `RichEditorView.kt`), not a
+web view: a `UITextView` on TextKit 1 and an `AppCompatEditText`, so the
+keyboard, autocorrect, dictation and the selection handles are the
+system's. Markers never show, and Markdown stays what is sent and what an
+edit loads.
+
+- **Native owns the text; Markdown stays in core.** The text view's
+  attributed string (the Editable's spans on Android) is the document:
+  each character carries its marks, a link's address, the mention a pill
+  names, and its line's block, and a styler draws the look from those.
+  Typing never waits on JS. The field reports each change as lines
+  (`core/editor/lines.ts`, `EditorLine`: a block, a list level, a code
+  group, styled runs), and core turns lines into web's document and
+  back (`linesToDoc`, `docToLines`), so `toMarkdown` and `fromMarkdown`
+  are shared with web and checked against the server's cases. JS asks
+  the field to do things (`format`, `insertMention`, `setLink`,
+  `insertLines`, `load`) and the field acts on its own text as it stands.
+- **One file per feature, the same on both platforms.** The document
+  (lines in and out, the line walking, the order the invariants run in
+  after an edit), marks, links, mentions, blocks, the typing shortcuts
+  and the clipboard each own one attribute and every rule about it, with
+  the same functions in the same order in Swift and Kotlin. Cross-feature
+  rules live with the feature that owns the constraint: a code block
+  strips marks, links and pills (blocks); a link strips pills (links);
+  inline code holds no pill (marks). The platform layer around them (the
+  bridge records, the styler, the decorations under the words, the text
+  view subclass, the Expo view) is wiring.
+- **An empty last line in a block holds a zero-width space, the
+  holder.** Neither platform can indent a line with no character, and
+  Android's layout ignores paragraph spans on a zero-length last line;
+  the holder carries the block, is never shown or sent, never has the
+  caret before it, and goes as words are typed beside it. It is put in
+  where a line is made or emptied (a Return at a block's end, a block
+  given to the empty last line, a block's last line emptied) and the
+  field's repair only ever takes a stray one out.
+- **Android's keys and spans.** Return and Backspace reach the field
+  through its input connection, where it answers them itself at a
+  block's edge; no meaning span stretches (all exclusive, re-cut after
+  each edit), and marks are put on typed text by the view, which has no
+  typing attributes. A word Gboard takes out to put back changed keeps
+  its line's block through the holder, and the keyboard is not restarted
+  between the two halves. While words are selected the field pads below
+  its last line, since the selection handles sit in windows of their own
+  over the format row.
+- **The row shows what is on at the caret**, the link form is a dialog
+  on both platforms (drawn in the screen's own window on Android, so the
+  keyboard stays), a spoiler in the field is hatched, Copy and Cut give
+  Markdown with pills as their words, and paste reads the clipboard as
+  Markdown. Over the limit, Send dims and a line says by how much.
+- **Checks.** The feature files import Foundation (`android.text`) only
+  and run as unit tests without a device: `swift test` in the module and
+  Robolectric on Android (`mobile/README.md` → Tests). A Maestro flow per
+  behaviour reads each sent message back over RPC. CI does not compile
+  the native code; the hand-run `mobile-native.yml` does.
+- **Not yet**: undo of a pill on iOS gives its words back as words;
+  styled paste from other apps; images pasted as attachments; a
+  character counter; choosing a code block's language; a line of only
+  ```` ``` ```` inside a code block; emoji suggestions; reading the
+  formats at the caret to a screen reader.
+
 ### The server's one involvement
 
 `plainText` (`internal/chat/markdown.go`) strips markers for reply-quote
