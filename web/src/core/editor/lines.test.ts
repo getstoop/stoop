@@ -4,6 +4,7 @@ import {
   type EditorLine,
   type EditorMark,
   linesToDoc,
+  mentionsAsWords,
 } from "./lines";
 import { fromMarkdown, toMarkdown } from "./markdown";
 
@@ -100,6 +101,23 @@ describe("docToLines", () => {
         runs: [{ text: "b", marks: [] }],
       },
     ]);
+  });
+});
+
+describe("mentionsAsWords", () => {
+  it("writes a mention as its words, keeping its marks", () => {
+    const lines = mentionsAsWords([
+      {
+        block: "paragraph",
+        depth: 0,
+        group: 0,
+        runs: [
+          { text: "hi ", marks: [] },
+          { mention: casey, marks: ["bold"] },
+        ],
+      },
+    ]);
+    expect(toMarkdown(linesToDoc(lines))).toBe("hi **@casey**");
   });
 });
 

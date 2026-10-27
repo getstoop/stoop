@@ -186,9 +186,9 @@ and `withTokensRestored` go (the phone was their only user).
   kept across that.
 - The pill shows the draft as plain text (`plainText`), never markers.
 - A refused send puts its words back ahead of anything typed since
-  (`restoreDraft`, which joins with a new line). Joined Markdown can
-  merge blocks (an open code fence would swallow what follows), so
-  `restoreDraft` joins two documents, not two strings (Tech).
+  (`restoreDraft`, which joins with a new line). `toMarkdown` closes
+  every block it opens (a fence always has its closing line), so two
+  drafts joined by a line read back as the two.
 - Over 4000 written characters: Send dims and a line under the field
   says how many over, as the error line does. No keystroke is refused.
 
@@ -282,9 +282,17 @@ A native paragraph is one line; each carries its block in a paragraph
 attribute (iOS) or span (Android), each run its marks. Core converts
 lines to and from web's document JSON (`linesToDoc`, `docToLines`), so
 `toMarkdown` and `fromMarkdown` are web's, unchanged, moved to core with
-their tests. A pill is one object-replacement character (U+FFFC) with
-the mention attached: one character, so atomic for free; drawn as a
-pill; read by a screen reader as its words.
+their tests. A pill is its words (`@priya`) carrying the mention as an
+attribute (iOS) or span (Android): drawn as a pill by the same drawing
+as inline code, read by a screen reader as the words it shows, and
+kept one unit by the view (the caret steps over it, a backspace takes
+it whole; step 4). A character standing in for it (U+FFFC with a drawn
+attachment) was the first idea; words keep the screen reader, copy and
+the caret's geometry right with no drawing of our own.
+
+The field joins React Native's focus registry while it is focused
+(`fieldFocus.ts`), so a tap on the timeline, a drag, or
+`Keyboard.dismiss()` puts it away as it would a `TextInput`.
 
 ### Where each behaviour lives
 
@@ -314,17 +322,87 @@ waits on JS, and native CI is planned (Decisions).
   two after the tap). One Markdown reader and writer, shared with web
   and checked against the server's cases (Split → 0); moving it native
   would add a Swift and a Kotlin parser to the Go and TypeScript ones.
-- **The cases** are one table in core (`core/editor/cases.json`: lines
-  and selection, an action (a key, typed text, a command), lines and
-  selection after): web's editor behaviour written down. The Swift and
-  Kotlin unit tests both read it, so the platforms are held to the same
-  answers. They run locally and with the hand-run `mobile-native.yml`
-  until native CI exists.
 
-Step 2 is a spike before it is a pull request: the view on both
-platforms holding typed text with a mark and a pill, `onChange` lines
-reaching JS, and `load` / `insertLines` landing where they should,
-before anything is built on it.
+### How the native half is organised
+
+The text view's own attributed text is the document. Each character
+carries its meaning as attributes: its marks (bits), a link's address,
+the mention a pill names, and its line's block; the look (fonts,
+colours, fills, indents) is worked out from those by a styler and never
+read back. One feature owns each attribute and every rule about it, in
+one file of the same name on each platform, with the same functions in
+the same order, so the two can be read side by side:
+
+- **Document** (`EditorDocument`): the plain line model JS hands over
+  and reads back, the line walking everything else uses, the order the
+  invariants run in after an edit (`settle`), the formats at the caret
+  for the row, the text before the caret for the mention list.
+- **Marks** (`EditorMarks`): the bits, what typing carries, the marks
+  common to a selection, the parts of a range a mark can go on (words,
+  not code blocks), a toggle by web's rule, the marker pairs typed
+  around words, and the look each mark asks for.
+- **Links** (`EditorLinks`): the link around a caret or selection, what
+  the dialog opens with and what Save and Remove do, an address the
+  format reads whole, bare addresses, `[words](https://…)` typed in
+  full.
+- **Mentions** (`EditorMentions`): the pill around a position, a range
+  grown to whole pills, where a selection's edge rests, a pill whose
+  words changed becoming words, the text with pills masked.
+- **Blocks** (`EditorBlocks`): the lines a selection touches, set,
+  toggle, lists and their levels, Return and Backspace at a block's
+  edge, the markers typed at a line's start, the invariants (one block
+  per line, code lines plain, levels in step, the holder below), and
+  what each block draws (which lines share a box or a bar, each item's
+  marker).
+- **Input rules** (`EditorInputRules`): the dispatch after a typed
+  character (blocks, then a link, then a marker pair) and the backspace
+  that puts the markers back.
+- **Clipboard** (`EditorClipboard`): what a paste does, where pasted
+  lines land, what Copy hands over.
+
+These files import Foundation (`android.text`) only, so they run as
+unit tests without a simulator: `swift test` in the module on a Mac
+(`Package.swift`), and Robolectric on Android (`./gradlew
+:stoop-rich-text:testDebugUnitTest`). The tests are a few cases per
+feature, each a behaviour the composer shows; the Maestro flows check
+the same from the outside.
+
+Around them, the platform layer: the records that cross the bridge
+(`EditorRecords`), the styler that draws each feature's look
+(`EditorStyler`), the decorations under the words (`EditorDecorations`),
+the text view subclass that takes paste, copy and the hardware keys
+(`EditorTextView` / `EditorText`), and the view itself
+(`RichEditorView`), which is wiring: what the text view reports comes
+in, a feature decides, the edit is made there, and the events go out.
+
+Cross-feature rules live with the feature that owns the constraint and
+are called by name: a code block strips marks, links and pills (Blocks);
+a link strips pills (Links). "A code block holds plain text" is written
+once per platform.
+
+**The holder.** An empty line at the end of the text has no character
+to carry its block, and neither platform can indent one: Android's
+layout ignores paragraph spans on a zero-length last line, so the caret
+sat at the margin while typed words landed at the indent, and iOS could
+not draw a block on an empty field. So an empty last line in a block
+holds one zero-width space (U+200B), and only that: it carries the
+block, is never shown, never sent (`lines` leaves it out), never has
+the caret before it, goes as soon as words are typed beside it (they
+take its place), and comes back when the line is emptied again. A
+paragraph needs none.
+
+**Android's keys.** The soft keyboard's Return and Backspace reach the
+field through its input connection (`commitText`, `deleteSurroundingText`,
+`sendKeyEvent`), where the view answers them itself when a block's edge
+is involved, so the keyboard's view of the text stays in step; hardware
+keys come through `onKeyDown`. Marks are put on inserted text by the
+view (Android has no typing attributes), and no meaning span stretches:
+every one is exclusive at both ends and re-cut after each edit.
+
+- **The checks** are the unit tests above and Maestro flows on the real
+  field, one per step, each typing or tapping and then reading the sent
+  message back over RPC, so a behaviour is held to the Markdown it
+  produces. The same flows run on iOS and Android.
 
 ### The composer
 
@@ -350,15 +428,18 @@ operator's OK.
 1. **Core**: `toMarkdown` / `fromMarkdown` and `checkLink` move to core
    (web imports them, unchanged); `EditorLine`, `linesToDoc`,
    `docToLines`, round-trip tests.
-2. **The editor, plain**: the native view on both platforms with no
-   formatting yet, replacing `TextInput` at parity (focus, height,
-   caret, the mention list, send, edit, refused send), and the cases
-   table's first rows with the Swift and Kotlin tests that read it (it
-   grows with each step). Starts as the spike above.
+2. **The editor**: the native view on both platforms, holding and
+   drawing the whole format (marks, links, mentions, quotes, lists,
+   code blocks) so an edit keeps what it loads, typing plain, replacing
+   `TextInput` at parity (focus, height, the mention list, send, refused
+   send, the keyboard put away by a tap). Edit mode loads the message
+   through `fromMarkdown` and saves what the field holds;
+   `editableText` and `withTokensRestored` go. The controls come in the
+   steps after.
 3. **Inline marks**: the row's six mark buttons, pressed state, typing
    attributes, the spoiler fill.
-4. **Pills**: picks and typed-in-full handles as pills; edit mode loads
-   through `fromMarkdown`; `editableText` and `withTokensRestored` go.
+4. **Pills**: picks and typed-in-full handles as pills, one unit to the
+   caret and backspace.
 5. **Links**: the dialog, ⌘K, paste over words, bare addresses styled.
 6. **Quote and code block.**
 7. **Lists**, with indent and outdent.
@@ -387,11 +468,21 @@ operator's OK.
 - 2026-10-26: all editing behaviour native (Swift and Kotlin), not
   shared in TypeScript: it should change little, nothing waits on JS,
   and native CI is planned. Markdown in and out stays in core.
+- 2026-10-27: the native half rewritten as one file per feature on each
+  platform (Tech → How the native half is organised), with unit tests
+  (`swift test`, Robolectric) kept to a few cases per feature; the
+  first build, which held every feature in the view class, is replaced
+  rather than refactored. An empty last line in a block holds a
+  zero-width space (the holder).
 
 ## Later
 
 - Web's editor drawing spoilers hatched too, if the phone's reads
   better.
+- Undo and redo of a pill on iOS: undo brings back a pill's words as
+  plain words, since the pill is put on outside the text view's undo.
+  On send they still go as the token (`withTypedMentions`) when typed in
+  full with one owner.
 - Styled paste from other apps (RTF/HTML to our marks).
 - Images pasted as attachments.
 - A character counter before the limit.

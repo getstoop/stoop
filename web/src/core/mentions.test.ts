@@ -24,6 +24,7 @@ import {
   soleMention,
   splitEveryone,
   tokensAsText,
+  typedMentionEnding,
   withTypedMentions,
   writtenLength,
 } from "./mentions";
@@ -413,4 +414,65 @@ describe("the message limit, shared with the server", () => {
       expect(writtenLength(input)).toBe(want);
     });
   }
+});
+
+describe("typedMentionEnding", () => {
+  const ada = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a01";
+  const bea = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a02";
+  const crew = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a03";
+  const twin = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a04";
+  const garden = "0192f3a4-7b1c-7d2e-9f00-3c4d5e6f7a05";
+  const names = {
+    members: mentionMembers([
+      { userId: ada, username: "Ada", displayName: "Ada W." } as Member,
+      { userId: bea, username: "bea", displayName: "" } as Member,
+    ]),
+    groups: mentionGroups([
+      { id: crew, handle: "gardeners", name: "Garden crew" } as Group,
+      { id: twin, handle: "bea", name: "Not Bea" } as Group,
+    ]),
+    channels: linkableChannels([
+      { id: garden, name: "garden", kind: ChannelKind.TEXT } as Channel,
+    ]),
+  };
+  const ending = (before: string) => typedMentionEnding(before, names);
+
+  it("finds a handle the last character ended, with one owner", () => {
+    expect(ending("hi @ada ")).toEqual({
+      start: 3,
+      length: 4,
+      ref: { kind: "person", id: ada, handle: "ada" },
+    });
+    expect(ending("@ADA,")?.ref.id).toBe(ada);
+    expect(ending("ask @gardeners.")?.ref.kind).toBe("group");
+    expect(ending("see #garden ")).toEqual({
+      start: 4,
+      length: 7,
+      ref: { kind: "channel", id: garden, handle: "garden" },
+    });
+  });
+
+  it("finds nothing while the handle is still being typed", () => {
+    expect(ending("hi @ada")).toBeNull();
+    expect(ending("hi @ad")).toBeNull();
+    expect(ending("#garden-")).toBeNull();
+  });
+
+  it("finds nothing the handle didn't just end", () => {
+    expect(ending("@ada and ")).toBeNull();
+    expect(ending("")).toBeNull();
+    expect(ending(" ")).toBeNull();
+  });
+
+  it("finds nothing for no owner, two, @channel, a word or an address", () => {
+    expect(ending("@nobody ")).toBeNull();
+    expect(ending("@bea ")).toBeNull();
+    expect(ending("@channel ")).toBeNull();
+    expect(ending("mail@ada ")).toBeNull();
+    expect(ending("https://x.example/@ada ")).toBeNull();
+  });
+
+  it("finds nothing over a pill, whose words come as U+FFFC", () => {
+    expect(ending("\uFFFC\uFFFC\uFFFC\uFFFC ")).toBeNull();
+  });
 });

@@ -1,18 +1,10 @@
-// The formats the toolbar and the keyboard shortcuts apply. The editor
-// carries them out (components/RichEditor/commands.ts).
+// The formats the toolbar and the keyboard shortcuts apply
+// (core/editor/formats). The editor carries them out
+// (components/RichEditor/commands.ts).
 
-export type Format =
-  | "bold"
-  | "italic"
-  | "underline"
-  | "strike"
-  | "code"
-  | "spoiler"
-  | "link"
-  | "quote"
-  | "list"
-  | "orderedList"
-  | "codeblock";
+import type { Format } from "../core/editor/formats";
+
+export type { Format };
 
 // ⌘/Ctrl+B, I, U, E (code) and ⌘/Ctrl+Shift+X (strike).
 export function shortcutFormat(e: {
