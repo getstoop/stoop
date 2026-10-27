@@ -2,10 +2,11 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { StyleSheet, Text, View } from "react-native";
 import { LockIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import TitlePill from "./TitlePill";
 
-// The header's title: the channel's name with its # (a lock, as on the
-// space's screen, for a private one), and
-// under it the space and how many people can read the channel.
+// The header's title, in its pill: the channel's name with its # (a
+// lock, as on the space's screen, for a private one), and under it the
+// space and how many people can read the channel.
 export default function ChannelTitle({
   channel,
   spaceName,
@@ -19,7 +20,7 @@ export default function ChannelTitle({
   const styles = makeStyles(theme);
   const people = memberCount === 1 ? "1 member" : `${memberCount} members`;
   return (
-    <View style={styles.title} accessible accessibilityRole="header" accessibilityLabel={`${channel.name}, ${spaceName}, ${people}`}>
+    <TitlePill label={`${channel.name}, ${spaceName}, ${people}`}>
       <View style={styles.line}>
         {channel.private ? <LockIcon color={theme.textMuted} /> : <Text style={[styles.name, styles.mark]}>#</Text>}
         <Text style={styles.name} numberOfLines={1}>
@@ -29,15 +30,12 @@ export default function ChannelTitle({
       <Text style={styles.about} numberOfLines={1}>
         {spaceName} · {people}
       </Text>
-    </View>
+    </TitlePill>
   );
 }
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
-    title: {
-      gap: 1,
-    },
     line: {
       flexDirection: "row",
       alignItems: "center",
