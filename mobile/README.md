@@ -568,9 +568,9 @@ plugin, never into those folders by hand.
 for iOS (Swift, TextKit) and Android (Kotlin, a `StaticLayout`), that
 draws a message's paragraph (`docs/proposals/mobile-markdown.md` →
 Tech) and holds the composer's field
-(`docs/proposals/mobile-rich-editor.md` → Tech → How the native half is
-organised). Expo links it on its own; a change to its Swift or Kotlin
-needs a native rebuild, not only Metro.
+(`docs/architecture/messaging.md` → The phone's field). Expo links it on
+its own; a change to its Swift or Kotlin needs a native rebuild, not
+only Metro.
 
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS
