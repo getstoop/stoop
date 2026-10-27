@@ -313,15 +313,11 @@ import a screen; the screens themselves live in `src/screens`, so
   the two at a time: an edit begun drops a quote, Quote in reply ends
   an edit, and the message going (deleted, or left as a placeholder)
   ends it silently, the edited words dropped. Cancel editing or Save
-  ends it with the set-aside draft back in the field. A plain field
-  can't hold the tokens a mention or a channel link is stored as, so
-  the field shows each as its `@handle` or `#name` and Save puts the
-  tokens back for the handles the original message had as tokens
-  (`core/editableText`, with its tests: a mention moved or repeated
-  keeps its token, one removed stays removed, a `@name` the original
-  had no token for stays words, and where the original had the same
-  words both as a token and as text the n-th stays what the n-th was).
-  Save with the words unchanged ends the edit with nothing sent; with
+  ends it with the set-aside draft back in the field. The field loads
+  the message through core's `fromMarkdown`, its mentions as pills and
+  its blocks as blocks, and Save writes `toMarkdown` of what it holds.
+  Save with the words unchanged (the content as stored, or as the field
+  writes it back) ends the edit with nothing sent; with
   none at all it is refused in web's words ("A message can't be empty —
   delete it instead.") under the field, the edit going on; otherwise
   `EditMessage` goes out and its answer merges like a send's, the row
@@ -571,8 +567,10 @@ plugin, never into those folders by hand.
 `modules/stoop-rich-text` is native code of our own: a local Expo module,
 for iOS (Swift, TextKit) and Android (Kotlin, a `StaticLayout`), that
 draws a message's paragraph (`docs/proposals/mobile-markdown.md` →
-Tech). Expo links it on its own; a change to its Swift or Kotlin needs a
-native rebuild, not only Metro.
+Tech) and holds the composer's field
+(`docs/proposals/mobile-rich-editor.md` → Tech → How the native half is
+organised). Expo links it on its own; a change to its Swift or Kotlin
+needs a native rebuild, not only Metro.
 
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS
@@ -592,6 +590,18 @@ After the first install, `make mobile-metro` (or `pnpm start` in
 native rebuild.
 
 ## Tests
+
+The composer field's rules (marks, links, pills, blocks, typing
+shortcuts: `modules/stoop-rich-text/ios/Editor` and the Kotlin files of
+the same names) have unit tests of their own, a few cases per feature:
+
+```sh
+cd mobile/modules/stoop-rich-text && swift test     # iOS, on a Mac, no simulator
+cd mobile/android && ./gradlew :stoop-rich-text:testDebugUnitTest   # Android, Robolectric
+```
+
+The Android one needs `JAVA_HOME` at a Java 17 and the generated
+`android/` folder (`make mobile-prebuild`).
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,

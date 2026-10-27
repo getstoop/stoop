@@ -1,0 +1,89 @@
+appId: ${APP_ID}
+name: Format words from the row, at the caret and over a selection, and see them sent in Markdown
+---
+# As ada, in chapters, after send.yaml.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+# Read already when channel.yaml ran first.
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+- tapOn: "Message #chapters"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+# Aa opens the row. At the caret a mark is for what is typed next, until
+# it is tapped off: the row shows it pressed meanwhile.
+- tapOn: "Formatting"
+- tapOn: "Bold"
+- assertVisible:
+    text: "Bold"
+    selected: true
+- inputText: "Big"
+- tapOn: "Bold"
+- assertVisible:
+    text: "Bold"
+    selected: false
+- inputText: " news "
+- tapOn: "Spoiler"
+- inputText: "secret"
+- tapOn: "Spoiler"
+- inputText: " end"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "Big news .* end"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "**Big** news ||secret|| end"
+- assertTrue: ${output.count == 1}
+# Over a selection (a word double-tapped), a mark goes on all of it. The
+# point is inside "plain" at 17pt on a phone-width card; a wider card or
+# larger type would need another.
+- inputText: "plain"
+- doubleTapOn:
+    id: "composer"
+    point: "6%,50%"
+- tapOn: "Italic"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "plain"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${CHAPTERS_ID}
+      TEXT: "*plain*"
+- assertTrue: ${output.count == 1}

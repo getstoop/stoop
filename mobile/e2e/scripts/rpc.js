@@ -59,6 +59,20 @@ var steps = {
       content: "<@u:" + POSTER_ID + ":" + POSTER + "> " + TEXT,
     }).message.id;
   },
+  // In CHANNEL_ID (rich-edit.yaml): ada writes a formatted note that
+  // mentions dee, as Markdown, kept in output.formatted.
+  ownerFormats: function () {
+    output.formatted =
+      "**Bring** the `paperback`, cc <@u:" + POSTER_ID + ":" + POSTER + ">\n> by Thursday\n- one\n- two";
+    output.messageId = rpc("SendMessage", OWNER_TOKEN, { channelId: CHANNEL_ID, content: output.formatted }).message.id;
+  },
+  // Whether that note now reads as written with SUFFIX typed at its end.
+  formattedIs: function () {
+    var message = held();
+    output.content = message ? message.content : "";
+    output.editedAt = message ? message.editedAt || "" : "";
+    output.formattedIs = output.content === output.formatted + SUFFIX;
+  },
   // Whether the message `ownerSays` or `ownerMentions` wrote now reads
   // EXPECTED, as the server holds it (edit.yaml); what it reads and when
   // it was last edited are left in output.content and output.editedAt.

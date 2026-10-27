@@ -238,6 +238,24 @@ export function BulletListIcon({ color, size = 20 }: IconProps) {
   );
 }
 
+// A list item a level deeper, or a level up: the format row's indent and
+// outdent, shown while the caret is in a list.
+export function IndentIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Format color={color} size={size}>
+      <Path d="M21 6H11M21 12H11M21 18H11M4 9l3 3-3 3" />
+    </Format>
+  );
+}
+
+export function OutdentIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Format color={color} size={size}>
+      <Path d="M21 6H11M21 12H11M21 18H11M7 9l-3 3 3 3" />
+    </Format>
+  );
+}
+
 export function NumberedListIcon({ color, size = 20 }: IconProps) {
   return (
     <Format color={color} size={size}>
