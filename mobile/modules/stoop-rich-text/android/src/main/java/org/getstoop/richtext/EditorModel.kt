@@ -146,12 +146,13 @@ internal object EditorDocument {
   }
 
   // The block of the line starting at `lineStart`: only a span that starts
-  // there. A paragraph span ending at the text's end grows over what is
-  // typed on the empty line after it, which is not that line's block.
+  // there and holds text. A paragraph span ending at the text's end grows
+  // over what is typed on the empty line after it, which is not that
+  // line's block; one whose text was deleted lingers empty, meaning nothing.
   fun blockAt(text: Spanned, lineStart: Int): BlockInfo? {
     if (lineStart >= text.length) return null
     return text.getSpans(lineStart, lineStart + 1, BlockSpan::class.java)
-      .firstOrNull { text.getSpanStart(it) == lineStart }?.info
+      .firstOrNull { text.getSpanStart(it) == lineStart && text.getSpanEnd(it) > lineStart }?.info
   }
 
   fun marksAt(text: Spanned, start: Int, end: Int): Int =
@@ -256,24 +257,36 @@ internal object EditorDocument {
   // Each line holds one block span, its first character's: two lines
   // joined by a backspace become one line of the first's kind, and a line
   // split by a Return keeps its kind on both halves. A line with none
-  // (words typed on an empty last line) takes `trailing`, the block that
-  // line was given, else the line before's, as iOS's typing attributes
-  // carry it over.
-  fun normaliseBlocks(text: Editable, from: Int, to: Int, trailing: BlockInfo?, changed: BlockInfo? = null) {
+  // takes the block it had before the change (`changed`, for the line the
+  // change began in: a keyboard replacing a line's only word takes its
+  // span with it), else, for words typed on an empty last line,
+  // `trailing`, the block that line was given, else the line before's, as
+  // iOS's typing attributes carry it over.
+  //
+  // A span never decides the block of a line after the one it starts on.
+  // Android moves a paragraph span's end over text put in at the end of
+  // the text, so the last line's span grows over what is typed on the
+  // empty line after it; and a Return in a line stretches its span over
+  // both halves. The lines after the first are given their block afresh
+  // here, which comes to the same as the stretched span for the halves
+  // and lets `trailing` have the last line.
+  fun normaliseBlocks(text: Editable, from: Int, to: Int, trailing: BlockInfo?, changed: BlockInfo? = null, changedLine: Int = -1) {
+    // A span whose text was deleted stays on, empty, where the text was,
+    // and moves along with what is typed there: it means nothing.
+    for (span in text.getSpans(0, text.length, BlockSpan::class.java)) {
+      if (text.getSpanEnd(span) <= text.getSpanStart(span)) text.removeSpan(span)
+    }
     var start = lineStart(text, from)
-    val first = start
     val last = lineEnd(text, to)
+    val rangeEnd = if (last < text.length) last + 1 else last
     var before: BlockInfo? = if (start > 0) blockAt(text, lineStart(text, start - 1)) else null
     while (start <= text.length) {
       val end = lineEnd(text, start)
       val spanEnd = if (end < text.length) end + 1 else end
       if (spanEnd > start) {
-        // A keyboard replacing a line's only word (Gboard composes the
-        // whole word at each key) takes the line's block span with it: the
-        // line gets back the block it had before the change.
         val info = blockAt(text, start)
-          ?: (if (start == first) changed else null)
-          ?: (if (spanEnd == text.length) trailing else null)
+          ?: (if (start == changedLine) changed else null)
+          ?: (if (end == text.length) trailing else null)
           ?: before
           ?: BlockInfo.PARAGRAPH
         for (span in text.getSpans(start, spanEnd, BlockSpan::class.java)) {
@@ -281,9 +294,9 @@ internal object EditorDocument {
           val e = text.getSpanEnd(span)
           if (s >= spanEnd || e <= start) continue
           text.removeSpan(span)
-          // What the span covered beyond this line keeps its block.
           if (s < start) text.setSpan(BlockSpan(span.info), s, start, Spanned.SPAN_PARAGRAPH)
-          if (e > spanEnd) text.setSpan(BlockSpan(span.info), spanEnd, e, Spanned.SPAN_PARAGRAPH)
+          // Lines past the range keep what covered them.
+          if (e > rangeEnd) text.setSpan(BlockSpan(span.info), rangeEnd, e, Spanned.SPAN_PARAGRAPH)
         }
         text.setSpan(BlockSpan(info), start, spanEnd, Spanned.SPAN_PARAGRAPH)
         before = info

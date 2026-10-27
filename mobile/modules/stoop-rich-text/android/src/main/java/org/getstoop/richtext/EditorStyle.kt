@@ -100,14 +100,20 @@ private class LookLineHeight(height: Int, ascent: Float, descent: Float) : Look,
 // from the meaning itself (EditorText.onDraw).
 internal object EditorStyler {
   fun restyle(
-    text: Editable, from: Int, to: Int, look: EditorLook, paint: TextPaint, trailing: BlockInfo?, changed: BlockInfo? = null,
+    text: Editable, from: Int, to: Int, look: EditorLook, paint: TextPaint, trailing: BlockInfo?,
+    changed: BlockInfo? = null, changedLine: Int = -1,
   ) {
     EditorDocument.dropBrokenMentions(text, from, to)
     EditorDocument.cutMarksAtLines(text, from, to)
     // A paragraph span a Return or a join stretched over other lines is
-    // taken off whole, and every line it covered styled again.
+    // taken off whole, and every line it covered styled again. One left
+    // empty where its text was deleted comes off wherever it is: it would
+    // still indent the line it sits in.
     var first = EditorDocument.lineStart(text, from)
     var last = EditorDocument.lineEnd(text, to)
+    for (span in text.getSpans(0, text.length, Look::class.java)) {
+      if (text.getSpanEnd(span) <= text.getSpanStart(span)) text.removeSpan(span)
+    }
     for (span in text.getSpans(first, last, Look::class.java)) {
       first = minOf(first, text.getSpanStart(span))
       last = maxOf(last, text.getSpanEnd(span))
@@ -115,7 +121,7 @@ internal object EditorStyler {
     }
     first = EditorDocument.lineStart(text, first)
     last = EditorDocument.lineEnd(text, last)
-    EditorDocument.normaliseBlocks(text, first, last, trailing, changed)
+    EditorDocument.normaliseBlocks(text, first, last, trailing, changed, changedLine)
     var start = first
     val metrics = TextPaint(paint).apply { textSize = look.fontSizePx; typeface = Typeface.DEFAULT }.fontMetrics
     while (true) {

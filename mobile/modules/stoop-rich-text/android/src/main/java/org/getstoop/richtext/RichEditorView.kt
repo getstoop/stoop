@@ -54,8 +54,14 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   private var lastHeight = -1
   private var changedFrom = 0
   private var changedTo = 0
-  // The block of the line a change began in, as it was before it.
+  // The line a change began in (its start, which the change leaves where
+  // it was), its block as it was before, and whether the change took a
+  // newline out.
+  private var changedLine = 0
   private var changedBlock: BlockInfo? = null
+  private var changedNewline = false
+  // The last change only took characters away.
+  private var deleted = false
   var autoFocus = false
   private var focusedOnce = false
   // The block of an empty last line, which no character holds: one the
@@ -72,18 +78,27 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
         val text = s as? Spanned ?: return
         val line = EditorDocument.lineStart(text, start)
+        changedLine = line
         changedBlock = EditorDocument.blockAt(text, line) ?: if (line >= text.length) trailingBlock() else null
+        changedNewline = (start until start + count).any { text[it] == '\n' }
       }
 
       override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
         changedFrom = start
         changedTo = start + count
+        deleted = before > 0 && count == 0
       }
 
       override fun afterTextChanged(s: Editable) {
         if (applying) return
         applying = true
-        EditorStyler.restyle(s, changedFrom, changedTo, look, field.paint, explicitTrailing, changedBlock)
+        // The last line emptied by a deletion (a backspace, or a keyboard
+        // taking a word out to put it back changed) keeps its block, which
+        // no character holds now, until it has words again.
+        if (deleted && !changedNewline && changedFrom == s.length && changedLine == changedFrom) {
+          explicitTrailing = changedBlock
+        }
+        restyle(s, changedFrom, changedTo, changedBlock, changedLine)
         applying = false
         if (s.isNotEmpty() && s[s.length - 1] != '\n') explicitTrailing = null
         emitChange()
@@ -120,8 +135,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     field.hint = text
   }
 
-  private fun restyle(text: Editable, from: Int, to: Int) {
-    EditorStyler.restyle(text, from, to, look, field.paint, explicitTrailing)
+  private fun restyle(text: Editable, from: Int, to: Int, changed: BlockInfo? = null, changedLine: Int = -1) {
+    EditorStyler.restyle(text, from, to, look, field.paint, explicitTrailing, changed, changedLine)
   }
 
   override fun onAttachedToWindow() {
