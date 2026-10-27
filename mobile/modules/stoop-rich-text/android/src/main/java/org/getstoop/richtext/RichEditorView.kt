@@ -54,6 +54,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   private var lastHeight = -1
   private var changedFrom = 0
   private var changedTo = 0
+  // The block of the line a change began in, as it was before it.
+  private var changedBlock: BlockInfo? = null
   var autoFocus = false
   private var focusedOnce = false
   // The block of an empty last line, which no character holds: one the
@@ -67,7 +69,11 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   init {
     addView(field, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     field.addTextChangedListener(object : TextWatcher {
-      override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+      override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+        val text = s as? Spanned ?: return
+        val line = EditorDocument.lineStart(text, start)
+        changedBlock = EditorDocument.blockAt(text, line) ?: if (line >= text.length) trailingBlock() else null
+      }
 
       override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
         changedFrom = start
@@ -77,13 +83,16 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       override fun afterTextChanged(s: Editable) {
         if (applying) return
         applying = true
-        restyle(s, changedFrom, changedTo)
+        EditorStyler.restyle(s, changedFrom, changedTo, look, field.paint, explicitTrailing, changedBlock)
         applying = false
         if (s.isNotEmpty() && s[s.length - 1] != '\n') explicitTrailing = null
         emitChange()
         post { reportHeight() }
       }
     })
+    // The height after each layout: the text's own, which the EditText
+    // knows only once it has laid it out (after a send clears it, too).
+    field.viewTreeObserver.addOnGlobalLayoutListener { reportHeight() }
     field.setOnFocusChangeListener { _, focused ->
       if (focused) onEditorFocus(emptyMap<String, Any>()) else onEditorBlur(emptyMap<String, Any>())
     }

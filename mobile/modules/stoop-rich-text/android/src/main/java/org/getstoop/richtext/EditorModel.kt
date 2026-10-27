@@ -102,6 +102,10 @@ internal object EditorDocument {
   // Lines into text with their meaning (no look yet), joined by "\n".
   fun build(lines: List<EditorLineRecord>): SpannableStringBuilder {
     val out = SpannableStringBuilder()
+    // Marks extend to text appended at their end (EXCLUSIVE_INCLUSIVE),
+    // so they go on once all the text is in, or each would swallow the
+    // runs after it.
+    val marked = ArrayList<Triple<Int, Int, Int>>()
     lines.forEachIndexed { index, line ->
       val info = BlockInfo(Block.of(line.block), line.depth, line.group, line.lang).normalised()
       val start = out.length
@@ -119,11 +123,12 @@ internal object EditorDocument {
           run.href?.let { out.setSpan(HrefSpan(it), at, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
         }
         val marks = Marks.of(run.marks)
-        if (marks != 0) out.setSpan(MarksSpan(marks), at, out.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
+        if (marks != 0) marked.add(Triple(at, out.length, marks))
       }
       if (index < lines.size - 1) out.append('\n')
       if (out.length > start) out.setSpan(BlockSpan(info), start, out.length, Spanned.SPAN_PARAGRAPH)
     }
+    for ((from, to, marks) in marked) out.setSpan(MarksSpan(marks), from, to, Spanned.SPAN_EXCLUSIVE_INCLUSIVE)
     return out
   }
 
@@ -251,15 +256,20 @@ internal object EditorDocument {
   // (words typed on an empty last line) takes `trailing`, the block that
   // line was given, else the line before's, as iOS's typing attributes
   // carry it over.
-  fun normaliseBlocks(text: Editable, from: Int, to: Int, trailing: BlockInfo?) {
+  fun normaliseBlocks(text: Editable, from: Int, to: Int, trailing: BlockInfo?, changed: BlockInfo? = null) {
     var start = lineStart(text, from)
+    val first = start
     val last = lineEnd(text, to)
     var before: BlockInfo? = if (start > 0) blockAt(text, lineStart(text, start - 1)) else null
     while (start <= text.length) {
       val end = lineEnd(text, start)
       val spanEnd = if (end < text.length) end + 1 else end
       if (spanEnd > start) {
+        // A keyboard replacing a line's only word (Gboard composes the
+        // whole word at each key) takes the line's block span with it: the
+        // line gets back the block it had before the change.
         val info = blockAt(text, start)
+          ?: (if (start == first) changed else null)
           ?: (if (spanEnd == text.length) trailing else null)
           ?: before
           ?: BlockInfo.PARAGRAPH

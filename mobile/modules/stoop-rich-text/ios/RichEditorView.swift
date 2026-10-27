@@ -261,6 +261,9 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
       explicitTrailing = nil
     }
     textView.selectedRange = NSRange(location: storage.length, length: 0)
+    // The text view's undo would replay typing over text that is no longer
+    // there.
+    textView.undoManager?.removeAllActions()
     textViewDidChangeSelection(textView)
     updatePlaceholder()
     reportHeight()

@@ -78,13 +78,14 @@ private class LookUnderline : UnderlineSpan(), Look
 
 private class LookStrike : StrikethroughSpan(), Look
 
-private class LookFace(private val bold: Boolean, private val italic: Boolean, private val mono: Boolean, private val scale: Float) :
+// A run's face; code also its size, set outright (a scale applied to the
+// paint's size would compound wherever the paint is reused).
+private class LookFace(private val bold: Boolean, private val italic: Boolean, private val mono: Boolean, private val sizePx: Float?) :
   MetricAffectingSpan(), Look {
   private fun apply(paint: TextPaint) {
-    val base = if (mono) Typeface.MONOSPACE else Typeface.DEFAULT
     val style = (if (bold) Typeface.BOLD else 0) or (if (italic) Typeface.ITALIC else 0)
-    paint.typeface = Typeface.create(base, style)
-    if (scale != 1f) paint.textSize = paint.textSize * scale
+    paint.typeface = if (mono) Typeface.create("monospace", style) else Typeface.create(Typeface.DEFAULT, style)
+    sizePx?.let { paint.textSize = it }
   }
   override fun updateMeasureState(paint: TextPaint) = apply(paint)
   override fun updateDrawState(paint: TextPaint) = apply(paint)
@@ -98,7 +99,9 @@ private class LookLineHeight(height: Int, ascent: Float, descent: Float) : Look,
 // spoilers, code blocks, quote bars, list markers) are drawn by the view
 // from the meaning itself (EditorText.onDraw).
 internal object EditorStyler {
-  fun restyle(text: Editable, from: Int, to: Int, look: EditorLook, paint: TextPaint, trailing: BlockInfo?) {
+  fun restyle(
+    text: Editable, from: Int, to: Int, look: EditorLook, paint: TextPaint, trailing: BlockInfo?, changed: BlockInfo? = null,
+  ) {
     EditorDocument.dropBrokenMentions(text, from, to)
     EditorDocument.cutMarksAtLines(text, from, to)
     // A paragraph span a Return or a join stretched over other lines is
@@ -112,7 +115,7 @@ internal object EditorStyler {
     }
     first = EditorDocument.lineStart(text, first)
     last = EditorDocument.lineEnd(text, last)
-    EditorDocument.normaliseBlocks(text, first, last, trailing)
+    EditorDocument.normaliseBlocks(text, first, last, trailing, changed)
     var start = first
     val metrics = TextPaint(paint).apply { textSize = look.fontSizePx; typeface = Typeface.DEFAULT }.fontMetrics
     while (true) {
@@ -145,7 +148,9 @@ internal object EditorStyler {
     val bold = marks and Marks.BOLD != 0 || mention != null
     val italic = marks and Marks.ITALIC != 0
     val flags = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-    if (bold || italic || mono) text.setSpan(LookFace(bold, italic, mono, if (mono) look.codeScale else 1f), start, end, flags)
+    if (bold || italic || mono) {
+      text.setSpan(LookFace(bold, italic, mono, if (mono) look.fontSizePx * look.codeScale else null), start, end, flags)
+    }
     val color = when {
       href != null || mention != null -> look.accent
       info.block == Block.QUOTE -> look.muted
