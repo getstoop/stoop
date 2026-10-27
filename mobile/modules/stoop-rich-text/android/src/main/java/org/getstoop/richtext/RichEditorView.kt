@@ -20,9 +20,6 @@ import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.BaseInputConnection
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputConnection
-import android.view.inputmethod.InputConnectionWrapper
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.core.view.AccessibilityDelegateCompat
@@ -175,7 +172,6 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
         super.onInitializeAccessibilityNodeInfo(host, info)
         if (fieldId.isNotEmpty()) info.viewIdResourceName = fieldId
-        if (label.isNotEmpty()) info.hintText = label
       }
     })
   }
@@ -248,7 +244,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     if (!changing && pendingMarks != null && (field.selectionStart != pendingAt || field.selectionEnd != pendingAt)) {
       pendingMarks = null
     }
-    field.text?.let { plainKeyboard(lineBlock(it, max(0, field.selectionStart)).block == Block.CODE) }
+    field.text?.let { keyboardFor(it) }
     field.invalidate()
     onEditorSelection(selectionPayload())
   }
@@ -323,22 +319,6 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     field.setSelection(a, b)
     snapping = false
     return true
-  }
-
-  // The keyboard may compose only outside pills: a region it would put
-  // over a pill's words (Gboard composes the word before the caret) is
-  // cut back to the text beside it, so it can't rewrite the pill.
-  internal fun composableRegion(start: Int, end: Int): Pair<Int, Int> {
-    val text = field.text ?: return start to end
-    var a = minOf(start, end)
-    var b = maxOf(start, end)
-    for (pill in text.getSpans(a, b, MentionSpan::class.java)) {
-      val s = text.getSpanStart(pill)
-      val e = text.getSpanEnd(pill)
-      if (s >= b || e <= a) continue
-      if (s <= a) a = maxOf(a, e) else b = minOf(b, s)
-    }
-    return a to b
   }
 
   // A pick from the mention list: the query before the caret replaced by
@@ -509,7 +489,19 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     if (changing) post { plainKeyboard(code) } else plainKeyboard(code)
   }
 
+  // Every code block the field makes or takes in gets the next number, so
+  // two never share a group (one box, one block) by accident.
   private var codeGroups = 0
+
+  private fun nextCodeGroup(): Int = 1_000_000 + ++codeGroups
+
+  // Lines from JS (a load, a paste) give each code block a group of the
+  // field's own: the same for the lines of one block, a new one for each.
+  private fun freshGroups(): (Int) -> Int {
+    val fresh = HashMap<Int, Int>()
+    return { group -> fresh.getOrPut(group) { nextCodeGroup() } }
+  }
+
 
   // Quote or code block on every line the caret or selection touches, or
   // off (back to plain lines) when all of them have it already. Lines
@@ -518,8 +510,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     // On or off by the first line, as web decides (in one, out of it).
     val lines = touchedLines()
     val on = lines.firstOrNull()?.info?.block != kind
-    codeGroups++
-    val made = if (on) BlockInfo(kind, 0, if (kind == Block.CODE) 1_000_000 + codeGroups else 0) else BlockInfo.PARAGRAPH
+    val made = if (on) BlockInfo(kind, 0, if (kind == Block.CODE) nextCodeGroup() else 0) else BlockInfo.PARAGRAPH
     setBlocks(lines.map { it.copy(info = made) })
   }
 
@@ -605,7 +596,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
         info.block.isList -> if (info.depth > 0) BlockInfo(info.block, info.depth - 1) else BlockInfo.PARAGRAPH
         else -> return false
       }
-      post { blockAtCaret(info) { made } }
+      post { blockAtCaret(start) { made } }
       return true
     }
     if (inserted.isEmpty() && dend == dstart + 1 && text[dstart] == '\n' && field.selectionStart == dend) {
@@ -616,7 +607,10 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       val starts = (info.block == Block.QUOTE && previous?.block != Block.QUOTE) || info.block.isList ||
         (info.block == Block.CODE && !(previous?.block == Block.CODE && previous.group == info.group))
       if (!starts) return false
-      post { blockAtCaret(info) { BlockInfo.PARAGRAPH } }
+      // Refusing the delete hands back the same "\n", which moves the
+      // paragraph spans about it (the line takes the one above's): the
+      // change below sets the line's block outright.
+      post { blockAtCaret(dend) { BlockInfo.PARAGRAPH } }
       return true
     }
     return false
@@ -625,13 +619,15 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   // A key's change, made after the input filter: on the caret's line as
   // it is now (keys queued meanwhile may have moved it), and only if that
   // line still has the block the key was pressed in.
-  private fun blockAtCaret(was: BlockInfo, made: () -> BlockInfo) {
+  private fun blockAtCaret(lineStartWas: Int, made: () -> BlockInfo) {
     val text = field.text ?: return
     val caret = max(0, field.selectionStart)
     val start = EditorDocument.lineStart(text, caret)
     val end = EditorDocument.lineEnd(text, caret)
-    if (lineBlock(text, start) != was) return
+    if (start != lineStartWas) return
     setBlocks(listOf(TouchedLine(start, end, made())))
+    // The keyboard's own record of the text missed the refused key.
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(field)
   }
 
   private fun lastOfCodeBlock(text: Spanned, lineEnd: Int, info: BlockInfo): Boolean {
@@ -696,19 +692,26 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       val words = match.groups[1]!!.range
       val href = match.groupValues[2]
       val all = start + match.range.first until start + match.range.last + 1
-      val linked = SpannableStringBuilder(text.subSequence(start + words.first, start + words.last + 1))
-      for (span in linked.getSpans(0, linked.length, MentionSpan::class.java)) linked.removeSpan(span)
-      linked.setSpan(HrefSpan(href), 0, linked.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-      ruleEdit(text, all.first, all.last + 1, linked, null) { _, _ -> }
+      val wordsFrom = start + words.first
+      val wordsTo = start + words.last + 1
+      val pieces = markPieces(text, wordsFrom, wordsTo)
+      ruleEdit(text, all.first, all.last + 1, text.subSequence(wordsFrom, wordsTo).toString(), null) { from, to ->
+        for ((a, b, marks) in pieces) EditorMarksEdit.apply(text, from + a, from + b) { marks }
+        text.setSpan(HrefSpan(href), from, to, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      }
       return
     }
     for ((pattern, bit) in markRules) {
       val match = pattern.find(before) ?: continue
       val marked = match.groups[1]!!.range
       val words = match.groups[2]!!.range
-      val content = SpannableStringBuilder(text.subSequence(start + words.first, start + words.last + 1))
-      ruleEdit(text, start + marked.first, start + marked.last + 1, content, null) { from, to ->
-        EditorMarksEdit.apply(text, from, to) { it or bit }
+      // The words' own marks, piece by piece, put back after the replace
+      // (which would drop marks lying wholly inside it) with this one.
+      val wordsFrom = start + words.first
+      val wordsTo = start + words.last + 1
+      val pieces = markPieces(text, wordsFrom, wordsTo)
+      ruleEdit(text, start + marked.first, start + marked.last + 1, text.subSequence(wordsFrom, wordsTo).toString(), null) { from, _ ->
+        for ((a, b, marks) in pieces) EditorMarksEdit.apply(text, from + a, from + b) { marks or bit }
       }
       // What is typed next isn't in the mark.
       pendingMarks = caretMarks(text, field.selectionStart) and bit.inv()
@@ -716,6 +719,13 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       pendingAt = field.selectionStart
       return
     }
+  }
+
+  // A range's marks, as pieces relative to its start.
+  private fun markPieces(text: Spanned, from: Int, to: Int): List<Triple<Int, Int, Int>> {
+    val cuts = EditorDocument.boundaries(text, from, to)
+    return (0 until cuts.size - 1).filter { cuts[it] < cuts[it + 1] }
+      .map { Triple(cuts[it] - from, cuts[it + 1] - from, EditorDocument.marksAt(text, cuts[it], cuts[it + 1])) }
   }
 
   private fun applyBlockRule(text: Editable, before: String, lineStart: Int): Boolean {
@@ -728,7 +738,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     }
     ruleEdit(text, lineStart, lineStart + before.length, "", BlockInfo.PARAGRAPH) { _, _ -> }
     val end = EditorDocument.lineEnd(text, lineStart)
-    setBlocks(listOf(TouchedLine(lineStart, end, BlockInfo(kind, 0, if (kind == Block.CODE) 2_000_000 + lineStart else 0))))
+    setBlocks(listOf(TouchedLine(lineStart, end, BlockInfo(kind, 0, if (kind == Block.CODE) nextCodeGroup() else 0))))
     return true
   }
 
@@ -827,7 +837,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     val from = range.first
     val to = if (range.isEmpty()) from else range.last + 1
     if (to > text.length) return
-    val built = EditorDocument.build(lines)
+    val regroup = freshGroups()
+    val built = EditorDocument.build(lines, regroup)
     // Paragraph spans can't start mid-line: the blocks are set after.
     for (span in built.getSpans(0, built.length, BlockSpan::class.java)) built.removeSpan(span)
     if (lines.size == 1) {
@@ -849,7 +860,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     var lineStart = EditorDocument.lineEnd(text, from) + 1
     for (line in lines.drop(1)) {
       if (lineStart > text.length) break
-      val info = BlockInfo(Block.of(line.block), line.depth, line.group, line.lang).normalised()
+      val group = if (line.block == "code") regroup(line.group) else line.group
+      val info = BlockInfo(Block.of(line.block), line.depth, group, line.lang).normalised()
       setLineBlock(text, lineStart, EditorDocument.lineEnd(text, lineStart), info)
       lineStart = EditorDocument.lineEnd(text, lineStart) + 1
     }
@@ -1052,7 +1064,7 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       null
     }
     applying = true
-    text.replace(0, text.length, EditorDocument.build(lines))
+    text.replace(0, text.length, EditorDocument.build(lines, freshGroups()))
     restyle(text, 0, text.length)
     applying = false
     field.setSelection(text.length)
@@ -1165,20 +1177,13 @@ internal class EditorText(context: Context, private val owner: RichEditorView) :
     highlightColor = (look.accent and 0x00ffffff) or 0x44000000
   }
 
-  override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
-    val connection = super.onCreateInputConnection(outAttrs) ?: return null
-    return object : InputConnectionWrapper(connection, true) {
-      override fun setComposingRegion(start: Int, end: Int): Boolean {
-        val (a, b) = owner.composableRegion(start, end)
-        return if (a < b) super.setComposingRegion(a, b) else finishComposingText()
-      }
-    }
-  }
-
   // Paste, copy and cut go to the field, which knows what the text means.
   override fun onTextContextMenuItem(id: Int): Boolean {
     val handled = when (id) {
-      android.R.id.paste, android.R.id.pasteAsPlainText -> owner.paste()
+      // Not handled (in a code block): pasted as plain text, never with a
+      // clip's own styles.
+      android.R.id.paste, android.R.id.pasteAsPlainText ->
+        owner.paste() || super.onTextContextMenuItem(android.R.id.pasteAsPlainText)
       android.R.id.copy -> owner.copySelection(cut = false).also { if (it) setSelection(selectionEnd) }
       android.R.id.cut -> owner.copySelection(cut = true)
       else -> false

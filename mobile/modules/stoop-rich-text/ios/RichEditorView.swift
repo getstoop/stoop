@@ -56,6 +56,9 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     textView.font = styler.bodyFont
     textView.typingAttributes = styler.look(for: [.editorBlock: BlockBox.paragraph])
     textView.allowsEditingTextAttributes = false
+    // A drag would hand the system the text's own attributes (blocks,
+    // pills), which it can't carry; copy and paste carry Markdown instead.
+    textView.textDragInteraction?.isEnabled = false
     textView.isScrollEnabled = true
     textView.alwaysBounceVertical = false
     addSubview(textView)
@@ -188,6 +191,8 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     if range.length > 0, !text.isEmpty, let pill = pill(around: range.location), range.location > pill.location {
       return false
     }
+    // Nor one over a whole pill's words (a prediction for "@priya").
+    if range.length > 0, !text.isEmpty, isWholePill(range) { return false }
     let whole = pillsWhole(range)
     if whole != range {
       replace(whole, with: text)
@@ -216,6 +221,22 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
   }
 
   // MARK: Pills
+
+  private func isWholePill(_ range: NSRange) -> Bool {
+    guard range.location < storage.length,
+      storage.attribute(.editorMention, at: range.location, effectiveRange: nil) is MentionBox
+    else { return false }
+    var whole = NSRange()
+    _ = storage.attribute(.editorMention, at: range.location, longestEffectiveRange: &whole, in: NSRange(location: 0, length: storage.length))
+    return whole == range
+  }
+
+  // The text changed outside the text view's undo, which would replay
+  // typing at places that have moved: its undo is cleared, once UIKit has
+  // closed the undo group of the keystroke this may be inside.
+  func clearUndo() {
+    DispatchQueue.main.async { [weak self] in self?.textView.undoManager?.removeAllActions() }
+  }
 
   // The whole of the pill whose words hold `location` strictly inside
   // them (not at their edges).
@@ -382,7 +403,9 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     case .quote: formats.append("quote")
     case .bullet: formats.append("list")
     case .ordered: formats.append("orderedList")
-    case .code: if inCode { formats.append("codeblock") }
+    // By where the selection starts, as web reports it, and as the toggle
+    // decides; the marks above follow what can take one.
+    case .code: formats.append("codeblock")
     case .paragraph: break
     }
     return formats
@@ -650,7 +673,32 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     textViewDidChangeSelection(textView)
   }
 
-  private var codeGroups = 0
+  // Every code block the field makes or takes in gets the next number,
+  // so two never share a group (one box, one block) by accident.
+  var codeGroups = 0
+
+  func nextCodeGroup() -> Int {
+    codeGroups += 1
+    return 1_000_000 + codeGroups
+  }
+
+  // Lines from JS (a load, a paste), each code block given a group of the
+  // field's own.
+  func withFreshGroups(_ lines: [EditorLineRecord]) -> [EditorLineRecord] {
+    var fresh: [Int: Int] = [:]
+    var previous: Int?
+    return lines.map { line in
+      guard line.block == "code" else {
+        previous = nil
+        return line
+      }
+      var copy = line
+      if previous != line.group || fresh[line.group] == nil { fresh[line.group] = nextCodeGroup() }
+      previous = line.group
+      copy.group = fresh[line.group]!
+      return copy
+    }
+  }
 
   // Quote or code block on every line the caret or selection touches, or
   // off (back to plain lines) when all of them have it already. Lines
@@ -659,8 +707,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     // On or off by the first line, as web decides (in one, out of it).
     let lines = touchedLines()
     let on = lines.first?.block.block != kind
-    codeGroups += 1
-    let group = 1_000_000 + codeGroups
+    let group = nextCodeGroup()
     setBlocks(lines.map { ($0.range, on ? BlockBox(kind, group: kind == .code ? group : 0) : .paragraph) })
   }
 
@@ -816,7 +863,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     linkRange = nil
     pasteRange = nil
     lastRule = nil
-    let text = EditorDocument.attributed(lines)
+    let text = EditorDocument.attributed(withFreshGroups(lines))
     // The keyboard is told, so its capitals and suggestions start afresh.
     textView.inputDelegate?.textWillChange(textView)
     defer { textView.inputDelegate?.textDidChange(textView) }
@@ -833,7 +880,7 @@ final class RichEditorView: ExpoView, UITextViewDelegate, NSTextStorageDelegate 
     textView.selectedRange = NSRange(location: storage.length, length: 0)
     // The text view's undo would replay typing over text that is no longer
     // there.
-    textView.undoManager?.removeAllActions()
+    clearUndo()
     textViewDidChangeSelection(textView)
     updatePlaceholder()
     reportHeight()

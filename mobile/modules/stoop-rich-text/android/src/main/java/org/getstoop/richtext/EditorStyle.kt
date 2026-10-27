@@ -10,6 +10,7 @@ import android.text.style.LeadingMarginSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
+import android.text.style.UpdateLayout
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 import expo.modules.kotlin.types.ColorCompat
@@ -70,7 +71,9 @@ internal class EditorLook(record: EditorStyleRecord?, val density: Float) {
 // The look's spans, all marked so a restyle takes off only its own.
 internal interface Look
 
-private class LookMargin(px: Int) : LeadingMarginSpan.Standard(px), Look
+// UpdateLayout: the layout reflows when one comes or goes, so a quote or
+// list line wraps at its indent, not the full width.
+private class LookMargin(px: Int) : LeadingMarginSpan.Standard(px), Look, UpdateLayout
 
 private class LookColor(color: Int) : ForegroundColorSpan(color), Look
 
@@ -91,7 +94,7 @@ private class LookFace(private val bold: Boolean, private val italic: Boolean, p
   override fun updateDrawState(paint: TextPaint) = apply(paint)
 }
 
-private class LookLineHeight(height: Int, ascent: Float, descent: Float) : Look,
+private class LookLineHeight(height: Int, ascent: Float, descent: Float) : Look, UpdateLayout,
   android.text.style.LineHeightSpan by FixedLineHeight(height, ascent, descent)
 
 // Gives text its look from its meaning (EditorModel's spans), over each

@@ -1,7 +1,7 @@
 import { docToLines, type EditorLine, linesToDoc, mentionsAsWords } from "@stoop/core/editor/lines";
 import * as Clipboard from "expo-clipboard";
 import type { Format } from "@stoop/core/editor/formats";
-import type { MentionRef } from "@stoop/core/mentions";
+import { type MentionRef, mentionText } from "@stoop/core/mentions";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
@@ -55,6 +55,26 @@ export type RichFieldHandle = {
 
 const toMd = (lines: EditorLine[]) => toMarkdown(linesToDoc(lines));
 
+// The characters the lines hold, a mention as its words, a line break as
+// one.
+function textLength(lines: EditorLine[]): number {
+  return lines.reduce(
+    (total, line, index) =>
+      total +
+      (index > 0 ? 1 : 0) +
+      line.runs.reduce((sum, run) => sum + ("text" in run ? run.text.length : mentionText(run.mention).length), 0),
+    0,
+  );
+}
+
+// What is sent leaves out empty lines at the end: an empty list item or
+// quote line would otherwise go as a lone "-" or ">".
+function withoutTrailingEmpty(lines: EditorLine[]): EditorLine[] {
+  let end = lines.length;
+  while (end > 1 && lines[end - 1].runs.length === 0) end--;
+  return lines.slice(0, end);
+}
+
 export default forwardRef<
   RichFieldHandle,
   {
@@ -101,9 +121,14 @@ export default forwardRef<
     loaded.current = { key: loadKey, revision: loadKey + 1, lines: docToLines(fromMarkdown(value)) };
   }
   const document = loaded.current;
-  // The caret's line up to it at the last change, to tell typing from
+  // The text's length at the last change or load, to tell typing from
   // deleting.
-  const typedBefore = useRef("");
+  const typedLength = useRef(0);
+  const loadedLength = useRef<number | null>(null);
+  if (loadedLength.current !== document.revision) {
+    loadedLength.current = document.revision;
+    typedLength.current = textLength(document.lines);
+  }
   // The field in React Native's focus registry, so a tap on the timeline
   // or Keyboard.dismiss puts it away as it would a TextInput.
   const focusKey = useRef({}).current;
@@ -123,7 +148,7 @@ export default forwardRef<
       removeLink: () => void native.current?.removeLink(),
       commit: async () => {
         const lines = await native.current?.commit();
-        return lines ? toMd(lines) : value;
+        return lines ? toMd(withoutTrailingEmpty(lines)) : value;
       },
     }),
     [value],
@@ -146,11 +171,14 @@ export default forwardRef<
         if (nativeEvent.revision !== document.revision) return;
         onChange(toMd(nativeEvent.lines));
         caret(nativeEvent);
-        // Only when something was typed: a backspace that leaves "@dee "
-        // before the caret didn't just finish a handle.
+        // Only when the text grew (something was typed): a backspace that
+        // leaves "@dee " before the caret didn't just finish a handle. The
+        // whole text's length, which the order of the field's caret and
+        // change events can't upset.
         const { start, end } = nativeEvent.selection;
-        const grew = nativeEvent.before.length > typedBefore.current.length;
-        typedBefore.current = nativeEvent.before;
+        const length = textLength(nativeEvent.lines);
+        const grew = length > typedLength.current;
+        typedLength.current = length;
         if (start === end && grew) onTyped?.(nativeEvent.before, start);
       }}
       onEditorSelection={({ nativeEvent }) => {

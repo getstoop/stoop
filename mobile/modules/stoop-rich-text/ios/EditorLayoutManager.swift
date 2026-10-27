@@ -52,7 +52,7 @@ final class EditorLayoutManager: RichLayoutManager {
     }
     // A last line ending in "\n" has an empty line after it, laid out as
     // the extra fragment, in the typing attributes' block.
-    if string.length > 0, string.character(at: string.length - 1) == 10, !extraLineFragmentRect.isEmpty,
+    if string.length == 0 || string.character(at: string.length - 1) == 10, !extraLineFragmentRect.isEmpty,
       let block = (extraLineFragmentTextContainer as? EditorTextContainer)?.trailingBlock, block.block != .paragraph {
       let rect = extraLineFragmentRect
       let font = UIFont.systemFont(ofSize: 17)

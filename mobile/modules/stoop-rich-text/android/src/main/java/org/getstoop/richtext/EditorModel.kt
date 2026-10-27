@@ -102,14 +102,16 @@ internal class MentionSpan(val kind: String, val id: String, val handle: String)
 
 internal object EditorDocument {
   // Lines into text with their meaning (no look yet), joined by "\n".
-  fun build(lines: List<EditorLineRecord>): SpannableStringBuilder {
+  // `regroup` gives a code block's group the field's own number.
+  fun build(lines: List<EditorLineRecord>, regroup: (Int) -> Int = { it }): SpannableStringBuilder {
     val out = SpannableStringBuilder()
     // Marks extend to text appended at their end (EXCLUSIVE_INCLUSIVE),
     // so they go on once all the text is in, or each would swallow the
     // runs after it.
     val marked = ArrayList<Triple<Int, Int, Int>>()
     lines.forEachIndexed { index, line ->
-      val info = BlockInfo(Block.of(line.block), line.depth, line.group, line.lang).normalised()
+      val group = if (line.block == "code") regroup(line.group) else line.group
+      val info = BlockInfo(Block.of(line.block), line.depth, group, line.lang).normalised()
       val start = out.length
       for (run in line.runs) {
         val at = out.length

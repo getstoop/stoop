@@ -2,7 +2,7 @@ import type { UploadedFile } from "@stoop/core/attachments";
 import type { Format } from "@stoop/core/editor/formats";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { isBlankMessage, plainText } from "@stoop/core/markdown";
-import { typedMentionEnding, withTypedMentions } from "@stoop/core/mentions";
+import { MAX_MESSAGE_LENGTH, typedMentionEnding, withTypedMentions, writtenLength } from "@stoop/core/mentions";
 import { messagePreview } from "@stoop/core/messagePreview";
 import { restoreDraft } from "@stoop/core/unsent";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
@@ -248,6 +248,9 @@ export default forwardRef<
 
   const placeholder = editing ? "Edit message" : inThread ? "Reply in thread" : `Message #${channelName}`;
   const blank = isBlankMessage(draft);
+  // Past the server's limit (written characters, a mention as its handle):
+  // Send dims, and a line under the field says by how much.
+  const over = writtenLength(draft) - MAX_MESSAGE_LENGTH;
   const files = editing ? [] : attachments.files;
   const quotedName = replyTo ? authorName(replyTo.author) : "";
 
@@ -268,6 +271,9 @@ export default forwardRef<
       sendingRef.current = false;
     }
     if (session.current !== mine) return;
+    // A handle typed in full and not yet a pill goes as its token, as on
+    // send and as web's editor saves it.
+    content = withTypedMentions(content, mentionNames);
     if (content === message.content || content === toMarkdown(fromMarkdown(message.content))) {
       onEditDone();
       return;
@@ -523,6 +529,11 @@ export default forwardRef<
             {error}
           </Text>
         )}
+        {over > 0 && (
+          <Text style={styles.error} accessibilityRole="alert">
+            {over === 1 ? "1 character over" : `${over} characters over`}
+          </Text>
+        )}
         {formatting && (
           <FormatRow
             active={formats}
@@ -547,13 +558,13 @@ export default forwardRef<
           </Round>
           <View style={styles.spacer} />
           {editing ? (
-            <Round label="Save" disabled={sending} onPress={submit} style={styles.send}>
+            <Round label="Save" disabled={sending || over > 0} onPress={submit} style={styles.send}>
               {sending ? <ActivityIndicator color={theme.onAccent} /> : <CheckIcon color={theme.onAccent} size={20} />}
             </Round>
           ) : (
             <Round
               label={waiting ? "Send, waiting for uploads" : "Send"}
-              disabled={(blank && !attachments.ready) || sending || waiting}
+              disabled={(blank && !attachments.ready) || sending || waiting || over > 0}
               onPress={submit}
               style={styles.send}
             >

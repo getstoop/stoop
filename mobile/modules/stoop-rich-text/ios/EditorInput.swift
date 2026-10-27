@@ -151,7 +151,7 @@ extension RichEditorView {
     }
     let marker = NSRange(location: line.location, length: (before as NSString).length)
     let original = storage.attributedSubstring(from: marker)
-    let made = BlockBox(kind, group: kind == .code ? 2_000_000 + caret : 0)
+    let made = BlockBox(kind, group: kind == .code ? nextCodeGroup() : 0)
     ruleEdit(marker, with: NSAttributedString(), original: original, block: .paragraph)
     let string = storage.string as NSString
     let now = string.lineRange(for: NSRange(location: line.location, length: 0))
@@ -167,9 +167,7 @@ extension RichEditorView {
     textView.inputDelegate?.textDidChange(textView)
     let result = NSRange(location: range.location, length: text.length)
     textView.selectedRange = NSRange(location: NSMaxRange(result), length: 0)
-    // The text changed outside the text view's undo, which would replay
-    // typing at places that have moved.
-    textView.undoManager?.removeAllActions()
+    clearUndo()
     lastRule = TypedRule(range: result, original: original, block: block)
   }
 
@@ -193,7 +191,7 @@ extension RichEditorView {
     storage.endEditing()
     textView.inputDelegate?.textDidChange(textView)
     textView.selectedRange = NSRange(location: rule.range.location + rule.original.length, length: 0)
-    textView.undoManager?.removeAllActions()
+    clearUndo()
     textViewDidChange(textView)
     textViewDidChangeSelection(textView)
     return true
@@ -254,7 +252,7 @@ extension RichEditorView {
   func insertLines(_ lines: [EditorLineRecord]) {
     guard let range = pasteRange, NSMaxRange(range) <= storage.length else { return }
     pasteRange = nil
-    let built = NSMutableAttributedString(attributedString: EditorDocument.attributed(lines))
+    let built = NSMutableAttributedString(attributedString: EditorDocument.attributed(withFreshGroups(lines)))
     let here = meaning(at: range.location)
     // Into an empty line (or over all of one), the first pasted line keeps
     // its own block, as web puts a pasted block in an empty one.
@@ -279,7 +277,7 @@ extension RichEditorView {
     storage.endEditing()
     textView.inputDelegate?.textDidChange(textView)
     textView.selectedRange = NSRange(location: range.location + built.length, length: 0)
-    textView.undoManager?.removeAllActions()
+    clearUndo()
     textViewDidChange(textView)
     textViewDidChangeSelection(textView)
   }
