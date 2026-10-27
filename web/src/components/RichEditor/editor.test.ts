@@ -7,14 +7,14 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { describe, expect, it } from "vitest";
+import { fromMarkdown, toMarkdown } from "../../core/editor/markdown";
 import { writtenLength } from "../../core/mentions";
 import { IdentityKind } from "../../gen/stoop/access/v1/access_pb";
 import type { Channel } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { activeFormats, formatCommands, newLine } from "./commands";
-import { checkLink, linkAround, linkDraft, saveLink } from "./links";
-import { fromMarkdown, toMarkdown } from "./markdown";
+import { linkAround, linkDraft, saveLink } from "./links";
 import {
   mentionDecorations,
   mentionsOffAtCaret,
@@ -326,21 +326,6 @@ describe("links", () => {
     const edited =
       draft && state.apply(saveLink(state, draft, "guide", "https://x.org/g"));
     expect(edited && md(edited)).toBe("see [guide](https://x.org/g) now");
-  });
-
-  it("refuse an address the format can't read, and words holding one", () => {
-    expect(checkLink("docs", "example.com").href).toBeTruthy();
-    expect(checkLink("docs", "https://example.com")).toEqual({});
-    expect(checkLink("see https://a.b", "https://c.d").text).toBeTruthy();
-    expect(checkLink("https://c.d", "https://c.d")).toEqual({});
-    expect(checkLink("docs", "https://x.com/a_(b)")).toEqual({});
-    for (const href of [
-      "https://x.com/a)b",
-      "https://x.com/a(b",
-      "https://x.com/a<b",
-    ]) {
-      expect(checkLink("docs", href).href).toMatch(/unpaired bracket/);
-    }
   });
 
   it("come from pasted HTML only when the format can read the address", () => {

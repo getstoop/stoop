@@ -1,12 +1,10 @@
-import { type Inline, type ListItem, parseMarkdown } from "../../core/markdown";
-import {
-  type MentionRef,
-  mentionText,
-  mentionToken,
-} from "../../core/mentions";
+import { type Inline, type ListItem, parseMarkdown } from "../markdown";
+import { type MentionRef, mentionText, mentionToken } from "../mentions";
 
 // The rich editor's document and our Markdown subset, both ways. The draft
 // is the document; Markdown is what it sends and what it loads to edit.
+// Web's editor (components/RichEditor) and the phone's (as lines,
+// ./lines.ts) share it.
 
 // The editor document's JSON form (ProseMirror's Node.toJSON).
 export interface JSONContent {

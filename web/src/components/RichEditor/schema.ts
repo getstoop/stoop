@@ -1,6 +1,6 @@
 import { Schema } from "prosemirror-model";
+import { readableAddress } from "../../core/editor/markdown";
 import { type MentionRef, mentionText } from "../../core/mentions";
-import { readableAddress } from "./markdown";
 
 // The message format as a document schema, and nothing more: a quote holds
 // lines, a list item holds a line and maybe a nested list, and a code
