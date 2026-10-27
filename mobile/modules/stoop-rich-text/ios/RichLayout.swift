@@ -96,7 +96,7 @@ extension NSAttributedString.Key {
 // an inline background) and its pad wider on each end. The padding's room
 // is kerning on the character before a box (or, at a line's start, the
 // container's indent) and on its last character.
-final class RichLayoutManager: NSLayoutManager {
+class RichLayoutManager: NSLayoutManager {
   var radius: CGFloat = 4
 
   override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
