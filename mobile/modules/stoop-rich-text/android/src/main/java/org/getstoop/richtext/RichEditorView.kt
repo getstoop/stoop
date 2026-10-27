@@ -86,6 +86,8 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
   // Between a change's before and after: the caret moves with the text
   // before the after runs, which is no reason to drop pending marks.
   private var changing = false
+  // The last change only put one character in.
+  private var typedOne = false
   private var snapping = false
   var autoFocus = false
   private var focusedOnce = false
@@ -115,6 +117,9 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
         changedFrom = start
         changedTo = start + count
         deleted = before > 0 && count == 0
+        // One character typed, not a word a keyboard replaced or a
+        // suggestion, dictation or a clipboard chip put in.
+        typedOne = before == 0 && count == 1
       }
 
       override fun afterTextChanged(s: Editable) {
@@ -153,7 +158,9 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
         applying = false
         if (s.isNotEmpty() && s[s.length - 1] != '\n') explicitTrailing = null
         // Typed at the caret: the shortcut it completes, if any.
-        if (!deleted && changedTo > changedFrom && field.selectionStart == changedTo) applyTypedRules(s, changedTo)
+        if (typedOne && field.selectionStart == changedTo && BaseInputConnection.getComposingSpanStart(s) == -1) {
+          applyTypedRules(s, changedTo)
+        }
         emitChange()
         post { reportHeight() }
       }
@@ -752,6 +759,17 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
     field.setSelection(end)
     applying = false
     emitChange()
+    (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.restartInput(field)
+  }
+
+  // A backspace at the very start (nothing to delete, so no change the
+  // filter would see) can still put a shortcut's markers back.
+  internal fun undoRuleAtStart(): Boolean {
+    val rule = lastRule ?: return false
+    if (rule.start != 0 || rule.end != 0 || field.selectionStart != 0 || field.selectionEnd != 0) return false
+    lastRule = null
+    undoRule(rule)
+    return true
   }
 
   // MARK: Paste, copy
@@ -816,10 +834,18 @@ class RichEditorView(context: Context, appContext: AppContext) : ExpoView(contex
       val marks = caretMarks(text, from)
       if (marks != 0) EditorMarksEdit.apply(built, 0, built.length) { it or marks }
     }
+    // Into an empty line (or over all of one), the first pasted line keeps
+    // its own block, as web puts a pasted block in an empty one.
+    val targetStart = EditorDocument.lineStart(text, from)
+    val emptyLine = from == targetStart && to >= EditorDocument.lineEnd(text, from)
     applying = true
     BaseInputConnection.removeComposingSpans(text)
     pendingMarks = null
     text.replace(from, to, built)
+    lines.firstOrNull()?.takeIf { emptyLine }?.let { first ->
+      val info = BlockInfo(Block.of(first.block), first.depth, first.group, first.lang).normalised()
+      setLineBlock(text, from, EditorDocument.lineEnd(text, from), info)
+    }
     var lineStart = EditorDocument.lineEnd(text, from) + 1
     for (line in lines.drop(1)) {
       if (lineStart > text.length) break
@@ -1153,7 +1179,7 @@ internal class EditorText(context: Context, private val owner: RichEditorView) :
   override fun onTextContextMenuItem(id: Int): Boolean {
     val handled = when (id) {
       android.R.id.paste, android.R.id.pasteAsPlainText -> owner.paste()
-      android.R.id.copy -> owner.copySelection(cut = false)
+      android.R.id.copy -> owner.copySelection(cut = false).also { if (it) setSelection(selectionEnd) }
       android.R.id.cut -> owner.copySelection(cut = true)
       else -> false
     }
@@ -1178,6 +1204,7 @@ internal class EditorText(context: Context, private val owner: RichEditorView) :
   }
 
   override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+    if (keyCode == KeyEvent.KEYCODE_DEL && owner.undoRuleAtStart()) return true
     if (keyCode == KeyEvent.KEYCODE_TAB && owner.inList) {
       owner.format(if (event.isShiftPressed) "outdent" else "indent")
       return true

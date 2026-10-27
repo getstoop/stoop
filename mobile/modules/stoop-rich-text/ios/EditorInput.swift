@@ -17,6 +17,13 @@ final class EditorTextView: UITextView {
     if editor?.copySelection(cut: true) != true { super.cut(sender) }
   }
 
+  // A backspace at the very start (no character to delete, so no change
+  // the delegate would see) can still put a shortcut's markers back.
+  override func deleteBackward() {
+    if editor?.undoRuleAtStart() == true { return }
+    super.deleteBackward()
+  }
+
   // ⌘B, ⌘I, ⌘U, ⌘E (code), ⌘⇧X (strike) and ⌘K (link), as on web; Tab
   // and ⇧Tab in a list take an item a level deeper or up.
   override var keyCommands: [UIKeyCommand]? {
@@ -85,7 +92,7 @@ extension RichEditorView {
 
   // After a character was typed: the shortcut it completes, if any.
   func applyTypedRules(caret: Int) {
-    guard textView.markedTextRange == nil else { return }
+    guard textView.markedTextRange == nil, caret <= storage.length else { return }
     let string = storage.string as NSString
     let line = string.lineRange(for: NSRange(location: caret, length: 0))
     let block = (meaning(at: caret)[.editorBlock] as? BlockBox) ?? .paragraph
@@ -160,6 +167,9 @@ extension RichEditorView {
     textView.inputDelegate?.textDidChange(textView)
     let result = NSRange(location: range.location, length: text.length)
     textView.selectedRange = NSRange(location: NSMaxRange(result), length: 0)
+    // The text changed outside the text view's undo, which would replay
+    // typing at places that have moved.
+    textView.undoManager?.removeAllActions()
     lastRule = TypedRule(range: result, original: original, block: block)
   }
 
@@ -183,9 +193,17 @@ extension RichEditorView {
     storage.endEditing()
     textView.inputDelegate?.textDidChange(textView)
     textView.selectedRange = NSRange(location: rule.range.location + rule.original.length, length: 0)
+    textView.undoManager?.removeAllActions()
     textViewDidChange(textView)
     textViewDidChangeSelection(textView)
     return true
+  }
+
+  func undoRuleAtStart() -> Bool {
+    guard let rule = lastRule, rule.range.location == 0, rule.range.length == 0,
+      textView.selectedRange == NSRange(location: 0, length: 0)
+    else { return false }
+    return undoRule(NSRange(location: 0, length: 1), "")
   }
 
   // MARK: Paste, copy
@@ -238,7 +256,14 @@ extension RichEditorView {
     pasteRange = nil
     let built = NSMutableAttributedString(attributedString: EditorDocument.attributed(lines))
     let here = meaning(at: range.location)
-    if let block = here[.editorBlock] {
+    // Into an empty line (or over all of one), the first pasted line keeps
+    // its own block, as web puts a pasted block in an empty one.
+    let string = storage.string as NSString
+    let line = string.lineRange(for: NSRange(location: range.location, length: 0))
+    var content = line
+    if content.length > 0, string.character(at: NSMaxRange(content) - 1) == 10 { content.length -= 1 }
+    let emptyLine = content.length == 0 || (range.location == content.location && NSMaxRange(range) >= NSMaxRange(content))
+    if !emptyLine, let block = here[.editorBlock] {
       let first = (built.string as NSString).lineRange(for: NSRange(location: 0, length: 0))
       if first.length > 0 { built.addAttribute(.editorBlock, value: block, range: first) }
     }
@@ -254,6 +279,7 @@ extension RichEditorView {
     storage.endEditing()
     textView.inputDelegate?.textDidChange(textView)
     textView.selectedRange = NSRange(location: range.location + built.length, length: 0)
+    textView.undoManager?.removeAllActions()
     textViewDidChange(textView)
     textViewDidChangeSelection(textView)
   }
