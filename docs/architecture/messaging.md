@@ -157,6 +157,74 @@ Some deliberate absences and edge rules:
   until clicked. A `<span>` with a click handler would be invisible to
   anyone not using a mouse.
 
+### The phone's rows
+
+The phone draws a message natively, from the same parser, with no web
+view and no Markdown library: one component,
+`mobile/src/components/MessageBody/`, used by the channel rows, the
+thread and the message menu's card, and later by search and pins. It
+follows web's `MessageBody` rule for rule: marks as text styles, inline
+code on the raised fill, links in the accent, a spoiler covered until
+tapped, an emoji-only message at twice the size.
+
+- **The paragraph is our own native view** (`mobile/modules/
+  stoop-rich-text`, the module that also holds the composer's field):
+  TextKit 1 on iOS, a `StaticLayout` on Android. JS turns the parse into
+  styled runs (`MessageBody/native.ts`), never Markdown, and the view
+  paints web's rounded, padded boxes behind pills, inline code and
+  spoilers, which nested React Native `Text` can't (a nested run takes
+  no padding or corners). A covered spoiler is drawn clear on its fill
+  and never reaches a screen reader. Anything without the module draws
+  nested `Text` with the pills flat.
+- **Measured before it is laid out.** The view lays out at a width it is
+  given and reports a height, so a row is the right height the first
+  time: a synchronous call measures the runs at the window's width less
+  the place's inset (`MessageBody/insets.ts`, one entry per place that
+  draws a message) and the block's own room. A wrong inset still draws
+  right, a frame later, once `onLayout` reports the real width.
+- **Blocks are views around paragraphs** (`MessageBody/blocks.ts`): a
+  quote is a bar beside a muted paragraph; a list is its rows, each one
+  paragraph at its depth's indent behind a marker that is plain `Text`,
+  outside and uncapped as a browser draws it, hidden from screen
+  readers and read by the row before its words; blocks are spaced as a
+  browser collapses their margins. A code block is `Text` in a
+  horizontal `ScrollView`, not the native view, since it never wraps
+  and the view lays out at a given width; a drag up or down on it
+  scrolls the list.
+- **Touch.** A tap opens a link, opens a channel pill's channel (when
+  it is a public text channel of the space the app has listed; otherwise
+  the pill reads as `#name` and takes no tap) or reveals a spoiler for
+  as long as the row is on screen. A person or group pill opens nothing:
+  a member card is a screen still to design. A long press anywhere,
+  links and code included, is the row's and opens the message menu.
+- **A screen reader** finds the paragraph as one element read as the
+  message (a covered spoiler as "spoiler, double tap to reveal"), after
+  a link element for each link and channel pill, so touching a link
+  finds it; a code block reads as its text. On Android these are
+  `ExploreByTouchHelper` virtual nodes, and the paragraph offers a
+  double tap only while something in it is covered.
+- **"(edited)"** follows the last words when the message ends in a
+  paragraph and is a line of its own after a quote, a list or a code
+  block; with files or preview cards under the message it goes after
+  them, where web's row puts it.
+- **The look is web's, from one place.** The values web's message rules
+  use are named in the `--md-*` block at the top of
+  `web/src/styles/markdown.css` (code padding, the quote bar, the list
+  indent, the pill, the preview card) and carried into
+  `mobile/src/theme/generated.ts` by `make mobile-theme`: a number as a
+  number, a `var(--x)` as the theme key to look up, an `em` size as a
+  scale of the body size. `make lint` fails when the generated file is
+  stale, so the two can't drift. The layout itself (a quote is a bar
+  beside muted text) is written in each app, and fonts are the
+  platform's, so lines break in different places and a long message can
+  come out a pixel apart.
+- **Not yet**: a tap on a person or group (the member card) and mention
+  glyphs; a message link read as who said it and where (STOOP-520; the
+  address shows as a link, with no card); right-to-left text (the view
+  lays out left to right, so a box's pad can land on its wrong side);
+  measuring in a Fabric shadow node, which would do away with the
+  insets.
+
 ### The composer
 
 The composer and the edit box are a rich-text editor on ProseMirror
@@ -284,9 +352,10 @@ typed as words. Plain `@casey` is text, from a person, a bot or a hook,
 so a person and a group may share a handle without either being
 mistaken for the other. The web composer writes the tokens: picking from
 the picker, or typing a handle in full that only one person or group
-has, makes a pill. The phone's plain composer does the same on send
-(`withTypedMentions` in `core/mentions.ts`, sharing the editor's rule
-for a handle typed in full). Bots and hooks write them directly
+has, makes a pill. The phone's field makes the pill as the handle's
+word ends (`typedMentionEnding` in `core/mentions.ts`, the editor's
+rule for a handle typed in full) and writes the token for any still
+words on send and save (`withTypedMentions`). Bots and hooks write them directly
 ([integrations.md](integrations.md#mentions)).
 
 `mention_tokens.go` checks every token on send and edit:
@@ -348,6 +417,25 @@ when a username does: auth calls chat's `AnnounceRename` for a rename
 on the profile page, by an admin or of a bot, and chat sends
 `member_updated` to each of the person's spaces and their own devices.
 
+**The phone's list** (`mobile/src/screens/Channel/MentionList.tsx`,
+`useMentionQuery.tsx`) is web's picker over the composer's card: it
+floats above the card, in the card's surface, as tall as its rows up to
+four and a half, while the caret ends a `@` or `#` query that has a
+candidate (`mentionQueryAt`, `channelQueryAt`, `mentionCandidates`:
+`@channel` and `@here`, then groups, then people, eight at most). No row
+is chosen ahead, since Return makes a new line: only a tap picks, and a
+pick puts the pill in the field. An @ button after Aa types `@` at the
+caret, after a space when a letter or digit is before it, which opens
+the list the same way. The dock draws the list through a context
+(`composerAbove.ts`), not the card's own view, outside whose bounds
+Android delivers no taps. Opening it announces how many suggestions
+there are. The names come with the channel's header
+(`core/channelHeader.ts` `headerMentionNames`): the space's members, a
+private channel's own people (only those are offered there, which web
+doesn't do yet), its groups in a public channel, and the linkable
+channels; member and group events carry only IDs, so the header is
+loaded again for them (`changesMentionNames`), once per burst.
+
 ### Groups
 
 A group is a set of a space's members with a name ("Garden crew") and a
@@ -388,9 +476,10 @@ it is an address for the reader to follow, not a mention.
 
 The web client draws a kept link as a pill that opens the channel, from
 the channel list it already holds; one whose channel it can't find reads
-as `#name` text. In the composer, `#` opens a picker of the space's
-public text channels, and a name typed in full becomes a link, as a
-handle does. Neither is offered in a private channel or a DM.
+as `#name` text. In the composer, on web and on the phone, `#` opens a
+picker of the space's public text channels, and a name typed in full
+becomes a link, as a handle does. Neither is offered in a private
+channel or a DM.
 
 ## Activity
 
@@ -977,6 +1066,21 @@ Previews are cached per URL in `link_previews` for a week and shared by
 every message linking it. **Failures are cached too**, so a dead link isn't
 retried once per message that mentions it.
 
+The phone draws the cards as web's row does
+(`mobile/src/components/LinkPreviews/`), under the words and the files
+and not on the menu's card, by rules shared in `core/linkPreviews.ts`,
+which web's `LinkPreviews` uses too: which cards show (`shownPreviews`:
+the server's, in the message's order, less a link to a message on this
+server), a card's shape (`previewShape`: the image alone when there is
+no title, landscape from 1.3 times wider than tall) and its first line
+(`previewSite`: the site's name, else the host without `www.`). A
+browser sizes the image from the file; React Native needs the size up
+front, so `layout.ts` works it out from the size the server measured,
+as a browser lays out `link-previews.css`, and an image the server gave
+no size for is the thumbnail. The card is one link element, a tap opens
+the address, a long press is the row's, and the × shows without a hover
+for whoever may remove the card, behind the system's confirm.
+
 ### Links to messages
 
 A link to a message on this server shows the message instead of a card
@@ -992,7 +1096,9 @@ who said it and where — "Casey Nolan in #general" behind a speech bubble
 (`components/MessageLink.tsx`), with the address on hover. It follows
 the card's rule, so until the message loads, and wherever no card would
 show, the address shows as written. A link given words in Markdown keeps
-them.
+them. The phone draws no card for such a link and shows the address as
+written, opening in the browser; reading it as who said it and where
+waits on the channel screen landing on a message (STOOP-520).
 
 ### The server fetches, never the reader's browser
 

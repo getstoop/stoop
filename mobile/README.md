@@ -566,11 +566,10 @@ plugin, never into those folders by hand.
 
 `modules/stoop-rich-text` is native code of our own: a local Expo module,
 for iOS (Swift, TextKit) and Android (Kotlin, a `StaticLayout`), that
-draws a message's paragraph (`docs/proposals/mobile-markdown.md` →
-Tech) and holds the composer's field
-(`docs/architecture/messaging.md` → The phone's field). Expo links it on
-its own; a change to its Swift or Kotlin needs a native rebuild, not
-only Metro.
+draws a message's paragraph and holds the composer's field
+(`docs/architecture/messaging.md` → The phone's rows, The phone's
+field). Expo links it on its own; a change to its Swift or Kotlin needs a
+native rebuild, not only Metro.
 
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS
