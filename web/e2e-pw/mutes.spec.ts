@@ -75,10 +75,10 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     else await expect(link).not.toHaveClass(/muted/);
   };
 
-  // The activity page lists items without reading them; the header's
+  // The activity page lists items without reading them; the New section's
   // button is what clears the feed.
   const markAllRead = async (p: Page) => {
-    const chip = p.locator(".activity-page-header .chip");
+    const chip = p.locator(".activity-mark-all");
     // The feed arrives after the page does, so give the button its chance
     // before concluding there is nothing to clear.
     const offered = await chip
@@ -173,7 +173,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     A.locator(".activity-page-header"),
     "and counts on the page header, which mutes never touch",
   ).toContainText("1 unread");
-  // The page lists without reading; clearing it is the header's button —
+  // The page lists without reading; clearing it is Mark all read on New —
   // and read state only counts on the page holding the attention.
   await focus(A);
   await markAllRead(A);

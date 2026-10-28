@@ -53,7 +53,11 @@ test("replies quote, notify and jump back", async ({ browser }) => {
   await expect(
     A.locator(".activity-row"),
     "timeline says 'replied to you'",
-  ).toContainText(`bea${suffix} replied to you in #general`);
+  ).toContainText(`bea${suffix} replied to you`);
+  await expect(
+    A.locator(".activity-row .activity-meta"),
+    "and where",
+  ).toContainText("#general");
   await A.locator(".activity-row.unread").click();
   await expect(
     activityPill(A).locator(".pill-dot"),

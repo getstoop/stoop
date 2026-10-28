@@ -501,6 +501,17 @@ Four kinds: `mention`, `reply`, `dm`, `thread_reply`. Each points at where it ha
 (space, channel, message) so the client can navigate there, and carries the
 actor and a 140-character preview.
 
+**On the web the feed is an inbox** (`routes/Activity/`): a New section
+of unread items, newest first, with Mark all read on its heading, and an
+Earlier section of read ones under day dividers, loading older pages as
+the list reaches its end. A row is the actor with the kind as a glyph on
+the avatar's corner (@, a reply arrow, a thread bubble, an envelope), a
+verb line ("mentioned you", "replied to you", "replied in a thread you're
+in", "sent you a direct message"), two lines of preview with the reader's
+handle and @channel lit, and where it happened: the channel or thread, the
+space when the reader belongs to more than one, and the muted bell when
+they silenced the room. Mutes never hide a row.
+
 **Each message raises at most one activity item per person.** The ordering
 in `SendMessage` enforces it: mentions first, then the reply target unless
 they were mentioned, then, for a reply in a thread, the people in the
