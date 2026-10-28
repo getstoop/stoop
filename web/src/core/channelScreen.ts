@@ -158,6 +158,11 @@ export type ScreenAction =
   // follows makes it. A root with a thread summary is left to the
   // server's update for it, which fills the placeholder in.
   | { type: "deleted"; messageId: string }
+  // The reader's own pin or unpin, written to the held row at once and at
+  // its own seq, as `reacted` is: the message_pinned that follows at a
+  // higher seq replaces it, and a refusal is reverted the same way, only
+  // while the row still stands at `seq`.
+  | { type: "pinned"; messageId: string; seq: bigint; pinned: boolean }
   // A thread screen opening (again, after a failure): its replies' first
   // page is asked for.
   | { type: "threadOpening"; rootId: string }
@@ -339,6 +344,14 @@ export function screenReducer(
     case "deleted": {
       const log = withPatch(state.log, action.messageId, (held) =>
         held.deleted || held.thread ? held : { ...held, deleted: true },
+      );
+      return log === state.log ? state : { ...state, log };
+    }
+    case "pinned": {
+      const log = withPatch(state.log, action.messageId, (held) =>
+        held.seq === action.seq && held.pinned !== action.pinned
+          ? { ...held, pinned: action.pinned }
+          : held,
       );
       return log === state.log ? state : { ...state, log };
     }

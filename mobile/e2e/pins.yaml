@@ -1,0 +1,76 @@
+appId: ${APP_ID}
+name: Pin a message from its menu, see it marked, and unpin it
+---
+# After message-more.yaml, by file name. Leaves chapters as it found it:
+# the note is unpinned again at the end, so the flows after mind nothing.
+# As ada, who owns the space and so manages its channels: dee's note may
+# be pinned.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn: "${SPACE}, .*"
+- extendedWaitUntil:
+    visible: "chapters(, unread)?"
+    timeout: 15000
+- tapOn: "chapters(, unread)?"
+- extendedWaitUntil:
+    visible: "chapters, ${SPACE}, \\d+ members"
+    timeout: 15000
+# Nothing is pinned yet. Before each long press the list settles: a touch
+# while it is still moving is the list's, not the row's.
+- assertNotVisible: "Pinned"
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Reply in thread.*"
+    timeout: 5000
+- assertVisible: "Pin message"
+- assertNotVisible: "Unpin message"
+# Pin message closes the sheet, and the row says "Pinned" over its byline.
+- tapOn: "Pin message"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- extendedWaitUntil:
+    visible: "Pinned"
+    timeout: 10000
+- assertVisible: "Chapter 55 notes"
+# The menu now offers Unpin message instead, and that takes the mark off.
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Chapter 55 notes"
+- extendedWaitUntil:
+    visible: "Reply in thread.*"
+    timeout: 5000
+- assertVisible: "Unpin message"
+- assertNotVisible: "Pin message"
+- tapOn: "Unpin message"
+- extendedWaitUntil:
+    notVisible: "Quote in reply"
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible: "Pinned"
+    timeout: 10000
+- assertVisible: "Chapter 55 notes"

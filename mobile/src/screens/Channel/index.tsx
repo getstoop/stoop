@@ -1,6 +1,6 @@
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
-import { canDeleteAnyMessage, canStartThreads } from "@stoop/core/permissions";
+import { canDeleteAnyMessage, canManageChannels, canStartThreads } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -52,8 +52,8 @@ import { useMessageActions } from "./useMessageActions";
 // at the bottom. The composer floats over the
 // bottom of the list and rides up with the keyboard; what it sends
 // comes back as a row the same way an event does. A long press on a
-// message opens its menu over the channel (MessageMenu); a reaction or a
-// delete from it goes through useChannelLog, and one the server refuses
+// message opens its menu over the channel (MessageMenu); a reaction, a
+// pin or a delete from it goes through useChannelLog, and one the server refuses
 // is said in a line over the composer for a moment, as is a link the
 // clipboard refused. Quote in reply makes the message the composer's
 // quote: this screen holds it by id while the composer is on this
@@ -452,6 +452,11 @@ export default function Channel({
                     threadAfterMenu.current = menuMessage.id;
                   }
                 : undefined
+            }
+            onPin={
+              // As web's: where the reader manages channels, and not on a
+              // reply also sent here; never in a thread.
+              canManageChannels(space) && !menuMessage.threadRootId ? () => actions.togglePin(menuMessage) : undefined
             }
             onQuote={() => actions.quote(menuMessage)}
             onEdit={() => actions.startEdit(menuMessage)}

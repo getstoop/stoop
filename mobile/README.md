@@ -283,7 +283,8 @@ import a screen; the screens themselves live in `src/screens`, so
   message drawn once more as a card, and a sheet of five quick reactions
   (the first of web's common row, `core/emoji.ts`, one the reader has
   already given filled in) with More reactions, then Reply in thread
-  (with the reply count), Quote in reply, Copy text, Copy link, Edit
+  (with the reply count), Quote in reply, Copy text, Copy link, Pin
+  message where the reader may pin (below), Edit
   message on the reader's own, and Delete message on their own or, where
   they moderate the space, anyone's (`core/permissions`
   `canDeleteAnyMessage`, as web decides it). A tap on the scrim, a swipe
@@ -292,7 +293,7 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-haptics`). While the keyboard is up a long press first puts it
   away (the list takes that first touch), and a second one opens the
   menu. A screen reader can't open it yet: an accessibility action on
-  the row is a follow-up. All eight of its items work. A quick reaction
+  the row is a follow-up. All nine of its items work. A quick reaction
   toggles itself on the message and closes the sheet, as web does it:
   the held row takes the reader's toggle at once (`core/reactions`
   `toggledReactions`, through the screen reducer's `reacted`, at the
@@ -375,6 +376,19 @@ import a screen; the screens themselves live in `src/screens`, so
   yet. As on web it is only where the reader may start a thread
   (`core/permissions` `canStartThreads`: not in an announcement
   channel) and not on a reply also sent to the channel.
+- Pin message pins the message to its channel, and Unpin message, on
+  one already pinned, takes it off again. The item is where web puts
+  the pin: in the channel (not in a thread), on a message that is not a
+  reply, for a reader who manages channels (`core/permissions`
+  `canManageChannels`). The held row takes the flag at once, at its own
+  seq, so the `message_pinned` that follows replaces it
+  (`core/channelScreen` `pinned`, as a reaction is taken), and a refusal
+  puts it back and says "Couldn't pin" or "Couldn't unpin" over the
+  composer with the server's reason. A pinned message says "Pinned"
+  with a small pin over its byline (`MessageRow`), as web's eyebrow
+  does, in a channel and in a thread alike; a screen reader hears it
+  before the name. There is no list of a channel's pins on the phone
+  yet, and no pin in the header: those are follow-ups.
 - A root with replies has a line under it, as the server summarises the
   thread (`message.thread`; nothing is counted on the phone): the two
   who replied last, "N replies" in the accent, an "N new" badge while
@@ -690,7 +704,8 @@ channel and see the message land once, react to a message from its
 menu, see its chip under the message and take it back from the chip,
 copy its words and delete it, long-press a message and see what its
 menu offers as a member and as a moderator, pick a reaction
-from the emoji picker and copy a message's link, quote a message in a
+from the emoji picker and copy a message's link, pin a message from its
+menu, see it marked and unpin it, quote a message in a
 reply, cancel it, send it and see the quote go with its message, edit a
 message from its menu, cancel an edit and see Save refuse an emptied
 one (and keep a mention's token), open a thread from its replies line

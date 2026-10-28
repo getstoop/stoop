@@ -52,6 +52,8 @@ name: Long-press a message and see its menu, with what the reader may do to it
 - assertVisible: "Edit message"
 - assertVisible: "Delete message"
 - assertVisible: "More reactions"
+# Pinning takes manage_channels, which a plain member has not.
+- assertNotVisible: "Pin message"
 # Tapping the scrim closes it.
 - tapOn:
     id: "message-menu-close"
@@ -101,7 +103,8 @@ name: Long-press a message and see its menu, with what the reader may do to it
 - extendedWaitUntil:
     notVisible: "Quote in reply"
     timeout: 5000
-# As ada, who owns the space: dee's message may be deleted, not edited.
+# As ada, who owns the space: dee's message may be deleted, not edited,
+# and pinned (pins.yaml does).
 - clearKeychain
 - launchApp:
     clearState: true
@@ -142,6 +145,7 @@ name: Long-press a message and see its menu, with what the reader may do to it
     timeout: 5000
 - assertNotVisible: "Edit message"
 - assertVisible: "Delete message"
+- assertVisible: "Pin message"
 - tapOn:
     id: "message-menu-close"
 - extendedWaitUntil:

@@ -14,6 +14,7 @@ executionOrder:
     - "React to a message from its menu, copy its words, and delete it"
     - "Long-press a message and see its menu, with what the reader may do to it"
     - "Pick a reaction from the emoji picker, and copy a message's link"
+    - "Pin a message from its menu, see it marked, and unpin it"
     - "Quote a message in a reply, cancel it, send it, and see the quote go with its message"
     - "Write in a channel and see it land, once, where it was sent"
     - "Format words from the row, at the caret and over a selection, and see them sent in Markdown"

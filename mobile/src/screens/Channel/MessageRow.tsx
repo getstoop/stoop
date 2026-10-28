@@ -8,6 +8,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Attachments from "../../components/Attachments";
 import Avatar from "../../components/Avatar";
+import { PinIcon } from "../../components/Icons";
 import LinkPreviews from "../../components/LinkPreviews";
 import { LinkPreviewsContext } from "../../components/LinkPreviews/context";
 import MessageBody from "../../components/MessageBody";
@@ -48,7 +49,13 @@ const GAP = 10;
 // as web's pins, search and linked-message cards draw none. An edited
 // message's "(edited)" closes its words, unless it has files or cards:
 // then it comes after them, before "Also sent to" and the reactions,
-// where web's row puts it.
+// where web's row puts it. A pinned message (`message.pinned`, which
+// the menu's Pin message sets and the message_pinned event carries)
+// says "Pinned" with a small pin over everything else, as web's
+// pinned-marker eyebrow does, in the muted small style of the reply
+// line; not on the card, which is for acting on the message. The row
+// is not one element to a screen reader, so that line is what it hears
+// first, as the words say.
 export default memo(function MessageRow({
   message,
   continued,
@@ -80,7 +87,8 @@ export default memo(function MessageRow({
   // In its thread, a reply also sent to the channel: "#general".
   alsoSentTo?: string;
 }) {
-  const styles = makeStyles(useTheme());
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const previews = useContext(LinkPreviewsContext);
   const thread =
     !card && onOpenThread && message.thread && message.thread.replyCount > 0 ? (
@@ -112,6 +120,13 @@ export default memo(function MessageRow({
   const editedLast =
     message.attachments.length > 0 ||
     (!card && shownPreviews(message.linkPreviews, previews?.origins ?? []).length > 0);
+  const pinnedMark =
+    !card && message.pinned ? (
+      <View style={styles.pinned}>
+        <PinIcon color={theme.textMuted} size={12} />
+        <Text style={styles.quote}>Pinned</Text>
+      </View>
+    ) : null;
   const body = (
     <>
       {message.content !== "" && (
@@ -160,11 +175,15 @@ export default memo(function MessageRow({
       ]}
     >
       {continued ? (
-        <View style={styles.indent}>{body}</View>
+        <View style={styles.indent}>
+          {pinnedMark}
+          {body}
+        </View>
       ) : (
         <View style={styles.lead}>
           <Avatar name={name} fileId={author?.avatarFileId ?? ""} origin={origin} token={token} size={AVATAR} />
           <View style={styles.main}>
+            {pinnedMark}
             {quoted && (
               <Text style={styles.quote} numberOfLines={1}>
                 {quoted.author ? (
@@ -281,6 +300,14 @@ function makeStyles(theme: Theme) {
     },
     quotedName: {
       fontWeight: "700",
+    },
+    // The pin and "Pinned" on one line, as web's pinned-marker.
+    pinned: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      // Web's margin-bottom: a continued row's indent has no gap of its own.
+      marginBottom: 2,
     },
     time: {
       color: theme.textMuted,

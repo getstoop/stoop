@@ -652,6 +652,63 @@ describe("the reader's own reaction", () => {
   });
 });
 
+describe("the reader's own pin", () => {
+  const ready = run([opened(0)]);
+  const target = id(5);
+  const seq = 6n;
+  const pinned: ScreenAction = {
+    type: "pinned",
+    messageId: target,
+    seq,
+    pinned: true,
+  };
+  const rowOf = (state: ChannelScreen) => state.log.rows.get(target);
+  const pinEvent = (value: boolean, eventSeq: bigint): ScreenAction => ({
+    type: "event",
+    event: event({
+      case: "messagePinned",
+      value: {
+        channelId: CHANNEL,
+        messageId: target,
+        pinned: value,
+        seq: eventSeq,
+      },
+    }),
+  });
+
+  it("marks the held row at its own seq, and the event that follows replaces it", () => {
+    const patched = screenReducer(ready, pinned);
+    expect(rowOf(patched)).toMatchObject({ pinned: true, seq });
+    expect(patched.log.seq).toBe(10);
+    expect(shown(patched)).toEqual(shown(ready));
+    const settled = screenReducer(patched, pinEvent(true, 11n));
+    expect(rowOf(settled)).toMatchObject({ pinned: true, seq: 11n });
+    expect(settled.log.seq).toBe(11);
+  });
+
+  it("reverts a refusal, unless the row has moved on", () => {
+    const revert: ScreenAction = { ...pinned, pinned: false };
+    expect(rowOf(run([pinned, revert], ready))).toMatchObject({
+      pinned: false,
+      seq,
+    });
+    // Someone else unpinned it between the patch and the refusal: the row
+    // carries the server's flag, which the revert must not undo.
+    const moved = run([pinned, pinEvent(false, 11n)], ready);
+    expect(screenReducer(moved, revert)).toBe(moved);
+    expect(rowOf(moved)?.pinned).toBe(false);
+  });
+
+  it("is the same state for a row not held, not at that seq, or already so", () => {
+    expect(screenReducer(ready, { ...pinned, messageId: "m-elsewhere" })).toBe(
+      ready,
+    );
+    expect(screenReducer(ready, { ...pinned, seq: 5n })).toBe(ready);
+    const once = screenReducer(ready, pinned);
+    expect(screenReducer(once, pinned)).toBe(once);
+  });
+});
+
 describe("the reader's own delete", () => {
   const ready = run([opened(0)]);
   const target = id(5);
