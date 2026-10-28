@@ -115,7 +115,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 0 12px;
+  gap: 2px 12px;
   align-items: start;
   /* off-scale: a touch more air between the rules than 8, less than 12 */
   padding: 10px 12px;
@@ -236,7 +236,7 @@
 .activity-preview {
   grid-column: 2 / -1;
   min-width: 0;
-  font-size: var(--text-ui);
+  font-size: var(--text-body);
   line-height: var(--leading-ui);
   display: -webkit-box;
   -webkit-line-clamp: 2;
