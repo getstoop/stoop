@@ -350,6 +350,36 @@ A key listener, on or off (Account → Voice, kept in this browser as
   is not offered: the shell will hold the key itself, from any app, and
   send the same `unmute` and `mute` voice actions.
 
+## Voice volume
+
+How loud the call plays on this device, 0 to 200% of what everyone
+sends, one knob for the whole call. The button beside Deafen opens it
+(`components/VoiceVolume.tsx`, on the sidebar's bar and the stage's
+alike), and Ctrl+Shift+Up and Down step it by 10 while you are in a
+call, with a switch of their own (Account → Voice). Both are choices
+about this device's speakers against whatever else it is playing — a
+game, say — so they are kept in this browser as `stoop.voiceVolume` and
+`stoop.volumeKeys` (`api/voiceVolume.ts`), never on the server.
+
+- **Past 100% is a boost.** An `<audio>` element's own volume stops at
+  1, so the room is mixed through Web Audio (`webAudioMix` on the LiveKit
+  room) and each remote track plays through a gain node, which has no
+  ceiling. LiveKit keeps the elements themselves muted in that mode, so
+  the gain is the one place playback is set (`playbackGain` in
+  `api/voice.ts`).
+- **Deafen is gain zero**, in the same place: deafened, every track's
+  gain is 0; undeafened, it is the chosen volume again.
+- **A track gets the gain as it is attached**, and a change is applied to
+  every track playing.
+- **The keys only work while Stoop has focus.** A page gets no keys
+  otherwise.
+- **Inside the desktop app the page does not listen**, as with push to
+  talk, and the Voice tab is not offered: the shell holds the keys
+  itself, from any app, once it speaks bridge 6, and sends `volume-up`
+  and `volume-down` voice actions — one step each, the one pair that is
+  not a request for a state, since the shell cannot know the page's
+  level ([desktop.md](desktop.md)).
+
 ## Presence in a voice channel
 
 Who is in which voice channel is **client-reported** over the gateway

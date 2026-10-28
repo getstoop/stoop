@@ -14,8 +14,10 @@ import {
   MicIcon,
   ScreenIcon,
 } from "./VoiceIcons";
+import { VoiceVolume } from "./VoiceVolume";
 
-// The voice controls themselves — camera, screen, mic, deafen, hang up.
+// The voice controls themselves — camera, screen, mic, deafen, volume,
+// hang up.
 // Both bars render this one row: the sidebar's VoiceBar, which follows
 // you across spaces, and the StageBar over the video, which in full
 // screen is the only one on the page. Two copies of these buttons would
@@ -78,6 +80,7 @@ export function VoiceActions({ extras }: { extras?: React.ReactNode }) {
       >
         <HeadphonesIcon off={deafened} />
       </button>
+      <VoiceVolume />
       {extras}
       <button
         type="button"

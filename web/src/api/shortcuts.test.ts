@@ -29,6 +29,19 @@ describe("matchShortcut", () => {
     );
   });
 
+  it("steps the volume on Cmd/Ctrl+Shift+Up and Down, typing or not", () => {
+    const shift = { shiftKey: true };
+    expect(
+      matchShortcut(press("ArrowUp", { ...shift, ctrlKey: true }), true),
+    ).toBe("volumeUp");
+    expect(
+      matchShortcut(press("ArrowDown", { ...shift, metaKey: true }), false),
+    ).toBe("volumeDown");
+    expect(
+      matchShortcut(press("ArrowUp", { ctrlKey: true }), false),
+    ).toBeNull();
+  });
+
   it("needs the modifiers to match exactly", () => {
     expect(matchShortcut(press("f", { metaKey: true }), false)).toBeNull();
     expect(matchShortcut(press("F", { shiftKey: true }), false)).toBeNull();

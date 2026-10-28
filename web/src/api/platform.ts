@@ -38,7 +38,11 @@ export type VoiceAction =
   | "camera-on"
   | "camera-off"
   | "stop-screen"
-  | "leave";
+  | "leave"
+  // Bridge 6. One step of the call's volume each, not a state: the shell
+  // cannot know the page's level, and a held key keeps stepping.
+  | "volume-up"
+  | "volume-down";
 
 export interface StoopBridge {
   bridge: number;

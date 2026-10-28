@@ -3,6 +3,7 @@ import type {
   LocalAudioTrack,
   LocalTrackPublication,
   Participant,
+  RemoteAudioTrack,
   RemoteTrack,
   RemoteTrackPublication,
   Room,
@@ -14,18 +15,20 @@ import { voiceClient } from "./clients";
 import { socketUrl } from "./origin";
 import { cancelCues, cue } from "./voiceCues";
 import { stopLocalLevel, syncLocalLevel } from "./voiceLevel";
+import { gainFor, useVoiceVolumeStore } from "./voiceVolume";
 import { sendClientEvent } from "./ws";
 
 // The LiveKit side of voice. One Room at a time; joining another channel
 // leaves the current one first. Remote audio plays through hidden <audio>
-// elements appended to a container on <body>; video (cameras, screen
+// elements appended to a container on <body>, mixed through Web Audio so
+// the volume can go past what an element allows; video (cameras, screen
 // shares, our own included) goes into the voice store's track registry,
 // which the stage renders. Our presence in the channel — mute, deafen,
 // camera, sharing — is reported to the gateway (VoiceState) once LiveKit
 // is connected, and again on every WebSocket reconnect.
 
 let room: Room | null = null;
-const audioElements = new Map<RemoteTrack, HTMLMediaElement>();
+const audioTracks = new Map<RemoteAudioTrack, HTMLMediaElement>();
 
 // livekit-client is ~300 kB; load it on first use so text-only sessions
 // never fetch it.
@@ -107,22 +110,40 @@ function audioContainer(): HTMLElement {
 
 function attachAudio(track: RemoteTrack) {
   if (track.kind !== "audio") return;
-  const el = track.attach();
-  el.muted = useVoiceStore.getState().deafened;
-  audioElements.set(track, el);
+  const audio = track as RemoteAudioTrack;
+  const el = audio.attach();
+  audioTracks.set(audio, el);
   audioContainer().appendChild(el);
+  audio.setVolume(playbackGain());
 }
 
 function detachAudio(track: RemoteTrack) {
   for (const el of track.detach()) el.remove();
-  audioElements.delete(track);
+  audioTracks.delete(track as RemoteAudioTrack);
 }
 
 function detachAll() {
-  for (const el of audioElements.values()) el.remove();
-  audioElements.clear();
+  for (const el of audioTracks.values()) el.remove();
+  audioTracks.clear();
   useVoiceStore.getState().clearTracks();
 }
+
+// What every remote voice plays at: the chosen volume (api/voiceVolume.ts),
+// or silence while deafened. With the room mixed through Web Audio,
+// LiveKit keeps the <audio> elements themselves muted and plays each
+// track through a gain node, so the gain is the one place both are set
+// (docs/architecture/voice.md → Voice volume).
+function playbackGain(): number {
+  if (useVoiceStore.getState().deafened) return 0;
+  return gainFor(useVoiceVolumeStore.getState().volume);
+}
+
+function applyPlaybackGain() {
+  const gain = playbackGain();
+  for (const track of audioTracks.keys()) track.setVolume(gain);
+}
+
+useVoiceVolumeStore.subscribe(applyPlaybackGain);
 
 // Video tracks go to the registry; the stage attaches them to elements.
 function videoSource(source: Track.Source): "camera" | "screen" | null {
@@ -258,9 +279,12 @@ export async function joinVoice(spaceId: string, channelId: string) {
   // a layer nobody displays isn't sent at all. Cameras capture at 1080p
   // with 360p / 180p simulcast layers for the tile strip; a screen share
   // is 1080p at 15 fps (text, not motion).
+  // webAudioMix: remote audio through an AudioContext and a gain node per
+  // track, which is what lets the volume go past 100% (playbackGain).
   const r = new Room({
     adaptiveStream: true,
     dynacast: true,
+    webAudioMix: true,
     videoCaptureDefaults: { resolution: lk.VideoPresets.h1080.resolution },
     publishDefaults: {
       videoSimulcastLayers: [lk.VideoPresets.h360, lk.VideoPresets.h180],
@@ -450,7 +474,7 @@ export async function toggleDeafen() {
 
 function setDeafenedInternal(deafened: boolean) {
   useVoiceStore.getState().setDeafened(deafened);
-  for (const el of audioElements.values()) el.muted = deafened;
+  applyPlaybackGain();
 }
 
 // After the browser blocked autoplay, resume from a click.

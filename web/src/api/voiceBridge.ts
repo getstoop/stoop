@@ -18,6 +18,7 @@ import {
   toggleScreenShare,
   unmute,
 } from "./voice";
+import { stepVolume } from "./voiceVolume";
 
 // Keeps the desktop shell's strip, popover and tray in step with this
 // page's voice state, and carries out what they ask. A no-op wherever the
@@ -70,7 +71,8 @@ export function startVoiceBridge(
 }
 
 // Each action is a request for a state, not a toggle: a click that arrives
-// after the page already changed must not flip it back.
+// after the page already changed must not flip it back. The volume keys
+// are the exception, one step each.
 function act(
   action: VoiceAction,
   show: (spaceId: string, channelId: string) => void,
@@ -105,6 +107,12 @@ function act(
     // Voice started on another server the shell holds: one call at a time.
     case "leave":
       if (voice.connection) void leaveVoice();
+      break;
+    case "volume-up":
+      stepVolume(1);
+      break;
+    case "volume-down":
+      stepVolume(-1);
       break;
   }
 }

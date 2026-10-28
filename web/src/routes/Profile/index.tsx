@@ -23,6 +23,7 @@ import { ProfileHeader } from "./ProfileHeader";
 import { PushToTalkSection } from "./PushToTalkSection";
 import { SessionsSection } from "./SessionsSection";
 import { VoiceSoundsSection } from "./VoiceSoundsSection";
+import { VolumeKeysSection } from "./VolumeKeysSection";
 
 // Your account, in six sections under one header: who other people see
 // (Profile), how Stoop looks to you (Appearance), what is allowed to
@@ -35,9 +36,10 @@ import { VoiceSoundsSection } from "./VoiceSoundsSection";
 // Inside the desktop app, Appearance and — once the app has its own do not
 // disturb switch — Notifications are set in its App settings and not
 // offered here. That is decided by what the bridge hands over, never by
-// "is this the desktop app". Voice is the exception: it holds only the
-// page's push to talk listener, which never runs inside the desktop app
-// (the app listens for the key itself), so it is hidden by isDesktop().
+// "is this the desktop app". Voice is the exception: it holds the page's
+// own key listeners, push to talk and the volume keys, which the desktop
+// app takes over (it listens from any app itself), so it is hidden by
+// isDesktop().
 
 type Tab =
   | "profile"
@@ -136,6 +138,7 @@ export function ProfilePage() {
       {active === "voice" && (
         <section className="card">
           <PushToTalkSection />
+          <VolumeKeysSection />
         </section>
       )}
       {active === "muted" && <MutesSection />}

@@ -40,11 +40,21 @@ export function HeadphonesIcon({ off = false }: { off?: boolean }) {
   );
 }
 
-export function SpeakerIcon() {
+// The voice channel glyph, and the volume button: `off` at zero,
+// `boosted` past 100%.
+export function SpeakerIcon({
+  off = false,
+  boosted = false,
+}: {
+  off?: boolean;
+  boosted?: boolean;
+}) {
   return (
     <Svg>
       <path d="M4 9v6h4l5 4V5L8 9H4z" />
       <path d="M16 9a4 4 0 0 1 0 6" />
+      {boosted && <path d="M19 6.5a8 8 0 0 1 0 11" />}
+      {off && <path d="M4 4l16 16" />}
     </Svg>
   );
 }
