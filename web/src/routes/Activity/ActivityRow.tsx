@@ -18,8 +18,9 @@ import {
 import { splitPreview } from "./preview";
 
 // One thing that happened to you: who did it, with the kind as a glyph
-// on their avatar; what they did; a two-line preview with your handle
-// lit; and where. Opening it reads it and jumps to the message. `dated`
+// on their avatar; what they did and where, on one line; and a two-line
+// preview with your handle lit. A direct message names no place: the
+// verb already does, and a thread's channel is enough beside its verb. Opening it reads it and jumps to the message. `dated`
 // is for a row with no day divider above it (the New section): its time
 // carries the date once it is more than a day old.
 export function ActivityRow({
@@ -75,6 +76,14 @@ export function ActivityRow({
         <strong>{who}</strong>
         <DeletedMark deleted={item.actor?.deleted} />{" "}
         <span className="activity-verb">{activityVerb(item.kind)}</span>
+        {item.spaceId && (
+          <span className="activity-place">
+            {" · "}
+            {channel ? <ChannelName channel={channel} /> : "…"}
+            {space && (spaces?.length ?? 0) > 1 && ` · ${space.name}`}
+          </span>
+        )}
+        {item.muted && <MutedMark />}
       </span>
       <span
         className="muted small activity-time"
@@ -99,23 +108,6 @@ export function ActivityRow({
       ) : (
         <span className="activity-preview gone">Message deleted</span>
       )}
-      <span className="activity-meta">
-        {item.kind === ActivityKind.DM ? (
-          <span>Direct message</span>
-        ) : (
-          <span>
-            {item.kind === ActivityKind.THREAD_REPLY && "Thread in "}
-            {channel ? <ChannelName channel={channel} /> : "…"}
-          </span>
-        )}
-        {space && (spaces?.length ?? 0) > 1 && (
-          <>
-            <span aria-hidden="true">·</span>
-            <span>{space.name}</span>
-          </>
-        )}
-        {item.muted && <MutedMark />}
-      </span>
     </button>
   );
 }

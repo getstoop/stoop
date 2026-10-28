@@ -11,7 +11,7 @@ import { ActivityRow } from "./ActivityRow";
 
 // The activity inbox: everything that has happened to you, in two
 // sections. New holds what is unread, newest first, with "Mark all read"
-// on its heading; Earlier is the read history under day dividers. The
+// on its heading; Read is the read history under day dividers. The
 // first page comes from the shared cache (so it is the same list the
 // badges are derived from), and older pages load as the list is
 // scrolled to its end. A row that is read moves from one section to the
@@ -88,8 +88,8 @@ export function ActivityPage() {
         )}
 
         {earlier.length > 0 && (
-          <section className="activity-section" aria-label="Earlier">
-            <h2 className="activity-section-head eyebrow">Earlier</h2>
+          <section className="activity-section" aria-label="Read">
+            <h2 className="activity-section-head eyebrow">Read</h2>
             <ul className="activity-list">
               {earlier.map((item, i) => (
                 <Fragment key={item.id}>

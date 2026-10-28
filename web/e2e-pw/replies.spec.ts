@@ -55,7 +55,7 @@ test("replies quote, notify and jump back", async ({ browser }) => {
     "timeline says 'replied to you'",
   ).toContainText(`bea${suffix} replied to you`);
   await expect(
-    A.locator(".activity-row .activity-meta"),
+    A.locator(".activity-row .activity-place"),
     "and where",
   ).toContainText("#general");
   await A.locator(".activity-row.unread").click();

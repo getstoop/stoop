@@ -100,7 +100,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .activity-list .day-divider:not(:first-child) {
@@ -119,9 +119,9 @@
   width: 100%;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 2px 12px;
+  gap: 0 12px;
   align-items: start;
-  padding: 12px;
+  padding: 8px 12px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: none;
@@ -147,7 +147,9 @@
 
 .activity-avatar {
   position: relative;
-  grid-row: span 3;
+  grid-row: span 2;
+  /* off-scale: centres the 40px avatar on two lines of text */
+  margin-top: 1px;
 }
 
 /* The kind, on the avatar's corner. Accent while unread, quiet once
@@ -186,8 +188,24 @@
   line-height: var(--leading-ui);
 }
 
-.activity-verb {
+.activity-verb,
+.activity-place {
   color: var(--text-muted);
+}
+
+.activity-place {
+  white-space: nowrap;
+}
+
+.activity-place .channel-name-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.activity-title .muted-mark {
+  margin-left: 4px;
+  vertical-align: -2px;
 }
 
 .activity-time {
@@ -222,24 +240,4 @@
 .activity-preview.gone {
   color: var(--text-muted);
   font-style: italic;
-}
-
-/* Where: the channel or thread, the space when there is more than one,
-   and the muted bell when the reader silenced the room. */
-.activity-meta {
-  grid-column: 2 / -1;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-  padding-top: 2px;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-.activity-meta .channel-name-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
 }
