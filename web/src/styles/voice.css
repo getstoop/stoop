@@ -135,3 +135,62 @@
 .voice-mic-select > svg {
   right: 6px;
 }
+
+/* The volume button and the panel it opens (components/VoiceVolume.tsx):
+   fixed above the button, as the ⋮ menu is, so the stage bar's pill
+   cannot clip it. */
+.voice-volume-anchor {
+  display: inline-flex;
+  align-items: center;
+}
+
+.voice-actions .icon-button.open {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.voice-volume {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 8px;
+  font-size: var(--text-ui);
+}
+
+.voice-volume-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.voice-volume-head label {
+  font-weight: 600;
+}
+
+.voice-volume-head output {
+  font-variant-numeric: tabular-nums;
+}
+
+.voice-volume-head output.boosted {
+  color: var(--accent);
+}
+
+.voice-volume input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.voice-volume-marks {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.voice-volume > .link {
+  align-self: flex-end;
+  font-size: var(--text-xs);
+}

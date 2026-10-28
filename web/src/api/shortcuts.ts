@@ -2,7 +2,12 @@
 // (docs/architecture/web.md → Keyboard shortcuts). Keys a field owns
 // while it has focus stay with the field.
 
-export type ShortcutId = "toggleMute" | "toggleDeafen" | "stageFullscreen";
+export type ShortcutId =
+  | "toggleMute"
+  | "toggleDeafen"
+  | "volumeUp"
+  | "volumeDown"
+  | "stageFullscreen";
 
 export interface Binding {
   // KeyboardEvent.key, lower case.
@@ -17,8 +22,15 @@ export interface Binding {
 export const BINDINGS: Record<ShortcutId, Binding> = {
   toggleMute: { key: "m", mod: true, shift: true, whileTyping: true },
   toggleDeafen: { key: "d", mod: true, shift: true, whileTyping: true },
+  // One step of the call's volume each (api/voiceVolume.ts). Ctrl on
+  // every platform where the desktop shell holds them, so the label says
+  // Ctrl; in a browser Cmd matches too, as for every modified key.
+  volumeUp: { key: "arrowup", mod: true, shift: true, whileTyping: true },
+  volumeDown: { key: "arrowdown", mod: true, shift: true, whileTyping: true },
   stageFullscreen: { key: "f" },
 };
+
+export const VOLUME_KEYS_LABEL = "Ctrl+Shift+↑ and Ctrl+Shift+↓";
 
 export interface KeyPress {
   key: string;

@@ -3,10 +3,16 @@ import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { type ActivityData, alertingCount } from "../api/activity";
 import { captureState, isCapturing, tabTitle } from "../api/capture";
-import { isDesktop, setBadge, shellOwnsVoiceKeys } from "../api/platform";
+import {
+  isDesktop,
+  setBadge,
+  shellOwnsVoiceKeys,
+  shellOwnsVolumeKeys,
+} from "../api/platform";
 import { usePushToTalkStore } from "../api/pushToTalk";
 import { useInstanceStatus } from "../api/queries";
 import { toggleDeafen, toggleMute } from "../api/voice";
+import { stepVolume, useVoiceVolumeStore } from "../api/voiceVolume";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
@@ -31,6 +37,12 @@ export function Root() {
   const pushToTalk = usePushToTalkStore((s) => s.enabled) && !isDesktop();
   const inCall = useVoiceStore((s) => !!s.connection);
   usePushToTalk(pushToTalk && inCall);
+  // The volume keys, while Account → Voice has them on; the shell holds
+  // them itself from any app once it speaks bridge 6.
+  const volumeKeys =
+    useVoiceVolumeStore((s) => s.keys) && !shellOwnsVolumeKeys();
+  useShortcut("volumeUp", () => stepVolume(1), inCall && volumeKeys);
+  useShortcut("volumeDown", () => stepVolume(-1), inCall && volumeKeys);
   // index.html's static <title>Stoop</title> is the pre-paint fallback;
   // this takes over once the instance status has loaded, everywhere in
   // the app. It watches the cache rather than useInstanceStatus's data:

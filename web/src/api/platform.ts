@@ -38,7 +38,11 @@ export type VoiceAction =
   | "camera-on"
   | "camera-off"
   | "stop-screen"
-  | "leave";
+  | "leave"
+  // Bridge 6. One step of the call's volume each, not a state: the shell
+  // cannot know the page's level, and a held key keeps stepping.
+  | "volume-up"
+  | "volume-down";
 
 export interface StoopBridge {
   bridge: number;
@@ -177,6 +181,12 @@ export function shellDrawsVoice(): boolean {
 // they work from any server it has open; the page gives them up.
 export function shellOwnsVoiceKeys(): boolean {
   return (bridge()?.bridge ?? 0) >= 4;
+}
+
+// Bridge 6. The shell's Voice menu holds the volume keys too, from any
+// app; the page gives them up.
+export function shellOwnsVolumeKeys(): boolean {
+  return (bridge()?.bridge ?? 0) >= 6;
 }
 
 export function reportVoice(report: VoiceReport | null) {
