@@ -8,7 +8,7 @@ import {
 import { ReactionSchema } from "../gen/stoop/chat/v1/reaction_pb";
 import { SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
 import type { ChannelHeader } from "./channelHeader";
-import { channelItems, threadItems } from "./channelLog";
+import { channelItems, LOG_CAP, threadItems } from "./channelLog";
 import {
   CHANNEL,
   changes,
@@ -151,6 +151,179 @@ describe("older pages", () => {
         type: "pageFailed",
       }).loadingOlder,
     ).toBe(false);
+  });
+});
+
+describe("jumping", () => {
+  const ready = run([opened(0)]);
+
+  it("replaces the range with the page around a message and lands on it", () => {
+    const away = screenReducer(ready, {
+      type: "jumped",
+      generation: ready.log.channel.generation,
+      res: page(rows(20, 70), { hasNewer: true }),
+      landOn: { id: id(45) },
+    });
+    expect(shown(away)).toEqual(ids(rows(20, 70)));
+    expect(away.log.channel.hasNewer).toBe(true);
+    expect(away.log.channel.generation).toBe(ready.log.channel.generation + 1);
+    expect(away.landOn).toEqual({ id: id(45) });
+    expect(away.header).toBe(ready.header);
+  });
+
+  it("drops a jump answered under a stale generation", () => {
+    const late = screenReducer(ready, {
+      type: "jumped",
+      generation: 0,
+      res: page(rows(20, 70), { hasNewer: true }),
+      landOn: { id: id(45) },
+    });
+    expect(late).toBe(ready);
+  });
+
+  it("opens at a message when the first page is the one around it", () => {
+    const state = run([
+      {
+        type: "opened",
+        generation: 0,
+        header: header(),
+        token: "t1",
+        res: page(rows(20, 70), { hasNewer: true, channelSeq: 70 }),
+        landOn: { id: id(45) },
+      },
+    ]);
+    expect(shown(state)).toEqual(ids(rows(20, 70)));
+    expect(state.landOn).toEqual({ id: id(45) });
+    expect(state.log.channel.hasNewer).toBe(true);
+  });
+
+  it("lands without a page, and landing clears it", () => {
+    const landing = screenReducer(ready, { type: "land", landOn: "bottom" });
+    expect(landing.landOn).toBe("bottom");
+    const done = screenReducer(landing, { type: "landed" });
+    expect(done.landOn).toBeNull();
+    expect(screenReducer(done, { type: "landed" })).toBe(done);
+  });
+});
+
+describe("newer pages", () => {
+  const away = screenReducer(run([opened(0)]), {
+    type: "jumped",
+    generation: 1,
+    res: page(rows(20, 70), { hasNewer: true }),
+    landOn: { id: id(45) },
+  });
+
+  it("grows the newest edge, and at the newest row the channel is live again", () => {
+    const paging = screenReducer(away, { type: "pagingNewer" });
+    expect(paging.loadingNewer).toBe(true);
+    const grown = screenReducer(paging, {
+      type: "pagedNewer",
+      generation: away.log.channel.generation,
+      res: page(rows(70, 100), { hasNewer: false }),
+    });
+    expect(grown.loadingNewer).toBe(false);
+    expect(shown(grown)).toEqual(ids(rows(20, 100)));
+    expect(grown.log.channel.hasNewer).toBe(false);
+    expect(grown.log.channel.hasOlder).toBe(true);
+  });
+
+  it("drops a page asked for under an older generation, and a failure only stops the loading", () => {
+    const stale = screenReducer(screenReducer(away, { type: "pagingNewer" }), {
+      type: "pagedNewer",
+      generation: 0,
+      res: page(rows(70, 100), { hasNewer: false }),
+    });
+    expect(stale.loadingNewer).toBe(false);
+    expect(shown(stale)).toEqual(shown(away));
+    expect(stale.log.channel.hasNewer).toBe(true);
+    const failed = screenReducer(screenReducer(away, { type: "pagingNewer" }), {
+      type: "newerFailed",
+    });
+    expect(failed.loadingNewer).toBe(false);
+    expect(shown(failed)).toEqual(shown(away));
+  });
+});
+
+describe("landing", () => {
+  it("keeps a landing owed through an open that carries none", () => {
+    const owed = run([{ type: "land", landOn: { id: id(5) } }]);
+    expect(screenReducer(owed, opened(0)).landOn).toEqual({ id: id(5) });
+  });
+
+  it("refuses a jump or a landing once the channel is gone or ended", () => {
+    const gone = run([
+      {
+        type: "event",
+        event: event({ case: "channelDeleted", value: { channelId: CHANNEL } }),
+      },
+    ]);
+    const ended = run([{ type: "failed", outcome: "ended" }]);
+    for (const state of [gone, ended]) {
+      expect(screenReducer(state, { type: "land", landOn: "bottom" })).toBe(
+        state,
+      );
+      expect(
+        screenReducer(state, {
+          type: "jumped",
+          generation: state.log.channel.generation,
+          res: page(rows(20, 70), { hasNewer: true }),
+          landOn: "bottom",
+        }),
+      ).toBe(state);
+    }
+  });
+});
+
+describe("arrivals beyond the range", () => {
+  it("holds an arrival for the pill, shown once a newer page reaches the newest row", () => {
+    const away = screenReducer(run([opened(0)]), {
+      type: "jumped",
+      generation: 1,
+      res: page(rows(20, 70), { hasNewer: true }),
+      landOn: { id: id(45) },
+    });
+    const counted = screenReducer(away, {
+      type: "event",
+      event: event({
+        case: "messageCreated",
+        value: message(id(300), { seq: 11n }),
+      }),
+    });
+    expect(counted.log.channel.pendingNewer).toBe(1);
+    expect(shown(counted)).toEqual(shown(away));
+    const back = screenReducer(counted, {
+      type: "pagedNewer",
+      generation: counted.log.channel.generation,
+      res: page(rows(70, 100), { hasNewer: false }),
+    });
+    expect(back.log.channel.pendingNewer).toBe(0);
+    expect(back.log.channel.hasNewer).toBe(false);
+    expect(shown(back)).toEqual([...ids(rows(20, 100)), id(300)]);
+  });
+});
+
+describe("the cap", () => {
+  it("pages older past the cap by letting the newest end go", () => {
+    const full = run([
+      {
+        type: "opened",
+        generation: 0,
+        header: header(),
+        token: "t1",
+        res: page(rows(1000, 2990), { hasOlder: true, channelSeq: 1990 }),
+      },
+    ]);
+    const over = screenReducer(screenReducer(full, { type: "pagingOlder" }), {
+      type: "paged",
+      generation: full.log.channel.generation,
+      res: page(rows(900, 1000), { hasOlder: true }),
+    });
+    expect(shown(over)).toHaveLength(LOG_CAP);
+    expect(shown(over)[0]).toBe(id(900));
+    expect(over.log.channel.hasNewer).toBe(true);
+    expect(over.log.channel.hasOlder).toBe(true);
+    expect(over.loadingOlder).toBe(false);
   });
 });
 

@@ -43,7 +43,10 @@ import { type SearchState, useSearch } from "./useSearch";
 // the end asks for the older page while the server has one (a page that
 // failed is offered again under the list), and a new search drops the
 // older pages (useSearch). A tap on a row opens the message's channel
-// with `focus` naming the message; the channel doesn't act on it yet.
+// with `focus` naming the message, which the channel opens around and
+// lands on (screens/Channel); for the channel under this screen a
+// dismiss to it updates the `focus` param on the screen already
+// mounted, and the channel jumps once per value.
 // With nothing searched the hint says what the query takes; a search
 // that found nothing says so, and offers the whole space when it was
 // narrowed to a channel; a refusal is said in the server's words, or

@@ -31,6 +31,7 @@ import { searchItem } from "../Channel/searchItem";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
+import { useFlash } from "../Channel/useFlash";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
 import MuteButton from "./MuteButton";
@@ -48,8 +49,9 @@ import ThreadTitle from "./ThreadTitle";
 // line above the replies the reader hadn't read (the root's unread
 // count, as the server gave it when the thread opened) and marks the
 // thread read while it is on screen with the app open, again for each
-// new reply; opened from a reply also sent to the channel (`focusId`),
-// it lands on that reply instead, when it is among the replies loaded.
+// new reply; opened on a reply (`focusId`: one also sent to the channel,
+// or one the channel was opened at), it lands on that reply instead,
+// ringed for a moment (useFlash), when it is among the replies loaded.
 // The composer replies in the thread, and to the channel as well when
 // asked (Composer `inThread`); a deleted root or an announcement channel
 // takes no replies, and a line says so in its place, as on web (with no
@@ -97,6 +99,7 @@ export default function Thread({
   const [active, setActive] = useState(AppState.currentState === "active");
   const list = useRef<FlatList<GroupedRow>>(null);
   const landed = useRef(false);
+  const { flashId, flash } = useFlash();
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
@@ -146,16 +149,20 @@ export default function Thread({
     () => (decided ? threadRows(replies, firstNew ?? undefined).reverse() : []),
     [decided, replies, firstNew],
   );
+  // The latest rows, for a scroll retried after they may have shifted.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
-  // Opening lands on the reply it was opened on, or else the "New" line,
-  // once.
+  // Opening lands on the reply it was opened on, ringed for a moment, or
+  // else the "New" line, once.
   const focusIndex = focusId ? rows.findIndex((row) => row.kind === "message" && row.message.id === focusId) : -1;
   const landIndex = focusIndex >= 0 ? focusIndex : rows.findIndex((row) => row.kind === "new");
   useEffect(() => {
     if (landed.current || rows.length === 0) return;
     landed.current = true;
     if (landIndex > 0) list.current?.scrollToIndex({ index: landIndex, viewPosition: 0.5, animated: false });
-  }, [rows.length, landIndex]);
+    if (focusId && focusIndex >= 0) flash(focusId);
+  }, [rows.length, landIndex, focusId, focusIndex, flash]);
 
   const shown = useMemo(() => (root ? [root, ...replies] : replies), [root, replies]);
   // Why the thread takes no replies, if it doesn't: then there is no
@@ -326,7 +333,7 @@ export default function Thread({
                     token={token}
                     onLongPress={actions.openMenu}
                     onReact={actions.reactTo}
-                    target={actions.targetOf(item.message)}
+                    target={actions.targetOf(item.message) ?? (item.message.id === flashId ? "focus" : undefined)}
                     alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
                     withDay
                   />
@@ -337,9 +344,15 @@ export default function Thread({
               onEndReached={() => engine.olderReplies(rootId)}
               onEndReachedThreshold={0.5}
               onScrollToIndexFailed={({ index }) => {
-                // Rows not measured yet: get near, then try again once drawn.
+                // Rows not measured yet: get near, then try again once drawn,
+                // for the same row, since a reply arriving may have moved it
+                // meanwhile (as the channel's does).
+                const key = rowsRef.current[index]?.key;
                 list.current?.scrollToOffset({ offset: index * 60, animated: false });
-                setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+                setTimeout(() => {
+                  const again = rowsRef.current.findIndex((row) => row.key === key);
+                  if (again >= 0) list.current?.scrollToIndex({ index: again, viewPosition: 0.5, animated: false });
+                }, 100);
               }}
               // As the channel's: scrolling leaves the keyboard in place.
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}

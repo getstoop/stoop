@@ -19,6 +19,7 @@ import {
   closedThread,
   emptyLog,
   FROM_ANSWER,
+  jumped,
   opened,
   paged,
   reconnected,
@@ -38,6 +39,11 @@ import { mutedOverlay, namesMe, viewerHalfAfter } from "./threadUnread";
 
 // Why the channel can't be shown.
 export type Outcome = "ended" | "gone" | "failed";
+
+// Where the channel's list lands once it has rendered, after a range
+// replaced or a jump to a row it holds: on a row, or at the newest end.
+// Cleared by the list through `landed` (web's ViewStatus.landOn).
+export type Landing = { id: string } | "bottom";
 
 // A thread a screen shows over the channel, by its root's id: held from
 // the screen's opening it to its closing, so a page that lands for a
@@ -63,6 +69,10 @@ export type ChannelScreen = {
   // the marker moves; null for no "New" line.
   newAfter: string | null;
   loadingOlder: boolean;
+  // A page beyond the newest edge is out: only while the channel's range
+  // stops short of the newest row (hasNewer).
+  loadingNewer: boolean;
+  landOn: Landing | null;
   threads: Record<string, ThreadScreen>;
   // The last thread opening's epoch.
   threadEpoch: number;
@@ -72,16 +82,19 @@ export type ChannelScreen = {
 };
 
 export type ScreenAction =
-  // The newest page with the header: opening, or opening again after a
-  // failure or a reconnect that found the screen still loading. Under the
-  // channel view's generation when it was asked for: an answer from
-  // before a later open replaced the range is dropped, header and all.
+  // The first page with the header: opening, or opening again after a
+  // failure or a reconnect that found the screen still loading. The
+  // newest page, or the page around a message the screen opens at, which
+  // then says where to land. Under the channel view's generation when it
+  // was asked for: an answer from before a later open replaced the range
+  // is dropped, header and all.
   | {
       type: "opened";
       header: ChannelHeader;
       res: ListMessagesResponse;
       token: string;
       generation: number;
+      landOn?: Landing;
     }
   // The header fetched again after a reconnect.
   | { type: "header"; header: ChannelHeader }
@@ -92,6 +105,28 @@ export type ScreenAction =
   // one for a range since replaced.
   | { type: "paged"; res: ListMessagesResponse; generation: number }
   | { type: "pageFailed" }
+  // The page beyond the newest edge of a range that stops short of the
+  // newest row, the same way: it grows the range and, at the newest row,
+  // the channel is live again.
+  | { type: "pagingNewer" }
+  | { type: "pagedNewer"; res: ListMessagesResponse; generation: number }
+  | { type: "newerFailed" }
+  // A page that replaces the channel's range once open (channelLog
+  // jumped): the page around a message jumped to, or the newest page
+  // again from a range that stopped short of it. Under the view's
+  // generation when it was asked for, as a page is; the list then lands
+  // where it says.
+  | {
+      type: "jumped";
+      res: ListMessagesResponse;
+      generation: number;
+      landOn: Landing;
+    }
+  // A landing with no page: on a row the range holds already, or at the
+  // newest end of a range that reaches it.
+  | { type: "land"; landOn: Landing }
+  // The list has landed.
+  | { type: "landed" }
   | { type: "event"; event: ServerEvent }
   | { type: "caughtUp"; res: ListChangesResponse }
   // A view's newest page asked for again after a reconnect's catch-up, or
@@ -162,6 +197,8 @@ export const emptyScreen = (channelId: string): ChannelScreen => ({
   token: "",
   newAfter: null,
   loadingOlder: false,
+  loadingNewer: false,
+  landOn: null,
   threads: {},
   threadEpoch: 0,
   namedIn: {},
@@ -189,6 +226,7 @@ export function screenReducer(
         newAfter: state.header
           ? state.newAfter
           : action.header.channel.lastReadMessageId,
+        landOn: action.landOn ?? state.landOn,
       };
     case "header":
       return state.header ? { ...state, header: action.header } : state;
@@ -211,6 +249,35 @@ export function screenReducer(
       };
     case "pageFailed":
       return { ...state, loadingOlder: false };
+    case "pagingNewer":
+      return { ...state, loadingNewer: true };
+    case "pagedNewer":
+      return {
+        ...state,
+        log: paged(state.log, "newer", {
+          generation: action.generation,
+          res: action.res,
+        }),
+        loadingNewer: false,
+      };
+    case "newerFailed":
+      return { ...state, loadingNewer: false };
+    case "jumped":
+      if (state.outcome === "gone" || state.outcome === "ended") return state;
+      if (action.generation !== state.log.channel.generation) return state;
+      return {
+        ...state,
+        log: jumped(state.log, {
+          generation: action.generation,
+          res: action.res,
+        }),
+        landOn: action.landOn,
+      };
+    case "land":
+      if (state.outcome === "gone" || state.outcome === "ended") return state;
+      return { ...state, landOn: action.landOn };
+    case "landed":
+      return state.landOn === null ? state : { ...state, landOn: null };
     case "event": {
       if (loses(state, action.event)) return { ...state, outcome: "gone" };
       const { header } = state;

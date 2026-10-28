@@ -80,7 +80,36 @@ import a screen; the screens themselves live in `src/screens`, so
   (`ScrollViewMarker`), which on an upside-down list dims the whole
   list. A round button of the same surface over the composer's right end
   (`JumpToLatest.tsx`) fades in once the reader has scrolled away from
-  the newest message and takes them back to it. Scrolling the list leaves
+  the newest message and takes them back to it; while the page shown
+  stops short of the newest message (below) it stays, and reloads the
+  newest page. Opened at a message (`?focus=`, the search's row, or a
+  link), the channel opens on the page around it (`ListMessages`
+  `around_id`, through `channelEngine` `jumpTo`; a channel already
+  open under the search jumps there without opening again, and a row
+  the log holds and shows needs no request), scrolled to the middle and
+  ringed in the accent for a moment and a half (`useFlash.ts`; the row
+  is labelled "Found message"), with no landing on the "New" line; a
+  reply that shows only in its thread lands on its root and pushes the
+  thread on the reply, which lands on it and rings it the same way when
+  it is among the replies loaded (the thread item below), and a message
+  the server no longer has (deleted, a stale link) opens the newest page
+  and says "Couldn't find that message" over the composer (one the
+  server couldn't be asked about, "Couldn't open that message"; a jump
+  a later one takes the place of says nothing). From such a page the
+  range stops short of the newest message: scrolling down loads the
+  page after it (`afterId`, `onStartReached` on the upside-down list,
+  with the rows in view kept in place; the list's snap to its newest
+  edge is off the while, and no newer page is asked for while a landing
+  is owed, since the list reports that edge reached as a replaced range
+  lays out, before the landing scroll), nothing is marked read, what
+  arrives is held for the pill rather than shown (`core/channelLog`
+  `pendingNewer`), and the pill, or the
+  reader's own send (as web's composer does, so they see it), reloads
+  the newest page in the range's place and lands at the bottom. Any
+  thread screen sharing the log keeps its own range. A result in the
+  channel under the search dismisses to that screen with the new
+  `focus`, which it jumps to once per value, without mounting again.
+  Scrolling the list leaves
   the keyboard and the card in place; on iOS a drag down into the
   keyboard puts it away (the card follows the keyboard's hide event,
   which comes at the end of that drag; tracking the finger needs
@@ -436,8 +465,8 @@ import a screen; the screens themselves live in `src/screens`, so
   for the page before the last match while the server says there is one
   (`beforeId`), a page that failed is said under the list with a tap to
   ask again, and a new search drops the older pages. A tap pushes the message's channel with `?focus=` naming
-  the message; the channel doesn't act on it yet (opening around it is
-  a follow-up). A refusal is said in the server's words, the rate limit
+  the message, which opens around it (the composer item above). A
+  refusal is said in the server's words, the rate limit
   and the timeout in core's (`SEARCH_REFUSALS`).
 - A message's links get the cards the server fetched for them
   (`link_previews`), under its words and files, in the channel and the
@@ -495,10 +524,11 @@ event whose seq is not the next one marks a gap, and after a gap or a
 reconnect the screen asks `ListChanges` from the position it holds,
 page after page while the server has more, instead of fetching what it
 holds again; rows below the server's retention floor go unless pinned.
-The log holds at most 2,000 rows, and paging older past that would drop
-the newest, the edge the screen keeps live, so the screen's history ends
-a page short of the cap and says so (web has a pill back to the newest
-edge; the screen has none yet).
+The log holds at most 2,000 rows: the channel paging older past that
+drops the newest, so the range stops short of the newest message and
+the pill brings the reader back (above); a thread paging older past it
+would drop the newest replies, the edge its screen keeps live with no
+pill yet, so a thread's history ends a page short of the cap.
 The header's rules (a rename, the member count, the events that mean the
 channel is gone) are `core/channelHeader.ts`, and the screen's state
 over both (the header, why the channel can't be shown, the "New" line's

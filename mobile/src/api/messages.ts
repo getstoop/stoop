@@ -1,3 +1,4 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import type { ChannelHeader } from "@stoop/core/channelHeader";
 import { linkableChannels } from "@stoop/core/mentions";
 import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
@@ -56,18 +57,28 @@ export async function loadHeader(
   };
 }
 
-// The header and the newest page together, for opening.
+// The header and the first page together, for opening: the newest page,
+// or the page around aroundId when the screen opens at a message. A
+// message the server has no row for in the channel (deleted, or a stale
+// link) is no reason to call the channel gone: the newest page is loaded
+// instead, and `found` says so.
 export async function loadChannel(
   origin: string,
   token: string,
   spaceId: string,
   channelId: string,
-): Promise<{ header: ChannelHeader; page: ListMessagesResponse }> {
-  const [header, page] = await Promise.all([
-    loadHeader(origin, token, spaceId, channelId),
-    chatClient(origin, token).listMessages({ channelId, limit: PAGE }, { timeoutMs: TIMEOUT_MS }),
-  ]);
-  return { header, page };
+  aroundId = "",
+): Promise<{ header: ChannelHeader; page: ListMessagesResponse; found: boolean }> {
+  let found = true;
+  const firstPage = aroundId
+    ? loadAround(origin, token, channelId, aroundId, PAGE).catch((err) => {
+        if (!(err instanceof ConnectError && err.code === Code.NotFound)) throw err;
+        found = false;
+        return loadPage(origin, token, channelId);
+      })
+    : loadPage(origin, token, channelId);
+  const [header, page] = await Promise.all([loadHeader(origin, token, spaceId, channelId), firstPage]);
+  return { header, page, found };
 }
 
 // The page before the oldest message held.
@@ -78,6 +89,17 @@ export function loadOlder(
   beforeId: string,
 ): Promise<ListMessagesResponse> {
   return chatClient(origin, token).listMessages({ channelId, beforeId, limit: PAGE }, { timeoutMs: TIMEOUT_MS });
+}
+
+// The page after the newest message held, for a range that stops short
+// of the newest row.
+export function loadNewer(
+  origin: string,
+  token: string,
+  channelId: string,
+  afterId: string,
+): Promise<ListMessagesResponse> {
+  return chatClient(origin, token).listMessages({ channelId, afterId, limit: PAGE }, { timeoutMs: TIMEOUT_MS });
 }
 
 // A thread's replies: its newest page, or the page before beforeId. The
@@ -95,21 +117,26 @@ export function loadReplies(
   );
 }
 
-// The channel's newest page, asked for again after a reconnect.
+// The channel's newest page: on opening, asked for again after a
+// reconnect, or back from a range that stopped short of it.
 export function loadPage(origin: string, token: string, channelId: string): Promise<ListMessagesResponse> {
   return chatClient(origin, token).listMessages({ channelId, limit: PAGE }, { timeoutMs: TIMEOUT_MS });
 }
 
-// The page of one around a message: a thread's root, which a thread's
-// own pages never list.
+// The page around a message, which is among its rows: of one for a
+// thread's root, which a thread's own pages never list; of PAGE for a
+// jump to the message. A reply that shows only in its thread centres the
+// page on its root, and the answer's threadRootId names the thread. The
+// server answers NotFound for a message not in the channel.
 export function loadAround(
   origin: string,
   token: string,
   channelId: string,
   messageId: string,
+  limit = 1,
 ): Promise<ListMessagesResponse> {
   return chatClient(origin, token).listMessages(
-    { channelId, aroundId: messageId, limit: 1 },
+    { channelId, aroundId: messageId, limit },
     { timeoutMs: TIMEOUT_MS },
   );
 }
