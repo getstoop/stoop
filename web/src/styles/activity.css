@@ -169,8 +169,9 @@
   margin-top: 1px;
 }
 
-/* The kind, on the avatar's corner. Accent while unread, quiet once
-   read; the ring is the row's own background so it reads as a cut-out. */
+/* The kind, on the avatar's corner. The badge red while unread, like
+   the rail and channel badges, quiet once read; the ring is the row's
+   own background so it reads as a cut-out. */
 .activity-kind {
   position: absolute;
   right: -4px;
@@ -195,7 +196,7 @@
 }
 
 .activity-row.unread .activity-kind {
-  background: var(--accent);
+  background: var(--danger);
   color: var(--on-accent);
 }
 
