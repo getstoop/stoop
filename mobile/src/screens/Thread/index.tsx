@@ -149,6 +149,9 @@ export default function Thread({
     () => (decided ? threadRows(replies, firstNew ?? undefined).reverse() : []),
     [decided, replies, firstNew],
   );
+  // The latest rows, for a scroll retried after they may have shifted.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   // Opening lands on the reply it was opened on, ringed for a moment, or
   // else the "New" line, once.
@@ -341,9 +344,15 @@ export default function Thread({
               onEndReached={() => engine.olderReplies(rootId)}
               onEndReachedThreshold={0.5}
               onScrollToIndexFailed={({ index }) => {
-                // Rows not measured yet: get near, then try again once drawn.
+                // Rows not measured yet: get near, then try again once drawn,
+                // for the same row, since a reply arriving may have moved it
+                // meanwhile (as the channel's does).
+                const key = rowsRef.current[index]?.key;
                 list.current?.scrollToOffset({ offset: index * 60, animated: false });
-                setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+                setTimeout(() => {
+                  const again = rowsRef.current.findIndex((row) => row.key === key);
+                  if (again >= 0) list.current?.scrollToIndex({ index: again, viewPosition: 0.5, animated: false });
+                }, 100);
               }}
               // As the channel's: scrolling leaves the keyboard in place.
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}

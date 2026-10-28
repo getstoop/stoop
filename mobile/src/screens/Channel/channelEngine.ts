@@ -92,10 +92,16 @@ const ended = (err: unknown) => err instanceof ConnectError && err.code === Code
 // to the latest message reloads it (jumpToLatest).
 export const olderFits = (log: ChannelLog, rootId: string) => threadItems(log, rootId).length + PAGE <= LOG_CAP;
 
-// Where a jump landed: whether the message was there to land on, and the
-// thread to open on it when it is a reply that shows only there (the
-// channel lands on its root).
-export type JumpResult = { found: boolean; threadRootId?: string };
+// Where a jump landed: on the message (or on its root, naming the thread
+// to open on it, for a reply that shows only there), or not: missing
+// (the server has no row for it in the channel), failed (the ask didn't
+// reach the server), or superseded (a later jump, or a range replaced
+// under it, took its place: nothing to say).
+export type JumpResult = {
+  outcome: "found" | "missing" | "failed" | "superseded";
+  threadRootId?: string;
+};
+const SUPERSEDED: JumpResult = { outcome: "superseded" };
 
 // A jump asked for before the channel's header: the first page is asked
 // for around it instead, and the answer is this jump's.
@@ -295,7 +301,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       // is made now, the header being there.
       const pending = mine.focus;
       mine.focus = null;
-      if (pending && pending === focus) pending.resolve({ found, threadRootId });
+      if (pending && pending === focus) pending.resolve({ outcome: found ? "found" : "missing", threadRootId });
       else if (pending) void jumpOnce(pending.id).then(pending.resolve);
     } catch (err) {
       if (!stale()) dispatch({ type: "failed", outcome: outcomeOf(err) });
@@ -306,28 +312,29 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   // where the range holds and shows it, with no request; otherwise the
   // page around it replaces the range (core/channelScreen `jumped`),
   // unless a later jump replaced it first. A message the server has no
-  // row for in the channel is not found; a failure to ask is the same to
-  // the caller, and one that means the sign-in has ended shows as such.
+  // row for in the channel is missing; a failure to ask is failed, and
+  // one that means the sign-in has ended shows as such.
   async function jumpOnce(messageId: string): Promise<JumpResult> {
     const mine = life;
     const { log } = state;
     const row = log.rows.get(messageId);
     if (row && isShown(row) && showsInChannel(row) && inRange(log.channel, messageId)) {
       dispatch({ type: "land", landOn: { id: messageId } });
-      return { found: true };
+      return { outcome: "found" };
     }
     const generation = log.channel.generation;
     let res: ListMessagesResponse;
     try {
       res = await loadAround(server.origin, await token(), channelId, messageId, PAGE);
     } catch (err) {
-      if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
-      return { found: false };
+      if (mine.ended) return SUPERSEDED;
+      if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+      return { outcome: notFound(err) ? "missing" : "failed" };
     }
-    if (mine.ended || state.log.channel.generation !== generation) return { found: false };
+    if (mine.ended || state.log.channel.generation !== generation) return SUPERSEDED;
     const threadRootId = res.threadRootId || undefined;
     dispatch({ type: "jumped", res, generation, landOn: { id: threadRootId ?? messageId } });
-    return { found: true, threadRootId };
+    return { outcome: "found", threadRootId };
   }
 
   // After a reconnect the header's facts may have changed too (a rename,
@@ -513,7 +520,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   function stop() {
     life.ended = true;
     life.wake?.();
-    life.focus?.resolve({ found: false });
+    life.focus?.resolve(SUPERSEDED);
     life.focus = null;
     unlisten?.();
     unlisten = null;
@@ -586,11 +593,13 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
 
     // The page below the newest message held, while the range stops short
     // of the newest row, the same way; past the cap the oldest end goes.
+    // Not while a landing is owed: the list reports its newest edge
+    // reached as a replaced range lays out, before the landing scroll.
     async newer() {
       const mine = life;
-      const { log, token, loadingNewer } = state;
+      const { log, token, loadingNewer, landOn } = state;
       const view = log.channel;
-      if (loadingNewer || !token || !view.hasNewer || !view.newestId) return;
+      if (loadingNewer || landOn !== null || !token || !view.hasNewer || !view.newestId) return;
       dispatch({ type: "pagingNewer" });
       try {
         const res = await loadNewer(server.origin, token, channelId, view.newestId);
@@ -602,15 +611,16 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
 
     // The channel landed on a message (jumpOnce): on the row it holds, or
     // on the page around it. Before the header the open out asks for that
-    // page instead, and this answers with it; once the log has gone, with
-    // nothing found. Lands on the root of a reply that shows only in its
-    // thread, and names the thread for the caller to open on the reply.
+    // page instead, and this answers with it; once the log has gone, or
+    // when a later jump takes its place, as superseded. Lands on the root
+    // of a reply that shows only in its thread, and names the thread for
+    // the caller to open on the reply.
     jumpTo(messageId: string): Promise<JumpResult> {
       const mine = life;
-      if (mine.ended) return Promise.resolve({ found: false });
+      if (mine.ended) return Promise.resolve(SUPERSEDED);
       if (state.header) return jumpOnce(messageId);
       return new Promise((resolve) => {
-        mine.focus?.resolve({ found: false });
+        mine.focus?.resolve(SUPERSEDED);
         mine.focus = { id: messageId, resolve };
       });
     },

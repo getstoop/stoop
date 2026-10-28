@@ -90,15 +90,20 @@ import a screen; the screens themselves live in `src/screens`, so
   ringed in the accent for a moment and a half (`useFlash.ts`; the row
   is labelled "Found message"), with no landing on the "New" line; a
   reply that shows only in its thread lands on its root and pushes the
-  thread on the reply, which it rings the same way, and a message the
-  server no longer has (deleted, a stale link) opens the newest page and
-  says "Couldn't find that message" over the composer. From such a page
-  the range stops short of the newest message: scrolling down loads the
+  thread on the reply, which lands on it and rings it the same way when
+  it is among the replies loaded (the thread item below), and a message
+  the server no longer has (deleted, a stale link) opens the newest page
+  and says "Couldn't find that message" over the composer (one the
+  server couldn't be asked about, "Couldn't open that message"; a jump
+  a later one takes the place of says nothing). From such a page the
+  range stops short of the newest message: scrolling down loads the
   page after it (`afterId`, `onStartReached` on the upside-down list,
   with the rows in view kept in place; the list's snap to its newest
-  edge is off the while, so a page landing there doesn't ask for the
-  next), nothing is marked read, what arrives counts on the pill rather
-  than showing (`core/channelLog` `pendingNewer`), and the pill, or the
+  edge is off the while, and no newer page is asked for while a landing
+  is owed, since the list reports that edge reached as a replaced range
+  lays out, before the landing scroll), nothing is marked read, what
+  arrives is held for the pill rather than shown (`core/channelLog`
+  `pendingNewer`), and the pill, or the
   reader's own send (as web's composer does, so they see it), reloads
   the newest page in the range's place and lands at the bottom. Any
   thread screen sharing the log keeps its own range. A result in the

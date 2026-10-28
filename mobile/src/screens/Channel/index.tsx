@@ -47,7 +47,7 @@ import { useMessageActions } from "./useMessageActions";
 // root for a reply that shows only in its thread, which is pushed on the
 // reply; from there the range stops short of the newest message: newer
 // pages load as the reader scrolls down, nothing is marked read, what
-// arrives counts on the pill rather than showing, and the pill (shown
+// arrives is held for the pill rather than shown, and the pill (shown
 // the while) or the reader's own send reloads the newest page and lands
 // at the bottom. The composer floats over the
 // bottom of the list and rides up with the keyboard; what it sends
@@ -190,6 +190,9 @@ export default function Channel({
     () => (header ? groupedRows(messages, newAfter, header.myUserId).reverse() : []),
     [messages, newAfter, header],
   );
+  // The latest rows, for a scroll retried after they may have shifted.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const actions = useMessageActions({
     scope: channelId,
     shown: messages,
@@ -210,9 +213,10 @@ export default function Channel({
   useEffect(() => {
     if (!focusId || (jumped.current?.engine === engine && jumped.current.id === focusId)) return;
     jumped.current = { engine, id: focusId };
-    void engine.jumpTo(focusId).then(({ found, threadRootId }) => {
+    void engine.jumpTo(focusId).then(({ outcome, threadRootId }) => {
       if (!alive.current) return;
-      if (!found) notify("Couldn't find that message");
+      if (outcome === "missing") notify("Couldn't find that message");
+      else if (outcome === "failed") notify("Couldn't open that message");
       else if (threadRootId) pushThread(threadRootId, focusId);
     });
   }, [focusId, engine, notify, pushThread]);
@@ -254,8 +258,8 @@ export default function Channel({
     async (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) => {
       await send(content, { replyToMessageId, attachmentIds });
       // Sent from a range short of the newest message, the reader's own
-      // message would only count on the pill: back to the latest to see
-      // it, as web's composer goes.
+      // message would only be held for the pill: back to the latest to
+      // see it, as web's composer goes.
       if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
     },
     [send, engine],
@@ -348,9 +352,15 @@ export default function Channel({
               onStartReached={focused ? newer : undefined}
               onStartReachedThreshold={0.5}
               onScrollToIndexFailed={({ index }) => {
-                // Rows not measured yet: get near, then try again once drawn.
+                // Rows not measured yet: get near, then try again once drawn,
+                // for the same row, since a page or an arrival may have moved
+                // it meanwhile (a row gone meanwhile is nothing to land on).
+                const key = itemsRef.current[index]?.key;
                 list.current?.scrollToOffset({ offset: index * 60, animated: false });
-                setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
+                setTimeout(() => {
+                  const again = itemsRef.current.findIndex((item) => item.key === key);
+                  if (again >= 0) list.current?.scrollToIndex({ index: again, viewPosition: 0.5, animated: false });
+                }, 100);
               }}
               // Away from the newest message once scrolled further from the
               // bottom edge than the list follows new rows from.

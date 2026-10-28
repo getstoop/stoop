@@ -274,6 +274,7 @@ export function screenReducer(
         landOn: action.landOn,
       };
     case "land":
+      if (state.outcome === "gone" || state.outcome === "ended") return state;
       return { ...state, landOn: action.landOn };
     case "landed":
       return state.landOn === null ? state : { ...state, landOn: null };
