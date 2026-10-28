@@ -1,3 +1,4 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { searchErrorText, searchMessages } from "../../api/search";
@@ -6,7 +7,9 @@ import { searchErrorText, searchMessages } from "../../api/search";
 // the older pages appended as the reader reaches the end of the list,
 // newest first, as web's search page holds them. A new query drops the
 // older pages; an answer to a query no longer wanted (a newer one run,
-// the screen left) is dropped too.
+// the screen left) is dropped too. The server saying the sign-in has
+// ended is not a refusal to word: it goes to `onEnded`, for the screen
+// to say so in the channel's way.
 
 export type SearchState = {
   // The query as run, trimmed; "" before the first search and after one
@@ -24,7 +27,9 @@ export type SearchState = {
 
 const IDLE: SearchState = { query: "", searching: false, results: null, loadingMore: false, error: null };
 
-export function useSearch(origin: string, token: string | null, spaceId: string) {
+const ended = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
+
+export function useSearch(origin: string, token: string | null, spaceId: string, onEnded: () => void) {
   const [state, setState] = useState<SearchState>(IDLE);
   // Which request's answer is still wanted: each search starts a new
   // generation, and an older page's answer is kept only in its own.
@@ -52,11 +57,16 @@ export function useSearch(origin: string, token: string | null, spaceId: string)
         },
         (err: unknown) => {
           if (mine !== generation.current) return;
+          if (ended(err)) {
+            setState(IDLE);
+            onEnded();
+            return;
+          }
           setState({ query, searching: false, results: null, loadingMore: false, error: searchErrorText(err) });
         },
       );
     },
-    [origin, token, spaceId],
+    [origin, token, spaceId, onEnded],
   );
 
   const more = useCallback(() => {
@@ -76,10 +86,15 @@ export function useSearch(origin: string, token: string | null, spaceId: string)
       },
       (err: unknown) => {
         if (mine !== generation.current) return;
+        if (ended(err)) {
+          setState(IDLE);
+          onEnded();
+          return;
+        }
         setState((before) => ({ ...before, loadingMore: false, error: searchErrorText(err) }));
       },
     );
-  }, [origin, token, spaceId, state]);
+  }, [origin, token, spaceId, state, onEnded]);
 
   return { state, run, more };
 }

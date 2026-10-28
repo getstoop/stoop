@@ -2,12 +2,13 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { inChannel, toggleInChannel } from "@stoop/core/search";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { loadSearchScope, type SearchScope } from "../../api/search";
 import { sessionToken } from "../../api/servers";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import EdgeFade from "../Channel/EdgeFade";
@@ -30,19 +31,22 @@ import { type SearchState, useSearch } from "./useSearch";
 // matched. The matches come newest first, each row the author, the
 // channel, the day and the words (ResultRow); reaching the end asks for
 // the older page while the server has one, and a new search drops the
-// older pages (useSearch). A tap on a row pushes the message's channel
+// older pages (useSearch). A tap on a row opens the message's channel
 // with `focus` naming the message; the channel doesn't act on it yet.
 // With nothing searched the hint says what the query takes; a search
 // that found nothing says so, and offers the whole space when it was
 // narrowed to a channel; a refusal is said in the server's words, or
-// core's for its guards.
+// core's for its guards. The header is drawn once, in every state, so
+// the field keeps its words and the keyboard while the space loads.
 
 type ScopeState =
   | { state: "loading" }
   | { state: "ready"; token: string; scope: SearchScope }
   // As the space's screen: only the server saying the session is over
-  // counts as signed out.
+  // counts as signed out, here or on a search after the space loaded.
   | { state: "ended" }
+  // Left, removed, or the space deleted.
+  | { state: "gone" }
   | { state: "failed" };
 
 export default function Search({
@@ -60,12 +64,14 @@ export default function Search({
   const styles = makeStyles(theme);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const pushOnce = usePushOnce();
   const [view, setView] = useState<ScopeState>({ state: "loading" });
   // The header's height as drawn, for the list to clear.
   const [headerHeight, setHeaderHeight] = useState(0);
   const [draft, setDraft] = useState(query ?? "");
   const token = view.state === "ready" ? view.token : null;
-  const { state, run, more } = useSearch(server.origin, token, spaceId);
+  const onEnded = useCallback(() => setView({ state: "ended" }), []);
+  const { state, run, more } = useSearch(server.origin, token, spaceId, onEnded);
 
   const load = useCallback(async (): Promise<ScopeState> => {
     const session = await sessionToken(server.id).catch(() => null);
@@ -74,6 +80,9 @@ export default function Search({
       return { state: "ready", token: session, scope: await loadSearchScope(server.origin, session, spaceId) };
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) return { state: "ended" };
+      if (err instanceof ConnectError && (err.code === Code.NotFound || err.code === Code.PermissionDenied)) {
+        return { state: "gone" };
+      }
       return { state: "failed" };
     }
   }, [server, spaceId]);
@@ -113,69 +122,60 @@ export default function Search({
     else if (from) setDraft(`${toggleInChannel("", from.name)} `);
   }, [view.state, query, from, run]);
 
-  const narrowed = !!from && inChannel(draft, from.name);
+  // The chips say where the matches shown came from: the query that
+  // ran, as on web, or the field before anything has.
+  const basis = state.query || draft;
+  const narrowed = !!from && inChannel(basis, from.name);
   // A chip rewrites the field and runs what it leaves.
   const retarget = (next: string) => {
     setDraft(next);
     run(next);
   };
+  // Clear empties the field and the matches with it.
+  const clear = () => retarget("");
   const open = useCallback(
-    (message: Message) =>
-      router.push({
+    (message: Message) => {
+      // The channel reads `focus` as a route param, so for the channel
+      // under this screen the param must land on that screen: dismissing
+      // to it carries the param (as a channel link to it does,
+      // useChannelLinks), where a push would stack a second copy.
+      const href = {
         pathname: "/s/[id]/space/[spaceId]/channel/[channelId]",
         params: { id: server.id, spaceId, channelId: message.channelId, focus: message.id },
-      }),
-    [router, server.id, spaceId],
+      } as const;
+      pushOnce(() => (message.channelId === channelId ? router.dismissTo(href) : router.push(href)));
+    },
+    [pushOnce, router, server.id, spaceId, channelId],
   );
 
   const spaceName = view.state === "ready" ? view.scope.space.name : server.name;
-  const header = (
-    <SearchHeader
-      spaceName={spaceName}
-      draft={draft}
-      autoFocus={!query}
-      onChange={setDraft}
-      onSubmit={() => run(draft)}
-      onBack={() => router.back()}
-      onLayout={setHeaderHeight}
-    />
-  );
-
+  let body: ReactNode;
   if (view.state === "loading") {
-    return (
-      <View style={styles.screen}>
-        <ActivityIndicator style={{ marginTop: headerHeight + 24 }} color={theme.textMuted} />
-        {header}
-      </View>
+    body = <ActivityIndicator style={styles.center} color={theme.textMuted} />;
+  } else if (view.state === "ended") {
+    body = (
+      <Unavailable
+        message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
+        action={{
+          label: "Sign in again",
+          onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+        }}
+      />
     );
-  }
-  if (view.state !== "ready") {
-    return (
-      <View style={styles.screen}>
-        <View style={[styles.fill, { paddingTop: headerHeight }]}>
-          {view.state === "ended" ? (
-            <Unavailable
-              message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
-              action={{
-                label: "Sign in again",
-                onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
-              }}
-            />
-          ) : (
-            <Unavailable message={`Couldn't reach ${hostOf(server.origin)}.`} action={{ label: "Try again", onPress: retry }} />
-          )}
-        </View>
-        {header}
-      </View>
+  } else if (view.state === "gone") {
+    body = <Unavailable message="You're no longer in this space." />;
+  } else if (view.state === "failed") {
+    body = (
+      <Unavailable message={`Couldn't reach ${hostOf(server.origin)}.`} action={{ label: "Try again", onPress: retry }} />
     );
-  }
-
-  const { results } = state;
-  const found = results?.messages.length ?? 0;
-  const count = results ? `${found}${results.hasOlder ? "+" : ""} ${found === 1 && !results.hasOlder ? "message" : "messages"}` : "";
-
-  return (
-    <View style={styles.screen}>
+  } else {
+    const { results } = state;
+    const found = results?.messages.length ?? 0;
+    const count = results
+      ? `${found}${results.hasOlder ? "+" : ""} ${found === 1 && !results.hasOlder ? "message" : "messages"}`
+      : "";
+    const { myUserId } = view.scope;
+    body = (
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <FlatList
           data={results?.messages ?? NO_MESSAGES}
@@ -184,7 +184,7 @@ export default function Search({
             <ResultRow
               message={item}
               channelName={channelNames.get(item.channelId) ?? "…"}
-              myUserId={view.scope.myUserId}
+              myUserId={myUserId}
               origin={server.origin}
               token={view.token}
               onPress={open}
@@ -195,11 +195,11 @@ export default function Search({
               channelName={from?.name}
               narrowed={narrowed}
               count={count}
-              onAll={() => from && narrowed && retarget(toggleInChannel(draft, from.name))}
-              onThis={() => from && !narrowed && retarget(toggleInChannel(draft, from.name))}
+              onAll={() => from && narrowed && retarget(toggleInChannel(basis, from.name))}
+              onThis={() => from && !narrowed && retarget(toggleInChannel(basis, from.name))}
             />
           }
-          ListEmptyComponent={<Empty state={state} />}
+          ListEmptyComponent={<Empty state={state} widenable={!!from} />}
           ListFooterComponent={
             state.loadingMore ? (
               <Text style={styles.hint}>Loading older matches…</Text>
@@ -219,8 +219,26 @@ export default function Search({
           contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: insets.bottom + 16 }}
         />
       </KeyboardAvoidingView>
+    );
+  }
+
+  // One tree in every state: the body in its slot under the header,
+  // which stays mounted as the space loads, its words and the keyboard
+  // with it.
+  return (
+    <View style={styles.screen}>
+      <View style={[styles.fill, view.state === "ready" ? undefined : { paddingTop: headerHeight }]}>{body}</View>
       <EdgeFade edge="top" height={insets.top + 20} />
-      {header}
+      <SearchHeader
+        spaceName={spaceName}
+        draft={draft}
+        autoFocus={!query}
+        onChange={setDraft}
+        onSubmit={() => run(draft)}
+        onClear={clear}
+        onBack={() => router.back()}
+        onLayout={setHeaderHeight}
+      />
     </View>
   );
 }
@@ -228,9 +246,10 @@ export default function Search({
 const NO_MESSAGES: Message[] = [];
 
 // What stands where the matches would be: the hint before a search,
-// "Searching…" while the first page is out, what matched nothing, or
-// why the search failed.
-function Empty({ state }: { state: SearchState }) {
+// "Searching…" while the first page is out, what matched nothing (with
+// the whole space offered where the chip can widen to it), or why the
+// search failed.
+function Empty({ state, widenable }: { state: SearchState; widenable: boolean }) {
   const styles = makeStyles(useTheme());
   if (state.error) {
     return (
@@ -256,7 +275,7 @@ function Empty({ state }: { state: SearchState }) {
         No messages match <Text style={styles.strong}>{words}</Text>
         {channel ? ` in #${channel}` : ""}.
       </Text>
-      {channel && <Text style={styles.hint}>Try all channels, or fewer words.</Text>}
+      {channel && widenable && <Text style={styles.hint}>Try all channels, or fewer words.</Text>}
     </>
   );
 }
@@ -269,6 +288,9 @@ function makeStyles(theme: Theme) {
     },
     fill: {
       flex: 1,
+    },
+    center: {
+      marginTop: 24,
     },
     hint: {
       marginHorizontal: 16,

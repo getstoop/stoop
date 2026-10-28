@@ -741,12 +741,12 @@ already allows that in development, so nothing in `app.json` adds it:
 
 ## Code shared with web
 
-The app keeps no copies of web code, with one small exception:
-`src/api/errors.ts` repeats web's `errorText`, since it needs
-`@connectrpc/connect`, which `core/` may not import
-(`scripts/check-core.mjs`); `src/api/search.ts` `searchErrorText` reads
-the Connect code the same way, with the words in `core/search`. Two
-folders of web are shared as source, not packages:
+The app keeps no copies of web code, with two small exceptions, both
+for `@connectrpc/connect`, which `core/` may not import
+(`scripts/check-core.mjs`): `src/api/errors.ts` repeats web's
+`errorText`, and `src/api/search.ts` repeats web's `searchErrorText`,
+which reads the Connect code, with its words kept once in
+`core/search`. Two folders of web are shared as source, not packages:
 
 - `@stoop/gen/*` maps to `../web/src/gen/*`, the client generated from
   the protos.

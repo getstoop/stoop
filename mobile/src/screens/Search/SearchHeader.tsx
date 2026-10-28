@@ -16,6 +16,7 @@ export default function SearchHeader({
   autoFocus,
   onChange,
   onSubmit,
+  onClear,
   onBack,
   onLayout,
 }: {
@@ -24,6 +25,8 @@ export default function SearchHeader({
   autoFocus: boolean;
   onChange: (text: string) => void;
   onSubmit: () => void;
+  // The clear button: the field emptied, and the matches with it.
+  onClear: () => void;
   onBack: () => void;
   // The header's height as drawn, for the list to clear.
   onLayout: (height: number) => void;
@@ -70,7 +73,7 @@ export default function SearchHeader({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear"
-            onPress={() => onChange("")}
+            onPress={onClear}
             style={({ pressed }) => [styles.clear, pressed && styles.down]}
           >
             <CloseIcon color={theme.textMuted} size={14} />

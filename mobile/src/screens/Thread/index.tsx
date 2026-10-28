@@ -17,6 +17,7 @@ import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
@@ -214,9 +215,13 @@ export default function Thread({
     header && summary
       ? { muted: summary.muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
       : undefined;
+  const pushOnce = usePushOnce();
   const openSearch = useCallback(
-    () => router.push({ pathname: "/s/[id]/space/[spaceId]/search", params: { id: server.id, spaceId, c: channelId } }),
-    [router, server.id, spaceId, channelId],
+    () =>
+      pushOnce(() =>
+        router.push({ pathname: "/s/[id]/space/[spaceId]/search", params: { id: server.id, spaceId, c: channelId } }),
+      ),
+    [pushOnce, router, server.id, spaceId, channelId],
   );
   const search = header ? { spaceName: header.space.name, onPress: openSearch } : undefined;
   const title = (

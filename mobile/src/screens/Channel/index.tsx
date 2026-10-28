@@ -17,6 +17,7 @@ import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
@@ -117,21 +118,8 @@ export default function Channel({
   const messages = channelItems(log);
 
   // A screen pushed over the channel (a thread, the search), one at a
-  // time: a second tap before the first has covered the channel pushes
-  // nothing; coming back to the channel lets the next go, as does a
-  // second gone by, should the push have gone nowhere.
-  const pushed = useRef(false);
-  useEffect(() => {
-    if (focused) pushed.current = false;
-  }, [focused]);
-  const pushOnce = useCallback((go: () => void) => {
-    if (pushed.current) return;
-    pushed.current = true;
-    setTimeout(() => {
-      pushed.current = false;
-    }, 1000);
-    go();
-  }, []);
+  // time.
+  const pushOnce = usePushOnce();
   // The thread pushed over the channel, by its root's id.
   const pushThread = useCallback(
     (rootId: string, focusId?: string) =>
