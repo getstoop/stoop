@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  hasChannelFilter,
   highlightPattern,
   highlightTerms,
   inChannel,
+  queryTokens,
   toggleInChannel,
+  withoutChannelFilter,
 } from "./search";
 
 // What a query highlights: the terms, then the words they mark in a
@@ -122,6 +125,29 @@ describe("highlightPattern", () => {
   });
 });
 
+// As the server's tokenizeSearch reads a query.
+describe("queryTokens", () => {
+  it("splits on whitespace, dropping the blanks", () => {
+    expect(queryTokens("  ship   it \n now")).toEqual(["ship", "it", "now"]);
+    expect(queryTokens("")).toEqual([]);
+  });
+
+  it("keeps a quoted phrase one token, with its quotes", () => {
+    expect(queryTokens('"sign in:" error')).toEqual(['"sign in:"', "error"]);
+  });
+
+  it("keeps a quoted filter value with its key", () => {
+    expect(queryTokens('in:"front steps" x')).toEqual([
+      'in:"front steps"',
+      "x",
+    ]);
+  });
+
+  it("runs an unclosed quote to the end", () => {
+    expect(queryTokens('a "b c')).toEqual(["a", '"b c']);
+  });
+});
+
 describe("inChannel", () => {
   it("sees the channel filter anywhere in the query", () => {
     expect(inChannel("in:#general deploy", "general")).toBe(true);
@@ -140,6 +166,22 @@ describe("inChannel", () => {
 
   it("needs the whole token, not a channel whose name starts the same", () => {
     expect(inChannel("in:#general-chat", "general")).toBe(false);
+  });
+
+  // The server takes the name with or without its #, and a quoted value
+  // without its quotes.
+  it("takes the filter without the #, as the server does", () => {
+    expect(inChannel("in:general deploy", "general")).toBe(true);
+    expect(inChannel("IN:General deploy", "general")).toBe(true);
+    expect(inChannel('in:"#general" deploy', "general")).toBe(true);
+  });
+
+  it("sees a quoted name with a space in it", () => {
+    expect(inChannel('in:"front steps" deploy', "front steps")).toBe(true);
+  });
+
+  it("is not fooled by in: inside a phrase", () => {
+    expect(inChannel('"sign in:#general" deploy', "general")).toBe(false);
   });
 });
 
@@ -174,6 +216,51 @@ describe("toggleInChannel", () => {
     expect(toggleInChannel("from:casey deploy", "general")).toBe(
       "in:#general from:casey deploy",
     );
+  });
+
+  it("replaces a quoted filter whole, and leaves a phrase alone", () => {
+    expect(toggleInChannel('in:"front steps" deploy', "general")).toBe(
+      "in:#general deploy",
+    );
+    expect(toggleInChannel('"sign in:" error', "general")).toBe(
+      'in:#general "sign in:" error',
+    );
+  });
+});
+
+describe("hasChannelFilter", () => {
+  it("sees a filter for any channel, anywhere, in any case", () => {
+    expect(hasChannelFilter("in:#general deploy")).toBe(true);
+    expect(hasChannelFilter("deploy IN:#Random")).toBe(true);
+  });
+
+  it("is false without one", () => {
+    expect(hasChannelFilter("deploy from:casey")).toBe(false);
+    expect(hasChannelFilter("")).toBe(false);
+  });
+
+  it("reads quotes as the server does", () => {
+    expect(hasChannelFilter('"sign in:" error')).toBe(false);
+    expect(hasChannelFilter('in:"front steps" error')).toBe(true);
+  });
+});
+
+describe("withoutChannelFilter", () => {
+  it("drops every channel filter and keeps the rest", () => {
+    expect(withoutChannelFilter("in:#general deploy in:#random")).toBe(
+      "deploy",
+    );
+    expect(withoutChannelFilter("from:casey deploy")).toBe("from:casey deploy");
+  });
+
+  it("tidies the spacing and clears back to empty", () => {
+    expect(withoutChannelFilter("  in:#general   deploy  ")).toBe("deploy");
+    expect(withoutChannelFilter("in:#general")).toBe("");
+  });
+
+  it("drops a quoted filter whole, and leaves a phrase alone", () => {
+    expect(withoutChannelFilter('in:"front steps" error')).toBe("error");
+    expect(withoutChannelFilter('"sign in:" error')).toBe('"sign in:" error');
   });
 });
 

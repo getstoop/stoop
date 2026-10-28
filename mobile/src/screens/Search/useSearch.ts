@@ -8,8 +8,9 @@ import { searchErrorText, searchMessages } from "../../api/search";
 // newest first, as web's search page holds them. A new query drops the
 // older pages; an answer to a query no longer wanted (a newer one run,
 // the screen left) is dropped too. The server saying the sign-in has
-// ended is not a refusal to word: it goes to `onEnded`, for the screen
-// to say so in the channel's way.
+// ended, or the space is no longer the person's, is not a refusal to
+// word: it goes to `onEnded` or `onGone`, for the screen to say so in
+// the channel's way.
 
 export type SearchState = {
   // The query as run, trimmed; "" before the first search and after one
@@ -27,10 +28,29 @@ export type SearchState = {
 
 const IDLE: SearchState = { query: "", searching: false, results: null, loadingMore: false, error: null };
 
-const ended = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
-
-export function useSearch(origin: string, token: string | null, spaceId: string, onEnded: () => void) {
+export function useSearch(
+  origin: string,
+  token: string | null,
+  spaceId: string,
+  onEnded: () => void,
+  onGone: () => void,
+) {
   const [state, setState] = useState<SearchState>(IDLE);
+  // Whether the failure is the sign-in over (Unauthenticated) or the
+  // space lost (PermissionDenied, membership gone since the scope
+  // loaded): the state goes back to idle and the screen is told. NotFound
+  // stays an error to word, since a filter can produce it.
+  const over = useCallback(
+    (err: unknown): boolean => {
+      if (!(err instanceof ConnectError)) return false;
+      const tell = err.code === Code.Unauthenticated ? onEnded : err.code === Code.PermissionDenied ? onGone : null;
+      if (!tell) return false;
+      setState(IDLE);
+      tell();
+      return true;
+    },
+    [onEnded, onGone],
+  );
   // Which request's answer is still wanted: each search starts a new
   // generation, and an older page's answer is kept only in its own.
   const generation = useRef(0);
@@ -41,10 +61,16 @@ export function useSearch(origin: string, token: string | null, spaceId: string,
     [],
   );
 
+  // An older page out right now, known at once: `loadingMore` changes
+  // only after a render, and the list can say it reached the end twice
+  // before one, which asked for the same page twice and showed it twice.
+  const paging = useRef(false);
+
   const run = useCallback(
     (text: string) => {
       const query = text.trim();
       const mine = ++generation.current;
+      paging.current = false;
       if (!query || !token) {
         setState(IDLE);
         return;
@@ -56,28 +82,30 @@ export function useSearch(origin: string, token: string | null, spaceId: string,
           setState({ query, searching: false, results: { messages, hasOlder }, loadingMore: false, error: null });
         },
         (err: unknown) => {
-          if (mine !== generation.current) return;
-          if (ended(err)) {
-            setState(IDLE);
-            onEnded();
-            return;
-          }
+          if (mine !== generation.current || over(err)) return;
           setState({ query, searching: false, results: null, loadingMore: false, error: searchErrorText(err) });
         },
       );
     },
-    [origin, token, spaceId, onEnded],
+    [origin, token, spaceId, over],
   );
 
-  const more = useCallback(() => {
-    const { query, results, loadingMore } = state;
+  // The older page before the last match. Not while the last one's
+  // failure is still shown: the footer's swap to it changes the list's
+  // height, which the list reports as the end reached again, and that
+  // would ask, fail and swap until the person scrolled. The failure
+  // line is itself the way to ask again (retryMore).
+  const older = useCallback(() => {
+    const { query, results } = state;
     const last = results?.messages.at(-1);
-    if (!results?.hasOlder || loadingMore || !last || !token) return;
+    if (!results?.hasOlder || paging.current || !last || !token) return;
     const mine = generation.current;
+    paging.current = true;
     setState((before) => ({ ...before, loadingMore: true, error: null }));
     searchMessages(origin, token, spaceId, query, last.id).then(
       ({ messages, hasOlder }) => {
         if (mine !== generation.current) return;
+        paging.current = false;
         setState((before) => ({
           ...before,
           loadingMore: false,
@@ -86,15 +114,15 @@ export function useSearch(origin: string, token: string | null, spaceId: string,
       },
       (err: unknown) => {
         if (mine !== generation.current) return;
-        if (ended(err)) {
-          setState(IDLE);
-          onEnded();
-          return;
-        }
+        paging.current = false;
+        if (over(err)) return;
         setState((before) => ({ ...before, loadingMore: false, error: searchErrorText(err) }));
       },
     );
-  }, [origin, token, spaceId, state, onEnded]);
+  }, [origin, token, spaceId, state, over]);
+  const more = useCallback(() => {
+    if (!state.error) older();
+  }, [state.error, older]);
 
-  return { state, run, more };
+  return { state, run, more, retryMore: older };
 }

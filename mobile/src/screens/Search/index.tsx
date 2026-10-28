@@ -1,9 +1,18 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { inChannel, toggleInChannel } from "@stoop/core/search";
+import { hasChannelFilter, inChannel, toggleInChannel, withoutChannelFilter } from "@stoop/core/search";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { loadSearchScope, type SearchScope } from "../../api/search";
@@ -27,10 +36,12 @@ import { type SearchState, useSearch } from "./useSearch";
 // the keyboard up, or holding a query given to run (`query`). The return
 // key runs the search; the server parses the words
 // (docs/architecture/messaging.md → Search). Under the header, two chips
-// widen it to the whole space or narrow it back, and the count of what
-// matched. The matches come newest first, each row the author, the
-// channel, the day and the words (ResultRow); reaching the end asks for
-// the older page while the server has one, and a new search drops the
+// widen it to the whole space (dropping any in: filter) or narrow it
+// back to that channel, neither lit while the query names another, and
+// the count of what matched. The matches come newest first, each row
+// the author, the channel, the day and the words (ResultRow); reaching
+// the end asks for the older page while the server has one (a page that
+// failed is offered again under the list), and a new search drops the
 // older pages (useSearch). A tap on a row opens the message's channel
 // with `focus` naming the message, which the channel opens around and
 // lands on (screens/Channel); for the channel under this screen a
@@ -74,7 +85,8 @@ export default function Search({
   const [draft, setDraft] = useState(query ?? "");
   const token = view.state === "ready" ? view.token : null;
   const onEnded = useCallback(() => setView({ state: "ended" }), []);
-  const { state, run, more } = useSearch(server.origin, token, spaceId, onEnded);
+  const onGone = useCallback(() => setView({ state: "gone" }), []);
+  const { state, run, more, retryMore } = useSearch(server.origin, token, spaceId, onEnded, onGone);
 
   const load = useCallback(async (): Promise<ScopeState> => {
     const session = await sessionToken(server.id).catch(() => null);
@@ -116,19 +128,22 @@ export default function Search({
   );
 
   // Once the space is known: a query given runs; otherwise the field
-  // starts narrowed to the channel the search started from.
+  // starts narrowed to the channel the search started from, unless the
+  // person has typed into it while the space loaded.
   const started = useRef(false);
   useEffect(() => {
     if (view.state !== "ready" || started.current) return;
     started.current = true;
     if (query) run(query);
-    else if (from) setDraft(`${toggleInChannel("", from.name)} `);
+    else if (from) setDraft((typed) => typed || `${toggleInChannel("", from.name)} `);
   }, [view.state, query, from, run]);
 
   // The chips say where the matches shown came from: the query that
-  // ran, as on web, or the field before anything has.
+  // ran, as on web, or the field before anything has. This channel is
+  // lit by its own filter, All channels by there being none.
   const basis = state.query || draft;
   const narrowed = !!from && inChannel(basis, from.name);
+  const widened = !hasChannelFilter(basis);
   // A chip rewrites the field and runs what it leaves.
   const retarget = (next: string) => {
     setDraft(next);
@@ -197,8 +212,9 @@ export default function Search({
             <ScopeRow
               channelName={from?.name}
               narrowed={narrowed}
+              widened={widened}
               count={count}
-              onAll={() => from && narrowed && retarget(toggleInChannel(basis, from.name))}
+              onAll={() => !widened && retarget(withoutChannelFilter(basis))}
               onThis={() => from && !narrowed && retarget(toggleInChannel(basis, from.name))}
             />
           }
@@ -207,9 +223,18 @@ export default function Search({
             state.loadingMore ? (
               <Text style={styles.hint}>Loading older matches…</Text>
             ) : state.error && results ? (
-              <Text style={styles.error} accessibilityRole="alert">
-                {state.error}
-              </Text>
+              // The older page's failure, and the tap that asks for it
+              // again (the list won't on its own while this is shown).
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${state.error} Tap to try again.`}
+                onPress={retryMore}
+                style={({ pressed }) => pressed && styles.down}
+              >
+                <Text style={styles.error}>
+                  {state.error} <Text style={styles.again}>Try again</Text>
+                </Text>
+              </Pressable>
             ) : undefined
           }
           onEndReached={more}
@@ -312,6 +337,13 @@ function makeStyles(theme: Theme) {
       color: theme.danger,
       fontSize: tokens.textUi,
       lineHeight: tokens.textUi * tokens.leadingUi,
+    },
+    again: {
+      color: theme.accent,
+      fontWeight: "600",
+    },
+    down: {
+      opacity: 0.85,
     },
   });
 }

@@ -4,18 +4,23 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // Under the header: the two chips that widen the search to the whole
 // space or narrow it to the channel it started from (the in:#name
 // filter in the field, core/search), the active one filled in the
-// accent, and at the right how many matched, "4+ messages" while older
-// matches may still be out there.
+// accent and neither while the field names another channel, and at the
+// right how many matched, "4+ messages" while older matches may still
+// be out there.
 export default function ScopeRow({
   channelName,
   narrowed,
+  widened,
   count,
   onAll,
   onThis,
 }: {
   // The channel the search started from; none, no chips.
   channelName?: string;
+  // The query carries this channel's filter.
   narrowed: boolean;
+  // The query carries no channel filter at all.
+  widened: boolean;
   count: string;
   onAll: () => void;
   onThis: () => void;
@@ -25,7 +30,7 @@ export default function ScopeRow({
     <View style={styles.row}>
       {channelName && (
         <>
-          <Chip label="All channels" active={!narrowed} onPress={onAll} />
+          <Chip label="All channels" active={widened} onPress={onAll} />
           <Chip label="This channel" active={narrowed} onPress={onThis} />
         </>
       )}
