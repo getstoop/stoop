@@ -1,5 +1,58 @@
 Stoop 0.17.0
 
+Stoop 0.17.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.16.0, and `stoop upgrade rollback`
+takes it back: it ships no migration, and neither the schema nor the API
+changes.
+
+**What's in it.**
+
+- **Voice volume.** A speaker button beside Deafen on the call's
+  controls, on the sidebar's bar and over the stage alike, opens a
+  slider from 0 to 200%: one knob for the whole call, kept in the
+  browser. Past 100% is a boost for a call a game is drowning out. The
+  call is now mixed through Web Audio with a gain per voice, which an
+  audio element's own volume could not do; Deafen is that gain at zero,
+  so it sounds as it did. Ctrl+Shift+Up and Ctrl+Shift+Down step the
+  volume by 10 while you are in a call, with a switch of their own on
+  Account → Voice, in a browser only, as push to talk is. The desktop
+  app will hold the keys from any app in its next release.
+- **One set of Markdown cases** now checks the server and the web app
+  against each other, so the two cannot drift in what they accept.
+  Tests only; nothing a user sees changes.
+- **The phone app**, still unreleased, took most of the work merged
+  since 0.16.0: a composer with Markdown and mentions, the channel
+  header, search, opening at a message, pins. It is built against the
+  server as it is, and none of it ships in this image.
+
+**For operators.**
+
+- **Nothing to do.** No migration runs; the schema stays at 72 and the
+  floor at 70. `stoop upgrade rollback` returns to 0.16.0.
+- **The desktop app** is not told to update by this release. The web
+  app lists two new voice actions for it under bridge 6 but keeps
+  publishing bridge 5 from `GET /version` until a desktop release that
+  implements them has shipped, as the contract requires.
+
+**API changes.** None.
+
+**Schema.** Unchanged: 72, with the floor at 70.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.16.0.
+
+**Known issues.** As 0.16.0's: deleting a message above the part of a
+channel you are reading shifts the view by its height; an audio
+attachment starts over if its row is scrolled far enough away to be
+removed from the page and then comes back; two quick jumps land on
+whichever the server answers first; a display name change reaches other
+people's open tabs on reload; with everything in a channel unread, the
+"New messages" line can move as older messages load.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
 Changes since 0.16.0:
 
 - Phone mentions: the proposal (5c84a707)
