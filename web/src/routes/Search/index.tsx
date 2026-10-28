@@ -3,17 +3,17 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { chatClient } from "../../api/clients";
 import { useChannels, useMembers, useSpaces } from "../../api/queries";
-import {
-  highlightPattern,
-  highlightTerms,
-  inChannel,
-  searchErrorText,
-  toggleInChannel,
-} from "../../api/search";
+import { searchErrorText } from "../../api/search";
 import { SearchIcon } from "../../components/Icons";
 import { Input } from "../../components/Input";
 import { MenuButton } from "../../components/MenuButton";
 import { mentionMembers } from "../../core/mentions";
+import {
+  highlightPattern,
+  highlightTerms,
+  inChannel,
+  toggleInChannel,
+} from "../../core/search";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { ResultRow } from "./ResultRow";
 

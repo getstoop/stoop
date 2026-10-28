@@ -410,6 +410,31 @@ import a screen; the screens themselves live in `src/screens`, so
   As on web the bell shows once the thread has replies, and under a
   muted channel it shows the thread muted by its channel and does
   nothing (the header follows ChannelMuted for that).
+- Search, at the right of the channel's header and before the thread's
+  bell (`src/screens/Channel/searchItem.ts`, a bar button item on iOS
+  with the system's `magnifyingglass`, and `SearchButton.tsx`, a round
+  bubble of the composer's panel, elsewhere), pushes the space's search
+  (`s/[id]/space/[spaceId]/search`, `src/screens/Search`): web's search
+  page on the phone, with a header row of its own floating over the list
+  (the native one is hidden), a round back button and the field in a
+  pill of the same surface. The field arrives with `in:#channel ` for
+  the channel it was opened from (`?c=`), and the keyboard up; the
+  return key runs the search, and the server parses the query
+  (`docs/architecture/messaging.md` → Search), so the words, phrases,
+  `-word`, `from:`, `in:`, `before:` and `after:` are its. Two chips
+  under the header, All channels and This channel, add or drop the
+  `in:` filter in the field and run it again (`core/search`
+  `toggleInChannel`, shared with web, as are the words to highlight,
+  which the phone's rows don't mark yet); at their right the count, "4+
+  messages" while older matches may still be out there. Rows come
+  newest first: the author's face and name, "in #channel", the day (the
+  time today), the words as the channel draws them and a muted line per
+  file; reaching the end asks for the page before the last match while
+  the server says there is one (`beforeId`), and a new search drops the
+  older pages. A tap pushes the message's channel with `?focus=` naming
+  the message; the channel doesn't act on it yet (opening around it is
+  a follow-up). A refusal is said in the server's words, the rate limit
+  and the timeout in core's (`SEARCH_REFUSALS`).
 - A message's links get the cards the server fetched for them
   (`link_previews`), under its words and files, in the channel and the
   thread but not on the menu's card, as web's row draws them
@@ -637,7 +662,8 @@ message from its menu, cancel an edit and see Save refuse an emptied
 one (and keep a mention's token), open a thread from its replies line
 and from Reply in thread and read it while a reply arrives, reply in a
 thread, also to the channel, and edit, react and delete there, mute a
-thread and see a reply in it counted as nothing new, read messages in
+thread and see a reply in it counted as nothing new, search the space
+from the channel's header and see a match, read messages in
 Markdown (the marks, a spoiler revealed on a tap, a channel link that
 opens the channel, an emoji-only message, a quote with a spoiler in it,
 nested and numbered lists, a code block dragged sideways), see link
@@ -718,8 +744,9 @@ already allows that in development, so nothing in `app.json` adds it:
 The app keeps no copies of web code, with one small exception:
 `src/api/errors.ts` repeats web's `errorText`, since it needs
 `@connectrpc/connect`, which `core/` may not import
-(`scripts/check-core.mjs`). Two folders of web are shared as source, not
-packages:
+(`scripts/check-core.mjs`); `src/api/search.ts` `searchErrorText` reads
+the Connect code the same way, with the words in `core/search`. Two
+folders of web are shared as source, not packages:
 
 - `@stoop/gen/*` maps to `../web/src/gen/*`, the client generated from
   the protos.

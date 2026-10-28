@@ -29,6 +29,7 @@ executionOrder:
     - "Open a thread from its replies line and from Reply in thread, and read it, kept live"
     - "Reply in a thread, also to the channel, and edit, react and delete there"
     - "Mute a thread, see a reply in it counted as nothing new, and unmute it"
+    - "Search a space's messages from the channel header and see a match"
     - "Read messages in Markdown, reveal a spoiler, open a channel from its link, and see its blocks"
     - "See link previews under messages, open a message's menu from one, and remove one"
     - "See files under messages, a photo, two in a grid, a PDF, a video, an audio file and an expired file, page through the photos full screen, play the video and the audio, and share the PDF"

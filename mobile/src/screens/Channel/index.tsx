@@ -26,8 +26,10 @@ import Divider from "./Divider";
 import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
+import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
 import { olderFits } from "./channelEngine";
+import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
 import { useMentionNames } from "./useMentionNames";
@@ -56,7 +58,9 @@ import { useMessageActions } from "./useMessageActions";
 // (screens/Thread), which shares this screen's log, as does the line on
 // a reply also sent to the channel, which opens its thread on it. A tap
 // on a picture opens the viewer over the channel (components/Viewer),
-// stepping through the pictures it has loaded. The
+// stepping through the pictures it has loaded. Search at the header's
+// right (searchItem, SearchButton) pushes the space's search screen
+// (screens/Search) narrowed to this channel. The
 // menu, the quote, the edit and the refusals are useMessageActions',
 // shared with the thread; the layout is ComposerDock's. What is held and
 // what each answer and event does to it is the channel log's
@@ -112,27 +116,40 @@ export default function Channel({
   // shown changed.
   const messages = channelItems(log);
 
-  // The thread pushed over the channel, by its root's id.
-  // One at a time: a second tap before the first has covered the channel
-  // pushes nothing; coming back to the channel lets the next go, as does
-  // a second gone by, should the push have gone nowhere.
+  // A screen pushed over the channel (a thread, the search), one at a
+  // time: a second tap before the first has covered the channel pushes
+  // nothing; coming back to the channel lets the next go, as does a
+  // second gone by, should the push have gone nowhere.
   const pushed = useRef(false);
   useEffect(() => {
     if (focused) pushed.current = false;
   }, [focused]);
+  const pushOnce = useCallback((go: () => void) => {
+    if (pushed.current) return;
+    pushed.current = true;
+    setTimeout(() => {
+      pushed.current = false;
+    }, 1000);
+    go();
+  }, []);
+  // The thread pushed over the channel, by its root's id.
   const pushThread = useCallback(
-    (rootId: string, focusId?: string) => {
-      if (pushed.current) return;
-      pushed.current = true;
-      setTimeout(() => {
-        pushed.current = false;
-      }, 1000);
-      router.push({
-        pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
-        params: { id: server.id, spaceId, channelId, rootId, ...(focusId ? { focus: focusId } : {}) },
-      });
-    },
-    [router, server.id, spaceId, channelId],
+    (rootId: string, focusId?: string) =>
+      pushOnce(() =>
+        router.push({
+          pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
+          params: { id: server.id, spaceId, channelId, rootId, ...(focusId ? { focus: focusId } : {}) },
+        }),
+      ),
+    [pushOnce, router, server.id, spaceId, channelId],
+  );
+  // The space's search, starting in this channel.
+  const openSearch = useCallback(
+    () =>
+      pushOnce(() =>
+        router.push({ pathname: "/s/[id]/space/[spaceId]/search", params: { id: server.id, spaceId, c: channelId } }),
+      ),
+    [pushOnce, router, server.id, spaceId, channelId],
   );
   const openThread = useCallback((message: Message) => pushThread(message.id), [pushThread]);
   // A reply also sent here opens its thread on it.
@@ -227,12 +244,16 @@ export default function Channel({
 
   const { space, channel, memberCount, myUserId } = header;
   const { hasOlder } = log.channel;
+  const search = { spaceName: space.name, onPress: openSearch };
 
   return (
     <View style={styles.screen}>
       <Stack.Screen
         options={{
           headerTitle: () => <ChannelTitle channel={channel} spaceName={space.name} memberCount={memberCount} />,
+          ...(Platform.OS === "ios"
+            ? { unstable_headerRightItems: () => [searchItem(search)] }
+            : { headerRight: () => <SearchButton {...search} /> }),
         }}
       />
       <ComposerDock

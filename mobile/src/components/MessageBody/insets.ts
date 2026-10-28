@@ -15,6 +15,9 @@ export const BODY_INSETS = {
   // MessageRow as the message menu's card: the menu's 16 padding and the
   // card's 12 on each side, then the avatar and its gap.
   menuCard: 2 * (16 + 12) + 36 + 10,
+  // A search result (screens/Search/ResultRow): laid out as a channel's
+  // row, the same margin, padding, avatar and gap.
+  search: 2 * (8 + 8) + 36 + 10,
 } as const;
 
 export type BodyPlace = keyof typeof BODY_INSETS;
