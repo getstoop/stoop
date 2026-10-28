@@ -80,9 +80,12 @@ import a screen; the screens themselves live in `src/screens`, so
   (`ScrollViewMarker`), which on an upside-down list dims the whole
   list. A round button of the same surface over the composer's right end
   (`JumpToLatest.tsx`) fades in once the reader has scrolled away from
-  the newest message and takes them back to it. Dragging the list puts the
-  keyboard away (the card follows the keyboard's hide event; tracking
-  the finger needs `react-native-keyboard-controller`, a follow-up). A
+  the newest message and takes them back to it. Scrolling the list leaves
+  the keyboard and the card in place; on iOS a drag down into the
+  keyboard puts it away (the card follows the keyboard's hide event,
+  which comes at the end of that drag; tracking the finger needs
+  `react-native-keyboard-controller`, a follow-up), and on Android the
+  back gesture does. A
   message being quoted (Quote in reply, below) is the card's first line
   under any files (below), the reply strip: a small accent reply arrow,
   "Replying to NAME · " and the first words of the message
