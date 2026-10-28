@@ -422,11 +422,13 @@ import a screen; the screens themselves live in `src/screens`, so
   return key runs the search, and the server parses the query
   (`docs/architecture/messaging.md` → Search), so the words, phrases,
   `-word`, `from:`, `in:`, `before:` and `after:` are its. Two chips
-  under the header, All channels and This channel, add or drop the
-  `in:` filter in the field and run it again (`core/search`
-  `toggleInChannel`, shared with web, as are the words to highlight,
-  which the phone's rows don't mark yet); at their right the count, "4+
-  messages" while older matches may still be out there. Rows come
+  under the header: All channels drops every `in:` filter from the
+  field and This channel puts the channel's back, each running it again
+  (`core/search` `withoutChannelFilter` and `toggleInChannel`, shared
+  with web, as are the words to highlight, which the phone's rows don't
+  mark yet); the one the field satisfies is lit, neither while it names
+  another channel; at their right the count, "4+ messages" while older
+  matches may still be out there. Rows come
   newest first: the author's face and name, "in #channel", the day (the
   time today), the words as the channel draws them and a muted line per
   file; reaching the end asks for the page before the last match while

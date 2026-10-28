@@ -44,12 +44,26 @@ export function inChannel(query: string, name: string): boolean {
   return query.split(/\s+/).some((t) => t.toLowerCase() === want);
 }
 
-// The query with the channel filter added or removed.
-export function toggleInChannel(query: string, name: string): string {
-  const rest = query
+// Whether the query narrows to any channel.
+export function hasChannelFilter(query: string): boolean {
+  return query.split(/\s+/).some(isChannelFilter);
+}
+
+// The query with every channel filter removed.
+export function withoutChannelFilter(query: string): string {
+  return query
     .split(/\s+/)
-    .filter((t) => t && !t.toLowerCase().startsWith("in:"))
+    .filter((t) => t && !isChannelFilter(t))
     .join(" ");
+}
+
+const isChannelFilter = (token: string) =>
+  token.toLowerCase().startsWith("in:");
+
+// The query with this channel's filter added or removed; a filter
+// naming another channel is replaced.
+export function toggleInChannel(query: string, name: string): string {
+  const rest = withoutChannelFilter(query);
   return inChannel(query, name) ? rest : `in:#${name} ${rest}`.trim();
 }
 

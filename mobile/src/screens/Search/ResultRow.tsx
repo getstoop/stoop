@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { sameDay } from "@stoop/core/dates";
-import { plainText } from "@stoop/core/markdown/text";
+import { previewText } from "@stoop/core/markdown/text";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -44,12 +44,15 @@ export default memo(function ResultRow({
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const date = created ? when(created) : "";
   const files = message.attachments.map((attachment) => attachment.name);
-  const words = plainText(message.content) || files.join(", ");
+  // Read aloud: the words with a spoiler covered, as the body draws it,
+  // then the files' names, or those alone when there are no words.
+  const words = previewText(message.content);
+  const said = words && files.length > 0 ? `${words}, files: ${files.join(", ")}` : words || files.join(", ");
   return (
     <Pressable
       accessible
       accessibilityRole="button"
-      accessibilityLabel={`${name} in #${channelName}, ${date}: ${words}`}
+      accessibilityLabel={`${name} in #${channelName}, ${date}: ${said}`}
       onPress={() => onPress(message)}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >

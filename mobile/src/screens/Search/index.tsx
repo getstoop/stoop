@@ -1,5 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { inChannel, toggleInChannel } from "@stoop/core/search";
+import { hasChannelFilter, inChannel, toggleInChannel, withoutChannelFilter } from "@stoop/core/search";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -27,12 +27,14 @@ import { type SearchState, useSearch } from "./useSearch";
 // the keyboard up, or holding a query given to run (`query`). The return
 // key runs the search; the server parses the words
 // (docs/architecture/messaging.md → Search). Under the header, two chips
-// widen it to the whole space or narrow it back, and the count of what
-// matched. The matches come newest first, each row the author, the
-// channel, the day and the words (ResultRow); reaching the end asks for
-// the older page while the server has one, and a new search drops the
-// older pages (useSearch). A tap on a row opens the message's channel
-// with `focus` naming the message; the channel doesn't act on it yet.
+// widen it to the whole space (dropping any in: filter) or narrow it
+// back to that channel, neither lit while the query names another, and
+// the count of what matched. The matches come newest first, each row
+// the author, the channel, the day and the words (ResultRow); reaching
+// the end asks for the older page while the server has one, and a new
+// search drops the older pages (useSearch). A tap on a row opens the
+// message's channel with `focus` naming the message; the channel doesn't
+// act on it yet.
 // With nothing searched the hint says what the query takes; a search
 // that found nothing says so, and offers the whole space when it was
 // narrowed to a channel; a refusal is said in the server's words, or
@@ -71,7 +73,8 @@ export default function Search({
   const [draft, setDraft] = useState(query ?? "");
   const token = view.state === "ready" ? view.token : null;
   const onEnded = useCallback(() => setView({ state: "ended" }), []);
-  const { state, run, more } = useSearch(server.origin, token, spaceId, onEnded);
+  const onGone = useCallback(() => setView({ state: "gone" }), []);
+  const { state, run, more } = useSearch(server.origin, token, spaceId, onEnded, onGone);
 
   const load = useCallback(async (): Promise<ScopeState> => {
     const session = await sessionToken(server.id).catch(() => null);
@@ -113,19 +116,22 @@ export default function Search({
   );
 
   // Once the space is known: a query given runs; otherwise the field
-  // starts narrowed to the channel the search started from.
+  // starts narrowed to the channel the search started from, unless the
+  // person has typed into it while the space loaded.
   const started = useRef(false);
   useEffect(() => {
     if (view.state !== "ready" || started.current) return;
     started.current = true;
     if (query) run(query);
-    else if (from) setDraft(`${toggleInChannel("", from.name)} `);
+    else if (from) setDraft((typed) => typed || `${toggleInChannel("", from.name)} `);
   }, [view.state, query, from, run]);
 
   // The chips say where the matches shown came from: the query that
-  // ran, as on web, or the field before anything has.
+  // ran, as on web, or the field before anything has. This channel is
+  // lit by its own filter, All channels by there being none.
   const basis = state.query || draft;
   const narrowed = !!from && inChannel(basis, from.name);
+  const widened = !hasChannelFilter(basis);
   // A chip rewrites the field and runs what it leaves.
   const retarget = (next: string) => {
     setDraft(next);
@@ -194,8 +200,9 @@ export default function Search({
             <ScopeRow
               channelName={from?.name}
               narrowed={narrowed}
+              widened={widened}
               count={count}
-              onAll={() => from && narrowed && retarget(toggleInChannel(basis, from.name))}
+              onAll={() => !widened && retarget(withoutChannelFilter(basis))}
               onThis={() => from && !narrowed && retarget(toggleInChannel(basis, from.name))}
             />
           }

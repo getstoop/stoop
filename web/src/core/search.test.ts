@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  hasChannelFilter,
   highlightPattern,
   highlightTerms,
   inChannel,
   toggleInChannel,
+  withoutChannelFilter,
 } from "./search";
 
 // What a query highlights: the terms, then the words they mark in a
@@ -174,6 +176,32 @@ describe("toggleInChannel", () => {
     expect(toggleInChannel("from:casey deploy", "general")).toBe(
       "in:#general from:casey deploy",
     );
+  });
+});
+
+describe("hasChannelFilter", () => {
+  it("sees a filter for any channel, anywhere, in any case", () => {
+    expect(hasChannelFilter("in:#general deploy")).toBe(true);
+    expect(hasChannelFilter("deploy IN:#Random")).toBe(true);
+  });
+
+  it("is false without one", () => {
+    expect(hasChannelFilter("deploy from:casey")).toBe(false);
+    expect(hasChannelFilter("")).toBe(false);
+  });
+});
+
+describe("withoutChannelFilter", () => {
+  it("drops every channel filter and keeps the rest", () => {
+    expect(withoutChannelFilter("in:#general deploy in:#random")).toBe(
+      "deploy",
+    );
+    expect(withoutChannelFilter("from:casey deploy")).toBe("from:casey deploy");
+  });
+
+  it("tidies the spacing and clears back to empty", () => {
+    expect(withoutChannelFilter("  in:#general   deploy  ")).toBe("deploy");
+    expect(withoutChannelFilter("in:#general")).toBe("");
   });
 });
 

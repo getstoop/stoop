@@ -7,6 +7,7 @@ import {
   parseMarkdown,
   plainLines,
   plainText,
+  previewText,
 } from ".";
 import shared from "./shared-cases.json";
 
@@ -502,6 +503,23 @@ describe("plainLines", () => {
 
   it("is empty for a message with no words, as an attachment alone", () => {
     expect(plainLines("")).toBe("");
+  });
+});
+
+describe("previewText", () => {
+  it("is plainText's one line", () => {
+    expect(previewText("first **bold**\n\nsecond")).toBe("first bold second");
+    expect(previewText("")).toBe("");
+  });
+
+  it("covers a spoiler's words, however they are marked", () => {
+    expect(previewText("the ||secret|| words")).toBe("the spoiler words");
+    expect(previewText("**||secret||**")).toBe("spoiler");
+    expect(previewText("- ||a||\n- b")).toBe("spoiler b");
+  });
+
+  it("keeps a spoiler's words in plainText", () => {
+    expect(plainText("the ||secret|| words")).toBe("the secret words");
   });
 });
 
