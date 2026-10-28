@@ -29,10 +29,11 @@ import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
-import { olderFits } from "./channelEngine";
+import type { ChannelEngine } from "./channelEngine";
 import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
+import { useFlash } from "./useFlash";
 import { useMentionNames } from "./useMentionNames";
 import { useMessageActions } from "./useMessageActions";
 
@@ -40,7 +41,15 @@ import { useMessageActions } from "./useMessageActions";
 // older pages loading as the reader scrolls up, and the realtime socket
 // adding, changing and removing messages as they happen. It opens at the
 // "New" line when there is one, and keeps the reader's marker at the
-// newest message while it is on screen. The composer floats over the
+// newest message while it is on screen. Opened at a message (`focusId`,
+// the search's row), it opens on the page around it instead, the row
+// scrolled to the middle and ringed for a moment (useFlash), or on its
+// root for a reply that shows only in its thread, which is pushed on the
+// reply; from there the range stops short of the newest message: newer
+// pages load as the reader scrolls down, nothing is marked read, what
+// arrives counts on the pill rather than showing, and the pill (shown
+// the while) or the reader's own send reloads the newest page and lands
+// at the bottom. The composer floats over the
 // bottom of the list and rides up with the keyboard; what it sends
 // comes back as a row the same way an event does. A long press on a
 // message opens its menu over the channel (MessageMenu); a reaction or a
@@ -72,10 +81,13 @@ export default function Channel({
   server,
   spaceId,
   channelId,
+  focusId,
 }: {
   server: SavedServer;
   spaceId: string;
   channelId: string;
+  // The message to open at, from the route.
+  focusId?: string;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -87,8 +99,9 @@ export default function Channel({
   const keyboard = useKeyboardHeight();
   const status = useServerStatus(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId);
-  const { older, retry, send, edit } = engine;
-  const { log, header, outcome, token, newAfter, loadingOlder } = state;
+  const { older, newer, retry, send, edit } = engine;
+  const { log, header, outcome, token, newAfter, loadingOlder, landOn } = state;
+  const { hasNewer } = log.channel;
   const [active, setActive] = useState(AppState.currentState === "active");
   // The thread Reply in thread opens once the menu has gone, by its root.
   const threadAfterMenu = useRef<string | null>(null);
@@ -97,16 +110,29 @@ export default function Channel({
   // jump back to it.
   const [away, setAway] = useState(false);
   // What this screen remembers about the channel shown: the marker it
-  // moved and whether it has landed. Another channel starts afresh.
+  // moved, whether it has landed, and the message it jumped to on which
+  // log. Another channel starts afresh.
   const marked = useRef("");
   const landed = useRef(false);
+  const jumped = useRef<{ engine: ChannelEngine; id: string } | null>(null);
   const shownChannel = useRef(channelId);
   if (shownChannel.current !== channelId) {
     shownChannel.current = channelId;
     marked.current = "";
     landed.current = false;
+    jumped.current = null;
     threadAfterMenu.current = null;
   }
+  // Whether the screen is still mounted, for a jump answering after it
+  // has gone.
+  const alive = useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    [],
+  );
+  const { flashId, flash } = useFlash();
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
@@ -146,17 +172,18 @@ export default function Channel({
     [pushThread],
   );
   // The reader's marker follows the newest message while the channel is
-  // on screen with the app open, as on web.
+  // on screen with the app open, as on web; not while the range stops
+  // short of the newest message, whose newest row is not the channel's.
   const newestId = messages.at(-1)?.id ?? "";
   useEffect(() => {
-    if (!newestId || !token || !focused || !active || !header) return;
+    if (!newestId || !token || !focused || !active || !header || hasNewer) return;
     const readTo = header.channel.lastReadMessageId;
     if (newestId <= readTo || newestId <= marked.current) return;
     marked.current = newestId;
     markRead(server.origin, token, channelId, newestId).catch(() => {
       if (marked.current === newestId) marked.current = "";
     });
-  }, [newestId, token, focused, active, server.origin, channelId, header]);
+  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer]);
 
   // Newest first, for a list drawn from the bottom up.
   const items = useMemo(
@@ -174,7 +201,39 @@ export default function Channel({
     list,
     items,
   });
-  const { menuFor, menuMessage } = actions;
+  const { menuFor, menuMessage, notify } = actions;
+  // Opening at a message, once per message on the log shown (the search
+  // dismissing to this screen changes the param on it, rather than
+  // mounting it again): the log lands on it (channelEngine jumpTo), or
+  // on its root, with the thread pushed on the reply; one the server no
+  // longer has is said over the composer, the channel opening as usual.
+  useEffect(() => {
+    if (!focusId || (jumped.current?.engine === engine && jumped.current.id === focusId)) return;
+    jumped.current = { engine, id: focusId };
+    void engine.jumpTo(focusId).then(({ found, threadRootId }) => {
+      if (!alive.current) return;
+      if (!found) notify("Couldn't find that message");
+      else if (threadRootId) pushThread(threadRootId, focusId);
+    });
+  }, [focusId, engine, notify, pushThread]);
+  // Where the log says to land, once this screen is the one on top: at
+  // the bottom (the newest page back), or on a row, scrolled to the
+  // middle and ringed for a moment. Explicit after a replaced range,
+  // whose rows are all new to the list.
+  useEffect(() => {
+    if (!landOn || !header || !focused) return;
+    if (landOn === "bottom") {
+      list.current?.scrollToOffset({ offset: 0, animated: false });
+      setAway(false);
+    } else {
+      const index = items.findIndex((item) => item.kind === "message" && item.message.id === landOn.id);
+      if (index >= 0) {
+        list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false });
+        flash(landOn.id);
+      }
+    }
+    engine.landed();
+  }, [landOn, items, header, focused, engine, flash]);
   const links = useChannelLinks(server, spaceId, channelId, header);
   const mentionNames = useMentionNames(header);
   const viewer = useViewer(messages);
@@ -192,18 +251,25 @@ export default function Channel({
     pushThread(rootId);
   }, [menuFor, pushThread]);
   const sendHere = useCallback(
-    (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) =>
-      send(content, { replyToMessageId, attachmentIds }),
-    [send],
+    async (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) => {
+      await send(content, { replyToMessageId, attachmentIds });
+      // Sent from a range short of the newest message, the reader's own
+      // message would only count on the pill: back to the latest to see
+      // it, as web's composer goes.
+      if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
+    },
+    [send, engine],
   );
 
-  // Opening lands on the "New" line, once.
+  // Opening lands on the "New" line, once; opened at a message, the jump
+  // lands instead.
   const newIndex = items.findIndex((item) => item.kind === "new");
   useEffect(() => {
     if (landed.current || items.length === 0) return;
     landed.current = true;
+    if (focusId) return;
     if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
-  }, [items.length, newIndex]);
+  }, [items.length, newIndex, focusId]);
 
   if (outcome === "ended") {
     return (
@@ -266,14 +332,21 @@ export default function Channel({
                     onOpenThread={openThread}
                     onOpenOrigin={openOrigin}
                     onReact={actions.reactTo}
-                    target={actions.targetOf(item.message)}
+                    target={actions.targetOf(item.message) ?? (item.message.id === flashId ? "focus" : undefined)}
                   />
                 ) : (
                   <Divider label={item.label} fresh={item.kind === "new"} />
                 )
               }
-              onEndReached={older}
+              // Pages for the screen on top only: a channel under a thread is
+              // laid out afresh when its range is replaced, and would page
+              // from wherever it was.
+              onEndReached={focused ? older : undefined}
               onEndReachedThreshold={0.5}
+              // Upside down, the start is the newest edge: the page below it
+              // while the range stops short of the newest message.
+              onStartReached={focused ? newer : undefined}
+              onStartReachedThreshold={0.5}
               onScrollToIndexFailed={({ index }) => {
                 // Rows not measured yet: get near, then try again once drawn.
                 list.current?.scrollToOffset({ offset: index * 60, animated: false });
@@ -297,8 +370,16 @@ export default function Channel({
               contentContainerStyle={{ paddingTop: 12 + clearance, paddingBottom: 12 + headerHeight }}
               // Rows in view stay put when that padding changes (the composer
               // growing a line) and when a row arrives, unless the reader is at
-              // the newest edge, where the list follows it.
-              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: AT_LATEST }}
+              // the newest edge, where the list follows it; not while the range
+              // stops short of the newest message, where a newer page landing
+              // at that edge would snap to its end and ask for the next.
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: hasNewer ? undefined : AT_LATEST,
+              }}
+              ListHeaderComponent={
+                state.loadingNewer ? <ActivityIndicator style={styles.edge} color={theme.textMuted} /> : undefined
+              }
               ListFooterComponent={
                 loadingOlder ? (
                   <ActivityIndicator style={styles.edge} color={theme.textMuted} />
@@ -306,17 +387,20 @@ export default function Channel({
                   <Text style={styles.beginning}>
                     {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
                   </Text>
-                ) : !olderFits(log) ? (
-                  <Text style={styles.beginning}>Showing the latest {messages.length.toLocaleString()} messages.</Text>
                 ) : undefined
               }
             />
           </MessageContexts>
         )}
         corner={
+          // Back to the latest message: a scroll while the range reaches it,
+          // the newest page again while it doesn't.
           <JumpToLatest
-            shown={away}
-            onPress={() => list.current?.scrollToOffset({ offset: 0, animated: true })}
+            shown={away || hasNewer}
+            onPress={() => {
+              if (hasNewer) void engine.jumpToLatest();
+              else list.current?.scrollToOffset({ offset: 0, animated: true });
+            }}
           />
         }
         composer={

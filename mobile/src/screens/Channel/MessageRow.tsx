@@ -26,9 +26,10 @@ const GAP = 10;
 // first words of that message over its byline, as the mockup draws it (the
 // server's preview; a quoted message since deleted reads as such). A
 // message that mentions the reader is tinted; the one the reader is
-// quoting or editing in the composer (`target`) is ringed in the accent
-// on the panel surface, over the tint when it has one, one ring for
-// either, told apart by the row's label. A long press anywhere
+// quoting or editing in the composer, or the one a jump landed on, for a
+// moment (`target`), is ringed in the accent on the panel surface, over
+// the tint when it has one, one ring for each, told apart by the row's
+// label. A long press anywhere
 // on it opens the message menu (MessageMenu), which draws the row again
 // as a card: the mockup's 12px inset, no tint or ring, and the day with
 // the time, since the list's day lines are not there to carry it. A
@@ -71,7 +72,7 @@ export default memo(function MessageRow({
   onLongPress?: (message: Message) => void;
   card?: boolean;
   withDay?: boolean;
-  target?: "reply" | "edit";
+  target?: "reply" | "edit" | "focus";
   onOpenThread?: (message: Message) => void;
   onOpenOrigin?: (message: Message) => void;
   // A chip tapped: the reader's own reaction with its emoji, toggled.
@@ -148,7 +149,7 @@ export default memo(function MessageRow({
       onLongPress={hold}
       // Not one element: its name, time and words stay readable apart.
       accessible={false}
-      accessibilityLabel={ringed ? (target === "edit" ? "Editing this message" : "Replying to this message") : undefined}
+      accessibilityLabel={ringed && target ? TARGET_LABELS[target] : undefined}
       testID={ringed ? `${target}-target` : undefined}
       style={({ pressed }) => [
         card ? styles.card : styles.row,
@@ -202,6 +203,13 @@ export default memo(function MessageRow({
     </Pressable>
   );
 });
+
+// What the ring means, for a screen reader.
+const TARGET_LABELS = {
+  reply: "Replying to this message",
+  edit: "Editing this message",
+  focus: "Found message",
+};
 
 // The time, as the list shows it under its day lines; on the card and in
 // a thread the day too, as web's thread shows a reply's.

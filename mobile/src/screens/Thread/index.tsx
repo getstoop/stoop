@@ -31,6 +31,7 @@ import { searchItem } from "../Channel/searchItem";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
+import { useFlash } from "../Channel/useFlash";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
 import MuteButton from "./MuteButton";
@@ -48,8 +49,9 @@ import ThreadTitle from "./ThreadTitle";
 // line above the replies the reader hadn't read (the root's unread
 // count, as the server gave it when the thread opened) and marks the
 // thread read while it is on screen with the app open, again for each
-// new reply; opened from a reply also sent to the channel (`focusId`),
-// it lands on that reply instead, when it is among the replies loaded.
+// new reply; opened on a reply (`focusId`: one also sent to the channel,
+// or one the channel was opened at), it lands on that reply instead,
+// ringed for a moment (useFlash), when it is among the replies loaded.
 // The composer replies in the thread, and to the channel as well when
 // asked (Composer `inThread`); a deleted root or an announcement channel
 // takes no replies, and a line says so in its place, as on web (with no
@@ -97,6 +99,7 @@ export default function Thread({
   const [active, setActive] = useState(AppState.currentState === "active");
   const list = useRef<FlatList<GroupedRow>>(null);
   const landed = useRef(false);
+  const { flashId, flash } = useFlash();
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
@@ -147,15 +150,16 @@ export default function Thread({
     [decided, replies, firstNew],
   );
 
-  // Opening lands on the reply it was opened on, or else the "New" line,
-  // once.
+  // Opening lands on the reply it was opened on, ringed for a moment, or
+  // else the "New" line, once.
   const focusIndex = focusId ? rows.findIndex((row) => row.kind === "message" && row.message.id === focusId) : -1;
   const landIndex = focusIndex >= 0 ? focusIndex : rows.findIndex((row) => row.kind === "new");
   useEffect(() => {
     if (landed.current || rows.length === 0) return;
     landed.current = true;
     if (landIndex > 0) list.current?.scrollToIndex({ index: landIndex, viewPosition: 0.5, animated: false });
-  }, [rows.length, landIndex]);
+    if (focusId && focusIndex >= 0) flash(focusId);
+  }, [rows.length, landIndex, focusId, focusIndex, flash]);
 
   const shown = useMemo(() => (root ? [root, ...replies] : replies), [root, replies]);
   // Why the thread takes no replies, if it doesn't: then there is no
@@ -326,7 +330,7 @@ export default function Thread({
                     token={token}
                     onLongPress={actions.openMenu}
                     onReact={actions.reactTo}
-                    target={actions.targetOf(item.message)}
+                    target={actions.targetOf(item.message) ?? (item.message.id === flashId ? "focus" : undefined)}
                     alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
                     withDay
                   />

@@ -3,11 +3,13 @@ import type { UploadedFile } from "@stoop/core/attachments";
 import { changesMentionNames } from "@stoop/core/channelHeader";
 import {
   type ChannelLog,
-  channelItems,
   forgetItems,
   hasPage,
+  inRange,
+  isShown,
   LOG_CAP,
   nextSince,
+  showsInChannel,
   threadItems,
   viewOf,
 } from "@stoop/core/channelLog";
@@ -27,6 +29,7 @@ import {
   loadChannel,
   loadHeader,
   loadAround,
+  loadNewer,
   loadOlder,
   loadPage,
   loadReplies,
@@ -44,16 +47,18 @@ import type { SavedServer } from "../../servers";
 
 // A channel's log while a screen shows it: the channel screen, and a
 // thread screen pushed over it, share one, so a reply, an edit or a read
-// lands once for both. Opened on the newest page, grown by a page as the
-// reader scrolls up, kept current by the realtime socket's events, and
-// after a reconnect or a gap in the events caught up with ListChanges
-// from the position it holds (never by fetching what is held again). A
-// thread's view is opened on its newest replies while its screen holds
-// it, and closed when that goes. The rules are the channel log's
-// (core/channelLog) and the screen's state over it core/channelScreen's;
-// this makes the requests and dispatches each answer. The log lives
-// while any screen holds it and goes with the last (useChannelLog,
-// useThread).
+// lands once for both. Opened on the newest page, or on the page around
+// a message the screen opens at (jumpTo), grown by a page as the reader
+// scrolls up, and down again while the range stops short of the newest
+// row (newer), replaced by the newest page on the way back (jumpToLatest),
+// kept current by the realtime socket's events, and after a reconnect or
+// a gap in the events caught up with ListChanges from the position it
+// holds (never by fetching what is held again). A thread's view is
+// opened on its newest replies while its screen holds it, and closed
+// when that goes. The rules are the channel log's (core/channelLog) and
+// the screen's state over it core/channelScreen's; this makes the
+// requests and dispatches each answer. The log lives while any screen
+// holds it and goes with the last (useChannelLog, useThread).
 
 const RETRY_BASE_MS = 1000;
 const RETRY_CAP_MS = 15_000;
@@ -79,13 +84,22 @@ const notFound = (err: unknown) => err instanceof ConnectError && err.code === C
 // what the reader may do to it.
 const ended = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
 
-// Whether another older page fits in the channel's view, or a thread's.
-// A view holds at most LOG_CAP rows and a page past that prunes the
-// newest, the edge the screen keeps live (web shows a pill back to it;
-// these screens have no way back yet), so history ends a page short of
-// the cap and the screen says so.
-export const olderFits = (log: ChannelLog, rootId?: string) =>
-  (rootId === undefined ? channelItems(log) : threadItems(log, rootId)).length + PAGE <= LOG_CAP;
+// Whether another older page of replies fits in a thread's view. A view
+// holds at most LOG_CAP rows and a page past that prunes the newest, the
+// edge the thread screen keeps live with no way back yet, so a thread's
+// history ends a page short of the cap and the screen says so. The
+// channel pages on: past its cap the newest end goes, and the pill back
+// to the latest message reloads it (jumpToLatest).
+export const olderFits = (log: ChannelLog, rootId: string) => threadItems(log, rootId).length + PAGE <= LOG_CAP;
+
+// Where a jump landed: whether the message was there to land on, and the
+// thread to open on it when it is a reply that shows only there (the
+// channel lands on its root).
+export type JumpResult = { found: boolean; threadRootId?: string };
+
+// A jump asked for before the channel's header: the first page is asked
+// for around it instead, and the answer is this jump's.
+type PendingJump = { id: string; resolve: (result: JumpResult) => void };
 
 // What the requests out for the log answer to: one lifetime from the
 // first screen holding it to the last letting go. A request reads the
@@ -111,6 +125,11 @@ type Lifetime = {
   // How many events have changed the header, so a load they overtook is
   // made again rather than put over them.
   headerChanges: number;
+  // A jump asked for before the header: the open out, or the next one (a
+  // Ready opening again, a retry), asks for the page around it.
+  focus: PendingJump | null;
+  // The newest page is out for a jump back to the latest message.
+  jumpingLatest: boolean;
 };
 
 const newLifetime = (): Lifetime => ({
@@ -121,6 +140,8 @@ const newLifetime = (): Lifetime => ({
   renaming: false,
   renameAgain: false,
   headerChanges: 0,
+  focus: null,
+  jumpingLatest: false,
 });
 
 export type ChannelEngine = ReturnType<typeof createEngine>;
@@ -240,13 +261,16 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     }
   }
 
-  // The header and the newest page. The latest open is the one whose
-  // answer is wanted: a Ready while this one is out opens again, since
-  // this one may have read the server before the socket was back, and
-  // then this answer is dropped whether it lands before or after. The
-  // log is held from the start, so events about the channel have
-  // somewhere to go meanwhile; the page's position says whether one of
-  // them is still owed.
+  // The header and the first page: the newest, or the page around a jump
+  // asked for before the header (the screen opened at a message), which
+  // then lands on it, or on its root for a reply that shows only in its
+  // thread; a message not in the channel lands the newest page at its
+  // bottom. The latest open is the one whose answer is wanted: a Ready
+  // while this one is out opens again, since this one may have read the
+  // server before the socket was back, and then this answer is dropped
+  // whether it lands before or after. The log is held from the start, so
+  // events about the channel have somewhere to go meanwhile; the page's
+  // position says whether one of them is still owed.
   async function open() {
     const mine = life;
     const attempt = ++mine.opens;
@@ -258,15 +282,52 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       return;
     }
     const generation = state.log.channel.generation;
+    const focus = mine.focus;
     try {
-      const { header, page } = await loadChannel(server.origin, token, spaceId, channelId);
+      const { header, page, found } = await loadChannel(server.origin, token, spaceId, channelId, focus?.id);
       if (stale()) return;
-      dispatch({ type: "opened", header, res: page, token, generation });
+      const threadRootId = page.threadRootId || undefined;
+      const landOn = focus ? (found ? { id: threadRootId ?? focus.id } : "bottom") : undefined;
+      dispatch({ type: "opened", header, res: page, token, generation, landOn });
       if (state.log.needsCatchUp) void catchUp();
       if (mine.renameAgain) void reloadNames();
+      // The jump this page was asked for; one asked for while it was out
+      // is made now, the header being there.
+      const pending = mine.focus;
+      mine.focus = null;
+      if (pending && pending === focus) pending.resolve({ found, threadRootId });
+      else if (pending) void jumpOnce(pending.id).then(pending.resolve);
     } catch (err) {
       if (!stale()) dispatch({ type: "failed", outcome: outcomeOf(err) });
     }
+  }
+
+  // The channel landed on a message, the header being there: on the row
+  // where the range holds and shows it, with no request; otherwise the
+  // page around it replaces the range (core/channelScreen `jumped`),
+  // unless a later jump replaced it first. A message the server has no
+  // row for in the channel is not found; a failure to ask is the same to
+  // the caller, and one that means the sign-in has ended shows as such.
+  async function jumpOnce(messageId: string): Promise<JumpResult> {
+    const mine = life;
+    const { log } = state;
+    const row = log.rows.get(messageId);
+    if (row && isShown(row) && showsInChannel(row) && inRange(log.channel, messageId)) {
+      dispatch({ type: "land", landOn: { id: messageId } });
+      return { found: true };
+    }
+    const generation = log.channel.generation;
+    let res: ListMessagesResponse;
+    try {
+      res = await loadAround(server.origin, await token(), channelId, messageId, PAGE);
+    } catch (err) {
+      if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+      return { found: false };
+    }
+    if (mine.ended || state.log.channel.generation !== generation) return { found: false };
+    const threadRootId = res.threadRootId || undefined;
+    dispatch({ type: "jumped", res, generation, landOn: { id: threadRootId ?? messageId } });
+    return { found: true, threadRootId };
   }
 
   // After a reconnect the header's facts may have changed too (a rename,
@@ -452,6 +513,8 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   function stop() {
     life.ended = true;
     life.wake?.();
+    life.focus?.resolve({ found: false });
+    life.focus = null;
     unlisten?.();
     unlisten = null;
     threadHolders.clear();
@@ -504,12 +567,14 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       };
     },
 
-    // The page above the oldest message held, once at a time, while one fits.
+    // The page above the oldest message held, once at a time. Past the
+    // view's cap the newest end goes and the range stops short of the
+    // newest row; the pill brings the reader back (jumpToLatest).
     async older() {
       const mine = life;
       const { log, token, loadingOlder } = state;
       const view = log.channel;
-      if (loadingOlder || !token || !view.hasOlder || !view.oldestId || !olderFits(log)) return;
+      if (loadingOlder || !token || !view.hasOlder || !view.oldestId) return;
       dispatch({ type: "pagingOlder" });
       try {
         const res = await loadOlder(server.origin, token, channelId, view.oldestId);
@@ -517,6 +582,66 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       } catch {
         if (!mine.ended) dispatch({ type: "pageFailed" });
       }
+    },
+
+    // The page below the newest message held, while the range stops short
+    // of the newest row, the same way; past the cap the oldest end goes.
+    async newer() {
+      const mine = life;
+      const { log, token, loadingNewer } = state;
+      const view = log.channel;
+      if (loadingNewer || !token || !view.hasNewer || !view.newestId) return;
+      dispatch({ type: "pagingNewer" });
+      try {
+        const res = await loadNewer(server.origin, token, channelId, view.newestId);
+        if (!mine.ended) dispatch({ type: "pagedNewer", res, generation: view.generation });
+      } catch {
+        if (!mine.ended) dispatch({ type: "newerFailed" });
+      }
+    },
+
+    // The channel landed on a message (jumpOnce): on the row it holds, or
+    // on the page around it. Before the header the open out asks for that
+    // page instead, and this answers with it; once the log has gone, with
+    // nothing found. Lands on the root of a reply that shows only in its
+    // thread, and names the thread for the caller to open on the reply.
+    jumpTo(messageId: string): Promise<JumpResult> {
+      const mine = life;
+      if (mine.ended) return Promise.resolve({ found: false });
+      if (state.header) return jumpOnce(messageId);
+      return new Promise((resolve) => {
+        mine.focus?.resolve({ found: false });
+        mine.focus = { id: messageId, resolve };
+      });
+    },
+
+    // Back to the newest message from a range that stops short of it: the
+    // newest page replaces the range (`jumped`), and the list lands at
+    // its bottom; one at a time, and nothing while the range reaches the
+    // newest row already (the list scrolls there itself). A refusal that
+    // means the channel is gone or the sign-in has ended shows as such;
+    // any other leaves the range as it was.
+    async jumpToLatest() {
+      const mine = life;
+      const { log, token } = state;
+      const view = log.channel;
+      if (mine.jumpingLatest || !token || !view.hasNewer || !view.newestId) return;
+      mine.jumpingLatest = true;
+      try {
+        const res = await loadPage(server.origin, token, channelId);
+        if (mine.ended || state.log.channel.generation !== view.generation) return;
+        dispatch({ type: "jumped", res, generation: view.generation, landOn: "bottom" });
+      } catch (err) {
+        const outcome = outcomeOf(err);
+        if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
+      } finally {
+        mine.jumpingLatest = false;
+      }
+    },
+
+    // The list has landed where the state said.
+    landed() {
+      dispatch({ type: "landed" });
     },
 
     // The thread's replies above the oldest held, the same way.
