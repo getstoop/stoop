@@ -3,8 +3,9 @@
 // "password1") with profiles, two spaces with descriptions, welcome text
 // and channels, and an overlapping membership between them, plus the
 // extras — more neighbours in The Stoop, there so its member list is long
-// enough to scroll, fold and search. The seed never changes, so the
-// logins are worth memorising.
+// enough to scroll, fold and search. Every account gets a pixel-art
+// avatar drawn from its username (dev-sprites.mjs). The seed never
+// changes, so the logins are worth memorising.
 //
 // `--append` skips the wipe and the named cast and only adds the extras
 // to a running instance that already has casey.
@@ -14,6 +15,7 @@
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spritePng } from "./dev-sprites.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.STOOP_URL ?? "http://localhost:8091";
@@ -217,6 +219,8 @@ async function seedUsers(users, ids = {}, tokens = {}) {
       pronouns: user.pronouns ?? "",
       bio: user.bio ?? "",
     }, login.token);
+    await rpc("files.v1.FileService/UploadAvatar",
+      { data: spritePng(user.username).toString("base64") }, login.token);
   }
   return { ids, tokens };
 }
