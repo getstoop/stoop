@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
 import { ComposerAbove, ComposerOverlay } from "./composerAbove";
-import TopFade from "./TopFade";
+import EdgeFade from "./EdgeFade";
 import type { Notice } from "./useMessageActions";
 
 // A list of messages with the composer floating over its foot, riding
@@ -16,7 +16,8 @@ import type { Notice } from "./useMessageActions";
 // the list's head the same way (the server's layout); on iOS 26 the
 // system would fade a list under a bar, which on this upside-down list
 // dims it whole, so the list is marked to have no such fade, and gets
-// its own under the status bar (TopFade).
+// its own at both ends (EdgeFade): under the status bar, and under the
+// home indicator up to the composer's foot.
 export default function ComposerDock({
   keyboard,
   list,
@@ -63,7 +64,8 @@ export default function ComposerDock({
           ) : (
             list(composerHeight + composerBottom)
           )}
-          <TopFade />
+          <EdgeFade edge="top" height={insets.top + FADE_IN} />
+          <EdgeFade edge="bottom" height={composerBottom + FADE_IN} />
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
@@ -98,6 +100,10 @@ export default function ComposerDock({
 }
 
 const noFade = { top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
+
+// How far past the status bar, and past the composer's foot, a fade
+// reaches before it is gone.
+const FADE_IN = 20;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
