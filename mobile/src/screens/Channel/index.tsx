@@ -7,7 +7,7 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
-import { markRead } from "../../api/messages";
+import { markChannelActivityRead, markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
 import { useAudioPlayback } from "../../components/Attachments/audio";
@@ -113,12 +113,15 @@ export default function Channel({
   // moved, whether it has landed, and the message it jumped to on which
   // log. Another channel starts afresh.
   const marked = useRef("");
+  // Whether its mentions were read since it last came on screen.
+  const looked = useRef(false);
   const landed = useRef(false);
   const jumped = useRef<{ engine: ChannelEngine; id: string } | null>(null);
   const shownChannel = useRef(channelId);
   if (shownChannel.current !== channelId) {
     shownChannel.current = channelId;
     marked.current = "";
+    looked.current = false;
     landed.current = false;
     jumped.current = null;
     threadAfterMenu.current = null;
@@ -174,15 +177,26 @@ export default function Channel({
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web; not while the range stops
   // short of the newest message, whose newest row is not the channel's.
+  // Its mentions are read with it, and on each coming on screen (one
+  // left unread with the marker already moved); the marker's channelRead
+  // event, sent after them, is what reloads the space's badges.
   const newestId = messages.at(-1)?.id ?? "";
   useEffect(() => {
+    if (!focused || !active) looked.current = false;
     if (!newestId || !token || !focused || !active || !header || hasNewer) return;
     const readTo = header.channel.lastReadMessageId;
-    if (newestId <= readTo || newestId <= marked.current) return;
-    marked.current = newestId;
-    markRead(server.origin, token, channelId, newestId).catch(() => {
-      if (marked.current === newestId) marked.current = "";
-    });
+    const behind = newestId > readTo && newestId > marked.current;
+    if (!behind && looked.current) return;
+    looked.current = true;
+    if (behind) marked.current = newestId;
+    markChannelActivityRead(server.origin, token, channelId)
+      .catch(() => 0)
+      .then((read) => {
+        if (behind || read > 0) return markRead(server.origin, token, channelId, newestId);
+      })
+      .catch(() => {
+        if (marked.current === newestId) marked.current = "";
+      });
   }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer]);
 
   // Newest first, for a list drawn from the bottom up.
