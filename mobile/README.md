@@ -78,7 +78,9 @@ import a screen; the screens themselves live in `src/screens`, so
   to the composer's foot (`EdgeFade.tsx`). On iOS 26 the list is marked
   to have none of the system's own fade under the bar
   (`ScrollViewMarker`), which on an upside-down list dims the whole
-  list. Dragging the list puts the
+  list. A round button of the same surface over the composer's right end
+  (`JumpToLatest.tsx`) fades in once the reader has scrolled away from
+  the newest message and takes them back to it. Dragging the list puts the
   keyboard away (the card follows the keyboard's hide event; tracking
   the finger needs `react-native-keyboard-controller`, a follow-up). A
   message being quoted (Quote in reply, below) is the card's first line

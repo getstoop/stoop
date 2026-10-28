@@ -23,6 +23,7 @@ import ChannelTitle from "./ChannelTitle";
 import Composer from "./Composer";
 import ComposerDock from "./ComposerDock";
 import Divider from "./Divider";
+import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import Unavailable from "./Unavailable";
@@ -87,6 +88,9 @@ export default function Channel({
   // The thread Reply in thread opens once the menu has gone, by its root.
   const threadAfterMenu = useRef<string | null>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
+  // Whether the reader has scrolled up from the newest message, for the
+  // jump back to it.
+  const [away, setAway] = useState(false);
   // What this screen remembers about the channel shown: the marker it
   // moved and whether it has landed. Another channel starts afresh.
   const marked = useRef("");
@@ -266,6 +270,10 @@ export default function Channel({
                 list.current?.scrollToOffset({ offset: index * 60, animated: false });
                 setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
               }}
+              // Away from the newest message once scrolled further from the
+              // bottom edge than the list follows new rows from.
+              onScroll={(event) => setAway(event.nativeEvent.contentOffset.y > AT_LATEST)}
+              scrollEventThrottle={50}
               // On a drag, not interactively: the card follows the keyboard's
               // hide event, which iOS posts only at the end of an interactive
               // drag, so the card would float over an empty strip while the
@@ -279,7 +287,7 @@ export default function Channel({
               // Rows in view stay put when that padding changes (the composer
               // growing a line) and when a row arrives, unless the reader is at
               // the newest edge, where the list follows it.
-              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: AT_LATEST }}
               ListFooterComponent={
                 loadingOlder ? (
                   <ActivityIndicator style={styles.edge} color={theme.textMuted} />
@@ -294,6 +302,12 @@ export default function Channel({
             />
           </MessageContexts>
         )}
+        corner={
+          <JumpToLatest
+            shown={away}
+            onPress={() => list.current?.scrollToOffset({ offset: 0, animated: true })}
+          />
+        }
         composer={
           <Composer
             ref={actions.composer}
@@ -354,6 +368,11 @@ export default function Channel({
     </View>
   );
 }
+
+// How far from the bottom edge the reader still counts as at the newest
+// message: the list follows a new row from this near, and the jump back
+// shows from further.
+const AT_LATEST = 80;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
