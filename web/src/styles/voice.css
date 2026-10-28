@@ -177,10 +177,21 @@
   color: var(--accent);
 }
 
+/* A slider, not a field: fields.css gives every input a padded, bordered
+   box, which would inset the track so the thumb never reached the ends. */
 .voice-volume input[type="range"] {
   width: 100%;
   margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
   accent-color: var(--accent);
+}
+
+.voice-volume input[type="range"]:focus-visible {
+  box-shadow: none;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .voice-volume-marks {
