@@ -35,7 +35,7 @@ marked with a bridge level needs a shell at that level:
 
 | Member | Type | Purpose |
 | --- | --- | --- |
-| `bridge` | `number` | The contract level this shell implements. At 4 or above the shell's Voice menu holds Cmd/Ctrl+Shift+M and Cmd/Ctrl+Shift+D, so they reach the call from any server; the page leaves those two keys unbound (`shellOwnsVoiceKeys`, [web.md](web.md) → Keyboard shortcuts). At 6 or above it also holds Ctrl+Shift+Up and Ctrl+Shift+Down, the volume keys, from any app (`shellOwnsVolumeKeys`). |
+| `bridge` | `number` | The contract level this shell implements. At 4 or above the shell's Voice menu holds Cmd/Ctrl+Shift+M and Cmd/Ctrl+Shift+D, so they reach the call from any server; the page leaves those two keys unbound (`shellOwnsVoiceKeys`, [web.md](web.md) → Keyboard shortcuts). At 6 or above it also holds Ctrl+Shift+Up and Ctrl+Shift+Down, the volume keys, from any app; the page never binds those inside a shell, as with push to talk ([voice.md](voice.md#voice-volume)). |
 | `version` | string | The shell's own version, for the profile page and bug reports. |
 | `platform` | `"darwin" \| "win32" \| "linux"` | Keyboard hints, title-bar padding. |
 | `setBadge(count)` | `(n: number) => void` | The unread total for this server. `routes/Root.tsx` sends `alertingCount` off the activity cache; the shell sums across servers for the dock and tray. |

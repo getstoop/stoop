@@ -183,12 +183,6 @@ export function shellOwnsVoiceKeys(): boolean {
   return (bridge()?.bridge ?? 0) >= 4;
 }
 
-// Bridge 6. The shell's Voice menu holds the volume keys too, from any
-// app; the page gives them up.
-export function shellOwnsVolumeKeys(): boolean {
-  return (bridge()?.bridge ?? 0) >= 6;
-}
-
 export function reportVoice(report: VoiceReport | null) {
   bridge()?.setVoice?.(report);
 }

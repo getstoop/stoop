@@ -371,11 +371,14 @@ game, say — so they are kept in this browser as `stoop.voiceVolume` and
   gain is 0; undeafened, it is the chosen volume again.
 - **A track gets the gain as it is attached**, and a change is applied to
   every track playing.
-- **The keys only work while Stoop has focus.** Inside the desktop app
-  the shell holds them itself from any app once it speaks bridge 6, and
-  sends `volume-up` and `volume-down` voice actions — one step each, the
-  one pair that is not a request for a state, since the shell cannot
-  know the page's level ([desktop.md](desktop.md)).
+- **The keys only work while Stoop has focus.** A page gets no keys
+  otherwise.
+- **Inside the desktop app the page does not listen**, as with push to
+  talk, and the Voice tab is not offered: the shell holds the keys
+  itself, from any app, once it speaks bridge 6, and sends `volume-up`
+  and `volume-down` voice actions — one step each, the one pair that is
+  not a request for a state, since the shell cannot know the page's
+  level ([desktop.md](desktop.md)).
 
 ## Presence in a voice channel
 

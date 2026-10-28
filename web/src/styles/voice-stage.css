@@ -211,9 +211,14 @@
    into it still brings it back. */
 .stage-bar {
   position: absolute;
-  left: 50%;
+  /* Centred by auto margins, not a transform: a transform would make the
+     pill the containing block of the volume panel, which is fixed to
+     the viewport (VoiceVolume.tsx), and overflow would then clip it. */
+  left: 0;
+  right: 0;
+  width: max-content;
+  margin: 0 auto;
   bottom: 8px;
-  transform: translateX(-50%);
   display: flex;
   border-radius: var(--radius-pill);
   background: var(--scrim);

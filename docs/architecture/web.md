@@ -757,7 +757,7 @@ dispatched by one `keydown` listener (`useShortcutListener`, mounted in
 | --- | --- | --- |
 | Cmd/Ctrl+Shift+M | Mute or unmute | `Root`, while in a call |
 | Cmd/Ctrl+Shift+D | Deafen or undeafen | `Root`, while in a call |
-| Cmd/Ctrl+Shift+↑ / ↓ | Voice volume up or down, one step | `Root`, while in a call with the volume keys on (Account → Voice) |
+| Cmd/Ctrl+Shift+↑ / ↓ | Voice volume up or down, one step | `Root`, while in a call with the volume keys on (Account → Voice), in a browser |
 | F | Full screen the stage | `VoiceStage`, while it is on screen |
 | Ctrl+` (held) | Push to talk | `Root`, while in a call with push to talk on, in a browser |
 
@@ -774,8 +774,9 @@ dispatched by one `keydown` listener (`useShortcutListener`, mounted in
 - **The desktop shell holds the mute and deafen keys** once it speaks
   bridge 4: its Voice menu binds them so they reach the call from any
   server it has open, and the page leaves them unbound
-  ([desktop.md](desktop.md)). **It holds the volume keys** the same way
-  once it speaks bridge 6, from any app ([voice.md](voice.md#voice-volume)).
+  ([desktop.md](desktop.md)). **The volume keys are the page's only in a
+  browser**, like push to talk; the shell holds them itself from any app
+  once it speaks bridge 6 ([voice.md](voice.md#voice-volume)).
 - **Push to talk is held, not pressed**, so it is not in the table: the
   key is matched in `api/shortcuts.ts` and listened for on keydown and
   keyup by `usePushToTalk`. It is the physical key above Tab
