@@ -3,7 +3,16 @@ import { hasChannelFilter, inChannel, toggleInChannel, withoutChannelFilter } fr
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { loadSearchScope, type SearchScope } from "../../api/search";
@@ -31,10 +40,10 @@ import { type SearchState, useSearch } from "./useSearch";
 // back to that channel, neither lit while the query names another, and
 // the count of what matched. The matches come newest first, each row
 // the author, the channel, the day and the words (ResultRow); reaching
-// the end asks for the older page while the server has one, and a new
-// search drops the older pages (useSearch). A tap on a row opens the
-// message's channel with `focus` naming the message; the channel doesn't
-// act on it yet.
+// the end asks for the older page while the server has one (a page that
+// failed is offered again under the list), and a new search drops the
+// older pages (useSearch). A tap on a row opens the message's channel
+// with `focus` naming the message; the channel doesn't act on it yet.
 // With nothing searched the hint says what the query takes; a search
 // that found nothing says so, and offers the whole space when it was
 // narrowed to a channel; a refusal is said in the server's words, or
@@ -74,7 +83,7 @@ export default function Search({
   const token = view.state === "ready" ? view.token : null;
   const onEnded = useCallback(() => setView({ state: "ended" }), []);
   const onGone = useCallback(() => setView({ state: "gone" }), []);
-  const { state, run, more } = useSearch(server.origin, token, spaceId, onEnded, onGone);
+  const { state, run, more, retryMore } = useSearch(server.origin, token, spaceId, onEnded, onGone);
 
   const load = useCallback(async (): Promise<ScopeState> => {
     const session = await sessionToken(server.id).catch(() => null);
@@ -211,9 +220,18 @@ export default function Search({
             state.loadingMore ? (
               <Text style={styles.hint}>Loading older matches…</Text>
             ) : state.error && results ? (
-              <Text style={styles.error} accessibilityRole="alert">
-                {state.error}
-              </Text>
+              // The older page's failure, and the tap that asks for it
+              // again (the list won't on its own while this is shown).
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${state.error} Tap to try again.`}
+                onPress={retryMore}
+                style={({ pressed }) => pressed && styles.down}
+              >
+                <Text style={styles.error}>
+                  {state.error} <Text style={styles.again}>Try again</Text>
+                </Text>
+              </Pressable>
             ) : undefined
           }
           onEndReached={more}
@@ -316,6 +334,13 @@ function makeStyles(theme: Theme) {
       color: theme.danger,
       fontSize: tokens.textUi,
       lineHeight: tokens.textUi * tokens.leadingUi,
+    },
+    again: {
+      color: theme.accent,
+      fontWeight: "600",
+    },
+    down: {
+      opacity: 0.85,
     },
   });
 }

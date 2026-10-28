@@ -35,30 +35,60 @@ export function highlightPattern(terms: string[]): RegExp | null {
   );
 }
 
+// The query's tokens as the server reads them (internal/chat
+// search_query.go, tokenizeSearch): split on whitespace, a "quoted
+// phrase" staying one token with its quotes, also after a key: prefix.
+// So `"sign in:" error` carries no filter, and `in:"front steps"` is one.
+export function queryTokens(query: string): string[] {
+  const out: string[] = [];
+  let token = "";
+  let quoted = false;
+  for (const ch of query) {
+    if (ch === '"') {
+      quoted = !quoted;
+      token += ch;
+    } else if (!quoted && /\s/.test(ch)) {
+      if (token) out.push(token);
+      token = "";
+    } else {
+      token += ch;
+    }
+  }
+  if (token) out.push(token);
+  return out;
+}
+
 // Whether the query already narrows to this channel.
 export function inChannel(query: string, name: string): boolean {
   // Both sides lowercased: channel names are only length-checked by the
   // server, so a #General exists, and comparing a lowercased token to a
   // raw name never matched — its chip could not be turned off again.
-  const want = `in:#${name.toLowerCase()}`;
-  return query.split(/\s+/).some((t) => t.toLowerCase() === want);
+  const want = name.toLowerCase();
+  return queryTokens(query).some((t) => channelOf(t) === want);
 }
 
 // Whether the query narrows to any channel.
 export function hasChannelFilter(query: string): boolean {
-  return query.split(/\s+/).some(isChannelFilter);
+  return queryTokens(query).some(isChannelFilter);
 }
 
 // The query with every channel filter removed.
 export function withoutChannelFilter(query: string): string {
-  return query
-    .split(/\s+/)
-    .filter((t) => t && !isChannelFilter(t))
+  return queryTokens(query)
+    .filter((t) => !isChannelFilter(t))
     .join(" ");
 }
 
 const isChannelFilter = (token: string) =>
   token.toLowerCase().startsWith("in:");
+
+// The channel a filter token names, read as the server reads it: the
+// quotes and the # dropped, so `in:general` and `in:"#General"` both
+// name general. Null for any other token.
+function channelOf(token: string): string | null {
+  if (!isChannelFilter(token)) return null;
+  return token.slice(3).replace(/"/g, "").replace(/^#/, "").toLowerCase();
+}
 
 // The query with this channel's filter added or removed; a filter
 // naming another channel is replaced.

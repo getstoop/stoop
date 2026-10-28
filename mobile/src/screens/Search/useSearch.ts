@@ -90,7 +90,12 @@ export function useSearch(
     [origin, token, spaceId, over],
   );
 
-  const more = useCallback(() => {
+  // The older page before the last match. Not while the last one's
+  // failure is still shown: the footer's swap to it changes the list's
+  // height, which the list reports as the end reached again, and that
+  // would ask, fail and swap until the person scrolled. The failure
+  // line is itself the way to ask again (retryMore).
+  const older = useCallback(() => {
     const { query, results } = state;
     const last = results?.messages.at(-1);
     if (!results?.hasOlder || paging.current || !last || !token) return;
@@ -115,6 +120,9 @@ export function useSearch(
       },
     );
   }, [origin, token, spaceId, state, over]);
+  const more = useCallback(() => {
+    if (!state.error) older();
+  }, [state.error, older]);
 
-  return { state, run, more };
+  return { state, run, more, retryMore: older };
 }
