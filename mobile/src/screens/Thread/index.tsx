@@ -315,8 +315,8 @@ export default function Thread({
                 list.current?.scrollToOffset({ offset: index * 60, animated: false });
                 setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false }), 100);
               }}
-              // As the channel's: on a drag, the card following the keyboard.
-              keyboardDismissMode="on-drag"
+              // As the channel's: scrolling leaves the keyboard in place.
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
               // Drawn upside down, so the top padding is the bottom edge, and
               // the bottom padding the top, under the floating header.
               contentContainerStyle={{ paddingTop: 12 + clearance, paddingBottom: 12 + headerHeight }}

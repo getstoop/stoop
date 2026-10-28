@@ -5,7 +5,7 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
 import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
@@ -274,12 +274,14 @@ export default function Channel({
               // bottom edge than the list follows new rows from.
               onScroll={(event) => setAway(event.nativeEvent.contentOffset.y > AT_LATEST)}
               scrollEventThrottle={50}
-              // On a drag, not interactively: the card follows the keyboard's
-              // hide event, which iOS posts only at the end of an interactive
-              // drag, so the card would float over an empty strip while the
-              // keyboard followed the finger. Following it needs
-              // react-native-keyboard-controller, a follow-up.
-              keyboardDismissMode="on-drag"
+              // Scrolling leaves the keyboard, and so the composer's card, in
+              // place. On iOS a drag down into the keyboard puts it away; the
+              // card follows the keyboard's hide event, which iOS posts only
+              // at the end of that drag, so it floats over an empty strip
+              // while the keyboard follows the finger. Following it needs
+              // react-native-keyboard-controller, a follow-up. Android has no
+              // such drag: the back gesture puts the keyboard away.
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
               // Drawn upside down, so the top padding is the bottom edge: the
               // list scrolls under the composer, and its newest message clears
               // it; the bottom padding is the top edge, under the header.
