@@ -1,7 +1,7 @@
 appId: ${APP_ID}
 name: Pin a message from its menu, see it marked, and unpin it
 ---
-# After message-menu.yaml, by file name. Leaves chapters as it found it:
+# After message-more.yaml, by file name. Leaves chapters as it found it:
 # the note is unpinned again at the end, so the flows after mind nothing.
 # As ada, who owns the space and so manages its channels: dee's note may
 # be pinned.

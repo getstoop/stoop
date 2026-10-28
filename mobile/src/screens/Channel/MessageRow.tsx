@@ -298,6 +298,8 @@ function makeStyles(theme: Theme) {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
+      // Web's margin-bottom: a continued row's indent has no gap of its own.
+      marginBottom: 2,
     },
     time: {
       color: theme.textMuted,
