@@ -257,7 +257,7 @@ test("mentions notify, badge and read", async ({ browser }) => {
     "mention while on /profile → the pill is dotted",
   ).toBeVisible();
   await A.locator(".space-pill.activity").click();
-  await A.locator(".activity-page-header .chip").click();
+  await A.locator(".activity-mark-all").click();
   await expect(activityDot(A), "Mark all read clears the badge").toHaveCount(0);
   await expect(
     A.locator(".activity-row.unread"),

@@ -41,8 +41,10 @@ describe("activityVerb", () => {
   it("names each kind", () => {
     expect(activityVerb(ActivityKind.MENTION)).toBe("mentioned you");
     expect(activityVerb(ActivityKind.REPLY)).toBe("replied to you");
-    expect(activityVerb(ActivityKind.DM)).toBe("messaged you");
-    expect(activityVerb(ActivityKind.THREAD_REPLY)).toBe("replied in a thread");
+    expect(activityVerb(ActivityKind.DM)).toBe("sent you a direct message");
+    expect(activityVerb(ActivityKind.THREAD_REPLY)).toBe(
+      "replied in a thread you're in",
+    );
   });
 
   // A kind this build does not know about still reads as something that
