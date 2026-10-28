@@ -17,6 +17,7 @@ import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
@@ -25,6 +26,8 @@ import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
 import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
+import SearchButton from "../Channel/SearchButton";
+import { searchItem } from "../Channel/searchItem";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
@@ -58,7 +61,9 @@ import ThreadTitle from "./ThreadTitle";
 // channel's). A tap on a picture opens the viewer over the thread,
 // stepping through its pictures. The header's bell mutes the thread, or unmutes it, as
 // web's thread panel does: once it has replies, and only where its
-// channel isn't muted, which silences it already.
+// channel isn't muted, which silences it already. Before the bell, Search
+// pushes the space's search screen narrowed to the thread's channel, as
+// the channel's header does.
 
 // How long after a failed read it is asked for again.
 const READ_RETRY_MS = 5000;
@@ -202,21 +207,42 @@ export default function Thread({
     [send, rootId],
   );
 
-  // The header in every state, the channel once it is known, and the
-  // bell once the thread is on screen (with the dock, where a refusal
-  // is said) with a summary to mute.
+  // The header in every state, the channel once it is known, Search once
+  // the space is, and the bell once the thread is on screen (with the
+  // dock, where a refusal is said) with a summary to mute.
   const summary = !outcome && !thread?.outcome && decided ? root?.thread : undefined;
   const mute =
     header && summary
       ? { muted: summary.muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
       : undefined;
+  const pushOnce = usePushOnce();
+  const openSearch = useCallback(
+    () =>
+      pushOnce(() =>
+        router.push({ pathname: "/s/[id]/space/[spaceId]/search", params: { id: server.id, spaceId, c: channelId } }),
+      ),
+    [pushOnce, router, server.id, spaceId, channelId],
+  );
+  const search = header ? { spaceName: header.space.name, onPress: openSearch } : undefined;
   const title = (
     <Stack.Screen
       options={{
         headerTitle: () => <ThreadTitle channel={header?.channel} spaceName={header?.space.name ?? ""} />,
         ...(Platform.OS === "ios"
-          ? { unstable_headerRightItems: () => (mute ? [muteItem(mute)] : []) }
-          : { headerRight: () => (mute ? <MuteButton {...mute} /> : null) }),
+          ? {
+              unstable_headerRightItems: () => [
+                ...(search ? [searchItem(search)] : []),
+                ...(mute ? [muteItem(mute)] : []),
+              ],
+            }
+          : {
+              headerRight: () => (
+                <View style={styles.headerItems}>
+                  {search && <SearchButton {...search} />}
+                  {mute && <MuteButton {...mute} />}
+                </View>
+              ),
+            }),
       }}
     />
   );
@@ -418,6 +444,11 @@ function makeStyles(theme: Theme) {
     },
     edge: {
       marginVertical: 16,
+    },
+    headerItems: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
     },
     closed: {
       marginHorizontal: 16,

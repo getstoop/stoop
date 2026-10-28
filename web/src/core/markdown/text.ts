@@ -18,18 +18,31 @@ export function plainLines(content: string): string {
 // The message with its markup removed, for one-line previews (reply bar,
 // activity previews). Mirrors plainText on the server.
 export function plainText(content: string): string {
-  return textLines(content, (line) => line)
-    .replace(/\s*\n\s*/g, " ")
-    .trim();
+  return oneLine(textLines(content, (line) => line));
+}
+
+// The same with a spoiler's words covered: "spoiler" stands where they
+// would be, for a label read aloud over a row that draws them covered
+// (the phone's search result), which plainText would give away.
+export function previewText(content: string): string {
+  return oneLine(textLines(content, (line) => line, true));
+}
+
+function oneLine(text: string): string {
+  return text.replace(/\s*\n\s*/g, " ").trim();
 }
 
 // Each block's lines of words, blocks and lines joined by newlines; a
-// quote's lines through quoted.
-function textLines(content: string, quoted: (line: string) => string): string {
+// quote's lines through quoted, a spoiler's words covered when asked.
+function textLines(
+  content: string,
+  quoted: (line: string) => string,
+  covered = false,
+): string {
   return parseMarkdown(content)
     .map((b) => {
       if (b.type === "codeblock") return b.text;
-      const lines = lineRuns(b).map(inlineText);
+      const lines = lineRuns(b).map((run) => inlineText(run, covered));
       return (b.type === "quote" ? lines.map(quoted) : lines).join("\n");
     })
     .join("\n");
@@ -64,7 +77,7 @@ function lineRuns(b: Exclude<Block, { type: "codeblock" }>): Inline[][] {
   return b.type === "list" ? b.items.map((it) => it.content) : b.lines;
 }
 
-function inlineText(nodes: Inline[]): string {
+function inlineText(nodes: Inline[], covered = false): string {
   return nodes
     .map((n) => {
       switch (n.type) {
@@ -72,11 +85,13 @@ function inlineText(nodes: Inline[]): string {
         case "code":
           return n.text;
         case "link":
-          return n.label ? inlineText(n.label) : n.href;
+          return n.label ? inlineText(n.label, covered) : n.href;
         case "mention":
           return mentionText(n.mention);
+        case "spoiler":
+          return covered ? "spoiler" : inlineText(n.children);
         default:
-          return inlineText(n.children);
+          return inlineText(n.children, covered);
       }
     })
     .join("");

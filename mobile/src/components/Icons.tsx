@@ -416,6 +416,17 @@ export function PaperclipIcon({ color, size = 14 }: IconProps) {
   );
 }
 
+// The channel header's Search where it isn't a bar button item, and the
+// search screen's field: web's magnifier at its 2.2 stroke.
+export function SearchIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
+      <Circle cx={10.5} cy={10.5} r={6.5} />
+      <Path d="M15.5 15.5 21 21" />
+    </Svg>
+  );
+}
+
 // The viewer's: Android's back arrow, which closes it there, and each
 // platform's own share glyph (a box with an arrow up out of it on iOS,
 // three joined nodes on Android).

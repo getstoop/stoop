@@ -43,6 +43,9 @@ export default function ServerLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="space/[spaceId]/channel/[channelId]/index" options={floating} />
         <Stack.Screen name="space/[spaceId]/channel/[channelId]/thread/[rootId]" options={floating} />
+        {/* Search draws its own header row: the back button and the field's
+            pill, floating as the channel's do. */}
+        <Stack.Screen name="space/[spaceId]/search" options={{ headerShown: false }} />
       </Stack>
     </CurrentServer>
   );
