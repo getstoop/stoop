@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { markActivityRead } from "../../api/activity";
 import { chatClient } from "../../api/clients";
 import { useActivity } from "../../api/queries";
@@ -11,7 +11,8 @@ import { ActivityRow } from "./ActivityRow";
 
 // The activity inbox: everything that has happened to you, in two
 // sections. New holds what is unread, newest first, with "Mark all read"
-// on its heading; Read is the read history under day dividers. The
+// on its heading; Read is the read history, the first row of each day
+// carrying the day. The
 // first page comes from the shared cache (so it is the same list the
 // badges are derived from), and older pages load as the list is
 // scrolled to its end. A row that is read moves from one section to the
@@ -65,7 +66,7 @@ export function ActivityPage() {
         )}
 
         {fresh.length > 0 && (
-          <section className="activity-section" aria-label="New">
+          <section className="activity-section new" aria-label="New">
             <h2 className="activity-section-head eyebrow">
               New
               <span className="activity-section-count">{fresh.length}</span>
@@ -88,20 +89,20 @@ export function ActivityPage() {
         )}
 
         {earlier.length > 0 && (
-          <section className="activity-section" aria-label="Read">
+          <section className="activity-section read" aria-label="Read">
             <h2 className="activity-section-head eyebrow">Read</h2>
             <ul className="activity-list">
               {earlier.map((item, i) => (
-                <Fragment key={item.id}>
-                  {item.createdAt && startsDay(item, earlier[i - 1]) && (
-                    <li className="day-divider eyebrow">
-                      <span>{dayLabel(timestampDate(item.createdAt))}</span>
-                    </li>
-                  )}
-                  <li>
-                    <ActivityRow item={item} />
-                  </li>
-                </Fragment>
+                <li key={item.id}>
+                  <ActivityRow
+                    item={item}
+                    day={
+                      item.createdAt && startsDay(item, earlier[i - 1])
+                        ? dayLabel(timestampDate(item.createdAt))
+                        : undefined
+                    }
+                  />
+                </li>
               ))}
             </ul>
           </section>

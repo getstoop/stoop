@@ -26,9 +26,13 @@ import { splitPreview } from "./preview";
 export function ActivityRow({
   item,
   dated = false,
+  day,
 }: {
   item: ActivityItem;
   dated?: boolean;
+  // The day label this row opens, on the first row of a day in the
+  // Read section; the rows after it in the same day carry none.
+  day?: string;
 }) {
   const { data: me } = useMe();
   const { data: spaces } = useSpaces();
@@ -63,6 +67,7 @@ export function ActivityRow({
       className={`activity-row ${item.readAt ? "read" : "unread"}`}
       onClick={open}
     >
+      {day && <span className="activity-day eyebrow">{day}</span>}
       <span className="activity-avatar">
         <Avatar
           name={who}

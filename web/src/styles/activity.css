@@ -103,10 +103,6 @@
   gap: 2px;
 }
 
-.activity-list .day-divider:not(:first-child) {
-  margin-top: 12px;
-}
-
 .activity-more {
   margin-top: 12px;
 }
@@ -143,6 +139,26 @@
 
 .activity-row.unread:hover {
   background: var(--raised);
+}
+
+/* Read rows sit flush, a rule between each; the last has none. */
+.activity-section.read .activity-list {
+  gap: 0;
+}
+
+.activity-row.read {
+  border-radius: 0;
+  border-bottom-color: var(--border);
+}
+
+.activity-section.read li:last-child .activity-row.read {
+  border-bottom-color: transparent;
+}
+
+/* The day, inside the first row of it, above the avatar and the words. */
+.activity-day {
+  grid-column: 1 / -1;
+  padding-bottom: 6px;
 }
 
 .activity-avatar {
