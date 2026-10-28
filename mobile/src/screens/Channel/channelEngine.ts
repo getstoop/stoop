@@ -35,6 +35,7 @@ import {
   PAGE,
   type SendTo,
   sendMessage,
+  setMessagePinned,
   setThreadMuted,
   toggleReaction,
 } from "../../api/messages";
@@ -653,6 +654,27 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         throw err;
       }
       if (!mine.ended) dispatch({ type: "deleted", messageId: message.id });
+    },
+
+    // The reader's own pin or unpin, as web marks one: written to the held
+    // row at once (core/channelScreen `pinned`, at the row's own seq, so
+    // the message_pinned that follows replaces it), then SetMessagePinned.
+    // A refusal puts the flag back, unless the row has moved on meanwhile,
+    // and is the caller's to show, as above.
+    async pin(message: Message, pinned: boolean) {
+      const mine = life;
+      const { token } = state;
+      if (!token) return;
+      const patch = (value: boolean): ScreenAction => ({ type: "pinned", messageId: message.id, seq: message.seq, pinned: value });
+      dispatch(patch(pinned));
+      try {
+        await setMessagePinned(server.origin, token, message.id, pinned);
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch(patch(!pinned));
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
     },
 
     // A link's card taken off a message, confirmed already: the

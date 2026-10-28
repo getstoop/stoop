@@ -227,3 +227,10 @@ export async function deleteMessage(origin: string, token: string, messageId: st
 export async function dismissLinkPreview(origin: string, token: string, messageId: string, url: string): Promise<void> {
   await chatClient(origin, token).dismissLinkPreview({ messageId, url }, { timeoutMs: TIMEOUT_MS });
 }
+
+// A message pinned to its channel, or unpinned, for everyone; the server
+// decides who may (manage_channels). The message_pinned that follows
+// carries the flag.
+export async function setMessagePinned(origin: string, token: string, messageId: string, pinned: boolean): Promise<void> {
+  await chatClient(origin, token).setMessagePinned({ messageId, pinned }, { timeoutMs: TIMEOUT_MS });
+}

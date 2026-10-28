@@ -11,6 +11,7 @@ import {
   CopyIcon,
   LinkIcon,
   PencilIcon,
+  PinIcon,
   QuoteReplyIcon,
   SmileyIcon,
   ThreadIcon,
@@ -33,7 +34,11 @@ import { useSheet } from "./useSheet";
 // final, and a pick there does the same; Copy text puts the message's
 // words on the clipboard, as the row draws them, and closes it; Copy
 // link does the same with the message's link, as the screen built it,
-// and says so (onCopyFailed) when the clipboard refuses; Quote in reply
+// and says so (onCopyFailed) when the clipboard refuses; Pin message, or
+// Unpin message once it is pinned, hands the message to the screen
+// (onPin), which is given only where the reader may pin, as web decides
+// it (core/permissions canManageChannels, in the channel, not on a
+// reply); Quote in reply
 // hands the message to the screen (onQuote), which holds it as the
 // composer's quote and opens the composer once the sheet has gone, and
 // Edit message does the same (onEdit) for the composer to edit it;
@@ -60,6 +65,7 @@ export default function MessageMenu({
   onReact,
   onCopyFailed,
   onThread,
+  onPin,
   onQuote,
   onEdit,
   onDelete,
@@ -76,6 +82,9 @@ export default function MessageMenu({
   onCopyFailed: () => void;
   // Not in a thread, where every message is in it already.
   onThread?: () => void;
+  // Only where the reader may pin: in the channel, on a message that is
+  // not a reply, with manage_channels.
+  onPin?: () => void;
   // Not where nothing can be written: a thread that takes no replies.
   onQuote?: () => void;
   onEdit?: () => void;
@@ -146,6 +155,11 @@ export default function MessageMenu({
     onEdit?.();
     dismiss();
   };
+  const togglePin = () => {
+    if (closing()) return;
+    onPin?.();
+    dismiss();
+  };
   // The system's confirm over the sheet; Cancel leaves the sheet open.
   const confirmDelete = () =>
     Alert.alert("Delete this message?", "It's removed for everyone and can't be undone.", [
@@ -184,6 +198,13 @@ export default function MessageMenu({
     { label: "Copy text", icon: <CopyIcon color={theme.textMuted} />, onPress: copy },
     { label: "Copy link", icon: <LinkIcon color={theme.textMuted} size={22} />, onPress: copyLink },
   );
+  if (onPin) {
+    items.push({
+      label: message.pinned ? "Unpin message" : "Pin message",
+      icon: <PinIcon color={theme.textMuted} filled={message.pinned} />,
+      onPress: togglePin,
+    });
+  }
   if (mine && onEdit) items.push({ label: "Edit message", icon: <PencilIcon color={theme.textMuted} />, onPress: edit });
   if (mine || canModerate) {
     items.push({

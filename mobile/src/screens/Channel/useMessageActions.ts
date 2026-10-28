@@ -49,7 +49,7 @@ export function useMessageActions({
   log: ChannelLog;
   // The channel has gone, or can't be shown.
   gone: boolean;
-  engine: Pick<ChannelEngine, "react" | "remove" | "dismissPreview">;
+  engine: Pick<ChannelEngine, "react" | "remove" | "pin" | "dismissPreview">;
   keyboard: number;
   focused: boolean;
   composing?: boolean;
@@ -57,7 +57,7 @@ export function useMessageActions({
   // The list's rows, newest first.
   items: GroupedRow[];
 }) {
-  const { react, remove, dismissPreview: dismissCard } = engine;
+  const { react, remove, pin, dismissPreview: dismissCard } = engine;
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -111,6 +111,14 @@ export function useMessageActions({
       remove(message).catch((err) => notify("Couldn't delete the message", errorText(err)));
     },
     [remove, notify],
+  );
+  // Pin message or Unpin message, whichever the row's flag makes it.
+  const togglePin = useCallback(
+    (message: Message) => {
+      const pinned = !message.pinned;
+      pin(message, pinned).catch((err) => notify(pinned ? "Couldn't pin" : "Couldn't unpin", errorText(err)));
+    },
+    [pin, notify],
   );
   const linkNotCopied = useCallback(() => notify("Couldn't copy the link"), [notify]);
   const dismissPreview = useCallback(
@@ -215,6 +223,7 @@ export function useMessageActions({
     notify,
     reactTo,
     deleteMessage,
+    togglePin,
     dismissPreview,
     linkNotCopied,
     quote,
