@@ -231,22 +231,19 @@
   padding-top: 2px;
 }
 
-/* The preview: two lines, at full strength while unread. A mention in
-   it wears the message pill (messages.css .mention). */
+/* The preview: two lines, in the text colour whether read or not (the
+   flat row and the grey glyph already say read). A mention in it wears
+   the message pill (messages.css .mention) while unread. */
 .activity-preview {
   grid-column: 2 / -1;
   min-width: 0;
-  font-size: var(--text-body);
+  font-size: var(--text-ui);
   line-height: var(--leading-ui);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-}
-
-.activity-row.read .activity-preview {
-  color: var(--text-muted);
 }
 
 .activity-row.read .activity-preview .mention {
