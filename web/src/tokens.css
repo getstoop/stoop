@@ -1,6 +1,7 @@
 /* Tokens that are not a theme's to set: shape, type, motion, focus,
    stacking and layout, plus the status tints derived from theme colours
-   (second block). Colour lives in themes.css, one block per theme; the
+   (second block), and the on-video palette no theme sets (third block).
+   Every other colour lives in themes.css, one block per theme; the
    first block here is for every theme, because a theme must never move a
    glyph (the composer overlay depends on metrics staying put). Spacing is
    deliberately not here — gap and padding are written in px on the scale
@@ -87,4 +88,21 @@
   --warn-dim: color-mix(in srgb, var(--warn) 55%, var(--border));
   /* The scrim behind an image preview: the theme's, all but opaque. */
   --scrim-deep: rgb(from var(--scrim) r g b / 0.97);
+}
+
+/* What is drawn over video on the voice stage: the control pill
+   (StageBar) and the tiles' name plates. Video is dark in every theme, so
+   these are fixed rather than the theme's: a light theme's --text and
+   --raised put dark glyphs and a pale hover on a dark wash, and its
+   --scrim over the empty stage came out mid-grey. The fill is black
+   enough that the glyphs clear 4.5:1 on it both over a black frame and
+   over the palest stage (Whiteout's white canvas), hovered or not; --ok
+   and --danger are the brightest of the dark themes' for the same
+   reason, since a light theme's own would not. */
+:root {
+  --on-video-fill: rgba(0, 0, 0, 0.85);
+  --on-video-hover: rgba(255, 255, 255, 0.1);
+  --on-video-text: #e6e7ea;
+  --on-video-ok: #7ad39a;
+  --on-video-danger: #ff8a80;
 }

@@ -74,7 +74,9 @@ for, and why — is in
   `--leading-body`), motion (`--dur-fast`, `--dur`, `--ease`), focus
   (`--focus-ring`), stacking (`--z-sticky` … `--z-modal`), the disabled
   opacity (`--disabled`) and layout widths (`--rail-w`, `--sidebar-w`).
-  Themes stay colour-only.
+  Themes stay colour-only. The one colour palette no theme sets lives
+  there too: the `--on-video-*` block for what the voice stage draws
+  over video, which is dark whatever the theme.
 - **Status tints are derived there too** — `--ok-soft`, `--warn-soft`,
   `--danger-soft`, `--danger-border`, mixed from the theme's colours in a
   second block on `:root, [data-theme]`. Use them instead of an inline

@@ -51,8 +51,10 @@ The rest of the colour contract follows from that:
   else declares it except three marked exceptions that float without being
   popovers (the jump-to-present pill, a dragged table row, the phone
   drawer). A card does not float, so it has a border and no shadow.
-- **`--scrim` dims what is behind.** The modal backdrop, the phone drawer's
-  backdrop, and the labels laid over video on the stage.
+- **`--scrim` dims what is behind.** The modal backdrop and the phone
+  drawer's backdrop. What is laid over video on the voice stage uses the
+  fixed `--on-video-*` palette in `tokens.css` instead, because video is
+  dark in every theme.
 - **`--accent` is the one colour that means "this one"**: the primary
   button, links, the focus ring, an avatar's fill. `--on-accent` is text on
   it. `--accent-soft` is its tint, for a selected thing that must stay

@@ -404,7 +404,8 @@ Everything that is not colour — radius, type, motion, focus, stacking — is
 one block in `web/src/tokens.css`, shared by every theme. A second block
 there derives the four status tints (`--ok-soft`, `--warn-soft`,
 `--danger-soft`, `--danger-border`) from the theme's colours, on every
-theme scope.
+theme scope. A third holds the one palette no theme sets, the
+`--on-video-*` colours of what the voice stage draws over video.
 
 **The choice is per client and never the server's business.** It lives in
 `localStorage` under `stoop.theme`, is stamped on `<html data-theme>` by an

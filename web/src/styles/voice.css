@@ -88,7 +88,8 @@
 
 /* The volume button and the panel it opens (components/VoiceVolume.tsx):
    fixed above the button, as the ⋮ menu is, so the stage bar's pill
-   cannot clip it. */
+   cannot clip it. The panel is a themed surface wherever it is anchored:
+   on the stage it would otherwise inherit the pill's on-video text. */
 .voice-volume-anchor {
   display: inline-flex;
   align-items: center;
@@ -107,6 +108,7 @@
   gap: 8px;
   padding: 12px 12px 8px;
   font-size: var(--text-ui);
+  color: var(--text);
 }
 
 .voice-volume-head {
