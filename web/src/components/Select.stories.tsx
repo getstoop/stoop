@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Field } from "./Field";
 import { Select } from "./Select";
+import { MicIcon } from "./VoiceIcons";
 
 const meta: Meta<typeof Select> = {
   title: "Components/Select",
@@ -39,4 +40,12 @@ export const InAFieldRefused: StoryObj = {
       <Select defaultValue="invite">{options}</Select>
     </Field>
   ),
+};
+
+export const WithAnIcon: Story = {
+  args: { ...Default.args, icon: <MicIcon /> },
+};
+
+export const NothingToOpen: Story = {
+  args: { ...Default.args, chevron: false, disabled: true },
 };

@@ -1,0 +1,182 @@
+/* ---- The sidebar voice bar (components/VoiceBar): a status row with
+   Disconnect beside it, the device list, and the toggles as tiles. ---- */
+
+.voice-bar {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.voice-bar + .members-panel {
+  margin-top: 0;
+}
+
+.voice-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.voice-bar-status {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--text-sm);
+}
+
+.voice-bar-status strong {
+  color: var(--ok);
+}
+
+.voice-bar.error .voice-bar-status strong {
+  color: var(--danger);
+}
+
+.voice-bar-where {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Disconnect: the one destructive action, apart from the toggles. Wider
+   and a touch taller than a tile, the handset in danger on a faint fill,
+   solid under the pointer. */
+.voice-bar-leave {
+  flex: none;
+  width: 44px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--text-xl);
+}
+
+.voice-bar-leave:hover {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+/* "Enable audio": a chip on its own line, not stretched to the bar. */
+.voice-bar > .chip {
+  align-self: flex-start;
+}
+
+.voice-bar-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+/* The device list: one group on the panel colour, a hairline between
+   its rows. Each row (DevicePicker) is a native select with no box of
+   its own — the group is the box — so it keeps the keyboard and the
+   browser's device menu. A row with nothing to choose is disabled, which
+   is also what drops its chevron. */
+.voice-bar-devices {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.voice-device-row + .voice-device-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.voice-device-row > select {
+  height: 32px;
+  padding: 0 32px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: var(--text-sm);
+  color: var(--text);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.voice-device-row > select:not(:disabled):hover {
+  background: var(--hover);
+}
+
+/* The group clips its rows, so the focus ring is drawn inside. */
+.voice-device-row > select:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.voice-device-row > select:disabled {
+  padding-right: 8px;
+  color: var(--text);
+  opacity: 1;
+  cursor: default;
+}
+
+.voice-device-row.placeholder > select {
+  color: var(--text-muted);
+}
+
+.voice-device-row > svg {
+  right: 8px;
+}
+
+.voice-device-row > .select-icon {
+  left: 8px;
+  width: 16px;
+  justify-content: center;
+}
+
+.voice-device-row > .select-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The toggles as equal tiles across the bar (VoiceActions layout
+   "tiles"): as many columns as there are tiles, so a browser without
+   screen share leaves no hole. Camera on tints its icon ok; muted and
+   deafened tint the tile's fill and icon danger. */
+.voice-actions.tiles {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.voice-actions.tiles .icon-button {
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.voice-actions.tiles .icon-button:hover,
+.voice-actions.tiles .icon-button.open {
+  background: var(--raised);
+}
+
+.voice-actions.tiles .icon-button.on {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* The volume button is wrapped by its popover's anchor, which has to
+   fill the cell for the tile to. */
+.voice-actions.tiles .voice-volume-anchor {
+  display: flex;
+  align-items: stretch;
+}
+
+.voice-actions.tiles .voice-volume-anchor > .icon-button {
+  flex: 1 1 auto;
+}

@@ -237,6 +237,22 @@ label.toggle-row input.switch {
   padding-right: 32px;
 }
 
+/* A glyph inside the left padding, where a leading icon reads as part of
+   the choice (the voice bar's device rows). */
+.select-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  translate: 0 -50%;
+  display: inline-flex;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.select:has(> .select-icon) > select {
+  padding-left: 32px;
+}
+
 /* ChevronIcon points right. */
 .select > svg {
   position: absolute;

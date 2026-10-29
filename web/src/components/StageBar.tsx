@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { VoiceActions } from "./VoiceActions";
 import { ChatIcon, FullscreenIcon } from "./VoiceIcons";
 
-// The controls over the stage: the same row the sidebar carries
-// (VoiceActions), plus the two that belong to the stage itself. It is
-// not a convenience — the sidebar goes away in full screen, and with it
-// went every way to mute or leave.
+// The controls over the stage: the same set the sidebar carries
+// (VoiceActions, here in its row layout), plus the two that belong to
+// the stage itself. It is not a convenience — the sidebar goes away in
+// full screen, and with it went every way to mute or leave.
 //
 // It sits on the video, so it fades once you stop moving and comes back
 // on the next pointer move or when something in it takes focus. Faded it
@@ -66,6 +66,7 @@ export function StageBar({
   return (
     <div ref={barRef} className={`stage-bar ${visible ? "" : "idle"}`}>
       <VoiceActions
+        layout="row"
         extras={
           <>
             <button

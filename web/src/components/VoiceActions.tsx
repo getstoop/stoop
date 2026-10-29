@@ -16,17 +16,24 @@ import {
 } from "./VoiceIcons";
 import { VoiceVolume } from "./VoiceVolume";
 
-// The voice controls themselves — camera, screen, mic, deafen, volume,
-// hang up.
-// Both bars render this one row: the sidebar's VoiceBar, which follows
+// The voice controls themselves — camera, screen, mic, deafen, volume.
+// Both bars render this one set: the sidebar's VoiceBar, which follows
 // you across spaces, and the StageBar over the video, which in full
 // screen is the only one on the page. Two copies of these buttons would
 // have drifted the first time one of them gained a state.
 //
-// `extras` are the buttons that only exist on the stage (hide chat, full
-// screen). They come after the toggles and before the hang-up, which is
-// always last.
-export function VoiceActions({ extras }: { extras?: React.ReactNode }) {
+// `layout` is the arrangement. "row" is the stage's pill of icon
+// buttons, with the `extras` that only exist there (hide chat, full
+// screen) after the toggles and the hang-up always last. "tiles" is the
+// sidebar's grid of equal tiles, where Disconnect is not among them: the
+// bar draws its own, apart, as the one action that ends the call.
+export function VoiceActions({
+  layout,
+  extras,
+}: {
+  layout: "row" | "tiles";
+  extras?: React.ReactNode;
+}) {
   const muted = useVoiceStore((s) => s.muted);
   const deafened = useVoiceStore((s) => s.deafened);
   const cameraOn = useVoiceStore((s) => s.cameraOn);
@@ -35,7 +42,7 @@ export function VoiceActions({ extras }: { extras?: React.ReactNode }) {
   // hang up are ours to press while the join is still in flight.
   const connected = useVoiceStore((s) => s.connection?.status === "connected");
   return (
-    <div className="voice-actions">
+    <div className={`voice-actions ${layout}`}>
       <button
         type="button"
         className={`icon-button video ${cameraOn ? "live" : ""}`}
@@ -81,16 +88,20 @@ export function VoiceActions({ extras }: { extras?: React.ReactNode }) {
         <HeadphonesIcon off={deafened} />
       </button>
       <VoiceVolume />
-      {extras}
-      <button
-        type="button"
-        className="icon-button danger"
-        aria-label="Disconnect"
-        title="Disconnect"
-        onClick={() => leaveVoice()}
-      >
-        <HangUpIcon />
-      </button>
+      {layout === "row" && (
+        <>
+          {extras}
+          <button
+            type="button"
+            className="icon-button danger"
+            aria-label="Disconnect"
+            title="Disconnect"
+            onClick={() => leaveVoice()}
+          >
+            <HangUpIcon />
+          </button>
+        </>
+      )}
     </div>
   );
 }
