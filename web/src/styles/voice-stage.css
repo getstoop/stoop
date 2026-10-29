@@ -185,8 +185,10 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: var(--radius);
-  background: var(--scrim);
-  color: var(--text);
+  /* On the picture, so the fixed on-video palette (tokens.css), not the
+     theme's scrim and text. */
+  background: var(--on-video-fill);
+  color: var(--on-video-text);
   font-size: var(--text-sm);
 }
 
@@ -202,7 +204,7 @@
 .tile-muted {
   flex: 0 0 auto;
   display: inline-flex;
-  color: var(--danger);
+  color: var(--on-video-danger);
 }
 
 /* The controls over the video (StageBar): a pill on the floor of the
@@ -221,8 +223,12 @@
   bottom: 8px;
   display: flex;
   border-radius: var(--radius-pill);
-  background: var(--scrim);
-  color: var(--text);
+  /* The pill and everything in it use the fixed on-video palette
+     (tokens.css): the theme's scrim, text and raised are tuned for its
+     own grounds, and over video a light theme's came out as dark glyphs
+     on a grey wash with a pale flash on hover. */
+  background: var(--on-video-fill);
+  color: var(--on-video-text);
   /* The buttons are the bar, so the pill's own curve is what rounds the
      ones on each end. */
   overflow: hidden;
@@ -242,11 +248,36 @@
 .stage-bar .icon-button {
   padding: 8px 12px;
   border-radius: 0;
-  color: var(--text);
+  color: var(--on-video-text);
 }
 
-.stage-bar .icon-button:hover {
-  background: var(--raised);
+.stage-bar .icon-button:hover,
+.stage-bar .icon-button.open {
+  background: var(--on-video-hover);
+  color: var(--on-video-text);
+}
+
+/* The states the kit and voice.css colour with the theme's status
+   tokens, in the on-video ones: muted and deafened, a live camera or
+   share, and the hang-up's hover. */
+.stage-bar .icon-button.on {
+  color: var(--on-video-danger);
+}
+
+.stage-bar .icon-button.video.live {
+  color: var(--on-video-ok);
+}
+
+.stage-bar .icon-button.danger:hover {
+  color: var(--on-video-danger);
+}
+
+/* The focus ring is the theme's accent, which a light theme draws dark;
+   on the pill it is drawn in the on-video text instead, and inset, since
+   the pill's overflow clip would otherwise cut it off top and bottom. */
+.stage-bar .icon-button:focus-visible {
+  outline-color: var(--on-video-text);
+  outline-offset: calc(-1 * var(--focus-offset));
 }
 
 /* The hang-up stands apart from the toggles: it is the one that ends

@@ -66,6 +66,13 @@ icon buttons sits on video and carries the stage's extras and the
 hang-up last. The sidebar draws its own Disconnect, a tile the height
 of theirs apart from the toggles, as the one action that ends the call.
 
+The pill, and the name plates on the tiles, are drawn in fixed on-video
+colours (`--on-video-*` in `tokens.css`) rather than the theme's: video
+is dark whatever the theme, and a light theme's text, hover and scrim
+put dark glyphs on a grey wash there. The stage's own ground, the
+avatar tiles and the speaking ring sit on the page rather than on video
+and stay themed.
+
 The device list's microphone and camera rows (`components/DevicePicker`,
 over `hooks/useDevices`) list what LiveKit's `getLocalDevices` returns
 and show the device the room publishes from. A row with a choice is a
