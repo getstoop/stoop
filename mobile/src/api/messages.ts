@@ -184,6 +184,11 @@ export async function markChannelActivityRead(origin: string, token: string, cha
   return ids.length;
 }
 
+// Reads the reader's activity items by ID.
+export async function markActivityRead(origin: string, token: string, ids: string[]): Promise<void> {
+  await chatClient(origin, token).markActivityRead({ ids }, { timeoutMs: TIMEOUT_MS });
+}
+
 // Moves the reader's marker in a thread to its newest reply.
 export async function markThreadRead(origin: string, token: string, rootId: string): Promise<void> {
   await chatClient(origin, token).markThreadRead({ messageId: rootId }, { timeoutMs: TIMEOUT_MS });

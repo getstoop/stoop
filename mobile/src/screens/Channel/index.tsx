@@ -7,7 +7,7 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
-import { markChannelActivityRead, markRead } from "../../api/messages";
+import { markActivityRead, markChannelActivityRead, markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
 import { useAudioPlayback } from "../../components/Attachments/audio";
@@ -18,6 +18,7 @@ import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
@@ -198,6 +199,18 @@ export default function Channel({
         if (marked.current === newestId) marked.current = "";
       });
   }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer]);
+  // A mention arriving here while it is read is recorded after its
+  // message goes out, so the pass above can miss it: its own event reads
+  // it, then the marker again for the space's badges.
+  useServerEvents(server.id, (event) => {
+    if (event.payload.case !== "activityItemCreated") return;
+    const item = event.payload.value.item;
+    if (!item || item.channelId !== channelId || item.threadRootId || item.readAt) return;
+    if (!token || !focused || !active || hasNewer) return;
+    markActivityRead(server.origin, token, [item.id])
+      .then(() => markRead(server.origin, token, channelId, item.messageId))
+      .catch(() => {});
+  });
 
   // Newest first, for a list drawn from the bottom up.
   const items = useMemo(
