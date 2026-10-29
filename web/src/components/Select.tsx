@@ -5,19 +5,17 @@ import { ChevronIcon } from "./Icons";
 // so it sits in from the border and takes the theme. The class goes on the
 // wrapper, which is what a layout sizes; every other prop goes to the
 // select. `icon` puts a glyph inside the left padding (the voice bar's
-// device rows); `chevron={false}` leaves the arrow off for a select that
-// has nothing to open.
+// device rows).
 export function Select({
   className,
   icon,
-  chevron = true,
   ...rest
-}: ComponentProps<"select"> & { icon?: ReactNode; chevron?: boolean }) {
+}: ComponentProps<"select"> & { icon?: ReactNode }) {
   return (
     <span className={`select ${className ?? ""}`.trim()}>
       {icon && <span className="select-icon">{icon}</span>}
       <select {...rest} />
-      {chevron && <ChevronIcon />}
+      <ChevronIcon />
     </span>
   );
 }

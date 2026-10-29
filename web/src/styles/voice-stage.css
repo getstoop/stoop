@@ -235,7 +235,7 @@
   pointer-events: none;
 }
 
-.stage-bar .voice-actions {
+.stage-bar .voice-actions.row {
   gap: 0;
 }
 

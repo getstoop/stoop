@@ -45,7 +45,3 @@ export const InAFieldRefused: StoryObj = {
 export const WithAnIcon: Story = {
   args: { ...Default.args, icon: <MicIcon /> },
 };
-
-export const NothingToOpen: Story = {
-  args: { ...Default.args, chevron: false, disabled: true },
-};

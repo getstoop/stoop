@@ -27,9 +27,9 @@ export function VoiceBar() {
 
   if (connection.status === "error") {
     return (
-      <section className="voice-bar error" aria-live="polite">
+      <section className="voice-bar error">
         <div className="voice-bar-head">
-          <div className="voice-bar-status">
+          <div className="voice-bar-status" aria-live="polite">
             <strong>Couldn't join voice</strong>
             <span className="voice-bar-where">{connection.error}</span>
           </div>
@@ -42,9 +42,9 @@ export function VoiceBar() {
   }
 
   return (
-    <section className="voice-bar" aria-live="polite">
+    <section className="voice-bar">
       <div className="voice-bar-head">
-        <div className="voice-bar-status">
+        <div className="voice-bar-status" aria-live="polite">
           <strong>
             {connection.status === "connecting"
               ? "Connecting…"
