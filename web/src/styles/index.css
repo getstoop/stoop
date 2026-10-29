@@ -1,6 +1,8 @@
 /* Every stylesheet, in cascade order. Colour tokens live in ../themes.css
-   (one block per theme) and everything else in ../tokens.css; nothing
-   here names a colour, a radius, a font size or a duration literal.
+   (one block per theme) and everything else in ../tokens.css, which also
+   holds the one colour palette no theme sets, --on-video-*, because video
+   is dark whatever the theme; nothing here names a colour, a radius, a
+   font size or a duration literal.
 
    Order matters: later files win ties, so the sheets go from general to
    specific — tokens, base, the shared kit (controls, fields, surfaces),

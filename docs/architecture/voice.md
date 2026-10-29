@@ -70,8 +70,9 @@ The pill, and the name plates on the tiles, are drawn in fixed on-video
 colours (`--on-video-*` in `tokens.css`) rather than the theme's: video
 is dark whatever the theme, and a light theme's text, hover and scrim
 put dark glyphs on a grey wash there. The stage's own ground, the
-avatar tiles and the speaking ring sit on the page rather than on video
-and stay themed.
+avatar tile's ground and the speaking ring sit on the page rather than
+on video and stay themed; the avatar tile's name plate is on-video like
+every plate, so the tiles of a mixed stage match.
 
 The device list's microphone and camera rows (`components/DevicePicker`,
 over `hooks/useDevices`) list what LiveKit's `getLocalDevices` returns

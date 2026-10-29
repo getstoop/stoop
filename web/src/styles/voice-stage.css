@@ -185,8 +185,9 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: var(--radius);
-  /* On the picture, so the fixed on-video palette (tokens.css), not the
-     theme's scrim and text. */
+  /* The fixed on-video palette (tokens.css), not the theme's scrim and
+     text: on a video tile it is on the picture, and the avatar tile's
+     plate matches so the plates on a mixed stage read as one set. */
   background: var(--on-video-fill);
   color: var(--on-video-text);
   font-size: var(--text-sm);
@@ -278,6 +279,19 @@
 .stage-bar .icon-button:focus-visible {
   outline-color: var(--on-video-text);
   outline-offset: calc(-1 * var(--focus-offset));
+}
+
+/* The end buttons take the pill's curve on their outer corners, so the
+   inset ring follows it instead of being clipped square by the pill. The
+   hover wash takes the same curve, which is the pill's own corner. Only
+   the row's direct children: the volume button is the sole child of its
+   anchor and would match a bare :first-child. */
+.stage-bar .voice-actions > .icon-button:first-child {
+  border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+}
+
+.stage-bar .voice-actions > .icon-button:last-child {
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
 }
 
 /* The hang-up stands apart from the toggles: it is the one that ends
