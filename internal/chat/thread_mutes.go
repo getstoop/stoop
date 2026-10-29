@@ -104,14 +104,40 @@ func (s *Service) MarkThreadRead(ctx context.Context, req *connect.Request[chatv
 		target = *last
 	}
 	userID := authctx.UserID(ctx)
-	marker, err := s.q.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
-		UserID: userID, RootMessageID: root.ID, LastReadMessageID: target,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("mark thread read: %w", err)
+	var marker string
+	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// The channel row first, as MarkChannelRead does and for the same
+		// reason.
+		if _, err := qtx.ShareChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("share channel: %w", err)
+		}
+		marker, err = markThreadRead(ctx, qtx, userID, channel.ID, root.ID, target)
+		return err
+	}); err != nil {
+		return nil, err
 	}
 	s.publishThreadRead(userID, channel, root.ID, marker)
 	return connect.NewResponse(&chatv1.MarkThreadReadResponse{LastReadMessageId: marker}), nil
+}
+
+// markThreadRead is markChannelRead for a thread in channelID, and returns
+// where the marker ends up.
+func markThreadRead(ctx context.Context, qtx *dbgen.Queries, userID, channelID, rootID, replyID string) (string, error) {
+	marker, err := qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
+		UserID: userID, RootMessageID: rootID, LastReadMessageID: replyID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("mark thread read: %w", err)
+	}
+	if !authctx.Covers(ctx, authctx.ActivityRead) {
+		return marker, nil
+	}
+	if err := qtx.MarkThreadActivityRead(ctx, dbgen.MarkThreadActivityReadParams{
+		UserID: userID, ChannelID: channelID, RootID: rootID,
+	}); err != nil {
+		return "", fmt.Errorf("mark thread activity read: %w", err)
+	}
+	return marker, nil
 }
 
 func (s *Service) publishThreadRead(userID string, channel dbgen.Channel, rootID, marker string) {

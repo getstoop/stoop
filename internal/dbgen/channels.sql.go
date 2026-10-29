@@ -337,6 +337,21 @@ func (q *Queries) SetChannelPosition(ctx context.Context, arg SetChannelPosition
 	return err
 }
 
+const shareChannel = `-- name: ShareChannel :one
+SELECT id FROM channels WHERE id = $1 FOR SHARE
+`
+
+// ShareChannel is LockChannel for a transaction that only reads the
+// channel's messages but writes rows a writer there also takes (a read
+// marker and its activity): it waits for the writers and they for it,
+// while readers don't wait for one another.
+func (q *Queries) ShareChannel(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, shareChannel, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const updateChannel = `-- name: UpdateChannel :one
 UPDATE channels
 SET name = COALESCE($2, name),

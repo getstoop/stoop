@@ -60,6 +60,13 @@ RETURNING *;
 -- name: LockChannel :one
 SELECT id FROM channels WHERE id = $1 FOR UPDATE;
 
+-- ShareChannel is LockChannel for a transaction that only reads the
+-- channel's messages but writes rows a writer there also takes (a read
+-- marker and its activity): it waits for the writers and they for it,
+-- while readers don't wait for one another.
+-- name: ShareChannel :one
+SELECT id FROM channels WHERE id = $1 FOR SHARE;
+
 -- name: DeleteChannel :exec
 DELETE FROM channels WHERE id = $1;
 

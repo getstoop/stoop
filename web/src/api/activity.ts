@@ -33,6 +33,40 @@ export function receiveActivityItem(
   });
 }
 
+// Where a read marker moved: a channel, or one thread in it.
+export type ReadPlace = { channelId: string } | { threadRootId: string };
+
+// Whether a read marker that moved could have read something in the
+// cached feed: an unread item in that channel or thread is in the cache,
+// or the server counts unread items the cache doesn't hold (past its
+// first page), any of which might be there.
+export function readMayClearActivity(
+  data: ActivityData | undefined,
+  place: ReadPlace,
+): boolean {
+  if (!data) return false;
+  const unread = data.items.filter((item) => !item.readAt);
+  if (data.unreadCount > unread.length) return true;
+  return unread.some((item) =>
+    "channelId" in place
+      ? item.channelId === place.channelId
+      : item.threadRootId === place.threadRootId,
+  );
+}
+
+// A read marker that moved, on this device or another, read the activity
+// it passed on the server (messaging.md → Reads and unreads), so the feed
+// is fetched again when it could have changed.
+export function refetchActivityAfterRead(
+  queryClient: QueryClient,
+  place: ReadPlace,
+) {
+  const current = queryClient.getQueryData<ActivityData>(["activity"]);
+  if (readMayClearActivity(current, place)) {
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
+  }
+}
+
 export function activityVerb(kind: ActivityKind): string {
   switch (kind) {
     case ActivityKind.REPLY:
