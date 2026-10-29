@@ -17,6 +17,7 @@ import {
   buildVoiceChain,
   disconnectVoiceChain,
   setChainGain,
+  unlinkVoiceChain,
   type VoiceChain,
 } from "./voiceChain";
 import { cancelCues, cue } from "./voiceCues";
@@ -121,18 +122,18 @@ function audioContainer(): HTMLElement {
   return el;
 }
 
-function attachAudio(track: RemoteTrack) {
+// ctx is the room's context, handed down from the join so that a track
+// always has one to build from: the room cannot exist without it.
+function attachAudio(track: RemoteTrack, ctx: AudioContext) {
   if (track.kind !== "audio") return;
   const audio = track as RemoteAudioTrack;
   // The chain goes in before the element: attaching is what connects the
   // track through the context, plugins included, and LiveKit keeps the
   // element itself muted from then on. Setting the plugins afterwards
   // would work too, at the cost of wiring the track twice.
-  if (audioContext) {
-    const chain = buildVoiceChain(audioContext, playbackGain());
-    audioChains.set(audio, chain);
-    audio.setWebAudioPlugins(chain.nodes);
-  }
+  const chain = buildVoiceChain(ctx, playbackGain());
+  audioChains.set(audio, chain);
+  audio.setWebAudioPlugins(chain.nodes);
   const el = audio.attach();
   audioTracks.set(audio, el);
   audioContainer().appendChild(el);
@@ -171,6 +172,19 @@ function playbackGain(): number {
 function applyPlaybackGain() {
   const gain = playbackGain();
   for (const chain of audioChains.values()) setChainGain(chain, gain);
+}
+
+// After LiveKit has rewired every track (its startAudio does, whether
+// from resumeAudio or on its own when it opens a mic or a shared
+// screen's audio), connect each chain again from a clean slate, so the
+// edge to the gain node it replaced does not pile up (unlinkVoiceChain).
+// setWebAudioPlugins with the same nodes is LiveKit's public way to
+// redo the wiring; it is synchronous, so nothing goes quiet.
+function relinkAudio() {
+  for (const [track, chain] of audioChains) {
+    unlinkVoiceChain(chain);
+    track.setWebAudioPlugins(chain.nodes);
+  }
 }
 
 useVoiceVolumeStore.subscribe(applyPlaybackGain);
@@ -213,8 +227,9 @@ function onTrackSubscribed(
   track: RemoteTrack,
   pub: RemoteTrackPublication,
   participant: Participant,
+  ctx: AudioContext,
 ) {
-  if (track.kind === "audio") attachAudio(track);
+  if (track.kind === "audio") attachAudio(track, ctx);
   else registerVideo(track, pub.source, participant.identity, false);
 }
 
@@ -315,7 +330,12 @@ export async function joinVoice(spaceId: string, channelId: string) {
   // treats it as its own otherwise: hands it to every remote track as it
   // is created (before any attach), resumes it on startAudio
   // (resumeAudio) and reports whether it is running through
-  // AudioPlaybackStatusChanged, so the "Enable audio" path is unchanged.
+  // AudioPlaybackStatusChanged, so the "Enable audio" chip still works.
+  // What goes with owning it: LiveKit's own context came with a listener
+  // that resumed it on the next click anywhere on the page; ours has
+  // none, and the chip is the one way back. The browser's own state
+  // changes are watched below, so a context the system suspends
+  // mid-call (a headset pulled, a phone call) brings the chip back too.
   const ctx = new AudioContext({ latencyHint: "interactive" });
   const r = new Room({
     adaptiveStream: true,
@@ -329,11 +349,24 @@ export async function joinVoice(spaceId: string, channelId: string) {
   });
   room = r;
   audioContext = ctx;
+  ctx.addEventListener("statechange", () => {
+    // Closed on leave: not this room's concern any more.
+    if (room === r)
+      useVoiceStore.getState().setAudioBlocked(ctx.state !== "running");
+  });
+  // LiveKit runs its startAudio itself when it opens a mic or a shared
+  // screen's audio (its AudioStreamAcquired); it fires before us, so the
+  // rewiring has happened by the time this runs.
+  r.localParticipant.on("audioStreamAcquired", () => {
+    if (room === r) relinkAudio();
+  });
   // While the join is in flight, a Disconnected event is part of the
   // failure the join itself reports; only afterwards does it mean we
   // were dropped.
   let joining = true;
-  r.on(RoomEvent.TrackSubscribed, onTrackSubscribed)
+  r.on(RoomEvent.TrackSubscribed, (track, pub, participant) =>
+    onTrackSubscribed(track, pub, participant, ctx),
+  )
     .on(RoomEvent.TrackUnsubscribed, onTrackUnsubscribed)
     .on(RoomEvent.LocalTrackPublished, onLocalPublished)
     .on(RoomEvent.LocalTrackUnpublished, onLocalUnpublished)
@@ -515,9 +548,15 @@ function setDeafenedInternal(deafened: boolean) {
   applyPlaybackGain();
 }
 
-// After the browser blocked autoplay, resume from a click.
+// After the browser blocked autoplay, resume from a click. startAudio
+// rewires every track as it goes (even when the resume itself fails),
+// hence the relink.
 export async function resumeAudio() {
-  await room?.startAudio();
+  try {
+    await room?.startAudio();
+  } finally {
+    relinkAudio();
+  }
   useVoiceStore.getState().setAudioBlocked(!(room?.canPlaybackAudio ?? true));
 }
 

@@ -5,7 +5,9 @@ import {
   disconnectVoiceChain,
   GAIN_RAMP_S,
   LIMITER,
+  MAKEUP,
   setChainGain,
+  unlinkVoiceChain,
 } from "./voiceChain";
 
 // There is no Web Audio under vitest, so a context stands in: nodes that
@@ -62,26 +64,39 @@ describe("buildVoiceChain", () => {
     expect(chain.nodes[1]).toBe(chain.limiter);
   });
 
-  it("starts at the gain it is given", () => {
+  it("is unity at normal volume: our gain undoes the limiter's make-up", () => {
     const { chainCtx } = stubContext();
-    expect(buildVoiceChain(chainCtx, 2.4).gain.gain.value).toBe(2.4);
+    const chain = buildVoiceChain(chainCtx, 1);
+    expect(chain.gain.gain.value * MAKEUP).toBeCloseTo(1, 6);
     expect(buildVoiceChain(chainCtx, 0).gain.gain.value).toBe(0);
+    expect(buildVoiceChain(chainCtx, 3).gain.gain.value * MAKEUP).toBeCloseTo(
+      3,
+      6,
+    );
   });
 
-  it("sets the compressor up as a limiter", () => {
+  it("derives the make-up from the limiter's settings", () => {
+    // The spec's rule, worked again here from the constants: full scale
+    // comes out at threshold + (0 - threshold) / ratio, and the node
+    // lifts by (1 / that, linear) ^ 0.6.
+    const fullScaleDb = LIMITER.threshold * (1 - 1 / LIMITER.ratio);
+    expect(MAKEUP).toBeCloseTo((1 / 10 ** (fullScaleDb / 20)) ** 0.6, 10);
+    // About +1.7 dB with the settings as they stand.
+    expect(MAKEUP).toBeGreaterThan(1.2);
+    expect(MAKEUP).toBeLessThan(1.25);
+  });
+
+  it("is a limiter, not an evener", () => {
     const { chainCtx } = stubContext();
     const { limiter } = buildVoiceChain(chainCtx, 1);
-    expect(limiter.threshold.value).toBe(LIMITER.threshold);
-    expect(limiter.ratio.value).toBe(LIMITER.ratio);
-    expect(limiter.knee.value).toBe(LIMITER.knee);
-    expect(limiter.attack.value).toBe(LIMITER.attack);
-    expect(limiter.release.value).toBe(LIMITER.release);
-    // A limiter, not an evener: it bites just under full scale and
-    // holds anything over it flat.
-    expect(LIMITER.threshold).toBeLessThan(0);
-    expect(LIMITER.threshold).toBeGreaterThanOrEqual(-6);
-    expect(LIMITER.ratio).toBeGreaterThanOrEqual(10);
-    expect(LIMITER.knee).toBe(0);
+    // Bites just under full scale, holds anything over it flat, starts
+    // exactly there, and catches one syllable without pumping the next.
+    expect(limiter.threshold.value).toBeLessThanOrEqual(0);
+    expect(limiter.threshold.value).toBeGreaterThan(-6);
+    expect(limiter.ratio.value).toBeGreaterThanOrEqual(10);
+    expect(limiter.knee.value).toBe(0);
+    expect(limiter.attack.value).toBeLessThanOrEqual(0.005);
+    expect(limiter.release.value).toBeLessThanOrEqual(0.1);
   });
 });
 
@@ -92,7 +107,7 @@ describe("setChainGain", () => {
     setChainGain(chain, 3);
     const p = chain.gain.gain as unknown as Param;
     expect(p.targets).toEqual([
-      { target: 3, at: ctx.currentTime, tc: GAIN_RAMP_S },
+      { target: 3 / MAKEUP, at: ctx.currentTime, tc: GAIN_RAMP_S },
     ]);
     expect(GAIN_RAMP_S).toBeLessThanOrEqual(0.02);
   });
@@ -103,7 +118,7 @@ describe("setChainGain", () => {
     setChainGain(chain, 0);
     setChainGain(chain, 1.5);
     const p = chain.gain.gain as unknown as Param;
-    expect(p.targets.map((t) => t.target)).toEqual([0, 1.5]);
+    expect(p.targets.map((t) => t.target)).toEqual([0, 1.5 / MAKEUP]);
     // The limiter is not touched by any of it.
     expect((chain.limiter.threshold as unknown as Param).targets).toEqual([]);
   });
@@ -115,5 +130,14 @@ describe("disconnectVoiceChain", () => {
     const chain = buildVoiceChain(chainCtx, 1);
     disconnectVoiceChain(chain);
     expect(ctx.disconnected).toEqual(["gain", "compressor"]);
+  });
+});
+
+describe("unlinkVoiceChain", () => {
+  it("lets go of only the tail, the edge LiveKit's rewiring leaves behind", () => {
+    const { ctx, chainCtx } = stubContext();
+    const chain = buildVoiceChain(chainCtx, 1);
+    unlinkVoiceChain(chain);
+    expect(ctx.disconnected).toEqual(["compressor"]);
   });
 });

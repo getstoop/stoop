@@ -20,6 +20,18 @@ import { SpeakerIcon } from "./VoiceIcons";
 
 const WIDTH = 224;
 const GAP = 6;
+// The slider's thumb is the browser's own (voice.css keeps the native
+// control), about this wide everywhere. Its centre travels from half a
+// thumb in from one end to half a thumb short of the other, so a mark
+// under a value sits at that fraction of the track less the thumb, plus
+// the half.
+const THUMB = 16;
+
+// Where the thumb's centre is for a value, as a CSS length.
+function markLeft(value: number): string {
+  const f = value / MAX_VOLUME;
+  return `calc(${f * 100}% + ${(0.5 - f) * THUMB}px)`;
+}
 
 // Centred over the button and clear of the window's edges.
 function panelPosition(anchor: DOMRect): CSSProperties {
@@ -104,9 +116,7 @@ export function VoiceVolume() {
           />
           <div className="voice-volume-marks" aria-hidden="true">
             <span>Off</span>
-            <span style={{ left: `${(DEFAULT_VOLUME / MAX_VOLUME) * 100}%` }}>
-              Normal
-            </span>
+            <span style={{ left: markLeft(DEFAULT_VOLUME) }}>Normal</span>
             <span>Loudest</span>
           </div>
           <button
