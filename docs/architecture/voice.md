@@ -63,8 +63,8 @@ tiles. The toggles are `components/VoiceActions`, which the stage's
 `StageBar` renders too, so the two bars never drift: its `layout` prop
 is `"tiles"` in the sidebar and `"row"` on the stage, where the pill of
 icon buttons sits on video and carries the stage's extras and the
-hang-up last. The sidebar draws its own Disconnect, a tile of the same
-size apart from the toggles, as the one action that ends the call.
+hang-up last. The sidebar draws its own Disconnect, a tile the height
+of theirs apart from the toggles, as the one action that ends the call.
 
 The device list's microphone and camera rows (`components/DevicePicker`,
 over `hooks/useDevices`) list what LiveKit's `getLocalDevices` returns
