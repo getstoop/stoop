@@ -247,6 +247,7 @@ describe("the mic level", () => {
     expect(ring()).toBeNull();
     expect(meter().quiet).toBe(true);
     frame(t, 0.5, 0.1);
+    frame(t + 50, 0.5, 0.1);
     expect(meter().quiet).toBe(false);
   });
 

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   FLOOR_DB,
   IDLE_MIC_LEVEL,
+  LOUD_WITHIN_MS,
   litSegments,
   loudness,
   type MicLevelState,
+  PAUSE_MS,
   PEAK_HOLD_MS,
   QUIET_AFTER_MS,
   rmsOf,
@@ -117,34 +119,77 @@ describe("the quiet rule", () => {
     expect(silent.lowMs).toBe(0);
   });
 
-  it("lets silence pause the run rather than end it", () => {
+  it("lets a pause between words hold the run rather than end it", () => {
     const half = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS / 2));
-    const paused = feed(half, times(40, { rms: 0 }), QUIET_AFTER_MS / 2);
+    const pause = times(PAUSE_MS / STEP, { rms: 0 });
+    const paused = feed(half, pause, QUIET_AFTER_MS / 2);
     expect(paused.lowMs).toBe(half.lowMs);
     const quiet = feed(
       paused,
       lowSamples(QUIET_AFTER_MS / 2 + STEP),
-      QUIET_AFTER_MS / 2 + 2000,
+      QUIET_AFTER_MS / 2 + PAUSE_MS,
     );
     expect(quiet.quiet).toBe(true);
   });
 
-  it("clears on a loud sample", () => {
+  it("ends the run on a long silence", () => {
+    const almost = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS - STEP));
+    const silence = times(PAUSE_MS / STEP + 1, { rms: 0 });
+    const ended = feed(almost, silence, QUIET_AFTER_MS - STEP);
+    expect(ended.lowMs).toBe(0);
+    const later = feed(ended, lowSamples(STEP * 2), QUIET_AFTER_MS + PAUSE_MS);
+    expect(later.quiet).toBe(false);
+  });
+
+  it("clears amber once the talking stops", () => {
+    const quiet = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS + STEP));
+    expect(quiet.quiet).toBe(true);
+    const silence = times(PAUSE_MS / STEP + 1, { rms: 0 });
+    expect(feed(quiet, silence, QUIET_AFTER_MS + STEP).quiet).toBe(false);
+  });
+
+  // An open mic in a room: breathing, a chair, gain control lifting the
+  // floor. Above the floor, under the first segment, never a voice.
+  it("does not count sound under the first segment", () => {
+    const faint = dbfs(FLOOR_DB + 1);
+    expect(loudness(faint)).toBeGreaterThan(0);
+    expect(litSegments(loudness(faint))).toBe(0);
+    const run = feed(IDLE_MIC_LEVEL, times(400, { rms: faint }));
+    expect(run.lowMs).toBe(0);
+    expect(run.quiet).toBe(false);
+  });
+
+  it("clears on loud samples the ring would hold", () => {
     const quiet = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS + STEP));
     expect(quiet.quiet).toBe(true);
     const cleared = feed(
       quiet,
-      [{ rms: LOUD, speaking: true }],
+      times(2, { rms: LOUD, speaking: true }),
       QUIET_AFTER_MS + STEP,
     );
     expect(cleared.quiet).toBe(false);
     expect(cleared.lowMs).toBe(0);
   });
 
-  it("starts the run again from a loud sample", () => {
+  // A voice hovering at the ring's threshold lights it for one sample now
+  // and then; that must not blink the row between amber and green.
+  it("keeps amber through a lone loud sample", () => {
+    const quiet = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS + STEP));
+    const start = QUIET_AFTER_MS + STEP;
+    const lone = feed(quiet, [{ rms: LOUD, speaking: true }], start);
+    expect(lone.quiet).toBe(true);
+    const apart = feed(
+      lone,
+      [...lowSamples(LOUD_WITHIN_MS), { rms: LOUD, speaking: true }],
+      start + STEP,
+    );
+    expect(apart.quiet).toBe(true);
+  });
+
+  it("starts the run again from held loud samples", () => {
     const run = feed(IDLE_MIC_LEVEL, [
       ...lowSamples(QUIET_AFTER_MS - STEP),
-      { rms: LOUD, speaking: true },
+      ...times(2, { rms: LOUD, speaking: true }),
       ...lowSamples(QUIET_AFTER_MS - STEP),
     ]);
     expect(run.quiet).toBe(false);

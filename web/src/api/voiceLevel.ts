@@ -18,6 +18,8 @@ import {
 // loudness (micLevel.ts). One meter, two readings, so they can never
 // disagree about what is being heard. Both read the published track,
 // after the browser's gain control, so the meter shows what others hear.
+// The window is the ring's fftSize (512 samples, about 10 ms), shared
+// with the ring, so it is not raised for the meter's sake.
 //
 // Remote rings still come from that event, and still carry that lag: the
 // same meter could run on subscribed remote audio (STOOP-122), which

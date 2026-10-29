@@ -327,12 +327,17 @@ read the published track, after the browser's gain control, so the meter
 shows what others hear: turning a hardware input down dips the segments,
 which creep back as the browser compensates, until it cannot.
 
-A mic is *quiet* after about four seconds of sound above the meter's
-floor that never reached the ring's threshold — the ring's line is the
-natural one, since a ring that never lights is a voice nobody hears
-well. Silence neither adds to that run nor ends it, so a room with
-nobody talking is not quiet; a loud sample ends it, and so does muting.
-Gain control hides a quiet mic for a few seconds, which is why the wait.
+A mic is *quiet* after about four seconds of sound that lights a
+segment but never lit the ring — the ring's line is the natural one,
+since a ring that never lights is a voice nobody hears well. Sound under
+the first segment (breathing, a chair, gain control lifting a room's
+floor) counts as silence. A pause between words only pauses that run; a
+silence longer than a pause (1.5 s) ends it, so an open mic nobody talks
+into never goes amber and amber leaves soon after the talking stops.
+Loud samples the ring would hold (two within its hold) end the run,
+where one alone does not, so a voice hovering at the threshold does not
+blink between amber and green; muting ends it too. Gain control hides a
+quiet mic for a few seconds, which is why the wait.
 The reader writes the store once per sample while unmuted and only when
 the reading changed; muted, it writes zeros once and nothing runs.
 

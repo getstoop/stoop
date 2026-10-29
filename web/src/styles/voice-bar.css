@@ -123,10 +123,11 @@ div.voice-device-row {
   white-space: nowrap;
 }
 
-/* The picker row. */
+/* The picker row: the chevron sits closer in than the kit's, so the right
+   padding is 28px plus the trailing slot's room. */
 .voice-device-row > select {
   height: 32px;
-  padding: 0 32px;
+  padding: 0 calc(28px + var(--select-trailing-w, 0px)) 0 32px;
   border: none;
   border-radius: 0;
   background: none;
@@ -184,8 +185,8 @@ div.voice-device-row {
 /* The mic level (components/MicLevel): ten 3px segments, 2px apart, lit
    from the left, in the mic row between the name and the chevron. In the
    plain row it is the last flex child; in the picker row it is the
-   select's trailing slot, 8px before the chevron, and the select's
-   padding makes the room: 48px of meter, 8px, 12px of chevron, 8px. */
+   select's trailing slot, 8px before the chevron, in the room the row
+   reserves: 48px of meter and the 8px before the name. */
 .mic-level {
   display: inline-flex;
   align-items: center;
@@ -193,21 +194,23 @@ div.voice-device-row {
   flex: none;
 }
 
+.voice-device-row:has(> .select-trailing) {
+  --select-trailing-w: 56px;
+}
+
 .voice-device-row > .select-trailing {
+  /* off-scale: 8px before the 12px chevron at 8px. */
   right: 28px;
 }
 
-.voice-device-row:has(> .select-trailing) > select {
-  /* off-scale: 48px of meter, 8px, 12px of chevron, 8px. */
-  padding-right: 84px;
-}
-
+/* Unlit on the border colour, which still shows on the panel in a light
+   theme; the peak is the status colour faded toward it. */
 .mic-level > span {
   width: 3px;
   height: 10px;
   /* off-scale: a 3px segment; the smallest radius token would make it a pill. */
   border-radius: 1px;
-  background: var(--raised);
+  background: var(--border);
 }
 
 .mic-level > .lit {
@@ -216,13 +219,15 @@ div.voice-device-row {
 
 /* The peak: where the voice last reached, drawn dimmer. */
 .mic-level > .peak {
-  background: var(--ok);
-  opacity: var(--disabled);
+  background: var(--ok-dim);
 }
 
-.mic-level.quiet > .lit,
-.mic-level.quiet > .peak {
+.mic-level.quiet > .lit {
   background: var(--warn);
+}
+
+.mic-level.quiet > .peak {
+  background: var(--warn-dim);
 }
 
 /* The toggles as equal tiles across the bar (VoiceActions layout

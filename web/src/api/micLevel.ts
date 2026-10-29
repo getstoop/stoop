@@ -31,12 +31,20 @@ export const PEAK_HOLD_MS = 500;
 const PEAK_FALL_PER_MS = 0.5 / 1000;
 
 // Quiet is sustained, not instant: gain control hides a quiet mic for a
-// few seconds, so the meter waits for this much sound above the floor that
-// never reached the ring's threshold. Only sound counts — silence neither
-// adds to the run nor ends it — and a loud sample ends it. A gap longer
-// than MAX_STEP_MS is the tab asleep, not sound, so a sample credits at
-// most that much.
+// few seconds, so the meter waits for this much sound that lights a
+// segment but never lit the ring. Sound under the first segment is a
+// room, not a voice, and counts as silence. A pause between words
+// (shorter than PAUSE_MS) only pauses the run; a longer silence ends it,
+// so an open mic that is only breathed into never goes amber, and amber
+// leaves a few seconds after the talking stops. A loud sample ends the
+// run only when another loud sample came within LOUD_WITHIN_MS — the
+// ring's own hold — so a voice hovering at the ring's threshold, which
+// lights it for one sample now and then, does not blink between amber
+// and green. A gap longer than MAX_STEP_MS is the tab asleep, not sound,
+// so a sample credits at most that much.
 export const QUIET_AFTER_MS = 4000;
+export const PAUSE_MS = 1500;
+export const LOUD_WITHIN_MS = 300;
 const MAX_STEP_MS = 250;
 
 // Below this a decaying level is written as 0, so a settled meter stops
@@ -47,8 +55,12 @@ export interface MicLevelState extends MicLevelReading {
   // When the last sample was taken; null before the first.
   at: number | null;
   peakAt: number;
-  // How long the current run of low-but-present sound has lasted.
+  // How long the current run of low-but-present sound has lasted, and
+  // how long the silence inside it has.
   lowMs: number;
+  silentMs: number;
+  // When the ring's reader last called a sample loud.
+  loudAt: number;
 }
 
 export const IDLE_MIC_LEVEL: MicLevelState = {
@@ -56,6 +68,8 @@ export const IDLE_MIC_LEVEL: MicLevelState = {
   at: null,
   peakAt: 0,
   lowMs: 0,
+  silentMs: 0,
+  loudAt: -Infinity,
 };
 
 export function rmsOf(samples: Float32Array): number {
@@ -98,11 +112,29 @@ export function stepMicLevel(
     peak = Math.max(level, peak - PEAK_FALL_PER_MS * dt);
   }
 
-  let lowMs = prev.lowMs;
-  if (speaking) lowMs = 0;
-  else if (raw > 0) lowMs += dt;
+  let { lowMs, silentMs, loudAt } = prev;
+  if (speaking) {
+    if (t - loudAt <= LOUD_WITHIN_MS) lowMs = 0;
+    loudAt = t;
+    silentMs = 0;
+  } else if (litSegments(raw) >= 1) {
+    lowMs += dt;
+    silentMs = 0;
+  } else {
+    silentMs += dt;
+    if (silentMs > PAUSE_MS) lowMs = 0;
+  }
 
-  return { level, peak, quiet: lowMs >= QUIET_AFTER_MS, at: t, peakAt, lowMs };
+  return {
+    level,
+    peak,
+    quiet: lowMs >= QUIET_AFTER_MS,
+    at: t,
+    peakAt,
+    lowMs,
+    silentMs,
+    loudAt,
+  };
 }
 
 // How many of the segments a value lights.

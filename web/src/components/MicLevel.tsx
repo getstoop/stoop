@@ -8,11 +8,19 @@ const INDEXES = Array.from({ length: SEGMENTS }, (_, index) => index + 1);
 // and sliding down, dimmer. Amber when the mic has been quiet (the row
 // carries the hint), dark while muted. The numbers come from
 // api/voiceLevel.ts through the store; this only draws them.
+//
+// It selects segment counts, not the levels, so it renders only when a
+// segment changes rather than on every sample.
 export function MicLevel() {
   const muted = useVoiceStore((s) => s.muted);
-  const { level, peak, quiet } = useVoiceStore((s) => s.micLevel);
-  const lit = muted ? 0 : litSegments(level);
-  const top = muted ? 0 : litSegments(peak);
+  const quiet = useVoiceStore((s) => s.micLevel.quiet);
+  const lit = useVoiceStore((s) =>
+    s.muted ? 0 : litSegments(s.micLevel.level),
+  );
+  const top = useVoiceStore((s) =>
+    s.muted ? 0 : litSegments(s.micLevel.peak),
+  );
+  const state = muted ? ", muted" : quiet ? ", quiet" : "";
   return (
     // biome-ignore lint/a11y/useSemanticElements: a <meter> cannot be drawn as segments
     <span
@@ -22,6 +30,7 @@ export function MicLevel() {
       aria-valuemin={0}
       aria-valuemax={SEGMENTS}
       aria-valuenow={lit}
+      aria-valuetext={`${lit} of ${SEGMENTS}${state}`}
     >
       {INDEXES.map((segment) => (
         <span
