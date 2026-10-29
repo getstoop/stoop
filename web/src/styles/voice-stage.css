@@ -235,7 +235,7 @@
   pointer-events: none;
 }
 
-.stage-bar .voice-actions {
+.stage-bar .voice-actions.row {
   gap: 0;
 }
 
@@ -260,34 +260,6 @@
   flex: 1 1 auto;
   height: auto;
   border-bottom: none;
-}
-
-/* Device pickers get a row of their own so the buttons never overflow. */
-.voice-bar-devices {
-  display: flex;
-  gap: 6px;
-  flex-basis: 100%;
-  min-width: 0;
-}
-
-.voice-bar-devices:empty {
-  display: none;
-}
-
-.voice-bar-devices .voice-mic-select {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: none;
-}
-
-.voice-actions .icon-button.video.live {
-  color: var(--ok);
-}
-
-.voice-bar-error {
-  flex-basis: 100%;
-  font-size: var(--text-sm);
-  color: var(--danger);
 }
 
 .voice-flag.live {

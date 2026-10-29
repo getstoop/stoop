@@ -57,16 +57,36 @@ same tokens with a different grant, so they did not flip that trade.
 
 ## Devices
 
-The voice bar's microphone and camera pickers (`components/DevicePicker`,
+The voice bar (`components/VoiceBar`) is, from the top, a status row
+with Disconnect beside it, a device list, and the shared toggles as
+tiles. The toggles are `components/VoiceActions`, which the stage's
+`StageBar` renders too, so the two bars never drift: its `layout` prop
+is `"tiles"` in the sidebar and `"row"` on the stage, where the pill of
+icon buttons sits on video and carries the stage's extras and the
+hang-up last. The sidebar draws its own Disconnect, apart from the
+toggles, as the one action that ends the call.
+
+The device list's microphone and camera rows (`components/DevicePicker`,
 over `hooks/useDevices`) list what LiveKit's `getLocalDevices` returns
-and show the device the room publishes from. They list again on the
-room's `mediaDevicesChanged` and `activeDeviceChanged` events, so a
-headset plugged in mid-call is offered without reconnecting, and one
-unplugged is no longer shown as in use: LiveKit falls back to the
-default device on its own and announces it, and the picker follows. A
-picker with one device to offer is not shown at all, and appears when a
-second arrives. Chromium's fake devices cannot be hot-plugged, so this is
-checked by hand rather than by the voice spec.
+and show the device the room publishes from. A row with a choice is a
+native select dressed as a row, so the keyboard and the browser's own
+device menu are unchanged; with nothing to choose it is plain words in
+the same row. They list again on the room's `mediaDevicesChanged` and
+`activeDeviceChanged` events, so a headset plugged in mid-call is
+offered without reconnecting, and one unplugged is no longer shown as in
+use: LiveKit falls back to the default device on its own and announces
+it, and the row follows. Chromium's fake devices cannot be hot-plugged,
+so this is checked by hand rather than by the voice spec.
+
+Both rows are always shown, so the bar never changes height, and the mic
+row is where the level meter will sit. A row with one device names it
+and does not open (no chevron); with nothing listed yet it reads
+"Microphone" or "Camera" in muted text. The camera row reads "Camera
+off" until the camera is on, because the browser gives no camera labels
+until its permission has been granted, which turning the camera on
+does; once on, the row names the camera and opens the picker when there
+is more than one. What a row says in each state is `DevicePicker/row.ts`,
+tested in Vitest.
 
 ## Leaving, when it isn't your idea
 
