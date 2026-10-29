@@ -372,7 +372,7 @@ A key listener, on or off (Account → Voice, kept in this browser as
 
 ## Voice volume
 
-How loud the call plays on this device, 0 to 200% of what everyone
+How loud the call plays on this device, 0 to 300% of what everyone
 sends, one knob for the whole call. The button beside Deafen opens it
 (`components/VoiceVolume.tsx`, on the sidebar's bar and the stage's
 alike), and Ctrl+Shift+Up and Down step it by 10 while you are in a
@@ -383,14 +383,61 @@ game, say — so they are kept in this browser as `stoop.voiceVolume` and
 
 - **Past 100% is a boost.** An `<audio>` element's own volume stops at
   1, so the room is mixed through Web Audio (`webAudioMix` on the LiveKit
-  room) and each remote track plays through a gain node, which has no
-  ceiling. LiveKit keeps the elements themselves muted in that mode, so
-  the gain is the one place playback is set (`playbackGain` in
-  `api/voice.ts`).
-- **Deafen is gain zero**, in the same place: deafened, every track's
-  gain is 0; undeafened, it is the chosen volume again.
-- **A track gets the gain as it is attached**, and a change is applied to
-  every track playing.
+  room): LiveKit keeps the elements themselves muted and plays each
+  remote track through its own nodes, which have no ceiling.
+- **Every voice plays through a chain of ours** (`api/voiceChain.ts`),
+  handed to the track as its Web Audio plugins, which LiveKit wires
+  between the track's source and its own gain node: source → **our gain
+  node** (the slider's volume as a gain, 0 to 3) → **a limiter** (a
+  `DynamicsCompressorNode` with a threshold just under full scale, a
+  20:1 ratio, no knee, a 1 ms attack and a 50 ms release) → LiveKit's
+  gain node, left at 1 → the speakers. The limiter does nothing until a
+  peak is within about a decibel of full scale, so it is inaudible at
+  normal volume and has no
+  setting; without it, 300% of a shout crackles. One thing it does do
+  on its own: the Web Audio spec gives every compressor a fixed make-up
+  gain (about +1.7 dB with these settings), so our gain node is set to
+  the volume divided by that (`MAKEUP`, derived from the limiter's
+  constants), and 100% is exactly as sent.
+- **Why the volume is a node of ours.** The limiter has to come after
+  the volume, since it is the boost that pushes a peak past full scale,
+  and nothing can follow LiveKit's gain node. So the slider drives the
+  gain node in the plugin list (`playbackGain` in `api/voice.ts`) and
+  LiveKit's `setVolume` is not used at all. The head of the list is
+  where a per-voice compressor goes if one is added: before the volume,
+  so the slider scales an evened voice.
+- **One context, ours.** The nodes have to come from the AudioContext
+  the tracks are connected to, so `api/voice.ts` makes the context and
+  hands it to the room (`webAudioMix: { audioContext }`), one per join,
+  closed when the call ends. LiveKit treats it as its own otherwise:
+  every remote track gets it as it is created, `startAudio` resumes it
+  from the "Enable audio" click, and `AudioPlaybackStatusChanged` says
+  whether it is running. What changes: a context LiveKit makes for
+  itself comes with a listener that resumes it on the next click
+  anywhere on the page; ours has none, so the chip is the one way back
+  from a blocked start. The page also watches the context's own
+  `statechange`, so one the system suspends mid-call shows the chip
+  again.
+- **Rewiring leaves no trace.** LiveKit's `startAudio` (the chip, and
+  LiveKit's own call to it whenever it opens a mic or a shared screen's
+  audio) rewires every track: a new source and a new gain node, our
+  chain connected between them again, but the edge from our last node
+  to the gain node it replaced is nobody's to drop but ours. After each
+  one, `relinkAudio` unlinks that tail and sets the same plugins again,
+  so the chain is connected from a clean slate. For LiveKit's own call
+  the relink is queued as a microtask, so it follows LiveKit's
+  synchronous rewiring whichever listener was registered first (ours
+  is, since LiveKit binds its own at connect).
+- **Deafen is gain zero**, in the same node: deafened, every chain's
+  gain is 0; undeafened, it is the chosen volume again. A change ramps
+  over a few milliseconds rather than stepping, so it neither clicks nor
+  lags.
+- **A track gets its chain as it is attached**, built from the volume at
+  the time, and a change is applied to every chain playing; detaching
+  disconnects it.
+- **The marks are words**, not numbers: "Off" at the left edge, "Normal"
+  under 100, "Loudest" at the right, since the number is already in the
+  readout and the three words say what the positions mean.
 - **The keys only work while Stoop has focus.** A page gets no keys
   otherwise.
 - **Inside the desktop app the page does not listen**, as with push to

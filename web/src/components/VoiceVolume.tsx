@@ -9,14 +9,29 @@ import {
 import { SpeakerIcon } from "./VoiceIcons";
 
 // The volume button of the voice controls and the panel it opens: how
-// loud the call plays on this device, 0 to 200%, one slider for
+// loud the call plays on this device, 0 to 300%, one slider for
 // everyone in it. The value lives in api/voiceVolume.ts and the sound is
-// set in api/voice.ts; this is only the control. The panel is fixed to
-// the viewport above the button, as the ⋮ menu is, so the stage bar's
-// pill cannot clip it; Escape, a click outside or a scroll closes it.
+// set in api/voice.ts; this is only the control. Under the slider three
+// words mark its ends and the as-sent point; the readout stays a number,
+// since the keys step by 10 and the number is what moves. The panel is
+// fixed to the viewport above the button, as the ⋮ menu is, so the stage
+// bar's pill cannot clip it; Escape, a click outside or a scroll closes
+// it.
 
 const WIDTH = 224;
 const GAP = 6;
+// The slider's thumb is the browser's own (voice.css keeps the native
+// control), about this wide everywhere. Its centre travels from half a
+// thumb in from one end to half a thumb short of the other, so a mark
+// under a value sits at that fraction of the track less the thumb, plus
+// the half.
+const THUMB = 16;
+
+// Where the thumb's centre is for a value, as a CSS length.
+function markLeft(value: number): string {
+  const f = value / MAX_VOLUME;
+  return `calc(${f * 100}% + ${(0.5 - f) * THUMB}px)`;
+}
 
 // Centred over the button and clear of the window's edges.
 function panelPosition(anchor: DOMRect): CSSProperties {
@@ -100,9 +115,9 @@ export function VoiceVolume() {
             onChange={(e) => setVolume(Number(e.target.value))}
           />
           <div className="voice-volume-marks" aria-hidden="true">
-            <span>0%</span>
-            <span>100%</span>
-            <span>200%</span>
+            <span>Off</span>
+            <span style={{ left: markLeft(DEFAULT_VOLUME) }}>Normal</span>
+            <span>Loudest</span>
           </div>
           <button
             type="button"

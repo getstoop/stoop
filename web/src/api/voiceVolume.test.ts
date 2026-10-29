@@ -32,8 +32,13 @@ describe("clampVolume", () => {
     expect(clampVolume(140)).toBe(140);
     expect(clampVolume(-5)).toBe(0);
     expect(clampVolume(999)).toBe(MAX_VOLUME);
+    expect(clampVolume(350)).toBe(300);
     expect(clampVolume(33.4)).toBe(33);
     expect(clampVolume("120")).toBe(120);
+  });
+
+  it("keeps a value stored before the ceiling rose", () => {
+    expect(clampVolume("200")).toBe(200);
   });
 
   it("reads anything else as the default", () => {
@@ -45,10 +50,12 @@ describe("clampVolume", () => {
 });
 
 describe("gainFor", () => {
-  it("is 1 as sent, 0 silent and 2 at the ceiling", () => {
+  it("is 1 as sent, 0 silent and 3 at the ceiling", () => {
     expect(gainFor(100)).toBe(1);
     expect(gainFor(0)).toBe(0);
     expect(gainFor(200)).toBe(2);
+    expect(gainFor(300)).toBe(3);
+    expect(gainFor(350)).toBe(3);
   });
 });
 
