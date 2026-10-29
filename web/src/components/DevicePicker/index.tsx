@@ -24,7 +24,8 @@ import { deviceRow, KIND_LABEL } from "./row";
 // The mic row also holds the level meter (MicLevel), between the name
 // and the chevron. While the mic has been quiet the row's tooltip carries
 // the hint in place of the name and its glyph turns warn; muted, the
-// glyph turns danger beside the dark segments.
+// glyph is crossed and turns danger beside the dark segments, as the
+// mute tile's is.
 export function DevicePicker({
   kind,
   enabled,
@@ -50,7 +51,11 @@ export function DevicePicker({
     .join(" ");
   // The placeholder words stand for a device that is not there, and the
   // camera's glyph is crossed for them: off, or not yet listed.
-  const icon = isMic ? <MicIcon /> : <CameraIcon off={row.placeholder} />;
+  const icon = isMic ? (
+    <MicIcon off={muted} />
+  ) : (
+    <CameraIcon off={row.placeholder} />
+  );
   if (!row.opens) {
     return (
       <div className={className} title={title}>

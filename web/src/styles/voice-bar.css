@@ -45,17 +45,17 @@
   text-overflow: ellipsis;
 }
 
-/* Disconnect: the one destructive action, apart from the toggles. Wider
-   and a touch taller than a tile, the handset in danger on a faint fill,
-   solid under the pointer. */
+/* Disconnect: the one destructive action, apart from the toggles. A
+   tile like theirs, the handset in danger on a faint fill, solid under
+   the pointer. */
 .voice-bar-leave {
   flex: none;
-  width: 44px;
-  height: 36px;
-  border-radius: var(--radius-md);
+  width: 36px;
+  height: 32px;
+  border-radius: var(--radius);
   background: var(--danger-soft);
   color: var(--danger);
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
 }
 
 .voice-bar-leave:hover {
@@ -231,14 +231,20 @@ div.voice-device-row {
 }
 
 /* The toggles as equal tiles across the bar (VoiceActions layout
-   "tiles"): as many columns as there are tiles, so a browser without
-   screen share leaves no hole. Camera on tints its icon ok; muted and
+   "tiles"): a flex row whose children share the width equally from a
+   zero basis, so a browser without screen share leaves no hole. (An
+   implicit grid of 1fr columns was tried first and came out with the
+   first tile wide and the rest squeezed in one browser; a flex row
+   with explicit bases cannot.) Camera on tints its icon ok; muted and
    deafened tint the tile's fill and icon danger. */
 .voice-actions.tiles {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  display: flex;
   gap: 4px;
+}
+
+.voice-actions.tiles > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .voice-actions.tiles .icon-button {
