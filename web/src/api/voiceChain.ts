@@ -31,13 +31,14 @@ export interface VoiceChain {
   limiter: DynamicsCompressorNode;
 }
 
-// Where the limiter bites. It does nothing until a peak would clip, so at
-// normal volume it is inaudible: a threshold a little under full scale
-// leaves headroom, a steep ratio holds anything over it flat, no knee
-// so it starts exactly there, and a fast attack with a short release
-// catches a single loud syllable without pumping the ones after. The
-// proposal's open question 3: if the top of the slider sounds squashed,
-// the fix is less gain before it, not a higher threshold.
+// Where the limiter bites. It does nothing until a peak is within about
+// a decibel of full scale, so at normal volume it is inaudible: a
+// threshold a little under full scale leaves headroom, a steep ratio
+// holds anything over it flat, no knee so it starts exactly there, and
+// a fast attack with a short release catches a single loud syllable
+// without pumping the ones after. The proposal's open question 3: if
+// the top of the slider sounds squashed, the fix is less gain before
+// it, not a higher threshold.
 export const LIMITER = {
   threshold: -3,
   ratio: 20,
@@ -89,8 +90,10 @@ export function setChainGain(chain: VoiceChain, gain: number) {
 // shared screen's audio of its own) it disconnects only its source and
 // gain node, makes a new gain node and connects our tail to that: the
 // edge to the old one would stay, a dead-end node per track per rewire.
-// So after each of those, api/voice.ts unlinks the tail and has LiveKit
-// connect the chain again, which remakes every edge from a clean slate.
+// So after each of those (a microtask later, which follows LiveKit's
+// synchronous rewiring whichever listener was registered first),
+// api/voice.ts unlinks the tail and has LiveKit connect the chain again,
+// which remakes every edge from a clean slate.
 export function unlinkVoiceChain(chain: VoiceChain) {
   chain.nodes[chain.nodes.length - 1]?.disconnect();
 }

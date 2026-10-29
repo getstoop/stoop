@@ -355,10 +355,14 @@ export async function joinVoice(spaceId: string, channelId: string) {
       useVoiceStore.getState().setAudioBlocked(ctx.state !== "running");
   });
   // LiveKit runs its startAudio itself when it opens a mic or a shared
-  // screen's audio (its AudioStreamAcquired); it fires before us, so the
-  // rewiring has happened by the time this runs.
+  // screen's audio (its AudioStreamAcquired). Its listener is added at
+  // connect, after this one, so it runs second; the rewiring is in
+  // startAudio's first synchronous tick, so a microtask lands after it
+  // whichever listener went first.
   r.localParticipant.on("audioStreamAcquired", () => {
-    if (room === r) relinkAudio();
+    queueMicrotask(() => {
+      if (room === r) relinkAudio();
+    });
   });
   // While the join is in flight, a Disconnected event is part of the
   // failure the join itself reports; only afterwards does it mean we

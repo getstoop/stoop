@@ -372,7 +372,8 @@ game, say — so they are kept in this browser as `stoop.voiceVolume` and
   `DynamicsCompressorNode` with a threshold just under full scale, a
   20:1 ratio, no knee, a 1 ms attack and a 50 ms release) → LiveKit's
   gain node, left at 1 → the speakers. The limiter does nothing until a
-  peak would clip, so it is inaudible at normal volume and has no
+  peak is within about a decibel of full scale, so it is inaudible at
+  normal volume and has no
   setting; without it, 300% of a shout crackles. One thing it does do
   on its own: the Web Audio spec gives every compressor a fixed make-up
   gain (about +1.7 dB with these settings), so our gain node is set to
@@ -403,7 +404,10 @@ game, say — so they are kept in this browser as `stoop.voiceVolume` and
   chain connected between them again, but the edge from our last node
   to the gain node it replaced is nobody's to drop but ours. After each
   one, `relinkAudio` unlinks that tail and sets the same plugins again,
-  so the chain is connected from a clean slate.
+  so the chain is connected from a clean slate. For LiveKit's own call
+  the relink is queued as a microtask, so it follows LiveKit's
+  synchronous rewiring whichever listener was registered first (ours
+  is, since LiveKit binds its own at connect).
 - **Deafen is gain zero**, in the same node: deafened, every chain's
   gain is 0; undeafened, it is the chosen volume again. A change ramps
   over a few milliseconds rather than stepping, so it neither clicks nor
