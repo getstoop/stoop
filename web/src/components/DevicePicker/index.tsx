@@ -51,7 +51,11 @@ export function DevicePicker({
     .join(" ");
   // The placeholder words stand for a device that is not there, and the
   // camera's glyph is crossed for them: off, or not yet listed.
-  const icon = isMic ? <MicIcon off={muted} /> : <CameraIcon off={row.placeholder} />;
+  const icon = isMic ? (
+    <MicIcon off={muted} />
+  ) : (
+    <CameraIcon off={row.placeholder} />
+  );
   if (!row.opens) {
     return (
       <div className={className} title={title}>
