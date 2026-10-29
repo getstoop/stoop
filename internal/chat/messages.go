@@ -199,25 +199,19 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			if rootSeq, err = stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
 				return err
 			}
-			if threadMarker, err = qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
-				UserID: userID, RootMessageID: threadRoot.ID, LastReadMessageID: row.ID,
-			}); err != nil {
-				return fmt.Errorf("mark thread read: %w", err)
+			if threadMarker, err = markThreadRead(ctx, qtx, userID, threadRoot.ID, row.ID); err != nil {
+				return err
 			}
 			if !alsoSend {
 				return nil
 			}
 		}
-		// The channel's newest message, and the author has of course read it.
+		// The channel's newest message, and the author has of course read
+		// it, and everything above it, mentions included.
 		if err := qtx.SetChannelLastMessage(ctx, dbgen.SetChannelLastMessageParams{ID: channel.ID, LastMessageID: &row.ID}); err != nil {
 			return fmt.Errorf("bump channel: %w", err)
 		}
-		if err := qtx.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
-			UserID: userID, ChannelID: channel.ID, LastReadMessageID: row.ID,
-		}); err != nil {
-			return fmt.Errorf("mark own message read: %w", err)
-		}
-		return nil
+		return markChannelRead(ctx, qtx, userID, channel.ID, row.ID)
 	})
 	if err != nil {
 		return nil, err

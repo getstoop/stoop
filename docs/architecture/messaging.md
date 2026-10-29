@@ -499,7 +499,9 @@ filtered by settings", not "kept forever".
 
 Four kinds: `mention`, `reply`, `dm`, `thread_reply`. Each points at where it happened
 (space, channel, message) so the client can navigate there, and carries the
-actor and a 140-character preview.
+actor and a 140-character preview. An item goes read when the feed marks
+it read or when the person's read marker passes its message
+([Reads and unreads](#reads-and-unreads)).
 
 **On the web the feed is an inbox** (`routes/Activity/`): a New section
 of unread items, newest first, with Mark all read on its heading, and a
@@ -562,6 +564,23 @@ the "anything new?" query are all that one comparison.
 
 `ChannelRead` is published to the reader's own `user:` topic so their other
 devices stay in step.
+
+**A read marker reads the activity it passes.** Whenever a channel's
+marker moves — `MarkChannelRead`, or the author's own message in
+`SendMessage` — the same transaction marks read the person's activity
+items there about messages at or before the stored marker
+(`MarkChannelActivityRead`). Only messages the channel's timeline shows
+count (`in_channel`: top-level messages and replies also sent to the
+channel), and never a `thread_reply` item, which stands for every unread
+reply in its thread. A thread's marker does the same for items about its
+replies (`MarkThreadActivityRead`, from `MarkThreadRead` and from replying
+in the thread), except a `dm` item, which stands for the whole
+conversation. The stored marker is the bound, not the request's target:
+the marker only moves forward, and an item written just after the read
+clears on the next one. So a mention clears when its message is read,
+however far down the feed it sits; `MarkActivityRead` remains for the
+feed itself. Clients learn of it from the `ChannelRead` or `ThreadRead`
+event, or from their own `MessageCreated`, and refetch the feed.
 
 ### Mutes
 

@@ -33,6 +33,16 @@ export function receiveActivityItem(
   });
 }
 
+// A read marker that moved, on this device or another, read the activity
+// it passed on the server (messaging.md → Reads and unreads), so the feed
+// is fetched again; with nothing unread there is nothing it could change.
+export function refetchActivityIfUnread(queryClient: QueryClient) {
+  const current = queryClient.getQueryData<ActivityData>(["activity"]);
+  if (current && current.unreadCount > 0) {
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
+  }
+}
+
 export function activityVerb(kind: ActivityKind): string {
   switch (kind) {
     case ActivityKind.REPLY:

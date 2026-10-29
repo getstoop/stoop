@@ -87,9 +87,10 @@ func TestEntireChannelMentionQueriesDoNotGrowWithTheSpace(t *testing.T) {
 	largeMentions, largeActivity := sendEntireChannelMention(20)
 	t.Logf("mention queries: %d for a space of 3, %d for 20; activity queries: %d and %d",
 		smallMentions, largeMentions, smallActivity, largeActivity)
-	// One insert for every mention row; blocks, items and mutes for the
-	// alerts. Exact, so a slower send fails even if its cost stays flat.
-	const wantMentions, wantActivity = 1, 3
+	// One insert for every mention row; the sender's own read of what
+	// their message passed, then blocks, items and mutes for the alerts.
+	// Exact, so a slower send fails even if its cost stays flat.
+	const wantMentions, wantActivity = 1, 4
 	for _, size := range []struct {
 		members            int
 		mentions, activity int64

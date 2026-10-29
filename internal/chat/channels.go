@@ -396,10 +396,10 @@ func (s *Service) MarkChannelRead(ctx context.Context, req *connect.Request[chat
 		return connect.NewResponse(&chatv1.MarkChannelReadResponse{}), nil // nothing to read yet
 	}
 	userID := authctx.UserID(ctx)
-	if err := s.q.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
-		UserID: userID, ChannelID: channel.ID, LastReadMessageID: target,
+	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		return markChannelRead(ctx, qtx, userID, channel.ID, target)
 	}); err != nil {
-		return nil, fmt.Errorf("mark read: %w", err)
+		return nil, err
 	}
 	s.bus.Publish(events.UserTopic(userID), events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelRead{
@@ -409,6 +409,24 @@ func (s *Service) MarkChannelRead(ctx context.Context, req *connect.Request[chat
 		},
 	}))
 	return connect.NewResponse(&chatv1.MarkChannelReadResponse{LastReadMessageId: target}), nil
+}
+
+// markChannelRead moves a person's channel read marker forward to
+// messageID and marks read their activity about what it has passed, so a
+// mention far down the feed clears as soon as its message is read. It
+// clears against the stored marker, not messageID, which may be behind it.
+func markChannelRead(ctx context.Context, qtx *dbgen.Queries, userID, channelID, messageID string) error {
+	if err := qtx.UpsertChannelRead(ctx, dbgen.UpsertChannelReadParams{
+		UserID: userID, ChannelID: channelID, LastReadMessageID: messageID,
+	}); err != nil {
+		return fmt.Errorf("mark read: %w", err)
+	}
+	if err := qtx.MarkChannelActivityRead(ctx, dbgen.MarkChannelActivityReadParams{
+		UserID: userID, ChannelID: channelID,
+	}); err != nil {
+		return fmt.Errorf("mark channel activity read: %w", err)
+	}
+	return nil
 }
 
 // spaceChannelToManage loads a channel the caller may manage. Direct

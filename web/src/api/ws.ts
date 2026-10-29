@@ -11,7 +11,7 @@ import {
 } from "../gen/stoop/realtime/v1/realtime_pb";
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
-import { receiveActivityItem } from "./activity";
+import { receiveActivityItem, refetchActivityIfUnread } from "./activity";
 import { applyEvent as applyToLog, forget, reconnected } from "./channelLog";
 import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
@@ -227,6 +227,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
           ? { lastReadMessageId: m.id, unreadCount: 0 }
           : { unreadCount: c.unreadCount + 1 }),
       }));
+      // Sending moved our read marker without a ChannelRead.
+      if (mine) refetchActivityIfUnread(queryClient);
       if (!mine && !reading) {
         const muted = isMuted(queryClient, m.spaceId, m.channelId);
         if (muted === undefined) {
@@ -269,6 +271,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         },
       );
       recomputeSpaceUnread(queryClient, payload.value.spaceId);
+      refetchActivityIfUnread(queryClient);
       break;
     case "messageUpdated": {
       // A root deleted while its thread has replies arrives as an update.
@@ -289,6 +292,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "threadRead": {
       const t = payload.value;
       applyThreadRead(t.channelId, t.rootMessageId);
+      refetchActivityIfUnread(queryClient);
       break;
     }
     case "messagePinned": {

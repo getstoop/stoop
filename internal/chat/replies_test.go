@@ -48,17 +48,21 @@ func TestReplies(t *testing.T) {
 		t.Errorf("owner after reply: unread=%d kind=%v", count, kind)
 	}
 
-	// Self-reply: no activity. Reply that also @mentions the author: one item, not two.
+	// Self-reply: no activity, and sending reads bea's reply above it.
+	// Reply that also @mentions the author: one item, not two.
 	if _, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "(me)", ReplyToMessageId: orig.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if count, _ := unread(owner); count != 1 {
-		t.Errorf("self-reply notified: unread=%d", count)
+	if activity, _ := svc.ListActivity(owner, connect.NewRequest(&chatv1.ListActivityRequest{})); len(activity.Msg.Items) != 1 {
+		t.Errorf("self-reply notified: %d items", len(activity.Msg.Items))
+	}
+	if count, _ := unread(owner); count != 0 {
+		t.Errorf("owner's own reply left bea's unread: unread=%d", count)
 	}
 	if _, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: mentionOf(owner) + " see above", ReplyToMessageId: orig.Msg.Message.Id})); err != nil {
 		t.Fatal(err)
 	}
-	if count, kind := unread(owner); count != 2 || kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {
+	if count, kind := unread(owner); count != 1 || kind != chatv1.ActivityKind_ACTIVITY_KIND_MENTION {
 		t.Errorf("reply+mention should add exactly one (mention): unread=%d kind=%v", count, kind)
 	}
 

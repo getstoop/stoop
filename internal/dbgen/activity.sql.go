@@ -257,6 +257,54 @@ func (q *Queries) MarkAllActivityRead(ctx context.Context, userID string) error 
 	return err
 }
 
+const markChannelActivityRead = `-- name: MarkChannelActivityRead :exec
+UPDATE activity_items a SET read_at = now()
+FROM channel_reads r, messages m
+WHERE a.user_id = $1 AND a.channel_id = $2
+  AND a.read_at IS NULL AND a.kind <> 'thread_reply'
+  AND r.user_id = a.user_id AND r.channel_id = a.channel_id
+  AND m.id = a.message_id AND m.in_channel
+  AND a.message_id <= r.last_read_message_id
+`
+
+type MarkChannelActivityReadParams struct {
+	UserID    string
+	ChannelID string
+}
+
+// MarkChannelActivityRead marks read a person's items about messages in
+// a channel's timeline at or before their stored channel read marker:
+// passing a message there is seeing it. A thread_reply item waits for its
+// thread's marker (MarkThreadActivityRead), since it stands for every
+// unread reply there, most of which the channel never shows.
+func (q *Queries) MarkChannelActivityRead(ctx context.Context, arg MarkChannelActivityReadParams) error {
+	_, err := q.db.Exec(ctx, markChannelActivityRead, arg.UserID, arg.ChannelID)
+	return err
+}
+
+const markThreadActivityRead = `-- name: MarkThreadActivityRead :exec
+UPDATE activity_items a SET read_at = now()
+FROM thread_reads r, messages m
+WHERE a.user_id = $1 AND a.read_at IS NULL AND a.kind <> 'dm'
+  AND r.user_id = a.user_id AND r.root_message_id = $2::uuid
+  AND m.id = a.message_id AND m.thread_root_id = r.root_message_id
+  AND a.message_id <= r.last_read_message_id
+`
+
+type MarkThreadActivityReadParams struct {
+	UserID string
+	RootID string
+}
+
+// MarkThreadActivityRead is MarkChannelActivityRead for a thread: items
+// about its replies at or before the person's thread read marker. A dm
+// item waits for the channel's marker, since it stands for the whole
+// conversation.
+func (q *Queries) MarkThreadActivityRead(ctx context.Context, arg MarkThreadActivityReadParams) error {
+	_, err := q.db.Exec(ctx, markThreadActivityRead, arg.UserID, arg.RootID)
+	return err
+}
+
 const upsertUnreadActivityItems = `-- name: UpsertUnreadActivityItems :many
 WITH live AS (
     SELECT 1 FROM messages m WHERE m.id = $1::uuid AND m.deleted_at IS NULL
