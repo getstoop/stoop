@@ -79,7 +79,10 @@
   --danger-soft: color-mix(in srgb, var(--danger) 18%, transparent);
   --danger-border: color-mix(in srgb, var(--danger) 45%, var(--border));
   /* A status colour faded toward the border: the mic meter's peak segment,
-     between a lit one and an unlit one in every theme. */
+     between a lit one and an unlit one. check-themes.mjs reads only the
+     hex tokens in themes.css, so these were checked by hand: on
+     brownstone between lit and unlit, on daylight about 2.5:1 on the
+     white panel. */
   --ok-dim: color-mix(in srgb, var(--ok) 55%, var(--border));
   --warn-dim: color-mix(in srgb, var(--warn) 55%, var(--border));
   /* The scrim behind an image preview: the theme's, all but opaque. */

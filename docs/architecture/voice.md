@@ -333,11 +333,13 @@ since a ring that never lights is a voice nobody hears well. Sound under
 the first segment (breathing, a chair, gain control lifting a room's
 floor) counts as silence. A pause between words only pauses that run; a
 silence longer than a pause (1.5 s) ends it, so an open mic nobody talks
-into never goes amber and amber leaves soon after the talking stops.
-Loud samples the ring would hold (two within its hold) end the run,
-where one alone does not, so a voice hovering at the threshold does not
-blink between amber and green; muting ends it too. Gain control hides a
-quiet mic for a few seconds, which is why the wait.
+into never goes amber. Once amber, the row stays amber through pauses
+and the other side's turn, long enough to read and hover the hint, and
+clears on loud samples the ring would hold (two within its hold — one
+alone does not, so a voice hovering at the threshold does not blink
+between amber and green), on a mute, or after about eight seconds of
+silence. Gain control hides a quiet mic for a few seconds, which is why
+the wait.
 The reader writes the store once per sample while unmuted and only when
 the reading changed; muted, it writes zeros once and nothing runs.
 

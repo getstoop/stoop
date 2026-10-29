@@ -32,18 +32,22 @@ const PEAK_FALL_PER_MS = 0.5 / 1000;
 
 // Quiet is sustained, not instant: gain control hides a quiet mic for a
 // few seconds, so the meter waits for this much sound that lights a
-// segment but never lit the ring. Sound under the first segment is a
-// room, not a voice, and counts as silence. A pause between words
-// (shorter than PAUSE_MS) only pauses the run; a longer silence ends it,
-// so an open mic that is only breathed into never goes amber, and amber
-// leaves a few seconds after the talking stops. A loud sample ends the
-// run only when another loud sample came within LOUD_WITHIN_MS — the
-// ring's own hold — so a voice hovering at the ring's threshold, which
-// lights it for one sample now and then, does not blink between amber
-// and green. A gap longer than MAX_STEP_MS is the tab asleep, not sound,
-// so a sample credits at most that much.
+// segment (the smoothed level the screen shows, so amber never appears
+// with nothing lit) but never lit the ring. Sound under the first
+// segment is a room, not a voice, and counts as silence. A pause between
+// words (shorter than PAUSE_MS) only pauses the run; a longer silence
+// ends it, so an open mic that is only breathed into never goes amber.
+// Once set, quiet is latched: it stays through pauses and conversational
+// turns so the hint can be read and hovered, and clears on loud samples
+// the ring would hold, a mute, or a silence longer than QUIET_CLEAR_MS.
+// A loud sample clears only when another loud sample came within
+// LOUD_WITHIN_MS — the ring's own hold — so a voice hovering at the
+// ring's threshold, which lights it for one sample now and then, does
+// not blink between amber and green. A gap longer than MAX_STEP_MS is
+// the tab asleep, not sound, so a sample credits at most that much.
 export const QUIET_AFTER_MS = 4000;
 export const PAUSE_MS = 1500;
+export const QUIET_CLEAR_MS = 8000;
 export const LOUD_WITHIN_MS = 300;
 const MAX_STEP_MS = 250;
 
@@ -112,29 +116,25 @@ export function stepMicLevel(
     peak = Math.max(level, peak - PEAK_FALL_PER_MS * dt);
   }
 
-  let { lowMs, silentMs, loudAt } = prev;
+  let { quiet, lowMs, silentMs, loudAt } = prev;
   if (speaking) {
-    if (t - loudAt <= LOUD_WITHIN_MS) lowMs = 0;
+    if (t - loudAt <= LOUD_WITHIN_MS) {
+      lowMs = 0;
+      quiet = false;
+    }
     loudAt = t;
     silentMs = 0;
-  } else if (litSegments(raw) >= 1) {
+  } else if (litSegments(level) >= 1) {
     lowMs += dt;
     silentMs = 0;
+    if (lowMs >= QUIET_AFTER_MS) quiet = true;
   } else {
     silentMs += dt;
     if (silentMs > PAUSE_MS) lowMs = 0;
+    if (silentMs > QUIET_CLEAR_MS) quiet = false;
   }
 
-  return {
-    level,
-    peak,
-    quiet: lowMs >= QUIET_AFTER_MS,
-    at: t,
-    peakAt,
-    lowMs,
-    silentMs,
-    loudAt,
-  };
+  return { level, peak, quiet, at: t, peakAt, lowMs, silentMs, loudAt };
 }
 
 // How many of the segments a value lights.

@@ -9,6 +9,7 @@ import {
   PAUSE_MS,
   PEAK_HOLD_MS,
   QUIET_AFTER_MS,
+  QUIET_CLEAR_MS,
   rmsOf,
   stepMicLevel,
   TOP_DB,
@@ -105,6 +106,10 @@ describe("the peak", () => {
 
 describe("the quiet rule", () => {
   const lowSamples = (ms: number) => times(ms / STEP, { rms: LOW });
+  // The level the run counts is the smoothed one, which takes a few
+  // samples to fall under the first segment, so a silence that must end
+  // or clear something is fed a little longer than its constant.
+  const silence = (ms: number) => times(ms / STEP + 10, { rms: 0 });
 
   it("calls the mic quiet after four seconds of low sound", () => {
     const almost = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS));
@@ -123,7 +128,9 @@ describe("the quiet rule", () => {
     const half = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS / 2));
     const pause = times(PAUSE_MS / STEP, { rms: 0 });
     const paused = feed(half, pause, QUIET_AFTER_MS / 2);
-    expect(paused.lowMs).toBe(half.lowMs);
+    // The release lights a segment for a few samples more, so the run
+    // may have grown; it must not have been reset.
+    expect(paused.lowMs).toBeGreaterThanOrEqual(half.lowMs);
     const quiet = feed(
       paused,
       lowSamples(QUIET_AFTER_MS / 2 + STEP),
@@ -133,19 +140,42 @@ describe("the quiet rule", () => {
   });
 
   it("ends the run on a long silence", () => {
-    const almost = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS - STEP));
-    const silence = times(PAUSE_MS / STEP + 1, { rms: 0 });
-    const ended = feed(almost, silence, QUIET_AFTER_MS - STEP);
+    const some = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS / 2));
+    expect(some.lowMs).toBeGreaterThan(0);
+    const ended = feed(some, silence(PAUSE_MS), QUIET_AFTER_MS / 2);
     expect(ended.lowMs).toBe(0);
-    const later = feed(ended, lowSamples(STEP * 2), QUIET_AFTER_MS + PAUSE_MS);
+    expect(ended.quiet).toBe(false);
+    const later = feed(ended, lowSamples(QUIET_AFTER_MS / 2), 10_000);
     expect(later.quiet).toBe(false);
   });
 
-  it("clears amber once the talking stops", () => {
+  // Once amber, the row stays amber across pauses and the other side's
+  // turn, long enough to read and hover the hint.
+  it("keeps amber through a pause in the talking", () => {
     const quiet = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS + STEP));
     expect(quiet.quiet).toBe(true);
-    const silence = times(PAUSE_MS / STEP + 1, { rms: 0 });
-    expect(feed(quiet, silence, QUIET_AFTER_MS + STEP).quiet).toBe(false);
+    const paused = feed(quiet, times(80, { rms: 0 }), QUIET_AFTER_MS + STEP);
+    expect(paused.quiet).toBe(true);
+    expect(paused.lowMs).toBe(0);
+  });
+
+  it("clears amber once the talking has stopped for a while", () => {
+    const quiet = feed(IDLE_MIC_LEVEL, lowSamples(QUIET_AFTER_MS + STEP));
+    const gone = feed(quiet, silence(QUIET_CLEAR_MS), QUIET_AFTER_MS + STEP);
+    expect(gone.quiet).toBe(false);
+  });
+
+  // The run counts the level the segments show, not the raw window: a
+  // segment lit by the release still counts, nothing lit never does.
+  it("never calls a mic quiet with nothing lit", () => {
+    let state = IDLE_MIC_LEVEL;
+    let t = 0;
+    for (; t < QUIET_AFTER_MS * 2; t += STEP) {
+      state = stepMicLevel(state, t % 400 < 200 ? LOW : 0, false, t);
+      if (state.quiet) break;
+    }
+    expect(state.quiet).toBe(true);
+    expect(litSegments(state.level)).toBeGreaterThanOrEqual(1);
   });
 
   // An open mic in a room: breathing, a chair, gain control lifting the
