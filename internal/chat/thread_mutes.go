@@ -106,6 +106,11 @@ func (s *Service) MarkThreadRead(ctx context.Context, req *connect.Request[chatv
 	userID := authctx.UserID(ctx)
 	var marker string
 	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// The channel row first, as MarkChannelRead does and for the same
+		// reason.
+		if _, err := qtx.ShareChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("share channel: %w", err)
+		}
 		marker, err = markThreadRead(ctx, qtx, userID, channel.ID, root.ID, target)
 		return err
 	}); err != nil {

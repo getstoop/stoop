@@ -397,6 +397,12 @@ func (s *Service) MarkChannelRead(ctx context.Context, req *connect.Request[chat
 	}
 	userID := authctx.UserID(ctx)
 	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// The channel row first, as a send and a thread's deletion take it
+		// (seq.go): both write this marker or its activity too, and in
+		// another order they could deadlock with this.
+		if _, err := qtx.ShareChannel(ctx, channel.ID); err != nil {
+			return fmt.Errorf("share channel: %w", err)
+		}
 		return markChannelRead(ctx, qtx, userID, channel.ID, target)
 	}); err != nil {
 		return nil, err
