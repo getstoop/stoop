@@ -393,10 +393,13 @@ else it is playing — a game, say — so they are kept in this browser as
   so a loud friend is tamed on their own chain and never ducks a quiet
   one. It sits before the volume so it evens the voice as sent and the
   slider scales the result. The spec's make-up gain applies to it too
-  (about +4 dB with these settings) and is left in on purpose: that lift
-  is how quiet talkers come up, while loud ones only get what the ratio
-  leaves. It is also why the row warns that louder volumes may distort:
-  a lifted shout at 300% lands on the limiter harder. Off, the node is
+  and is left in on purpose. The spec leaves the knee's shape to the
+  engine and the engines all ship the same one; with these settings
+  full scale comes out about 4 dB down, so the make-up is about
+  +2.4 dB: quiet and ordinary speech come up by up to that, and a
+  full-scale shout comes out a little lower than it went in. The row's
+  warning that louder volumes may distort is for everything in between:
+  at 300% that lift lands ordinary speech on the limiter. Off, the node is
   not in the chain at all, so the call sounds exactly as it does without
   the switch. Off by default, since it changes the sound of every call;
   people turn it on for the friend who mumbles.

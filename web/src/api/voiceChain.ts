@@ -46,14 +46,17 @@ export interface VoiceChain {
 // wide knee so the change is gradual, and an attack and release at
 // speech's own pace: fast enough to catch a syllable, slow enough not
 // to pump between words. The Web Audio spec gives every
-// DynamicsCompressorNode a fixed make-up gain, and with these settings
-// (full scale lands inside the knee, about 7 dB down) it is about +4 dB.
-// That lift is the point of the switch, not an
-// accident to undo: quiet talkers come up by it and loud ones only by
-// what the ratio leaves, so it is not compensated anywhere. It is also
-// why the popover warns that louder volumes may distort: a lifted
-// shout at 300% lands on the limiter harder, and the limiter is what
-// keeps that from clipping.
+// DynamicsCompressorNode a fixed make-up gain of (1 / curve(1.0)) ^ 0.6
+// and leaves the knee's shape to the engine; the engines all ship the
+// same one (an exponential knee from the threshold to threshold + knee,
+// its slope solved to 1 / ratio at the end), and with these settings
+// full scale comes out about 4 dB down, so the make-up is about
+// +2.4 dB. That lift is the point of the switch, not an accident to
+// undo: quiet and ordinary speech come up by up to that, a full-scale
+// shout comes out a little lower than it went in, so it is not
+// compensated anywhere. The popover's warning that louder volumes may
+// distort is about everything in between: at 300% the lift lands
+// ordinary speech on the limiter, which is what keeps it from clipping.
 export const EVEN_OUT = {
   threshold: -24,
   ratio: 4,

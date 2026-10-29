@@ -188,6 +188,9 @@ function applyPlaybackGain() {
 // A whole rebuild rather than splicing the evener in and out of a kept
 // chain: that would mean choosing which edges to keep, and a stale one
 // is a leak nobody can see. It is synchronous, so nothing goes quiet.
+// A flip while audio is blocked also resumes the context (LiveKit's
+// connectWebAudio calls resume()), so sound can start without the chip;
+// harmless, since the flip is itself a click.
 function rebuildAudio() {
   const ctx = audioContext;
   if (!ctx) return;
