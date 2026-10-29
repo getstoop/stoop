@@ -68,9 +68,10 @@ toggles, as the one action that ends the call.
 
 The device list's microphone and camera rows (`components/DevicePicker`,
 over `hooks/useDevices`) list what LiveKit's `getLocalDevices` returns
-and show the device the room publishes from. Each row is a native select
-dressed as a row, so the keyboard and the browser's own device menu are
-unchanged. They list again on the room's `mediaDevicesChanged` and
+and show the device the room publishes from. A row with a choice is a
+native select dressed as a row, so the keyboard and the browser's own
+device menu are unchanged; with nothing to choose it is plain words in
+the same row. They list again on the room's `mediaDevicesChanged` and
 `activeDeviceChanged` events, so a headset plugged in mid-call is
 offered without reconnecting, and one unplugged is no longer shown as in
 use: LiveKit falls back to the default device on its own and announces
