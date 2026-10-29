@@ -13,6 +13,12 @@ import type {
 import { trackKey, useVoiceStore } from "../stores/voice";
 import { voiceClient } from "./clients";
 import { socketUrl } from "./origin";
+import {
+  buildVoiceChain,
+  disconnectVoiceChain,
+  setChainGain,
+  type VoiceChain,
+} from "./voiceChain";
 import { cancelCues, cue } from "./voiceCues";
 import { stopLocalLevel, syncLocalLevel } from "./voiceLevel";
 import { gainFor, useVoiceVolumeStore } from "./voiceVolume";
@@ -20,15 +26,22 @@ import { sendClientEvent } from "./ws";
 
 // The LiveKit side of voice. One Room at a time; joining another channel
 // leaves the current one first. Remote audio plays through hidden <audio>
-// elements appended to a container on <body>, mixed through Web Audio so
-// the volume can go past what an element allows; video (cameras, screen
-// shares, our own included) goes into the voice store's track registry,
-// which the stage renders. Our presence in the channel — mute, deafen,
-// camera, sharing — is reported to the gateway (VoiceState) once LiveKit
-// is connected, and again on every WebSocket reconnect.
+// elements appended to a container on <body>, mixed through Web Audio,
+// each voice through a chain of our own (api/voiceChain.ts) so the volume
+// can go past what an element allows and a boosted shout does not clip;
+// video (cameras, screen shares, our own included) goes into the voice
+// store's track registry, which the stage renders. Our presence in the
+// channel — mute, deafen, camera, sharing — is reported to the gateway
+// (VoiceState) once LiveKit is connected, and again on every WebSocket
+// reconnect.
 
 let room: Room | null = null;
+// The AudioContext the room mixes through. Ours rather than LiveKit's,
+// so the chain's nodes can be made from the same one the tracks are
+// connected to; created with the room and closed with it.
+let audioContext: AudioContext | null = null;
 const audioTracks = new Map<RemoteAudioTrack, HTMLMediaElement>();
+const audioChains = new Map<RemoteAudioTrack, VoiceChain>();
 
 // livekit-client is ~300 kB; load it on first use so text-only sessions
 // never fetch it.
@@ -111,28 +124,45 @@ function audioContainer(): HTMLElement {
 function attachAudio(track: RemoteTrack) {
   if (track.kind !== "audio") return;
   const audio = track as RemoteAudioTrack;
+  // The chain goes in before the element: attaching is what connects the
+  // track through the context, plugins included, and LiveKit keeps the
+  // element itself muted from then on. Setting the plugins afterwards
+  // would work too, at the cost of wiring the track twice.
+  if (audioContext) {
+    const chain = buildVoiceChain(audioContext, playbackGain());
+    audioChains.set(audio, chain);
+    audio.setWebAudioPlugins(chain.nodes);
+  }
   const el = audio.attach();
   audioTracks.set(audio, el);
   audioContainer().appendChild(el);
-  audio.setVolume(playbackGain());
 }
 
 function detachAudio(track: RemoteTrack) {
   for (const el of track.detach()) el.remove();
   audioTracks.delete(track as RemoteAudioTrack);
+  const chain = audioChains.get(track as RemoteAudioTrack);
+  if (chain) disconnectVoiceChain(chain);
+  audioChains.delete(track as RemoteAudioTrack);
 }
 
 function detachAll() {
   for (const el of audioTracks.values()) el.remove();
   audioTracks.clear();
+  for (const chain of audioChains.values()) disconnectVoiceChain(chain);
+  audioChains.clear();
+  // LiveKit closes a context it made when the room disconnects; one it
+  // was handed is left to its owner.
+  audioContext?.close().catch(() => {});
+  audioContext = null;
   useVoiceStore.getState().clearTracks();
 }
 
 // What every remote voice plays at: the chosen volume (api/voiceVolume.ts),
-// or silence while deafened. With the room mixed through Web Audio,
-// LiveKit keeps the <audio> elements themselves muted and plays each
-// track through a gain node, so the gain is the one place both are set
-// (docs/architecture/voice.md → Voice volume).
+// or silence while deafened. It drives our gain node in each track's
+// chain, never LiveKit's setVolume: the limiter has to come after the
+// volume, and LiveKit's own gain node, left at 1, is the one thing past
+// the chain (docs/architecture/voice.md → Voice volume).
 function playbackGain(): number {
   if (useVoiceStore.getState().deafened) return 0;
   return gainFor(useVoiceVolumeStore.getState().volume);
@@ -140,7 +170,7 @@ function playbackGain(): number {
 
 function applyPlaybackGain() {
   const gain = playbackGain();
-  for (const track of audioTracks.keys()) track.setVolume(gain);
+  for (const chain of audioChains.values()) setChainGain(chain, gain);
 }
 
 useVoiceVolumeStore.subscribe(applyPlaybackGain);
@@ -280,11 +310,17 @@ export async function joinVoice(spaceId: string, channelId: string) {
   // with 360p / 180p simulcast layers for the tile strip; a screen share
   // is 1080p at 15 fps (text, not motion).
   // webAudioMix: remote audio through an AudioContext and a gain node per
-  // track, which is what lets the volume go past 100% (playbackGain).
+  // track, with our chain in front of it (attachAudio). The context is
+  // ours so the chain's nodes come from the one the tracks use. LiveKit
+  // treats it as its own otherwise: hands it to every remote track as it
+  // is created (before any attach), resumes it on startAudio
+  // (resumeAudio) and reports whether it is running through
+  // AudioPlaybackStatusChanged, so the "Enable audio" path is unchanged.
+  const ctx = new AudioContext({ latencyHint: "interactive" });
   const r = new Room({
     adaptiveStream: true,
     dynacast: true,
-    webAudioMix: true,
+    webAudioMix: { audioContext: ctx },
     videoCaptureDefaults: { resolution: lk.VideoPresets.h1080.resolution },
     publishDefaults: {
       videoSimulcastLayers: [lk.VideoPresets.h360, lk.VideoPresets.h180],
@@ -292,6 +328,7 @@ export async function joinVoice(spaceId: string, channelId: string) {
     },
   });
   room = r;
+  audioContext = ctx;
   // While the join is in flight, a Disconnected event is part of the
   // failure the join itself reports; only afterwards does it mean we
   // were dropped.
@@ -398,6 +435,7 @@ export async function joinVoice(spaceId: string, channelId: string) {
     if (room !== r) return;
     room = null;
     joining = false;
+    detachAll();
     await r.disconnect().catch(() => {});
     useVoiceStore.getState().setConnection({
       spaceId,

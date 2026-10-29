@@ -3,8 +3,10 @@ import { create } from "zustand";
 // Voice volume: how loud the call plays on this device, as a percentage
 // of what everyone sends. 100 is as sent; past it is a boost, which Web
 // Audio allows and an <audio> element's own volume does not, so
-// api/voice.ts mixes the room through Web Audio and sets each remote
-// track's gain from here. One knob for the whole call. A choice about
+// api/voice.ts mixes the room through Web Audio and sets our gain node in
+// each remote track's chain from here, with a limiter after it so the
+// top of the range does not clip (api/voiceChain.ts). One knob for the
+// whole call. A choice about
 // this device's speakers against whatever else it is playing — a game,
 // say — so it is kept in localStorage like the voice cues and never on
 // the server. The keys that step it (api/shortcuts.ts) have a switch of
@@ -13,7 +15,7 @@ import { create } from "zustand";
 export const VOICE_VOLUME_STORAGE_KEY = "stoop.voiceVolume";
 export const VOLUME_KEYS_STORAGE_KEY = "stoop.volumeKeys";
 
-export const MAX_VOLUME = 200;
+export const MAX_VOLUME = 300;
 export const DEFAULT_VOLUME = 100;
 // One key press, or one notch of the slider.
 export const VOLUME_STEP = 10;

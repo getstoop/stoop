@@ -194,11 +194,32 @@
   outline-offset: var(--focus-offset);
 }
 
+/* Words under the slider at the values they name: the ends at the edges,
+   "Normal" centred under its value (the component sets where). */
 .voice-volume-marks {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: var(--text-xs);
   font-size: var(--text-xs);
+  line-height: 1;
   color: var(--text-muted);
+}
+
+.voice-volume-marks span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+
+.voice-volume-marks span:first-child {
+  left: 0;
+}
+
+.voice-volume-marks span:nth-child(2) {
+  transform: translateX(-50%);
+}
+
+.voice-volume-marks span:last-child {
+  right: 0;
 }
 
 .voice-volume > .link {
