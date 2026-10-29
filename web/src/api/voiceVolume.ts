@@ -10,10 +10,14 @@ import { create } from "zustand";
 // this device's speakers against whatever else it is playing — a game,
 // say — so it is kept in localStorage like the voice cues and never on
 // the server. The keys that step it (api/shortcuts.ts) have a switch of
-// their own, kept the same way. docs/architecture/voice.md → Voice volume.
+// their own, kept the same way, and so does "Even out voices", the
+// compressor at the head of each chain: off by default, since it
+// changes the sound of every call. docs/architecture/voice.md → Voice
+// volume.
 
 export const VOICE_VOLUME_STORAGE_KEY = "stoop.voiceVolume";
 export const VOLUME_KEYS_STORAGE_KEY = "stoop.volumeKeys";
+export const VOICE_EVEN_OUT_STORAGE_KEY = "stoop.voiceEvenOut";
 
 export const MAX_VOLUME = 300;
 export const DEFAULT_VOLUME = 100;
@@ -37,8 +41,11 @@ interface VoiceVolumeState {
   volume: number;
   // Whether the volume keys step it.
   keys: boolean;
+  // Whether every voice is evened before the volume.
+  evenOut: boolean;
   setVolume: (volume: number) => void;
   setKeys: (keys: boolean) => void;
+  setEvenOut: (evenOut: boolean) => void;
 }
 
 function loadVolume(): number {
@@ -58,6 +65,14 @@ function loadKeys(): boolean {
   }
 }
 
+function loadEvenOut(): boolean {
+  try {
+    return localStorage.getItem(VOICE_EVEN_OUT_STORAGE_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
 function save(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
@@ -69,6 +84,7 @@ function save(key: string, value: string) {
 export const useVoiceVolumeStore = create<VoiceVolumeState>((set) => ({
   volume: loadVolume(),
   keys: loadKeys(),
+  evenOut: loadEvenOut(),
   setVolume: (raw) => {
     const volume = clampVolume(raw);
     save(VOICE_VOLUME_STORAGE_KEY, String(volume));
@@ -77,6 +93,10 @@ export const useVoiceVolumeStore = create<VoiceVolumeState>((set) => ({
   setKeys: (keys) => {
     save(VOLUME_KEYS_STORAGE_KEY, keys ? "on" : "off");
     set({ keys });
+  },
+  setEvenOut: (evenOut) => {
+    save(VOICE_EVEN_OUT_STORAGE_KEY, evenOut ? "on" : "off");
+    set({ evenOut });
   },
 }));
 

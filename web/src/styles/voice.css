@@ -172,6 +172,30 @@
   right: 0;
 }
 
+/* The "Even out voices" switch under the marks, parted from them by a
+   hairline: its name over a line of caution at the left, the kit's
+   switch at the right. */
+.voice-volume-even {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.voice-volume-even-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.voice-volume-even-text .muted {
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+}
+
 .voice-volume > .link {
   align-self: flex-end;
   font-size: var(--text-xs);
