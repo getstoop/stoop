@@ -27,6 +27,21 @@ export function trackKey(participantId: string, source: VideoSource) {
   return `${participantId}:${source}`;
 }
 
+// What the mic level meter shows, written by api/voiceLevel.ts once per
+// sample while unmuted: the smoothed loudness and the held peak on the
+// meter's 0..1 scale, and whether the mic has been quiet (api/micLevel.ts).
+export interface MicLevelReading {
+  level: number;
+  peak: number;
+  quiet: boolean;
+}
+
+export const NO_MIC_LEVEL: MicLevelReading = {
+  level: 0,
+  peak: 0,
+  quiet: false,
+};
+
 export interface VoiceConnection {
   spaceId: string;
   channelId: string;
@@ -50,6 +65,7 @@ interface VoiceState {
   // (api/voiceLevel.ts) and held apart from `speaking`, which every
   // server update replaces wholesale.
   localSpeaking: string | null;
+  micLevel: MicLevelReading;
   // The browser refused to autoplay audio; a user gesture is needed.
   audioBlocked: boolean;
   // Video on the stage, keyed by trackKey().
@@ -67,6 +83,7 @@ interface VoiceState {
   setDeafened: (deafened: boolean) => void;
   setSpeaking: (ids: string[]) => void;
   setLocalSpeaking: (userId: string | null) => void;
+  setMicLevel: (reading: MicLevelReading) => void;
   setAudioBlocked: (blocked: boolean) => void;
   setTrack: (ref: Omit<VideoTrackRef, "order">) => void;
   removeTrack: (key: string) => void;
@@ -86,6 +103,7 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   deafened: false,
   speaking: new Set(),
   localSpeaking: null,
+  micLevel: NO_MIC_LEVEL,
   audioBlocked: false,
   tracks: {},
   cameraOn: false,
@@ -117,13 +135,19 @@ export const useVoiceStore = create<VoiceState>((set) => ({
     set(
       connection
         ? { connection, switching: false }
-        : { connection, speaking: new Set(), localSpeaking: null },
+        : {
+            connection,
+            speaking: new Set(),
+            localSpeaking: null,
+            micLevel: NO_MIC_LEVEL,
+          },
     ),
   setSwitching: (switching) => set({ switching }),
   setMuted: (muted) => set({ muted }),
   setDeafened: (deafened) => set({ deafened }),
   setSpeaking: (ids) => set({ speaking: new Set(ids) }),
   setLocalSpeaking: (localSpeaking) => set({ localSpeaking }),
+  setMicLevel: (micLevel) => set({ micLevel }),
   setAudioBlocked: (audioBlocked) => set({ audioBlocked }),
   setTrack: (ref) =>
     set((s) => ({

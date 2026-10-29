@@ -1,9 +1,25 @@
 import type { LocalAudioTrack } from "livekit-client";
 import { useVoiceStore } from "../stores/voice";
+import {
+  IDLE_MIC_LEVEL,
+  type MicLevelState,
+  rmsOf,
+  sameReading,
+  stepMicLevel,
+} from "./micLevel";
 
 // Our own speaking ring, measured from the local mic. LiveKit computes
 // ActiveSpeakersChanged on the server, so our own ring would otherwise
 // wait for a round trip plus the observer's smoothing window.
+//
+// The mic level meter is a second reading of the same analyser, taken on
+// the same tick: the ring averages FFT magnitudes against one threshold
+// for a yes/no, the meter takes an RMS over the time-domain window for a
+// loudness (micLevel.ts). One meter, two readings, so they can never
+// disagree about what is being heard. Both read the published track,
+// after the browser's gain control, so the meter shows what others hear.
+// The window is the ring's fftSize (512 samples, about 10 ms), shared
+// with the ring, so it is not raised for the meter's sake.
 //
 // Remote rings still come from that event, and still carry that lag: the
 // same meter could run on subscribed remote audio (STOOP-122), which
@@ -65,6 +81,19 @@ async function run(track: LocalAudioTrack, userId: string) {
     useVoiceStore.getState().setLocalSpeaking(speaking ? userId : null);
   };
 
+  // The meter's state, and the store written only when what it shows
+  // changes: a settled meter costs nothing.
+  const samples = new Float32Array(meter.analyser.fftSize);
+  let level: MicLevelState = IDLE_MIC_LEVEL;
+  const measure = (next: MicLevelState) => {
+    const shown = useVoiceStore.getState().micLevel;
+    level = next;
+    if (sameReading(shown, next)) return;
+    useVoiceStore
+      .getState()
+      .setMicLevel({ level: next.level, peak: next.peak, quiet: next.quiet });
+  };
+
   const tick = (t: number) => {
     frame = requestAnimationFrame(tick);
     if (t - sampled < SAMPLE_MS) return;
@@ -72,16 +101,21 @@ async function run(track: LocalAudioTrack, userId: string) {
     if (useVoiceStore.getState().muted) {
       loud = -Infinity;
       show(false);
+      measure(IDLE_MIC_LEVEL);
       return;
     }
-    if (meter.calculateVolume() >= SPEAKING) loud = t;
+    const speaking = meter.calculateVolume() >= SPEAKING;
+    if (speaking) loud = t;
     show(t - loud < HOLD_MS);
+    meter.analyser.getFloatTimeDomainData(samples);
+    measure(stepMicLevel(level, rmsOf(samples), speaking, t));
   };
   frame = requestAnimationFrame(tick);
 
   stop = () => {
     cancelAnimationFrame(frame);
     show(false);
+    measure(IDLE_MIC_LEVEL);
     meter.cleanup().catch(() => {});
   };
 }

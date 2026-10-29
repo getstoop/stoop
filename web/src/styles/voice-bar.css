@@ -116,16 +116,18 @@ div.voice-device-row {
 }
 
 .voice-device-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* The picker row. */
+/* The picker row: the chevron sits closer in than the kit's, so the right
+   padding is 28px plus the trailing slot's room. */
 .voice-device-row > select {
   height: 32px;
-  padding: 0 32px;
+  padding: 0 calc(28px + var(--select-trailing-w, 0px)) 0 32px;
   border: none;
   border-radius: 0;
   background: none;
@@ -166,6 +168,66 @@ div.voice-device-row {
 .voice-device-row > .select-icon svg {
   width: 14px;
   height: 14px;
+}
+
+/* The mic row's glyph says the state the meter is in: warn while the
+   mic has been quiet, danger while muted. */
+.voice-device-row.quiet .voice-device-icon,
+.voice-device-row.quiet > .select-icon {
+  color: var(--warn);
+}
+
+.voice-device-row.muted .voice-device-icon,
+.voice-device-row.muted > .select-icon {
+  color: var(--danger);
+}
+
+/* The mic level (components/MicLevel): ten 3px segments, 2px apart, lit
+   from the left, in the mic row between the name and the chevron. In the
+   plain row it is the last flex child; in the picker row it is the
+   select's trailing slot, 8px before the chevron, in the room the row
+   reserves: 48px of meter and the 8px before the name. */
+.mic-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.voice-device-row:has(> .select-trailing) {
+  --select-trailing-w: 56px;
+}
+
+.voice-device-row > .select-trailing {
+  /* off-scale: 8px before the 12px chevron at 8px. */
+  right: 28px;
+}
+
+/* Unlit on the border colour, which still shows on the panel in a light
+   theme; the peak is the status colour faded toward it. */
+.mic-level > span {
+  width: 3px;
+  height: 10px;
+  /* off-scale: a 3px segment; the smallest radius token would make it a pill. */
+  border-radius: 1px;
+  background: var(--border);
+}
+
+.mic-level > .lit {
+  background: var(--ok);
+}
+
+/* The peak: where the voice last reached, drawn dimmer. */
+.mic-level > .peak {
+  background: var(--ok-dim);
+}
+
+.mic-level.quiet > .lit {
+  background: var(--warn);
+}
+
+.mic-level.quiet > .peak {
+  background: var(--warn-dim);
 }
 
 /* The toggles as equal tiles across the bar (VoiceActions layout

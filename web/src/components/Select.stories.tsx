@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { CSSProperties } from "react";
 import { Field } from "./Field";
 import { Select } from "./Select";
 import { MicIcon } from "./VoiceIcons";
@@ -44,4 +45,21 @@ export const InAFieldRefused: StoryObj = {
 
 export const WithAnIcon: Story = {
   args: { ...Default.args, icon: <MicIcon /> },
+};
+
+// The slot's room is --select-trailing-w, set by whoever puts something
+// there (the voice bar's mic row); the long label stops before it.
+export const WithATrailingSlot: StoryObj = {
+  render: () => (
+    <div style={{ "--select-trailing-w": "64px" } as CSSProperties}>
+      <Select
+        defaultValue="invite"
+        aria-label="Sign-up"
+        trailing={<span className="small muted">3 of 5</span>}
+      >
+        <option value="invite">Invite only, and the label runs long</option>
+        <option value="open">Anyone with the link</option>
+      </Select>
+    </div>
+  ),
 };

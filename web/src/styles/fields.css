@@ -230,11 +230,14 @@ label.toggle-row input.switch {
   min-width: 0;
 }
 
+/* The right padding is the chevron's, plus the trailing slot's width
+   when the caller sets --select-trailing-w (what sits there, plus the gap
+   before the text). */
 .select > select {
   appearance: none;
   width: 100%;
   min-width: 0;
-  padding-right: 32px;
+  padding-right: calc(32px + var(--select-trailing-w, 0px));
 }
 
 /* A glyph inside the left padding, where a leading icon reads as part of
@@ -251,6 +254,17 @@ label.toggle-row input.switch {
 
 .select:has(> .select-icon) > select {
   padding-left: 32px;
+}
+
+/* Something inside the right padding, before the chevron (the voice
+   bar's mic level), in the room --select-trailing-w reserves. */
+.select-trailing {
+  position: absolute;
+  top: 50%;
+  right: 32px;
+  translate: 0 -50%;
+  display: inline-flex;
+  pointer-events: none;
 }
 
 /* ChevronIcon points right. */

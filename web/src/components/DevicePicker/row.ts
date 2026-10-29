@@ -2,7 +2,7 @@ import type { DeviceKind } from "../../api/voice";
 
 // What a device row of the voice bar says, and whether it opens. Both
 // rows are always in the bar (the bar keeps its height, and the mic row
-// is where the level meter will live), so a row with nothing to choose
+// holds the level meter), so a row with nothing to choose
 // still needs words: the one device's name, or the kind of device while
 // the list is empty. The camera's list is empty until the camera has
 // been on, because its labels need its permission, so off it says
