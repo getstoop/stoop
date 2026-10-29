@@ -6,6 +6,7 @@ import {
   useVoiceVolumeStore,
   VOLUME_STEP,
 } from "../api/voiceVolume";
+import { Switch } from "./Switch";
 import { SpeakerIcon } from "./VoiceIcons";
 
 // The volume button of the voice controls and the panel it opens: how
@@ -13,12 +14,16 @@ import { SpeakerIcon } from "./VoiceIcons";
 // everyone in it. The value lives in api/voiceVolume.ts and the sound is
 // set in api/voice.ts; this is only the control. Under the slider three
 // words mark its ends and the as-sent point; the readout stays a number,
-// since the keys step by 10 and the number is what moves. The panel is
-// fixed to the viewport above the button, as the ⋮ menu is, so the stage
-// bar's pill cannot clip it; Escape, a click outside or a scroll closes
-// it.
+// since the keys step by 10 and the number is what moves. Under the
+// marks, the "Even out voices" switch: it lives here and not on Account
+// → Voice because that tab is hidden inside the desktop app, and the
+// popover reaches both. Reset puts the volume back and leaves the switch
+// alone. The panel is fixed to the viewport above the button, as the ⋮
+// menu is, so the stage bar's pill cannot clip it; Escape, a click
+// outside or a scroll closes it.
 
-const WIDTH = 224;
+// Wide enough for the switch's words beside it on one line.
+const WIDTH = 240;
 const GAP = 6;
 // The slider's thumb is the browser's own (voice.css keeps the native
 // control), about this wide everywhere. Its centre travels from half a
@@ -45,12 +50,16 @@ function panelPosition(anchor: DOMRect): CSSProperties {
 export function VoiceVolume() {
   const volume = useVoiceVolumeStore((s) => s.volume);
   const setVolume = useVoiceVolumeStore((s) => s.setVolume);
+  const evenOut = useVoiceVolumeStore((s) => s.evenOut);
+  const setEvenOut = useVoiceVolumeStore((s) => s.setEvenOut);
   const [open, setOpen] = useState(false);
   // Where the button was when the panel opened.
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const id = useId();
+  const evenId = `${id}-even`;
+  const evenHintId = `${id}-even-hint`;
 
   useEffect(() => {
     if (!open) return;
@@ -118,6 +127,20 @@ export function VoiceVolume() {
             <span>Off</span>
             <span style={{ left: markLeft(DEFAULT_VOLUME) }}>Normal</span>
             <span>Loudest</span>
+          </div>
+          <div className="voice-volume-even">
+            <div className="voice-volume-even-text">
+              <label htmlFor={evenId}>Even out voices</label>
+              <span id={evenHintId} className="muted">
+                Louder volumes may distort sound.
+              </span>
+            </div>
+            <Switch
+              id={evenId}
+              checked={evenOut}
+              aria-describedby={evenHintId}
+              onChange={(e) => setEvenOut(e.target.checked)}
+            />
           </div>
           <button
             type="button"

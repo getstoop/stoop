@@ -356,10 +356,12 @@ How loud the call plays on this device, 0 to 300% of what everyone
 sends, one knob for the whole call. The button beside Deafen opens it
 (`components/VoiceVolume.tsx`, on the sidebar's bar and the stage's
 alike), and Ctrl+Shift+Up and Down step it by 10 while you are in a
-call, with a switch of their own (Account → Voice). Both are choices
-about this device's speakers against whatever else it is playing — a
-game, say — so they are kept in this browser as `stoop.voiceVolume` and
-`stoop.volumeKeys` (`api/voiceVolume.ts`), never on the server.
+call, with a switch of their own (Account → Voice). "Even out voices",
+in the popover under the slider, evens every voice before the volume.
+All three are choices about this device's speakers against whatever
+else it is playing — a game, say — so they are kept in this browser as
+`stoop.voiceVolume`, `stoop.volumeKeys` and `stoop.voiceEvenOut`
+(`api/voiceVolume.ts`), never on the server.
 
 - **Past 100% is a boost.** An `<audio>` element's own volume stops at
   1, so the room is mixed through Web Audio (`webAudioMix` on the LiveKit
@@ -367,7 +369,8 @@ game, say — so they are kept in this browser as `stoop.voiceVolume` and
   remote track through its own nodes, which have no ceiling.
 - **Every voice plays through a chain of ours** (`api/voiceChain.ts`),
   handed to the track as its Web Audio plugins, which LiveKit wires
-  between the track's source and its own gain node: source → **our gain
+  between the track's source and its own gain node: source → **the
+  evener**, only while "Even out voices" is on (below) → **our gain
   node** (the slider's volume as a gain, 0 to 3) → **a limiter** (a
   `DynamicsCompressorNode` with a threshold just under full scale, a
   20:1 ratio, no knee, a 1 ms attack and a 50 ms release) → LiveKit's
@@ -383,9 +386,32 @@ game, say — so they are kept in this browser as `stoop.voiceVolume` and
   the volume, since it is the boost that pushes a peak past full scale,
   and nothing can follow LiveKit's gain node. So the slider drives the
   gain node in the plugin list (`playbackGain` in `api/voice.ts`) and
-  LiveKit's `setVolume` is not used at all. The head of the list is
-  where a per-voice compressor goes if one is added: before the volume,
-  so the slider scales an evened voice.
+  LiveKit's `setVolume` is not used at all.
+- **"Even out voices" is the chain's optional head**: a
+  `DynamicsCompressorNode` with a −24 dB threshold, a 4:1 ratio, a 30 dB
+  knee, a 3 ms attack and a 250 ms release (`EVEN_OUT`), one per voice,
+  so a loud friend is tamed on their own chain and never ducks a quiet
+  one. It sits before the volume so it evens the voice as sent and the
+  slider scales the result. The spec's make-up gain applies to it too
+  (about +4 dB with these settings) and is left in on purpose: that lift
+  is how quiet talkers come up, while loud ones only get what the ratio
+  leaves. It is also why the row warns that louder volumes may distort:
+  a lifted shout at 300% lands on the limiter harder. Off, the node is
+  not in the chain at all, so the call sounds exactly as it does without
+  the switch. Off by default, since it changes the sound of every call;
+  people turn it on for the friend who mumbles.
+- **The switch is in the popover**, under the marks and above Reset,
+  not on Account → Voice: that tab is hidden inside the desktop app, and
+  the popover reaches both. Reset puts the volume back and leaves the
+  switch alone.
+- **Flipping the switch rebuilds every chain playing** (`rebuildAudio`
+  in `api/voice.ts`): the old chain is disconnected whole, a new one is
+  built at the gain of the moment (volume, or 0 while deafened) and the
+  track is handed the new nodes, which LiveKit wires between a fresh
+  source and gain node of its own. Synchronous, so nothing goes quiet; a
+  whole rebuild rather than splicing one node in and out, so no stale
+  edge is left behind. A track attached after the flip is built with
+  the switch as it stands.
 - **One context, ours.** The nodes have to come from the AudioContext
   the tracks are connected to, so `api/voice.ts` makes the context and
   hands it to the room (`webAudioMix: { audioContext }`), one per join,

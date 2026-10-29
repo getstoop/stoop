@@ -29,7 +29,8 @@ import { sendClientEvent } from "./ws";
 // leaves the current one first. Remote audio plays through hidden <audio>
 // elements appended to a container on <body>, mixed through Web Audio,
 // each voice through a chain of our own (api/voiceChain.ts) so the volume
-// can go past what an element allows and a boosted shout does not clip;
+// can go past what an element allows, a boosted shout does not clip and,
+// behind a switch, voices are evened;
 // video (cameras, screen shares, our own included) goes into the voice
 // store's track registry, which the stage renders. Our presence in the
 // channel — mute, deafen, camera, sharing — is reported to the gateway
@@ -131,7 +132,7 @@ function attachAudio(track: RemoteTrack, ctx: AudioContext) {
   // track through the context, plugins included, and LiveKit keeps the
   // element itself muted from then on. Setting the plugins afterwards
   // would work too, at the cost of wiring the track twice.
-  const chain = buildVoiceChain(ctx, playbackGain());
+  const chain = buildVoiceChain(ctx, playbackGain(), chainOptions());
   audioChains.set(audio, chain);
   audio.setWebAudioPlugins(chain.nodes);
   const el = audio.attach();
@@ -169,9 +170,35 @@ function playbackGain(): number {
   return gainFor(useVoiceVolumeStore.getState().volume);
 }
 
+// Whether each chain leads with the evener (api/voiceVolume.ts).
+function chainOptions() {
+  return { evenOut: useVoiceVolumeStore.getState().evenOut };
+}
+
 function applyPlaybackGain() {
   const gain = playbackGain();
   for (const chain of audioChains.values()) setChainGain(chain, gain);
+}
+
+// The "Even out voices" switch flipped: every chain playing is replaced
+// whole. The old one is disconnected and a new one built at the gain of
+// the moment (volume, or 0 while deafened) and handed to LiveKit, which
+// drops its own source and gain node and wires the new nodes between
+// fresh ones; nothing of the old chain is left connected or referenced.
+// A whole rebuild rather than splicing the evener in and out of a kept
+// chain: that would mean choosing which edges to keep, and a stale one
+// is a leak nobody can see. It is synchronous, so nothing goes quiet.
+function rebuildAudio() {
+  const ctx = audioContext;
+  if (!ctx) return;
+  const gain = playbackGain();
+  const options = chainOptions();
+  for (const [track, chain] of audioChains) {
+    disconnectVoiceChain(chain);
+    const next = buildVoiceChain(ctx, gain, options);
+    audioChains.set(track, next);
+    track.setWebAudioPlugins(next.nodes);
+  }
 }
 
 // After LiveKit has rewired every track (its startAudio does, whether
@@ -187,7 +214,10 @@ function relinkAudio() {
   }
 }
 
-useVoiceVolumeStore.subscribe(applyPlaybackGain);
+useVoiceVolumeStore.subscribe((state, prev) => {
+  if (state.evenOut !== prev.evenOut) rebuildAudio();
+  else applyPlaybackGain();
+});
 
 // Video tracks go to the registry; the stage attaches them to elements.
 function videoSource(source: Track.Source): "camera" | "screen" | null {

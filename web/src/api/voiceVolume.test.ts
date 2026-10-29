@@ -17,6 +17,7 @@ import {
   MAX_VOLUME,
   stepVolume,
   useVoiceVolumeStore,
+  VOICE_EVEN_OUT_STORAGE_KEY,
   VOICE_VOLUME_STORAGE_KEY,
   VOLUME_KEYS_STORAGE_KEY,
   VOLUME_STEP,
@@ -24,8 +25,19 @@ import {
 
 beforeEach(() => {
   storage.clear();
-  useVoiceVolumeStore.setState({ volume: DEFAULT_VOLUME, keys: true });
+  useVoiceVolumeStore.setState({
+    volume: DEFAULT_VOLUME,
+    keys: true,
+    evenOut: false,
+  });
 });
+
+// The store reads localStorage once, as the module loads; a fresh copy
+// of it is what a reload would see.
+async function reloaded() {
+  vi.resetModules();
+  return (await import("./voiceVolume")).useVoiceVolumeStore.getState();
+}
 
 describe("clampVolume", () => {
   it("keeps a whole number between 0 and the ceiling", () => {
@@ -72,6 +84,28 @@ describe("the store", () => {
     useVoiceVolumeStore.getState().setKeys(false);
     expect(useVoiceVolumeStore.getState().keys).toBe(false);
     expect(storage.get(VOLUME_KEYS_STORAGE_KEY)).toBe("off");
+  });
+
+  it("keeps the even out switch on this device, off until turned on", async () => {
+    expect((await reloaded()).evenOut).toBe(false);
+    useVoiceVolumeStore.getState().setEvenOut(true);
+    expect(useVoiceVolumeStore.getState().evenOut).toBe(true);
+    expect(storage.get(VOICE_EVEN_OUT_STORAGE_KEY)).toBe("on");
+    expect((await reloaded()).evenOut).toBe(true);
+    useVoiceVolumeStore.getState().setEvenOut(false);
+    expect(storage.get(VOICE_EVEN_OUT_STORAGE_KEY)).toBe("off");
+    expect((await reloaded()).evenOut).toBe(false);
+  });
+
+  it('reads anything but "on" as off', async () => {
+    storage.set(VOICE_EVEN_OUT_STORAGE_KEY, "true");
+    expect((await reloaded()).evenOut).toBe(false);
+  });
+
+  it("resets the volume alone: the switch is not the volume", () => {
+    useVoiceVolumeStore.getState().setEvenOut(true);
+    useVoiceVolumeStore.getState().setVolume(DEFAULT_VOLUME);
+    expect(useVoiceVolumeStore.getState().evenOut).toBe(true);
   });
 });
 
