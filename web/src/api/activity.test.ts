@@ -9,6 +9,7 @@ import {
   type ActivityData,
   activityVerb,
   alertingCount,
+  readMayClearActivity,
   receiveActivityItem,
   unreadCounts,
 } from "./activity";
@@ -201,5 +202,42 @@ describe("receiveActivityItem", () => {
     const next = qc.getQueryData<ActivityData>(["activity"]);
     expect(next?.items[0].readAt).toBeUndefined();
     expect(next?.unreadCount).toBe(1);
+  });
+});
+
+describe("readMayClearActivity", () => {
+  const read = { readAt: stamp(1) };
+
+  it("is false with nothing cached", () => {
+    expect(readMayClearActivity(undefined, { channelId: "general" })).toBe(
+      false,
+    );
+  });
+
+  it("is true for an unread item in the channel read", () => {
+    const cached = data([item("a"), item("b", { channelId: "random" })]);
+    expect(readMayClearActivity(cached, { channelId: "general" })).toBe(true);
+    expect(readMayClearActivity(cached, { channelId: "garden" })).toBe(false);
+  });
+
+  // The count includes muted items too; it is the cached rows that
+  // decide, unless the server counts more unread than the cache holds.
+  it("ignores read items and other channels while the cache holds every unread", () => {
+    const cached = data(
+      [item("a", read), item("b", { channelId: "random" })],
+      1,
+    );
+    expect(readMayClearActivity(cached, { channelId: "general" })).toBe(false);
+  });
+
+  it("is true when unread items lie past the cached page", () => {
+    const cached = data([item("a", { channelId: "random" })], 60);
+    expect(readMayClearActivity(cached, { channelId: "general" })).toBe(true);
+  });
+
+  it("matches a thread read by its root", () => {
+    const cached = data([item("a", { threadRootId: "root1" })]);
+    expect(readMayClearActivity(cached, { threadRootId: "root1" })).toBe(true);
+    expect(readMayClearActivity(cached, { threadRootId: "root2" })).toBe(false);
   });
 });

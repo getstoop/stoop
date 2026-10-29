@@ -106,7 +106,7 @@ func (s *Service) MarkThreadRead(ctx context.Context, req *connect.Request[chatv
 	userID := authctx.UserID(ctx)
 	var marker string
 	if err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		marker, err = markThreadRead(ctx, qtx, userID, root.ID, target)
+		marker, err = markThreadRead(ctx, qtx, userID, channel.ID, root.ID, target)
 		return err
 	}); err != nil {
 		return nil, err
@@ -115,17 +115,20 @@ func (s *Service) MarkThreadRead(ctx context.Context, req *connect.Request[chatv
 	return connect.NewResponse(&chatv1.MarkThreadReadResponse{LastReadMessageId: marker}), nil
 }
 
-// markThreadRead is markChannelRead for a thread, and returns where the
-// marker ends up.
-func markThreadRead(ctx context.Context, qtx *dbgen.Queries, userID, rootID, replyID string) (string, error) {
+// markThreadRead is markChannelRead for a thread in channelID, and returns
+// where the marker ends up.
+func markThreadRead(ctx context.Context, qtx *dbgen.Queries, userID, channelID, rootID, replyID string) (string, error) {
 	marker, err := qtx.MarkThreadRead(ctx, dbgen.MarkThreadReadParams{
 		UserID: userID, RootMessageID: rootID, LastReadMessageID: replyID,
 	})
 	if err != nil {
 		return "", fmt.Errorf("mark thread read: %w", err)
 	}
+	if !authctx.Covers(ctx, authctx.ActivityRead) {
+		return marker, nil
+	}
 	if err := qtx.MarkThreadActivityRead(ctx, dbgen.MarkThreadActivityReadParams{
-		UserID: userID, RootID: rootID,
+		UserID: userID, ChannelID: channelID, RootID: rootID,
 	}); err != nil {
 		return "", fmt.Errorf("mark thread activity read: %w", err)
 	}

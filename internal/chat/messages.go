@@ -199,7 +199,7 @@ func (s *Service) SendMessage(ctx context.Context, req *connect.Request[chatv1.S
 			if rootSeq, err = stampMessage(ctx, qtx, channel.ID, threadRoot.ID); err != nil {
 				return err
 			}
-			if threadMarker, err = markThreadRead(ctx, qtx, userID, threadRoot.ID, row.ID); err != nil {
+			if threadMarker, err = markThreadRead(ctx, qtx, userID, channel.ID, threadRoot.ID, row.ID); err != nil {
 				return err
 			}
 			if !alsoSend {

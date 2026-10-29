@@ -276,7 +276,8 @@ type MarkChannelActivityReadParams struct {
 // a channel's timeline at or before their stored channel read marker:
 // passing a message there is seeing it. A thread_reply item waits for its
 // thread's marker (MarkThreadActivityRead), since it stands for every
-// unread reply there, most of which the channel never shows.
+// unread reply there, most of which the channel never shows. A dm item
+// goes with where its message is, as a mention does.
 func (q *Queries) MarkChannelActivityRead(ctx context.Context, arg MarkChannelActivityReadParams) error {
 	_, err := q.db.Exec(ctx, markChannelActivityRead, arg.UserID, arg.ChannelID)
 	return err
@@ -285,23 +286,25 @@ func (q *Queries) MarkChannelActivityRead(ctx context.Context, arg MarkChannelAc
 const markThreadActivityRead = `-- name: MarkThreadActivityRead :exec
 UPDATE activity_items a SET read_at = now()
 FROM thread_reads r, messages m
-WHERE a.user_id = $1 AND a.read_at IS NULL AND a.kind <> 'dm'
-  AND r.user_id = a.user_id AND r.root_message_id = $2::uuid
+WHERE a.user_id = $1 AND a.channel_id = $2
+  AND a.read_at IS NULL
+  AND r.user_id = a.user_id AND r.root_message_id = $3::uuid
   AND m.id = a.message_id AND m.thread_root_id = r.root_message_id
   AND a.message_id <= r.last_read_message_id
 `
 
 type MarkThreadActivityReadParams struct {
-	UserID string
-	RootID string
+	UserID    string
+	ChannelID string
+	RootID    string
 }
 
 // MarkThreadActivityRead is MarkChannelActivityRead for a thread: items
-// about its replies at or before the person's thread read marker. A dm
-// item waits for the channel's marker, since it stands for the whole
-// conversation.
+// of any kind about its replies at or before the person's thread read
+// marker. The person's unread items are few (activity_items_user_unread_idx),
+// so the channel and thread are filters over them.
 func (q *Queries) MarkThreadActivityRead(ctx context.Context, arg MarkThreadActivityReadParams) error {
-	_, err := q.db.Exec(ctx, markThreadActivityRead, arg.UserID, arg.RootID)
+	_, err := q.db.Exec(ctx, markThreadActivityRead, arg.UserID, arg.ChannelID, arg.RootID)
 	return err
 }
 

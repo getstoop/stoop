@@ -49,7 +49,8 @@ WHERE user_id = $1 AND read_at IS NULL;
 -- a channel's timeline at or before their stored channel read marker:
 -- passing a message there is seeing it. A thread_reply item waits for its
 -- thread's marker (MarkThreadActivityRead), since it stands for every
--- unread reply there, most of which the channel never shows.
+-- unread reply there, most of which the channel never shows. A dm item
+-- goes with where its message is, as a mention does.
 -- name: MarkChannelActivityRead :exec
 UPDATE activity_items a SET read_at = now()
 FROM channel_reads r, messages m
@@ -60,13 +61,14 @@ WHERE a.user_id = sqlc.arg(user_id) AND a.channel_id = sqlc.arg(channel_id)
   AND a.message_id <= r.last_read_message_id;
 
 -- MarkThreadActivityRead is MarkChannelActivityRead for a thread: items
--- about its replies at or before the person's thread read marker. A dm
--- item waits for the channel's marker, since it stands for the whole
--- conversation.
+-- of any kind about its replies at or before the person's thread read
+-- marker. The person's unread items are few (activity_items_user_unread_idx),
+-- so the channel and thread are filters over them.
 -- name: MarkThreadActivityRead :exec
 UPDATE activity_items a SET read_at = now()
 FROM thread_reads r, messages m
-WHERE a.user_id = sqlc.arg(user_id) AND a.read_at IS NULL AND a.kind <> 'dm'
+WHERE a.user_id = sqlc.arg(user_id) AND a.channel_id = sqlc.arg(channel_id)
+  AND a.read_at IS NULL
   AND r.user_id = a.user_id AND r.root_message_id = sqlc.arg(root_id)::uuid
   AND m.id = a.message_id AND m.thread_root_id = r.root_message_id
   AND a.message_id <= r.last_read_message_id;

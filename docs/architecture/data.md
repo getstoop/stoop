@@ -260,7 +260,8 @@ a position; the preview is cached per URL and shared by every message that
 links it, with a `state` of `pending`/`ok`/`failed`. Failures are cached
 too, so a dead link isn't refetched once per message that mentions it.
 
-**`activity_items`** — `kind` (`mention` | `reply` | `dm`, by constraint),
+**`activity_items`** — `kind` (`mention` | `reply` | `dm` | `thread_reply`,
+by constraint),
 pointers at space/channel/message, `actor_id`, `read_at`. `space_id` is
 nullable because a DM has no space. Three indexes: `(user_id, id DESC)`
 for the feed, a partial index on unread rows for the badge, and

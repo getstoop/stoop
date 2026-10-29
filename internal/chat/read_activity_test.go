@@ -16,6 +16,7 @@ import (
 type readActivityFixture struct {
 	t         *testing.T
 	svc       *chat.Service
+	spaceID   string
 	channelID string
 	ada, bea  context.Context
 	casey     context.Context
@@ -34,7 +35,7 @@ func newReadActivityFixture(t *testing.T) *readActivityFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fx.channelID = sp.Msg.DefaultChannel.Id
+	fx.spaceID, fx.channelID = sp.Msg.Space.Id, sp.Msg.DefaultChannel.Id
 	for _, who := range []context.Context{fx.bea, fx.casey} {
 		inv, _ := svc.CreateInvite(fx.ada, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: sp.Msg.Space.Id}))
 		if _, err := svc.JoinSpace(who, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
@@ -46,7 +47,9 @@ func newReadActivityFixture(t *testing.T) *readActivityFixture {
 
 func (fx *readActivityFixture) send(ctx context.Context, req *chatv1.SendMessageRequest) *chatv1.Message {
 	fx.t.Helper()
-	req.ChannelId = fx.channelID
+	if req.ChannelId == "" {
+		req.ChannelId = fx.channelID
+	}
 	res, err := fx.svc.SendMessage(ctx, connect.NewRequest(req))
 	if err != nil {
 		fx.t.Fatal(err)
@@ -73,7 +76,12 @@ func (fx *readActivityFixture) unread(ctx context.Context) (map[string]chatv1.Ac
 
 func (fx *readActivityFixture) readChannel(ctx context.Context, messageID string) {
 	fx.t.Helper()
-	if _, err := fx.svc.MarkChannelRead(ctx, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: fx.channelID, MessageId: messageID})); err != nil {
+	fx.readChannelIn(ctx, fx.channelID, messageID)
+}
+
+func (fx *readActivityFixture) readChannelIn(ctx context.Context, channelID, messageID string) {
+	fx.t.Helper()
+	if _, err := fx.svc.MarkChannelRead(ctx, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: messageID})); err != nil {
 		fx.t.Fatal(err)
 	}
 }
@@ -209,5 +217,118 @@ func TestChannelReadClearsBeyondFirstPage(t *testing.T) {
 	fx.readChannel(fx.ada, "")
 	if _, count := fx.unread(fx.ada); count != 0 {
 		t.Errorf("ada read the channel and has %d unread, want 0", count)
+	}
+}
+
+// A read in one channel leaves another channel's items alone.
+func TestChannelReadStaysInItsChannel(t *testing.T) {
+	fx := newReadActivityFixture(t)
+	other, err := fx.svc.CreateChannel(fx.ada, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: fx.spaceID, Name: "garden"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fx.send(fx.bea, &chatv1.SendMessageRequest{Content: mentionOf(fx.ada) + " here"})
+	there := fx.send(fx.bea, &chatv1.SendMessageRequest{ChannelId: other.Msg.Channel.Id, Content: mentionOf(fx.ada) + " there"})
+	fx.readChannel(fx.ada, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 1 {
+		t.Errorf("ada read the first channel: unread %v, want the other channel's mention", got)
+	} else if _, ok := got[there.Id]; !ok {
+		t.Errorf("ada's unread = %v, want the other channel's mention", got)
+	}
+}
+
+// Inside a thread, every kind about a reply goes with the thread's
+// marker, and only up to where the marker stands.
+func TestThreadMarkerBounds(t *testing.T) {
+	fx := newReadActivityFixture(t)
+	root := fx.send(fx.ada, &chatv1.SendMessageRequest{Content: "ladder"})
+	first := fx.send(fx.bea, &chatv1.SendMessageRequest{Content: "mine", ThreadRootId: root.Id})
+	newest := fx.send(fx.casey, &chatv1.SendMessageRequest{Content: "mine too", ThreadRootId: root.Id})
+	if got, _ := fx.unread(fx.ada); got[newest.Id] != chatv1.ActivityKind_ACTIVITY_KIND_THREAD_REPLY {
+		t.Fatalf("ada = %v, want her thread_reply item at casey's reply", got)
+	}
+	// A marker at bea's reply has not passed casey's.
+	fx.readThread(fx.ada, root.Id, first.Id)
+	if got, _ := fx.unread(fx.ada); got[newest.Id] != chatv1.ActivityKind_ACTIVITY_KIND_THREAD_REPLY {
+		t.Errorf("a thread marker behind the newest reply read its thread_reply item")
+	}
+	fx.readThread(fx.ada, root.Id, "")
+
+	// A quote-reply to ada's own reply is a reply item in the thread.
+	mine := fx.send(fx.ada, &chatv1.SendMessageRequest{Content: "bring it saturday", ThreadRootId: root.Id})
+	quote := fx.send(fx.bea, &chatv1.SendMessageRequest{Content: "will do", ThreadRootId: root.Id, ReplyToMessageId: mine.Id})
+	if got, _ := fx.unread(fx.ada); got[quote.Id] != chatv1.ActivityKind_ACTIVITY_KIND_REPLY {
+		t.Fatalf("ada = %v, want a reply item for bea's quote", got)
+	}
+	fx.readChannel(fx.ada, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 1 {
+		t.Errorf("reading the channel read a reply item in a thread: unread %v", got)
+	}
+	fx.readThread(fx.ada, root.Id, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 0 {
+		t.Errorf("ada read the thread: unread %v, want none", got)
+	}
+}
+
+// A dm item goes with where its message is: the channel's marker for a
+// message in the conversation, the thread's for a reply kept in a thread.
+func TestDMReadClearsActivity(t *testing.T) {
+	fx := newReadActivityFixture(t)
+	opened, err := fx.svc.OpenDirectMessage(fx.bea, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(fx.ada)}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dmID := opened.Msg.DirectMessage.Channel.Id
+	first := fx.send(fx.bea, &chatv1.SendMessageRequest{ChannelId: dmID, Content: "hey"})
+	newest := fx.send(fx.bea, &chatv1.SendMessageRequest{ChannelId: dmID, Content: "you there?"})
+	if got, _ := fx.unread(fx.ada); got[newest.Id] != chatv1.ActivityKind_ACTIVITY_KIND_DM {
+		t.Fatalf("ada = %v, want one dm item at bea's newest message", got)
+	}
+	fx.readChannelIn(fx.ada, dmID, first.Id)
+	if got, _ := fx.unread(fx.ada); len(got) != 1 {
+		t.Errorf("a marker behind the newest message read the dm item")
+	}
+	fx.readChannelIn(fx.ada, dmID, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 0 {
+		t.Errorf("ada read the conversation: unread %v, want none", got)
+	}
+
+	// bea answers herself in a thread: ada isn't in it, so the new dm
+	// item points at a reply the conversation doesn't show.
+	reply := fx.send(fx.bea, &chatv1.SendMessageRequest{ChannelId: dmID, Content: "found it", ThreadRootId: newest.Id})
+	if got, _ := fx.unread(fx.ada); got[reply.Id] != chatv1.ActivityKind_ACTIVITY_KIND_DM {
+		t.Fatalf("ada = %v, want a dm item at bea's thread reply", got)
+	}
+	fx.readChannelIn(fx.ada, dmID, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 1 {
+		t.Errorf("reading the conversation read a dm item about a reply kept in its thread")
+	}
+	fx.readThread(fx.ada, newest.Id, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 0 {
+		t.Errorf("ada read the thread: unread %v, want none", got)
+	}
+}
+
+// A credential that can't read activity can't clear it either: a token
+// that posts and reads as ada leaves her feed as it was.
+func TestTokenReadLeavesActivity(t *testing.T) {
+	fx := newReadActivityFixture(t)
+	mention := fx.send(fx.bea, &chatv1.SendMessageRequest{Content: mentionOf(fx.ada) + " ping"})
+	id, _ := authctx.From(fx.ada)
+	id.Credential = authctx.Credential{
+		Kind:   authctx.CredentialPersonalToken,
+		Grants: []authctx.Action{authctx.SpaceRead, authctx.MessagesRead, authctx.MessagesPost, authctx.PreferencesManage},
+	}
+	token := authctx.WithIdentity(context.Background(), id)
+	fx.send(token, &chatv1.SendMessageRequest{Content: "posted by a script"})
+	fx.readChannel(token, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 1 {
+		t.Errorf("a token without activity.read cleared ada's feed: unread %v", got)
+	} else if _, ok := got[mention.Id]; !ok {
+		t.Errorf("ada's unread = %v, want bea's mention", got)
+	}
+	fx.readChannel(fx.ada, "")
+	if got, _ := fx.unread(fx.ada); len(got) != 0 {
+		t.Errorf("ada's own read left unread %v", got)
 	}
 }
