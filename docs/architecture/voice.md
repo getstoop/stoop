@@ -79,7 +79,13 @@ it, and the row follows. Chromium's fake devices cannot be hot-plugged,
 so this is checked by hand rather than by the voice spec.
 
 Both rows are always shown, so the bar never changes height, and the mic
-row is where the level meter will sit. A row with one device names it
+row holds the level meter (Speaking rings, below): ten segments between
+the name and the chevron, the Select's `trailing` slot in a row that
+opens and the last flex child in one that does not. While the mic has
+been quiet the row's tooltip carries the hint ("Your mic is quiet. Move
+closer or turn it up in your system settings.") in place of the name
+and the mic glyph turns warn; muted, the glyph turns danger beside the
+dark segments. A row with one device names it
 and does not open (no chevron); with nothing listed yet it reads
 "Microphone" or "Camera" in muted text. The camera row reads "Camera
 off" until the camera is on, because the browser gives no camera labels
@@ -309,6 +315,26 @@ the signal is already in the browser — so `api/voiceLevel.ts` meters the
 local mic with a Web Audio analyser. Metering subscribed *remote* audio the
 same way, so that a ring lights when the voice reaches the speakers rather
 than when the server noticed it, is tracked as STOOP-122.
+
+The mic level meter in the voice bar (`components/MicLevel`) is a second
+reading of the same analyser, taken on the same tick: the ring averages
+FFT magnitudes against one threshold for a yes/no, the meter takes an
+RMS over the time-domain window for a loudness, smoothed, on a fixed
+dBFS range, with a peak that holds and slides down (`api/micLevel.ts`,
+pure and tested with fed samples). One analyser, two readings, so the
+ring and the segments never disagree about what is being heard. Both
+read the published track, after the browser's gain control, so the meter
+shows what others hear: turning a hardware input down dips the segments,
+which creep back as the browser compensates, until it cannot.
+
+A mic is *quiet* after about four seconds of sound above the meter's
+floor that never reached the ring's threshold — the ring's line is the
+natural one, since a ring that never lights is a voice nobody hears
+well. Silence neither adds to that run nor ends it, so a room with
+nobody talking is not quiet; a loud sample ends it, and so does muting.
+Gain control hides a quiet mic for a few seconds, which is why the wait.
+The reader writes the store once per sample while unmuted and only when
+the reading changed; muted, it writes zeros once and nothing runs.
 
 ## Join and leave cues
 

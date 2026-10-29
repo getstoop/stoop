@@ -1,9 +1,12 @@
+import { QUIET_HINT } from "../../api/micLevel";
 import {
   type DeviceKind,
   switchCamera,
   switchMicrophone,
 } from "../../api/voice";
 import { useDevices } from "../../hooks/useDevices";
+import { useVoiceStore } from "../../stores/voice";
+import { MicLevel } from "../MicLevel";
 import { Select } from "../Select";
 import { CameraIcon, MicIcon } from "../VoiceIcons";
 import { deviceRow, KIND_LABEL } from "./row";
@@ -17,6 +20,11 @@ import { deviceRow, KIND_LABEL } from "./row";
 // tooltip is what carries a long name the row has cut short. Both rows
 // are always rendered; what each says in its states is decided in
 // row.ts. The list follows devices plugged in or unplugged mid-call.
+//
+// The mic row also holds the level meter (MicLevel), between the name
+// and the chevron. While the mic has been quiet the row's tooltip carries
+// the hint in place of the name and its glyph turns warn; muted, the
+// glyph turns danger beside the dark segments.
 export function DevicePicker({
   kind,
   enabled,
@@ -27,16 +35,25 @@ export function DevicePicker({
   const { devices, active } = useDevices(kind, enabled);
   const row = deviceRow(kind, enabled, devices, active);
   const label = KIND_LABEL[kind];
+  const isMic = kind === "audioinput";
+  const quiet = useVoiceStore((s) => isMic && s.micLevel.quiet);
+  const muted = useVoiceStore((s) => isMic && s.muted);
+  const meter = isMic ? <MicLevel /> : undefined;
+  const title = quiet ? QUIET_HINT : row.text;
+  const className = [
+    "voice-device-row",
+    row.placeholder && "placeholder",
+    quiet && "quiet",
+    muted && "muted",
+  ]
+    .filter(Boolean)
+    .join(" ");
   // The placeholder words stand for a device that is not there, and the
   // camera's glyph is crossed for them: off, or not yet listed.
-  const icon =
-    kind === "audioinput" ? <MicIcon /> : <CameraIcon off={row.placeholder} />;
+  const icon = isMic ? <MicIcon /> : <CameraIcon off={row.placeholder} />;
   if (!row.opens) {
     return (
-      <div
-        className={`voice-device-row ${row.placeholder ? "placeholder" : ""}`}
-        title={row.text}
-      >
+      <div className={className} title={title}>
         <span className="voice-device-icon">{icon}</span>
         <span className="voice-device-name">
           {/* A device's name alone says nothing of what it is for; the
@@ -46,16 +63,18 @@ export function DevicePicker({
           )}
           {row.text}
         </span>
+        {meter}
       </div>
     );
   }
-  const pick = kind === "audioinput" ? switchMicrophone : switchCamera;
+  const pick = isMic ? switchMicrophone : switchCamera;
   return (
     <Select
-      className="voice-device-row"
+      className={className}
       icon={icon}
+      trailing={meter}
       aria-label={label}
-      title={row.text}
+      title={title}
       value={active ?? ""}
       onChange={(e) => pick(e.target.value)}
     >

@@ -253,6 +253,18 @@ label.toggle-row input.switch {
   padding-left: 32px;
 }
 
+/* Something inside the right padding, before the chevron (the voice
+   bar's mic level). The caller's sheet widens the select's padding to
+   fit it. */
+.select-trailing {
+  position: absolute;
+  top: 50%;
+  right: 32px;
+  translate: 0 -50%;
+  display: inline-flex;
+  pointer-events: none;
+}
+
 /* ChevronIcon points right. */
 .select > svg {
   position: absolute;

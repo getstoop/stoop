@@ -116,6 +116,7 @@ div.voice-device-row {
 }
 
 .voice-device-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -166,6 +167,62 @@ div.voice-device-row {
 .voice-device-row > .select-icon svg {
   width: 14px;
   height: 14px;
+}
+
+/* The mic row's glyph says the state the meter is in: warn while the
+   mic has been quiet, danger while muted. */
+.voice-device-row.quiet .voice-device-icon,
+.voice-device-row.quiet > .select-icon {
+  color: var(--warn);
+}
+
+.voice-device-row.muted .voice-device-icon,
+.voice-device-row.muted > .select-icon {
+  color: var(--danger);
+}
+
+/* The mic level (components/MicLevel): ten 3px segments, 2px apart, lit
+   from the left, in the mic row between the name and the chevron. In the
+   plain row it is the last flex child; in the picker row it is the
+   select's trailing slot, 8px before the chevron, and the select's
+   padding makes the room: 48px of meter, 8px, 12px of chevron, 8px. */
+.mic-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.voice-device-row > .select-trailing {
+  right: 28px;
+}
+
+.voice-device-row:has(> .select-trailing) > select {
+  /* off-scale: 48px of meter, 8px, 12px of chevron, 8px. */
+  padding-right: 84px;
+}
+
+.mic-level > span {
+  width: 3px;
+  height: 10px;
+  /* off-scale: a 3px segment; the smallest radius token would make it a pill. */
+  border-radius: 1px;
+  background: var(--raised);
+}
+
+.mic-level > .lit {
+  background: var(--ok);
+}
+
+/* The peak: where the voice last reached, drawn dimmer. */
+.mic-level > .peak {
+  background: var(--ok);
+  opacity: var(--disabled);
+}
+
+.mic-level.quiet > .lit,
+.mic-level.quiet > .peak {
+  background: var(--warn);
 }
 
 /* The toggles as equal tiles across the bar (VoiceActions layout

@@ -45,3 +45,10 @@ export const InAFieldRefused: StoryObj = {
 export const WithAnIcon: Story = {
   args: { ...Default.args, icon: <MicIcon /> },
 };
+
+export const WithATrailingSlot: Story = {
+  args: {
+    ...Default.args,
+    trailing: <span className="small muted">3 of 5</span>,
+  },
+};

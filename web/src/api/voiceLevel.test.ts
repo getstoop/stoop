@@ -1,18 +1,24 @@
 import type { LocalAudioTrack } from "livekit-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useVoiceStore } from "../stores/voice";
+import { NO_MIC_LEVEL, useVoiceStore } from "../stores/voice";
+import { QUIET_AFTER_MS } from "./micLevel";
 import { stopLocalLevel, syncLocalLevel } from "./voiceLevel";
 
 // Two seams stand in for the browser: LiveKit's analyser and the frame
 // clock. The threshold, the hold and the mute rule are the module's own,
 // and driving the clock by hand is the only way to pin down a sequence
-// the browser suite can only watch go by.
+// the browser suite can only watch go by. The analyser answers the ring
+// with `volume` and the meter's time-domain read with a window at `rms`.
 const lk = vi.hoisted(() => {
-  const state = { volume: 0, fail: false };
+  const state = { volume: 0, rms: 0, fail: false };
   const cleanup = vi.fn(() => Promise.resolve());
   const createAudioAnalyser = vi.fn(() => {
     if (state.fail) throw new Error("no Web Audio");
-    return { calculateVolume: () => state.volume, cleanup };
+    const analyser = {
+      fftSize: 8,
+      getFloatTimeDomainData: (buffer: Float32Array) => buffer.fill(state.rms),
+    };
+    return { calculateVolume: () => state.volume, analyser, cleanup };
   });
   return { state, cleanup, createAudioAnalyser };
 });
@@ -28,15 +34,19 @@ let pending: FrameRequestCallback | null = null;
 let nextFrame = 0;
 let cancelled: number[] = [];
 
-// One sampled frame: the mic reads `volume` at timestamp `t`.
-const frame = (t: number, volume: number) => {
+// One sampled frame: the mic reads `volume` at timestamp `t`, and the
+// meter's window sits at `rms` (an RMS of -40 dBFS is low but present).
+const frame = (t: number, volume: number, rms = 0) => {
   lk.state.volume = volume;
+  lk.state.rms = rms;
   const cb = pending;
   pending = null;
   cb?.(t);
 };
 
 const ring = () => useVoiceStore.getState().localSpeaking;
+const meter = () => useVoiceStore.getState().micLevel;
+const LOW = 0.01;
 
 // syncLocalLevel starts the meter behind a dynamic import.
 const start = async (t: LocalAudioTrack, userId = "casey") => {
@@ -60,7 +70,11 @@ beforeEach(() => {
     cancelled.push(id);
     pending = null;
   };
-  useVoiceStore.setState({ localSpeaking: null, muted: false });
+  useVoiceStore.setState({
+    localSpeaking: null,
+    micLevel: NO_MIC_LEVEL,
+    muted: false,
+  });
 });
 
 afterEach(() => {
@@ -196,5 +210,70 @@ describe("the speaking ring", () => {
     expect(lk.cleanup).toHaveBeenCalledTimes(1);
     frame(1050, 0.9);
     expect(ring()).toBeNull();
+  });
+});
+
+describe("the mic level", () => {
+  beforeEach(async () => {
+    await start(track("a"));
+  });
+
+  it("shows the window's loudness and holds its peak", () => {
+    frame(1000, 0.5, 0.3);
+    const loud = meter();
+    expect(loud.level).toBeGreaterThan(0.5);
+    expect(loud.peak).toBe(loud.level);
+    frame(1050, 0, 0);
+    expect(meter().level).toBeLessThan(loud.level);
+    expect(meter().peak).toBe(loud.peak);
+  });
+
+  it("writes the store only when the reading changes", () => {
+    let writes = 0;
+    const off = useVoiceStore.subscribe(() => {
+      writes++;
+    });
+    frame(1000, 0, 0);
+    frame(1050, 0, 0);
+    expect(writes).toBe(0);
+    frame(1100, 0.5, 0.1);
+    expect(writes).toBe(2); // the ring and the meter
+    off();
+  });
+
+  it("calls the mic quiet after low sound that never lights the ring", () => {
+    let t = 1000;
+    for (; t <= 1000 + QUIET_AFTER_MS; t += 50) frame(t, 0, LOW);
+    expect(ring()).toBeNull();
+    expect(meter().quiet).toBe(true);
+    frame(t, 0.5, 0.1);
+    expect(meter().quiet).toBe(false);
+  });
+
+  it("zeroes the meter while muted and runs nothing", () => {
+    frame(1000, 0.5, 0.1);
+    expect(meter().level).toBeGreaterThan(0);
+    useVoiceStore.setState({ muted: true });
+    frame(1050, 0.9, 0.3);
+    expect(meter()).toEqual(NO_MIC_LEVEL);
+    frame(1100, 0.9, 0.3);
+    expect(meter()).toEqual(NO_MIC_LEVEL);
+  });
+
+  it("forgets a quiet run over a mute", () => {
+    let t = 1000;
+    for (; t < 1000 + QUIET_AFTER_MS; t += 50) frame(t, 0, LOW);
+    useVoiceStore.setState({ muted: true });
+    frame(t, 0, LOW);
+    useVoiceStore.setState({ muted: false });
+    frame(t + 50, 0, LOW);
+    frame(t + 100, 0, LOW);
+    expect(meter().quiet).toBe(false);
+  });
+
+  it("zeroes the meter on stopLocalLevel", () => {
+    frame(1000, 0.5, 0.1);
+    stopLocalLevel();
+    expect(meter()).toEqual(NO_MIC_LEVEL);
   });
 });
