@@ -159,6 +159,14 @@
   max-width: 560px;
 }
 
+/* A rule above a row that starts a new kind of setting in its form,
+   such as the switches after the text fields. */
+.setting-row.ruled {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 /* The one Save under a form of rows, and the word beside it. */
 .setting-actions {
   display: flex;
