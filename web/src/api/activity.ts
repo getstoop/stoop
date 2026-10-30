@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import {
   type ActivityData,
+  deletionMayClearActivity,
   type ReadPlace,
   readMayClearActivity,
   withActivityItem,
@@ -38,6 +39,19 @@ export function refetchActivityAfterRead(
 ) {
   const current = queryClient.getQueryData<ActivityData>(["activity"]);
   if (readMayClearActivity(current, place)) {
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
+  }
+}
+
+// A deleted message takes its activity with it on the server, with no
+// event of its own, so the feed is fetched again when it could have held
+// some.
+export function refetchActivityAfterDelete(
+  queryClient: QueryClient,
+  messageId: string,
+) {
+  const current = queryClient.getQueryData<ActivityData>(["activity"]);
+  if (deletionMayClearActivity(current, messageId)) {
     queryClient.invalidateQueries({ queryKey: ["activity"] });
   }
 }

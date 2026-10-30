@@ -72,6 +72,25 @@ export function readMayClearActivity(
   );
 }
 
+// Whether a deleted message could take something in the held feed with
+// it: an item for that message or, for a thread's root (Delete thread
+// takes its replies, with one event for the root), for a reply in it; or
+// unread items the server counts past the first page, any of which might
+// be its. The server deletes a
+// message's activity with it and sends no event for that, so a client
+// fetches the feed again when this says it could have changed.
+export function deletionMayClearActivity(
+  data: ActivityData | undefined,
+  messageId: string,
+): boolean {
+  if (!data) return false;
+  const held = data.items.some(
+    (item) => item.messageId === messageId || item.threadRootId === messageId,
+  );
+  if (held) return true;
+  return data.unreadCount > data.items.filter((item) => !item.readAt).length;
+}
+
 export function activityVerb(kind: ActivityKind): string {
   switch (kind) {
     case ActivityKind.REPLY:
