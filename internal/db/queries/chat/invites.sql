@@ -2,8 +2,8 @@
 -- Only internal/chat may use these queries.
 
 -- name: CreateInvite :one
-INSERT INTO invites (id, space_id, code, created_by, expires_at, max_uses, role)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO invites (id, space_id, code, created_by, expires_at, max_uses, role, label)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: GetInvite :one
@@ -14,6 +14,17 @@ SELECT * FROM invites WHERE code = $1;
 
 -- name: ListInvitesBySpace :many
 SELECT * FROM invites WHERE space_id = $1 ORDER BY created_at DESC, id DESC;
+
+-- ListInvitesByCreator is what a member without invites.manage sees: only
+-- what they made.
+-- name: ListInvitesByCreator :many
+SELECT * FROM invites WHERE space_id = $1 AND created_by = $2 ORDER BY created_at DESC, id DESC;
+
+-- name: RecordInviteUse :exec
+INSERT INTO invite_uses (id, invite_id, user_id) VALUES ($1, $2, $3);
+
+-- name: ListInviteUses :many
+SELECT user_id, used_at FROM invite_uses WHERE invite_id = $1 ORDER BY used_at DESC, id DESC;
 
 -- name: RevokeInvite :one
 UPDATE invites

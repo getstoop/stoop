@@ -52,6 +52,9 @@ const (
 	// ChatServiceRevokeInviteProcedure is the fully-qualified name of the ChatService's RevokeInvite
 	// RPC.
 	ChatServiceRevokeInviteProcedure = "/stoop.chat.v1.ChatService/RevokeInvite"
+	// ChatServiceListInviteUsesProcedure is the fully-qualified name of the ChatService's
+	// ListInviteUses RPC.
+	ChatServiceListInviteUsesProcedure = "/stoop.chat.v1.ChatService/ListInviteUses"
 	// ChatServiceLookupInviteProcedure is the fully-qualified name of the ChatService's LookupInvite
 	// RPC.
 	ChatServiceLookupInviteProcedure = "/stoop.chat.v1.ChatService/LookupInvite"
@@ -210,13 +213,18 @@ type ChatServiceClient interface {
 	// invites.create permission: space admins and the owner always hold it;
 	// members only when the space's members_can_invite setting is on.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
-	// ListInvites returns every invite for a space, newest first, including
-	// revoked and exhausted ones. Same permission as CreateInvite.
+	// ListInvites returns the invites the caller may see, newest first,
+	// including revoked and exhausted ones. Same permission as
+	// CreateInvite; with invites.manage that is every invite to the space,
+	// without it only the caller's own.
 	ListInvites(context.Context, *connect.Request[v1.ListInvitesRequest]) (*connect.Response[v1.ListInvitesResponse], error)
 	// RevokeInvite permanently disables a code. The invite's creator may
 	// always revoke it; anyone else needs manage_invites (admin+). Revoking
 	// twice is a no-op.
 	RevokeInvite(context.Context, *connect.Request[v1.RevokeInviteRequest]) (*connect.Response[v1.RevokeInviteResponse], error)
+	// ListInviteUses lists who joined through one invite, newest first.
+	// The invite's creator may see it; anyone else needs invites.manage.
+	ListInviteUses(context.Context, *connect.Request[v1.ListInviteUsesRequest]) (*connect.Response[v1.ListInviteUsesResponse], error)
 	// LookupInvite previews the space behind a code without redeeming it.
 	// Public: this is what an invited stranger sees before they have an
 	// account. It never returns the space's welcome text.
@@ -445,6 +453,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+ChatServiceRevokeInviteProcedure,
 			connect.WithSchema(chatServiceMethods.ByName("RevokeInvite")),
+			connect.WithClientOptions(opts...),
+		),
+		listInviteUses: connect.NewClient[v1.ListInviteUsesRequest, v1.ListInviteUsesResponse](
+			httpClient,
+			baseURL+ChatServiceListInviteUsesProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ListInviteUses")),
 			connect.WithClientOptions(opts...),
 		),
 		lookupInvite: connect.NewClient[v1.LookupInviteRequest, v1.LookupInviteResponse](
@@ -778,6 +792,7 @@ type chatServiceClient struct {
 	createInvite                *connect.Client[v1.CreateInviteRequest, v1.CreateInviteResponse]
 	listInvites                 *connect.Client[v1.ListInvitesRequest, v1.ListInvitesResponse]
 	revokeInvite                *connect.Client[v1.RevokeInviteRequest, v1.RevokeInviteResponse]
+	listInviteUses              *connect.Client[v1.ListInviteUsesRequest, v1.ListInviteUsesResponse]
 	lookupInvite                *connect.Client[v1.LookupInviteRequest, v1.LookupInviteResponse]
 	getMember                   *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
 	listMembers                 *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
@@ -871,6 +886,11 @@ func (c *chatServiceClient) ListInvites(ctx context.Context, req *connect.Reques
 // RevokeInvite calls stoop.chat.v1.ChatService.RevokeInvite.
 func (c *chatServiceClient) RevokeInvite(ctx context.Context, req *connect.Request[v1.RevokeInviteRequest]) (*connect.Response[v1.RevokeInviteResponse], error) {
 	return c.revokeInvite.CallUnary(ctx, req)
+}
+
+// ListInviteUses calls stoop.chat.v1.ChatService.ListInviteUses.
+func (c *chatServiceClient) ListInviteUses(ctx context.Context, req *connect.Request[v1.ListInviteUsesRequest]) (*connect.Response[v1.ListInviteUsesResponse], error) {
+	return c.listInviteUses.CallUnary(ctx, req)
 }
 
 // LookupInvite calls stoop.chat.v1.ChatService.LookupInvite.
@@ -1154,13 +1174,18 @@ type ChatServiceHandler interface {
 	// invites.create permission: space admins and the owner always hold it;
 	// members only when the space's members_can_invite setting is on.
 	CreateInvite(context.Context, *connect.Request[v1.CreateInviteRequest]) (*connect.Response[v1.CreateInviteResponse], error)
-	// ListInvites returns every invite for a space, newest first, including
-	// revoked and exhausted ones. Same permission as CreateInvite.
+	// ListInvites returns the invites the caller may see, newest first,
+	// including revoked and exhausted ones. Same permission as
+	// CreateInvite; with invites.manage that is every invite to the space,
+	// without it only the caller's own.
 	ListInvites(context.Context, *connect.Request[v1.ListInvitesRequest]) (*connect.Response[v1.ListInvitesResponse], error)
 	// RevokeInvite permanently disables a code. The invite's creator may
 	// always revoke it; anyone else needs manage_invites (admin+). Revoking
 	// twice is a no-op.
 	RevokeInvite(context.Context, *connect.Request[v1.RevokeInviteRequest]) (*connect.Response[v1.RevokeInviteResponse], error)
+	// ListInviteUses lists who joined through one invite, newest first.
+	// The invite's creator may see it; anyone else needs invites.manage.
+	ListInviteUses(context.Context, *connect.Request[v1.ListInviteUsesRequest]) (*connect.Response[v1.ListInviteUsesResponse], error)
 	// LookupInvite previews the space behind a code without redeeming it.
 	// Public: this is what an invited stranger sees before they have an
 	// account. It never returns the space's welcome text.
@@ -1385,6 +1410,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		ChatServiceRevokeInviteProcedure,
 		svc.RevokeInvite,
 		connect.WithSchema(chatServiceMethods.ByName("RevokeInvite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceListInviteUsesHandler := connect.NewUnaryHandler(
+		ChatServiceListInviteUsesProcedure,
+		svc.ListInviteUses,
+		connect.WithSchema(chatServiceMethods.ByName("ListInviteUses")),
 		connect.WithHandlerOptions(opts...),
 	)
 	chatServiceLookupInviteHandler := connect.NewUnaryHandler(
@@ -1723,6 +1754,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceListInvitesHandler.ServeHTTP(w, r)
 		case ChatServiceRevokeInviteProcedure:
 			chatServiceRevokeInviteHandler.ServeHTTP(w, r)
+		case ChatServiceListInviteUsesProcedure:
+			chatServiceListInviteUsesHandler.ServeHTTP(w, r)
 		case ChatServiceLookupInviteProcedure:
 			chatServiceLookupInviteHandler.ServeHTTP(w, r)
 		case ChatServiceGetMemberProcedure:
@@ -1868,6 +1901,10 @@ func (UnimplementedChatServiceHandler) ListInvites(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) RevokeInvite(context.Context, *connect.Request[v1.RevokeInviteRequest]) (*connect.Response[v1.RevokeInviteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.RevokeInvite is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ListInviteUses(context.Context, *connect.Request[v1.ListInviteUsesRequest]) (*connect.Response[v1.ListInviteUsesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ListInviteUses is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) LookupInvite(context.Context, *connect.Request[v1.LookupInviteRequest]) (*connect.Response[v1.LookupInviteResponse], error) {

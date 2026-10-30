@@ -246,8 +246,17 @@ Validity is evaluated at join time — not revoked, not past `expires_at`
 (NULL = never), `use_count < max_uses` (NULL = unlimited) — so expiry needs
 no sweeper and a revocation takes effect immediately.
 
-Anyone may revoke an invite they created. **Listing a space's invites needs
-`invites.create`**, because seeing live codes is as good as minting them.
+**Listing a space's invites needs `invites.create`**, because seeing live
+codes is as good as minting them. What the list holds follows
+`invites.manage`: an admin sees every invite to the space, each with its
+creator resolved; a member who may invite sees only their own. An
+invite's optional label ("Tuesday book club") is for that list and never
+shown to the person joining.
+
+Each join through an invite is recorded (`invite_uses`), so the list can
+say who came in on which one. Anyone may revoke an invite they created
+and see who joined through it; for anyone else's that takes
+`invites.manage`.
 
 ## Bans
 

@@ -43,7 +43,15 @@ type Invite struct {
 	// The role a joiner receives. MEMBER for every invite made since admin
 	// invites were withdrawn; an older ADMIN invite is honoured until it is
 	// spent, capped at its creator's current role when redeemed.
-	Role          SpaceRole `protobuf:"varint,10,opt,name=role,proto3,enum=stoop.chat.v1.SpaceRole" json:"role,omitempty"`
+	Role SpaceRole `protobuf:"varint,10,opt,name=role,proto3,enum=stoop.chat.v1.SpaceRole" json:"role,omitempty"`
+	// What the invite is for, in the creator's words ("Tuesday book club").
+	// Empty when none was given. Seen by whoever can list the invite,
+	// never by the person joining.
+	Label string `protobuf:"bytes,11,opt,name=label,proto3" json:"label,omitempty"`
+	// created_by, resolved. Set by ListInvites only; CreateInvite and
+	// RevokeInvite answer without it, so a client keeping a list should
+	// refetch rather than swap in their response.
+	Creator       *MessageAuthor `protobuf:"bytes,12,opt,name=creator,proto3" json:"creator,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -148,6 +156,73 @@ func (x *Invite) GetRole() SpaceRole {
 	return SpaceRole_SPACE_ROLE_UNSPECIFIED
 }
 
+func (x *Invite) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *Invite) GetCreator() *MessageAuthor {
+	if x != nil {
+		return x.Creator
+	}
+	return nil
+}
+
+// InviteUse is one join through an invite: who, and when.
+type InviteUse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *MessageAuthor         `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	UsedAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=used_at,json=usedAt,proto3" json:"used_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InviteUse) Reset() {
+	*x = InviteUse{}
+	mi := &file_stoop_chat_v1_invite_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InviteUse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InviteUse) ProtoMessage() {}
+
+func (x *InviteUse) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_invite_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InviteUse.ProtoReflect.Descriptor instead.
+func (*InviteUse) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_invite_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *InviteUse) GetUser() *MessageAuthor {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *InviteUse) GetUsedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UsedAt
+	}
+	return nil
+}
+
 // InvitePreview is what a code shows before it is redeemed: enough to
 // decide whether to join, and nothing a member would expect to stay
 // inside the space. Returned by the public LookupInvite.
@@ -169,7 +244,7 @@ type InvitePreview struct {
 
 func (x *InvitePreview) Reset() {
 	*x = InvitePreview{}
-	mi := &file_stoop_chat_v1_invite_proto_msgTypes[1]
+	mi := &file_stoop_chat_v1_invite_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -181,7 +256,7 @@ func (x *InvitePreview) String() string {
 func (*InvitePreview) ProtoMessage() {}
 
 func (x *InvitePreview) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_invite_proto_msgTypes[1]
+	mi := &file_stoop_chat_v1_invite_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -194,7 +269,7 @@ func (x *InvitePreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InvitePreview.ProtoReflect.Descriptor instead.
 func (*InvitePreview) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_invite_proto_rawDescGZIP(), []int{1}
+	return file_stoop_chat_v1_invite_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *InvitePreview) GetSpaceId() string {
@@ -243,7 +318,7 @@ var File_stoop_chat_v1_invite_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_invite_proto_rawDesc = "" +
 	"\n" +
-	"\x1astoop/chat/v1/invite.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19stoop/chat/v1/space.proto\"\x8f\x03\n" +
+	"\x1astoop/chat/v1/invite.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bstoop/chat/v1/message.proto\x1a\x19stoop/chat/v1/space.proto\"\xdd\x03\n" +
 	"\x06Invite\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
@@ -259,8 +334,13 @@ const file_stoop_chat_v1_invite_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12,\n" +
 	"\x04role\x18\n" +
-	" \x01(\x0e2\x18.stoop.chat.v1.SpaceRoleR\x04roleB\v\n" +
-	"\t_max_uses\"\xf4\x01\n" +
+	" \x01(\x0e2\x18.stoop.chat.v1.SpaceRoleR\x04role\x12\x14\n" +
+	"\x05label\x18\v \x01(\tR\x05label\x126\n" +
+	"\acreator\x18\f \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\acreatorB\v\n" +
+	"\t_max_uses\"r\n" +
+	"\tInviteUse\x120\n" +
+	"\x04user\x18\x01 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\x04user\x123\n" +
+	"\aused_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06usedAt\"\xf4\x01\n" +
 	"\rInvitePreview\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x1d\n" +
 	"\n" +
@@ -283,24 +363,29 @@ func file_stoop_chat_v1_invite_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_invite_proto_rawDescData
 }
 
-var file_stoop_chat_v1_invite_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_stoop_chat_v1_invite_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_stoop_chat_v1_invite_proto_goTypes = []any{
 	(*Invite)(nil),                // 0: stoop.chat.v1.Invite
-	(*InvitePreview)(nil),         // 1: stoop.chat.v1.InvitePreview
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
-	(SpaceRole)(0),                // 3: stoop.chat.v1.SpaceRole
+	(*InviteUse)(nil),             // 1: stoop.chat.v1.InviteUse
+	(*InvitePreview)(nil),         // 2: stoop.chat.v1.InvitePreview
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(SpaceRole)(0),                // 4: stoop.chat.v1.SpaceRole
+	(*MessageAuthor)(nil),         // 5: stoop.chat.v1.MessageAuthor
 }
 var file_stoop_chat_v1_invite_proto_depIdxs = []int32{
-	2, // 0: stoop.chat.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
-	2, // 1: stoop.chat.v1.Invite.revoked_at:type_name -> google.protobuf.Timestamp
-	2, // 2: stoop.chat.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
-	3, // 3: stoop.chat.v1.Invite.role:type_name -> stoop.chat.v1.SpaceRole
-	3, // 4: stoop.chat.v1.InvitePreview.role:type_name -> stoop.chat.v1.SpaceRole
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	3, // 0: stoop.chat.v1.Invite.expires_at:type_name -> google.protobuf.Timestamp
+	3, // 1: stoop.chat.v1.Invite.revoked_at:type_name -> google.protobuf.Timestamp
+	3, // 2: stoop.chat.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
+	4, // 3: stoop.chat.v1.Invite.role:type_name -> stoop.chat.v1.SpaceRole
+	5, // 4: stoop.chat.v1.Invite.creator:type_name -> stoop.chat.v1.MessageAuthor
+	5, // 5: stoop.chat.v1.InviteUse.user:type_name -> stoop.chat.v1.MessageAuthor
+	3, // 6: stoop.chat.v1.InviteUse.used_at:type_name -> google.protobuf.Timestamp
+	4, // 7: stoop.chat.v1.InvitePreview.role:type_name -> stoop.chat.v1.SpaceRole
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_invite_proto_init() }
@@ -308,6 +393,7 @@ func file_stoop_chat_v1_invite_proto_init() {
 	if File_stoop_chat_v1_invite_proto != nil {
 		return
 	}
+	file_stoop_chat_v1_message_proto_init()
 	file_stoop_chat_v1_space_proto_init()
 	file_stoop_chat_v1_invite_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
@@ -316,7 +402,7 @@ func file_stoop_chat_v1_invite_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_invite_proto_rawDesc), len(file_stoop_chat_v1_invite_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

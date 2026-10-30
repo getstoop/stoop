@@ -170,6 +170,14 @@ type Invite struct {
 	RevokedAt *time.Time
 	CreatedAt time.Time
 	Role      string
+	Label     string
+}
+
+type InviteUse struct {
+	ID       string
+	InviteID string
+	UserID   string
+	UsedAt   time.Time
 }
 
 type Job struct {

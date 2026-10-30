@@ -3,6 +3,7 @@ syntax = "proto3";
 package stoop.chat.v1;
 
 import "google/protobuf/timestamp.proto";
+import "stoop/chat/v1/message.proto";
 import "stoop/chat/v1/space.proto";
 
 // Invite is a redeemable code granting membership in a space. A code is
@@ -26,6 +27,20 @@ message Invite {
   // invites were withdrawn; an older ADMIN invite is honoured until it is
   // spent, capped at its creator's current role when redeemed.
   SpaceRole role = 10;
+  // What the invite is for, in the creator's words ("Tuesday book club").
+  // Empty when none was given. Seen by whoever can list the invite,
+  // never by the person joining.
+  string label = 11;
+  // created_by, resolved. Set by ListInvites only; CreateInvite and
+  // RevokeInvite answer without it, so a client keeping a list should
+  // refetch rather than swap in their response.
+  MessageAuthor creator = 12;
+}
+
+// InviteUse is one join through an invite: who, and when.
+message InviteUse {
+  MessageAuthor user = 1;
+  google.protobuf.Timestamp used_at = 2;
 }
 
 // InvitePreview is what a code shows before it is redeemed: enough to

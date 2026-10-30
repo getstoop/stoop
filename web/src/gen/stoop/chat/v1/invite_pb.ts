@@ -6,6 +6,8 @@ import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { MessageAuthor } from "./message_pb";
+import { file_stoop_chat_v1_message } from "./message_pb";
 import type { SpaceRole } from "./space_pb";
 import { file_stoop_chat_v1_space } from "./space_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/invite.proto.
  */
 export const file_stoop_chat_v1_invite: GenFile = /*@__PURE__*/
-  fileDesc("ChpzdG9vcC9jaGF0L3YxL2ludml0ZS5wcm90bxINc3Rvb3AuY2hhdC52MSK3AgoGSW52aXRlEgoKAmlkGAEgASgJEhAKCHNwYWNlX2lkGAIgASgJEgwKBGNvZGUYAyABKAkSEgoKY3JlYXRlZF9ieRgEIAEoCRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCghtYXhfdXNlcxgGIAEoBUgAiAEBEhEKCXVzZV9jb3VudBgHIAEoBRIuCgpyZXZva2VkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgRyb2xlGAogASgOMhguc3Rvb3AuY2hhdC52MS5TcGFjZVJvbGVCCwoJX21heF91c2VzIqoBCg1JbnZpdGVQcmV2aWV3EhAKCHNwYWNlX2lkGAEgASgJEhIKCnNwYWNlX25hbWUYAiABKAkSGQoRc3BhY2VfZGVzY3JpcHRpb24YAyABKAkSGgoSc3BhY2VfaWNvbl9maWxlX2lkGAQgASgJEhQKDG1lbWJlcl9jb3VudBgFIAEoBRImCgRyb2xlGAYgASgOMhguc3Rvb3AuY2hhdC52MS5TcGFjZVJvbGVCqgEKEWNvbS5zdG9vcC5jaGF0LnYxQgtJbnZpdGVQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_chat_v1_space]);
+  fileDesc("ChpzdG9vcC9jaGF0L3YxL2ludml0ZS5wcm90bxINc3Rvb3AuY2hhdC52MSL1AgoGSW52aXRlEgoKAmlkGAEgASgJEhAKCHNwYWNlX2lkGAIgASgJEgwKBGNvZGUYAyABKAkSEgoKY3JlYXRlZF9ieRgEIAEoCRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCghtYXhfdXNlcxgGIAEoBUgAiAEBEhEKCXVzZV9jb3VudBgHIAEoBRIuCgpyZXZva2VkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgRyb2xlGAogASgOMhguc3Rvb3AuY2hhdC52MS5TcGFjZVJvbGUSDQoFbGFiZWwYCyABKAkSLQoHY3JlYXRvchgMIAEoCzIcLnN0b29wLmNoYXQudjEuTWVzc2FnZUF1dGhvckILCglfbWF4X3VzZXMiZAoJSW52aXRlVXNlEioKBHVzZXIYASABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISKwoHdXNlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiqgEKDUludml0ZVByZXZpZXcSEAoIc3BhY2VfaWQYASABKAkSEgoKc3BhY2VfbmFtZRgCIAEoCRIZChFzcGFjZV9kZXNjcmlwdGlvbhgDIAEoCRIaChJzcGFjZV9pY29uX2ZpbGVfaWQYBCABKAkSFAoMbWVtYmVyX2NvdW50GAUgASgFEiYKBHJvbGUYBiABKA4yGC5zdG9vcC5jaGF0LnYxLlNwYWNlUm9sZUKqAQoRY29tLnN0b29wLmNoYXQudjFCC0ludml0ZVByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stoop_chat_v1_message, file_stoop_chat_v1_space]);
 
 /**
  * Invite is a redeemable code granting membership in a space. A code is
@@ -85,6 +87,24 @@ export type Invite = Message<"stoop.chat.v1.Invite"> & {
    * @generated from field: stoop.chat.v1.SpaceRole role = 10;
    */
   role: SpaceRole;
+
+  /**
+   * What the invite is for, in the creator's words ("Tuesday book club").
+   * Empty when none was given. Seen by whoever can list the invite,
+   * never by the person joining.
+   *
+   * @generated from field: string label = 11;
+   */
+  label: string;
+
+  /**
+   * created_by, resolved. Set by ListInvites only; CreateInvite and
+   * RevokeInvite answer without it, so a client keeping a list should
+   * refetch rather than swap in their response.
+   *
+   * @generated from field: stoop.chat.v1.MessageAuthor creator = 12;
+   */
+  creator?: MessageAuthor | undefined;
 };
 
 /**
@@ -93,6 +113,30 @@ export type Invite = Message<"stoop.chat.v1.Invite"> & {
  */
 export const InviteSchema: GenMessage<Invite> = /*@__PURE__*/
   messageDesc(file_stoop_chat_v1_invite, 0);
+
+/**
+ * InviteUse is one join through an invite: who, and when.
+ *
+ * @generated from message stoop.chat.v1.InviteUse
+ */
+export type InviteUse = Message<"stoop.chat.v1.InviteUse"> & {
+  /**
+   * @generated from field: stoop.chat.v1.MessageAuthor user = 1;
+   */
+  user?: MessageAuthor | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp used_at = 2;
+   */
+  usedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message stoop.chat.v1.InviteUse.
+ * Use `create(InviteUseSchema)` to create a new message.
+ */
+export const InviteUseSchema: GenMessage<InviteUse> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_invite, 1);
 
 /**
  * InvitePreview is what a code shows before it is redeemed: enough to
@@ -145,5 +189,5 @@ export type InvitePreview = Message<"stoop.chat.v1.InvitePreview"> & {
  * Use `create(InvitePreviewSchema)` to create a new message.
  */
 export const InvitePreviewSchema: GenMessage<InvitePreview> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_invite, 1);
+  messageDesc(file_stoop_chat_v1_invite, 2);
 

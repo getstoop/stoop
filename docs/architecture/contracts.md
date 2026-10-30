@@ -70,7 +70,7 @@ Grouped by what they touch rather than declaration order:
   `KickMember`, `BanMember`, `UnbanMember`, `ListBans`
 - **Blocks** — `BlockUser`, `UnblockUser`, `ListBlockedUsers`
 - **Invites** — `CreateInvite`, `ListInvites`, `RevokeInvite`,
-  `LookupInvite` (**public**)
+  `ListInviteUses` (who joined through one), `LookupInvite` (**public**)
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
   `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
 - **Messages** — `SendMessage`, `ListMessages`, `ListChanges` (the
