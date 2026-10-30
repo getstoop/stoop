@@ -18,6 +18,11 @@ export function can(space: Space | undefined, permission: Permission): boolean {
 export const canCreateInvites = (space: Space) =>
   can(space, Permission.INVITES_CREATE);
 
+// Seeing everyone's invites and revoking them; without it a person who
+// may invite sees and revokes only their own.
+export const canManageInvites = (space: Space) =>
+  can(space, Permission.INVITES_MANAGE);
+
 export const canManageChannels = (space: Space) =>
   can(space, Permission.CHANNELS_MANAGE);
 

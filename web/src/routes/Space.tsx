@@ -31,7 +31,6 @@ import { ChannelGroupHeading } from "../components/ChannelGroupHeading";
 import { ChannelMenu } from "../components/ChannelMenu";
 import { DotsMenu, type MenuItem } from "../components/DotsMenu";
 import { BellOffIcon } from "../components/Icons";
-import { InviteModal } from "../components/InviteModal";
 import { MembersPanel } from "../components/MembersPanel";
 import { closeDrawerOnLink } from "../components/MenuButton";
 import { MutedBar } from "../components/MutedChannels";
@@ -63,7 +62,6 @@ export function SpaceLayout() {
   const queryClient = useQueryClient();
   const { byChannel: unreadByChannel } = unreadCounts(activity);
   const navigate = useNavigate();
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [creating, setCreating] = useState<"text" | "voice" | null>(null);
 
@@ -131,10 +129,18 @@ export function SpaceLayout() {
         copyShareLink(shareUrl(spacePath(spaceId), shareOrigin(queryClient))),
       done: "Copied!",
     });
+    // Invites live on their settings page, open to anyone who may invite.
     if (canCreateInvites(space)) {
       spaceActions.push({
         label: "Invite people",
-        onSelect: () => setInviteOpen(true),
+        onSelect: () => {
+          useLayoutStore.getState().closeDrawer();
+          navigate({
+            to: "/s/$spaceId/settings",
+            params: { spaceId },
+            search: { tab: "invites" },
+          });
+        },
       });
     }
     if (canManageChannels(space)) {
@@ -233,9 +239,6 @@ export function SpaceLayout() {
             </Tooltip>
           )}
         </header>
-        {inviteOpen && space && (
-          <InviteModal space={space} onClose={() => setInviteOpen(false)} />
-        )}
         {aboutOpen && space && (
           <SpaceAbout space={space} onClose={() => setAboutOpen(false)} />
         )}

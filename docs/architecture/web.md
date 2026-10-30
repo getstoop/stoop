@@ -570,8 +570,8 @@ scrim and Escape close it too.
 
 Two consequences of "same DOM, transformed" that have to be respected:
 
-- Anything `position: fixed` rendered *inside* the sidebar — the invite
-  modal is — is contained by the sidebar's transform while the drawer is
+- Anything `position: fixed` rendered *inside* the sidebar (a modal
+  opened from the space menu would be) is contained by the sidebar's transform while the drawer is
   closed or moving. So **a drawer must not be closed programmatically while
   such an overlay is open.**
 - Message rows carry `tabIndex={-1}` so a tap focuses them and the

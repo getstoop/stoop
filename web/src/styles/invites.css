@@ -1,12 +1,76 @@
-/* ---- Invites (the modal's form and list). ---- */
+/* ---- Invites (Space settings → Invites: the table, the row it opens,
+   and the New invite form). ---- */
 
-.invite-form {
+.invites-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
-/* Two across; each grows on its own when it is refused. */
+.invites-head h3 {
+  margin: 0;
+}
+
+.invites-head .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The invite cell: its label over its code. */
+.invite-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.invite-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invite-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* An invite about to run out says so in the warning colour. */
+.invite-expiry.soon {
+  color: var(--warn);
+}
+
+/* Who joined, under the row. */
+.invite-uses {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.invite-uses p {
+  margin: 0;
+}
+
+.invite-uses ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.invite-uses li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The form's two short fields, side by side. */
 .invite-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -16,57 +80,4 @@
 
 .invite-fields :where(.select) {
   width: 100%;
-}
-
-.invite-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.invite-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-}
-
-.invite-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  border: 1px solid var(--border);
-}
-
-.invite-row.inactive {
-  opacity: var(--disabled);
-}
-
-.invite-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.invite-code {
-  font-family: var(--font-mono);
-  font-size: var(--text-body);
-  letter-spacing: 1px;
-}
-
-.invite-meta {
-  font-size: var(--text-sm);
-}
-
-.invite-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
 }

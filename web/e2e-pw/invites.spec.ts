@@ -1,10 +1,10 @@
 import type { Page } from "@playwright/test";
 import { acceptDialog, expect, pastGate, skipReachability, test } from "./lib";
 
-// Invites end to end: setup mints the instance, the owner creates a link,
-// someone arrives on it and signs up into the space, a member can't
-// invite, a bad code says so, a revoked one is refused, and a plain
-// re-login still lands in a space.
+// Invites end to end: setup mints the instance, the owner makes an invite
+// on Space settings → Invites, someone arrives on its link and signs up
+// into the space, a member can't invite, a bad code says so, a revoked
+// one is refused, and a plain re-login still lands in a space.
 // Ported from web/e2e/invites.mjs (STOOP-238). The subject here is
 // signing up, so this one still drives the UI rather than seeding.
 test("creating, sharing and revoking an invite", async ({ browser }) => {
@@ -68,41 +68,19 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   ).toHaveText(spaceName);
   const spaceId = new URL(A.url()).pathname.split("/")[2];
 
+  // Inviting lives on its settings page, open to anyone who may invite.
   await pickMenu(A, "Invite people");
-  await expect(A.locator(".modal"), "invite modal opens").toBeVisible();
-  await expect(A.locator(".invite-list"), "modal shows empty list").toHaveText(
-    /No invites yet/,
+  await expect(A, "Invite people opens Space settings → Invites").toHaveURL(
+    /\/settings\?tab=invites$/,
   );
+  const invitesCard = A.locator(".card", { hasText: "Invites" });
   await expect(
-    A.locator(".invite-form").getByLabel("Joins as"),
-    "no role to pick: every invite joins as a member",
-  ).toHaveCount(0);
-  await A.locator(".invite-form")
-    .getByLabel("Expires after")
-    .selectOption("86400");
-  await A.locator('.invite-form input[type="number"]').fill("5");
-  await A.locator('.invite-form button[type="submit"]').click();
+    invitesCard.locator(".dt-empty, .dt-wrap"),
+    "the page shows an empty list",
+  ).toContainText("No invites yet");
 
-  const row = A.locator(".invite-row");
-  await expect(row).toBeVisible();
-  const code = (await row.locator(".invite-code").textContent()) ?? "";
-  expect(code, "invite created with a base58 code").toMatch(
-    /^[1-9A-HJ-NP-Za-km-z]{10}$/,
-  );
-  await expect(
-    row.locator(".invite-meta"),
-    "invite meta says how many uses",
-  ).toHaveText(/^0\/5 uses/);
-  await expect(
-    row.locator(".invite-meta"),
-    "…and when it expires",
-  ).toContainText("expires");
-  await expect(
-    row.locator(".chip.danger"),
-    "creator sees Revoke button",
-  ).toBeVisible();
-
-  // Copy link hands over this server's /join URL with the space hint.
+  // Making one is a form with every field in view. The link lands on the
+  // clipboard when it is made.
   await A.evaluate(() => {
     const box = { value: "" };
     (globalThis as unknown as { __copied: { value: string } }).__copied = box;
@@ -117,18 +95,54 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
         (globalThis as unknown as { __copied: { value: string } }).__copied
           .value,
     );
-  await A.locator('button[title="Copy join link"]').click();
+  await invitesCard.getByRole("button", { name: "New invite" }).click();
+  const dialog = A.locator(".modal", { hasText: "New invite" });
+  await expect(dialog, "New invite opens a dialog").toBeVisible();
+  await expect(
+    dialog.getByLabel("Joins as"),
+    "no role to pick: every invite joins as a member",
+  ).toHaveCount(0);
+  await dialog.getByLabel("Label (optional)").fill("Book club");
+  await dialog.getByLabel("Expires after").selectOption("86400");
+  await dialog.locator('input[type="number"]').fill("5");
+  await dialog.getByRole("button", { name: "Create invite" }).click();
+  await expect(dialog, "creating closes the dialog").toHaveCount(0);
+
+  const row = invitesCard.locator(".dt-row");
+  await expect(row, "the new invite is the one row").toHaveCount(1);
+  const code = (await row.getAttribute("data-code")) ?? "";
+  expect(code, "invite created with a base58 code").toMatch(
+    /^[1-9A-HJ-NP-Za-km-z]{10}$/,
+  );
+  await expect(
+    row.locator(".invite-label"),
+    "the row shows its label",
+  ).toHaveText("Book club");
+  await expect(row, "…and how many uses").toContainText("0 of 5");
+  await expect(row, "…and when it expires").toContainText("Within a day");
   await expect
-    .poll(copied, { message: "Copy link copies something" })
+    .poll(copied, { message: "Create puts the link on the clipboard" })
     .not.toBe("");
   const copiedLink = new URL(await copied());
-  expect(copiedLink.origin, "Copy link names this server").toBe(base);
+  expect(copiedLink.origin, "the link names this server").toBe(base);
   expect(copiedLink.pathname, "…this invite").toBe(`/join/${code}`);
   expect(copiedLink.searchParams.get("space"), "…and this space").toBe(
     spaceName,
   );
-  await A.keyboard.press("Escape");
-  await expect(A.locator(".modal"), "Escape closes modal").toHaveCount(0);
+
+  // The row's Copy link hands over the same link again.
+  await A.evaluate(() => {
+    (globalThis as unknown as { __copied: { value: string } }).__copied.value =
+      "";
+  });
+  await row.getByRole("button", { name: "Copy link" }).click();
+  await expect
+    .poll(copied, { message: "Copy link copies the link" })
+    .toBe(copiedLink.toString());
+  await A.getByRole("link", { name: "Back to space" }).click();
+  await expect(A, "Back to space returns to the channel").toHaveURL(
+    /\/s\/[^/]+\/c\/[^/]+$/,
+  );
 
   // ---- B: logged out, visit /join/<code> → login with redirect → lands
   // in the space.
@@ -253,17 +267,27 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
     message,
   );
 
-  // ---- B is a plain member: no Invite; A's modal shows the use count. A
-  // bad code in the rail's join prompt errors clearly.
+  // ---- B is a plain member: no Invite, and the settings page turns
+  // them away. A's page shows the use count and who joined. A bad code
+  // in the rail's join prompt errors clearly.
   expect(await menuItems(B), "member B is not offered Invite").not.toContain(
     "Invite people",
   );
-  await pickMenu(A, "Invite people");
+  await B.goto(`${base}/s/${spaceId}/settings?tab=invites`);
   await expect(
-    A.locator(".invite-row .invite-meta"),
-    "use count is 1/5 after B joined",
-  ).toContainText("1/5 uses");
-  await A.keyboard.press("Escape");
+    B,
+    "a member who can't invite is sent back to the space",
+  ).toHaveURL(new RegExp(`/s/${spaceId}$`));
+  await pickMenu(A, "Invite people");
+  await expect(row, "use count is 1 of 5 after B joined").toContainText(
+    "1 of 5",
+  );
+  await row.getByRole("button", { name: "Who joined with Book club" }).click();
+  await expect(
+    invitesCard.locator(`[data-uses-of="${code}"]`),
+    "opening the row says who joined",
+  ).toContainText(`webB${suffix}`);
+  await A.getByRole("link", { name: "Back to space" }).click();
 
   await B.locator('button[title="Join a space with an invite code"]').click();
   await acceptDialog(B, "nope12345X");
@@ -279,15 +303,15 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
 
   // ---- A revokes; C visiting the link is refused
   await pickMenu(A, "Invite people");
-  await A.locator(".invite-row .chip.danger").click();
-  await expect(
-    A.locator(".invite-row"),
-    "revoked invite shown as inactive",
-  ).toHaveClass(/inactive/);
-  await expect(
-    A.locator(".invite-row .invite-meta"),
-    "…and says so",
-  ).toHaveText(/^Revoked/);
+  await row.getByRole("button", { name: "Options for Book club" }).click();
+  await A.getByRole("menuitem", { name: "Revoke" }).click();
+  await acceptDialog(A);
+  await expect(row, "a spent invite leaves the list").toHaveCount(0);
+  await invitesCard.locator(".dt-hidden-toggle input").check();
+  await expect(row, "…until spent ones are shown").toHaveCount(1);
+  await expect(row, "revoked invite shown as inactive").toHaveClass(/inactive/);
+  await expect(row.locator(".badge"), "…and says so").toHaveText("Revoked");
+  await A.getByRole("link", { name: "Back to space" }).click();
 
   const C = await (await browser.newContext()).newPage();
   await enter(C, `${base}/join/${code}`);
@@ -298,7 +322,6 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   ).toContainText("revoked");
 
   // ---- plain re-login of an existing account (the reported bug)
-  await A.keyboard.press("Escape");
   await A.locator(".space-pill.avatar").click();
   // Log out is the last entry of the account nav; the rail pill still
   // lands on Profile.

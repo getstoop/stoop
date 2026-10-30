@@ -127,8 +127,8 @@ for, and why — is in
 - **A "Copy" chip is `<CopyButton text>`** (`components/CopyButton.tsx`):
   it says "Copied!" for a moment and raises a `notice` when the clipboard
   refuses. Don't call `navigator.clipboard` beside a hand-made chip;
-  `InviteModal`, which also copies a new invite's code on create, is the
-  one that still does.
+  `NewInviteModal`, which copies a new invite's link on create with no chip
+  at all, is the one place that calls it directly.
 - **A user avatar is `<Avatar>`, sized by `size`.** `.avatar` in
   `controls.css` owns the circle, the fill, the initials and the bot face;
   `.small`, `.medium` and `.large` set `--avatar-size` to 24, 40 and 64px
