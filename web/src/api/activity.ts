@@ -8,9 +8,9 @@ import {
 } from "../core/activity";
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
 
-// Cache shape for ["activity"]; kept in sync by the WS client. The
+// The ["activity"] query cache, kept in sync by the WS client. The
 // feed's rules live in core/activity.ts, shared with the phone; this
-// file keeps the cache in step with them.
+// file applies them to the cache.
 
 // Adds a freshly delivered item to the cache (or refetches if the list
 // hasn't been loaded yet).

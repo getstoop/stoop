@@ -1,9 +1,9 @@
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { type Timestamp, timestampDate } from "@bufbuild/protobuf/wkt";
 import {
   type ActivityItem,
   ActivityKind,
 } from "../gen/stoop/chat/v1/activity_pb";
-import { shortDateTime } from "./dates";
+import { sameDay, shortDateTime } from "./dates";
 
 // The activity feed as a client holds it: the first page of
 // ListActivity, kept current from ActivityItemCreated, and the server's
@@ -69,6 +69,31 @@ export function readMayClearActivity(
     "channelId" in place
       ? item.channelId === place.channelId
       : item.threadRootId === place.threadRootId,
+  );
+}
+
+// The whole inbox as shown: the held first page, then the older pages
+// loaded as the list was scrolled, less what the first page holds too
+// (it moves on as items arrive, so an older page can overlap it).
+export function withOlderPages(
+  recent: ActivityItem[],
+  older: ActivityItem[],
+): ActivityItem[] {
+  const held = new Set(recent.map((item) => item.id));
+  return [...recent, ...older.filter((item) => !held.has(item.id))];
+}
+
+// Whether an item in the Read section opens a day, the one above it
+// (newest first) being from another day or the first. An item with no
+// time opens one, so a label is never wrongly left off.
+export function startsDay(
+  item: ActivityItem,
+  prev: ActivityItem | undefined,
+): boolean {
+  return (
+    !prev?.createdAt ||
+    !item.createdAt ||
+    !sameDay(timestampDate(prev.createdAt), timestampDate(item.createdAt))
   );
 }
 

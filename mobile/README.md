@@ -23,7 +23,10 @@ on four tabs: Spaces, listing the server's spaces with their mention
 badges, unread dots and mutes, each opening its channels (text channels
 with what is waiting in each, voice rooms with who is in them), under a
 header that opens the server switcher, a sheet listing every server on the phone with its mention
-count or a sign-in that has ended, and Add a server; Activity and
+count or a sign-in that has ended, and Add a server; Activity, what
+has happened to you there (mentions, replies, thread replies and direct
+messages), new above read, with the count of what is new and addressed
+to you on its tab, each opening its channel or thread at the message;
 Messages, still empty; and You, a stand-in that says who you are, picks
 the theme and signs out.
 The screens follow the mobile mockups, one at a time.
@@ -526,7 +529,14 @@ leaves another session in the keychain. Who is in each voice room is
 kept there (Ready, then VoiceStateChanged); a screen that needs other
 events listens with `useServerEvents`. A space's channels screen
 reloads, after a moment's quiet, whenever one touches that space, as
-when a channel is created, renamed, deleted or read. A channel runs on
+when a channel is created, renamed, deleted or read. Each server's
+activity feed is held once, in its stack (`src/activity`), for the
+Activity tab, its badge and the channel screen, which reads through
+it, since reading activity sends no event: the first page, loaded on
+opening, on coming back to the app and on Ready, with
+ActivityItemCreated laid on it, and loaded again when a read marker
+moves where it could have read something held (`core/activity`
+`readMayClearActivity`) or a mute or a deletion makes it stale. A channel runs on
 the channel log web's timeline runs on (`core/channelLog`,
 `docs/architecture/realtime.md` → The channel log on the client): one
 log for the channel, every row by id, merged by the `seq` the server
@@ -733,9 +743,10 @@ picked through Files from On My iPhone (`e2e/media`, which
 `scripts/mobile-e2e.sh` copies there), add a second
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), create an account from a
-pasted invite link, and
+pasted invite link,
 open an invite the way the web's open-in-app page does, then sign in and
-join.
+join, and see a mention arrive in Activity with the tab's badge, open
+it in its channel and come back to it read with the badge gone.
 They find things by the words on screen and, for text fields, a
 `testID`. They run in the order `e2e/config.yaml` lists them: by their
 names, in file-name order (Maestro runs a directory in no fixed order
@@ -747,7 +758,8 @@ once", and edit has ada write there over RPC and delete what she wrote,
 which the channel flow needs unread for ada with dee's first
 notes alone, so the channel flow goes first. The Markdown flow opens
 random from a channel link and the attach flow has ada read and write
-there, which the space-channels flow needs unread, so they go last.
+there, which the space-channels flow needs unread, so they go last; the
+activity flow, which reads everything ada has, after them.
 
 `make mobile-e2e` runs them as `make e2e` runs the browser suite, on a
 throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on
