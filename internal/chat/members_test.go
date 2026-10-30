@@ -37,16 +37,19 @@ func newFixture(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	f.spaceID = sp.Msg.Space.Id
-	adminInv, _ := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID, Role: chatv1.SpaceRole_SPACE_ROLE_ADMIN}))
-	memberInv, _ := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID}))
-	// Join in a fixed order: ListMembers sorts by role then joined_at.
-	for _, joiner := range []struct {
-		ctx context.Context
-		inv *chatv1.Invite
-	}{{f.admin, adminInv.Msg.Invite}, {f.member, memberInv.Msg.Invite}, {f.other, memberInv.Msg.Invite}} {
-		if _, err := svc.JoinSpace(joiner.ctx, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: joiner.inv.Code})); err != nil {
+	inv, err := svc.CreateInvite(f.owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: f.spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Join in a fixed order: ListMembers sorts by role then joined_at. The
+	// admin joins as a member like everyone and is promoted once in.
+	for _, joiner := range []context.Context{f.admin, f.member, f.other} {
+		if _, err := svc.JoinSpace(joiner, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := f.setRole(f.owner, f.admin, chatv1.SpaceRole_SPACE_ROLE_ADMIN); err != nil {
+		t.Fatal(err)
 	}
 	return f
 }

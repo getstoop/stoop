@@ -31,18 +31,16 @@ func TestLookupInvite(t *testing.T) {
 	})); err != nil {
 		t.Fatal(err)
 	}
-	newInvite := func(role chatv1.SpaceRole) string {
+	newInvite := func() string {
 		t.Helper()
-		inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{
-			SpaceId: spaceID, Role: role,
-		}))
+		inv, err := svc.CreateInvite(owner, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: spaceID}))
 		if err != nil {
 			t.Fatal(err)
 		}
 		return inv.Msg.Invite.Code
 	}
 
-	code1 := newInvite(chatv1.SpaceRole_SPACE_ROLE_MEMBER)
+	code1 := newInvite()
 	res, err := svc.LookupInvite(anon, connect.NewRequest(&chatv1.LookupInviteRequest{Code: code1}))
 	if err != nil {
 		t.Fatalf("lookup without a session: %v", err)
@@ -73,9 +71,10 @@ func TestLookupInvite(t *testing.T) {
 		t.Errorf("member_count after a join = %d, want 2", res.Msg.Preview.MemberCount)
 	}
 
-	// The role shown is the one a join would grant today, capped at what
-	// the invite's creator still holds.
-	adminCode := newInvite(chatv1.SpaceRole_SPACE_ROLE_ADMIN)
+	// The role shown is the one a join would grant today: for an admin
+	// invite from before they were withdrawn, admin while its creator still
+	// holds that.
+	adminCode := legacyAdminInvite(t, pool, spaceID, owner, "LegacyAdm3").Code
 	res, err = svc.LookupInvite(anon, connect.NewRequest(&chatv1.LookupInviteRequest{Code: adminCode}))
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +92,7 @@ func TestLookupInvite(t *testing.T) {
 
 	// A spent code says why, rather than pretending it never existed —
 	// the same explanation redeeming it would have given.
-	revoke := newInvite(chatv1.SpaceRole_SPACE_ROLE_MEMBER)
+	revoke := newInvite()
 	list, err := svc.ListInvites(owner, connect.NewRequest(&chatv1.ListInvitesRequest{SpaceId: spaceID}))
 	if err != nil {
 		t.Fatal(err)

@@ -17,7 +17,6 @@ import {
   canMentionEntireChannel,
   canPost,
   canStartThreads,
-  grantableRoles,
   roleLabel,
 } from "./permissions";
 
@@ -100,29 +99,6 @@ describe("atLeast", () => {
     expect(atLeast(SpaceRole.MEMBER, SpaceRole.ADMIN)).toBe(false);
     expect(atLeast(SpaceRole.ADMIN, SpaceRole.OWNER)).toBe(false);
     expect(atLeast(SpaceRole.UNSPECIFIED, SpaceRole.MEMBER)).toBe(false);
-  });
-});
-
-describe("grantableRoles", () => {
-  it("gives an owner member and admin, never owner", () => {
-    expect(grantableRoles(space(SpaceRole.OWNER))).toEqual([
-      SpaceRole.MEMBER,
-      SpaceRole.ADMIN,
-    ]);
-  });
-
-  it("caps a member at member", () => {
-    expect(grantableRoles(space(SpaceRole.MEMBER))).toEqual([SpaceRole.MEMBER]);
-  });
-
-  it("gives a caller with no role nothing", () => {
-    expect(grantableRoles(space(SpaceRole.UNSPECIFIED))).toEqual([]);
-  });
-
-  it("never offers owner to anyone", () => {
-    for (const r of roles) {
-      expect(grantableRoles(space(r))).not.toContain(SpaceRole.OWNER);
-    }
   });
 });
 

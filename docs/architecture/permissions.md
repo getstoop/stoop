@@ -229,15 +229,18 @@ enforces; the client is just polite.
 
 ## Invites
 
-An invite carries **the role it grants** — `member` or `admin`, never
-`owner`.
+**Every invite joins people as a `member`.** A link is a bearer credential
+that gets forwarded and pasted, so it never carries more than that; an
+admin is made from Members after they have joined, a deliberate act on a
+known person. `CreateInvite` accepts an unset or `MEMBER` role and refuses
+anything else with `InvalidArgument`, rather than quietly lowering it, so
+nobody believes they handed out admin.
 
-The grant is capped at the creator's own effective role **twice**: when the
-invite is created, and again when it is redeemed. The second cap is the
-interesting one. A creator who has since been demoted or has left the space
-should not still be minting admins through a code they made earlier, so a
-stale admin invite quietly grants `member`. Members who may invite
-therefore only ever invite members, at any point in the future.
+Invites made before admin invites were withdrawn may still store `admin`.
+They are honoured until spent, capped at the creator's **current**
+effective role when redeemed: a creator who has since been demoted or has
+left the space should not still be minting admins through a code they
+made earlier, so a stale admin invite quietly grants `member`.
 
 Validity is evaluated at join time — not revoked, not past `expires_at`
 (NULL = never), `use_count < max_uses` (NULL = unlimited) — so expiry needs

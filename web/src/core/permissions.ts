@@ -8,8 +8,8 @@ import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 // What the caller may do is the server's answer, not a table kept here:
 // Space.my_permissions, and GetMe's permissions for the instance, both
 // already narrowed to the credential in use. These read it only to hide
-// controls; the server enforces. Roles remain for display, for the roles an
-// invite may grant, and for who may act on whom.
+// controls; the server enforces. Roles remain for display and for who may
+// act on whom.
 
 export function can(space: Space | undefined, permission: Permission): boolean {
   return !!space && space.myPermissions.includes(permission);
@@ -64,13 +64,6 @@ const rank: Record<SpaceRole, number> = {
 
 export function atLeast(role: SpaceRole, min: SpaceRole): boolean {
   return rank[role] >= rank[min];
-}
-
-// Roles an invite from this caller may grant: never above their own, and
-// never owner.
-export function grantableRoles(space: Space): SpaceRole[] {
-  const roles = [SpaceRole.MEMBER, SpaceRole.ADMIN];
-  return roles.filter((r) => atLeast(space.myRole, r));
 }
 
 export function roleLabel(role: SpaceRole): string {

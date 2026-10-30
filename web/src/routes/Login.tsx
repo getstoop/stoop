@@ -15,8 +15,8 @@ import { safeRedirect } from "../api/safeRedirect";
 import { Field } from "../components/Field";
 import { LoginProviders } from "../components/LoginProviders";
 import { SpaceIcon } from "../components/SpaceIcon";
-import { roleLabel } from "../core/permissions";
 import type { InvitePreview } from "../gen/stoop/chat/v1/invite_pb";
+import { SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import {
   PasswordSignIn,
   RegistrationPolicy,
@@ -316,7 +316,9 @@ export function LoginPage() {
 }
 
 // What the code is an invitation to, from the server rather than the
-// link: the space's face, its size, and the role redeeming it grants.
+// link: the space's face and its size. Every invite joins as a member,
+// so the role is only worth a word for an older invite still granting
+// admin.
 function InviteHero({
   preview,
   code,
@@ -337,8 +339,8 @@ function InviteHero({
         <div>
           <strong>{preview.spaceName}</strong>
           <p className="muted small">
-            {preview.memberCount} member{preview.memberCount === 1 ? "" : "s"} ·
-            you'll join as {roleLabel(preview.role)}
+            {preview.memberCount} member{preview.memberCount === 1 ? "" : "s"}
+            {preview.role === SpaceRole.ADMIN && " · you'll join as admin"}
           </p>
         </div>
       </header>

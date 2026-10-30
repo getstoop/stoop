@@ -22,8 +22,9 @@ message Invite {
   // Set once the invite has been revoked.
   google.protobuf.Timestamp revoked_at = 8;
   google.protobuf.Timestamp created_at = 9;
-  // The role a joiner receives: MEMBER or ADMIN, never OWNER. Capped at
-  // the creator's own role when created and again when redeemed.
+  // The role a joiner receives. MEMBER for every invite made since admin
+  // invites were withdrawn; an older ADMIN invite is honoured until it is
+  // spent, capped at its creator's current role when redeemed.
   SpaceRole role = 10;
 }
 
@@ -38,7 +39,7 @@ message InvitePreview {
   // The space icon's file id (GET /files/{id}); empty for initials.
   string space_icon_file_id = 4;
   int32 member_count = 5;
-  // The role redeeming the code would grant today, capped at its
-  // creator's own role just as an actual join would be.
+  // The role redeeming the code would grant today: MEMBER, or ADMIN for
+  // an older invite whose creator still holds it.
   SpaceRole role = 6;
 }

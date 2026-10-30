@@ -178,48 +178,53 @@ func TestInviteRoles(t *testing.T) {
 		return res.Msg.Space
 	}
 
-	// Owner mints an admin invite; the joiner becomes admin.
-	adminInv, err := mk(owner, chatv1.SpaceRole_SPACE_ROLE_ADMIN)
+	// Every invite grants member: unset and MEMBER both work, and even the
+	// owner can't mint an admin invite. Admins are made after they join.
+	defInv, err := mk(owner, chatv1.SpaceRole_SPACE_ROLE_UNSPECIFIED)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if adminInv.Role != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
-		t.Errorf("invite role = %v, want admin", adminInv.Role)
+	if defInv.Role != chatv1.SpaceRole_SPACE_ROLE_MEMBER {
+		t.Errorf("invite role = %v, want member", defInv.Role)
 	}
-	if got := join(admin, adminInv); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
-		t.Errorf("admin joiner my_role = %v, want admin", got.MyRole)
-	}
-	if role := memberRole(t, pool, spaceID, admin); role != "admin" {
-		t.Errorf("admin joiner stored role = %q", role)
-	}
-
-	// Default (unspecified) grants member.
-	defInv, _ := mk(owner, chatv1.SpaceRole_SPACE_ROLE_UNSPECIFIED)
 	if got := join(member, defInv); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_MEMBER {
 		t.Errorf("default invite my_role = %v, want member", got.MyRole)
 	}
-
-	// Nobody can grant owner.
+	if _, err := mk(owner, chatv1.SpaceRole_SPACE_ROLE_MEMBER); err != nil {
+		t.Errorf("owner minting member invite: %v", err)
+	}
+	if _, err := mk(owner, chatv1.SpaceRole_SPACE_ROLE_ADMIN); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("admin invite: want invalid_argument, got %v", err)
+	}
 	if _, err := mk(owner, chatv1.SpaceRole_SPACE_ROLE_OWNER); code(err) != connect.CodeInvalidArgument {
 		t.Errorf("owner invite: want invalid_argument, got %v", err)
 	}
+	if got := join(admin, defInv); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_MEMBER {
+		t.Errorf("future admin joins as %v, want member", got.MyRole)
+	}
+	if _, err := svc.SetMemberRole(owner, connect.NewRequest(&chatv1.SetMemberRoleRequest{
+		SpaceId: spaceID, UserId: authctx.UserID(admin), Role: chatv1.SpaceRole_SPACE_ROLE_ADMIN,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if role := memberRole(t, pool, spaceID, admin); role != "admin" {
+		t.Errorf("promoted joiner stored role = %q", role)
+	}
 
-	// A member allowed to invite can only invite members.
+	// A member allowed to invite is refused the same way.
 	if _, err := pool.Exec(context.Background(), `UPDATE spaces SET members_can_invite = true WHERE id = $1`, spaceID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := mk(member, chatv1.SpaceRole_SPACE_ROLE_ADMIN); code(err) != connect.CodePermissionDenied {
-		t.Errorf("member minting admin invite: want permission_denied, got %v", err)
+	if _, err := mk(member, chatv1.SpaceRole_SPACE_ROLE_ADMIN); code(err) != connect.CodeInvalidArgument {
+		t.Errorf("member minting admin invite: want invalid_argument, got %v", err)
 	}
 	if _, err := mk(member, chatv1.SpaceRole_SPACE_ROLE_MEMBER); err != nil {
 		t.Errorf("member minting member invite: %v", err)
 	}
 
-	// Space admins can grant admin...
-	byAdmin, err := mk(admin, chatv1.SpaceRole_SPACE_ROLE_ADMIN)
-	if err != nil {
-		t.Fatalf("admin minting admin invite: %v", err)
-	}
+	// An admin invite from before they were withdrawn still grants admin
+	// while its creator holds the role...
+	byAdmin := legacyAdminInvite(t, pool, spaceID, admin, "LegacyAdm1")
 	if got := join(joiners[0], byAdmin); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
 		t.Errorf("joiner via admin's invite my_role = %v, want admin", got.MyRole)
 	}
@@ -240,11 +245,9 @@ func TestInviteRoles(t *testing.T) {
 		t.Errorf("after creator left, joiner my_role = %v, want member", got.MyRole)
 	}
 
-	// Instance admin (never joined) can grant admin, and it survives join-time capping.
-	byOperator, err := mk(operator, chatv1.SpaceRole_SPACE_ROLE_ADMIN)
-	if err != nil {
-		t.Fatalf("instance admin minting admin invite: %v", err)
-	}
+	// An old admin invite from an instance admin (never joined) survives
+	// join-time capping, since they hold admin everywhere.
+	byOperator := legacyAdminInvite(t, pool, spaceID, operator, "LegacyAdm2")
 	if got := join(joiners[3], byOperator); got.MyRole != chatv1.SpaceRole_SPACE_ROLE_ADMIN {
 		t.Errorf("joiner via instance admin's invite my_role = %v, want admin", got.MyRole)
 	}

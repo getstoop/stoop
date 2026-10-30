@@ -73,17 +73,10 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   await expect(A.locator(".invite-list"), "modal shows empty list").toHaveText(
     /No invites yet/,
   );
-  const roleOptions = A.locator(".invite-form")
-    .getByLabel("Joins as")
-    .locator("option");
   await expect(
-    roleOptions.filter({ hasText: "member" }),
-    "owner can invite at member",
-  ).toHaveCount(1);
-  await expect(
-    roleOptions.filter({ hasText: "admin" }),
-    "…and at admin",
-  ).toHaveCount(1);
+    A.locator(".invite-form").getByLabel("Joins as"),
+    "no role to pick: every invite joins as a member",
+  ).toHaveCount(0);
   await A.locator(".invite-form")
     .getByLabel("Expires after")
     .selectOption("86400");
@@ -98,8 +91,8 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   );
   await expect(
     row.locator(".invite-meta"),
-    "invite meta says who it joins as and how many uses",
-  ).toHaveText(/^joins as member · 0\/5 uses/);
+    "invite meta says how many uses",
+  ).toHaveText(/^0\/5 uses/);
   await expect(
     row.locator(".invite-meta"),
     "…and when it expires",

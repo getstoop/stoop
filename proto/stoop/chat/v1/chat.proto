@@ -477,8 +477,9 @@ message CreateInviteRequest {
   google.protobuf.Duration expires_in = 2;
   // Maximum number of joins. Unset means unlimited.
   optional int32 max_uses = 3;
-  // Role granted on join: MEMBER (default) or ADMIN. Must not exceed the
-  // caller's own role; OWNER is rejected.
+  // Every invite joins people as a MEMBER; admins are made from Members
+  // after they join. Unset or MEMBER is accepted, anything else is
+  // refused with InvalidArgument. Kept on the wire for older clients.
   SpaceRole role = 4;
 }
 

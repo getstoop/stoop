@@ -6,10 +6,10 @@
   gap: 12px;
 }
 
-/* Three across; each grows on its own when it is refused. */
+/* Two across; each grows on its own when it is refused. */
 .invite-fields {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   align-items: start;
 }
