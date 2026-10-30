@@ -176,14 +176,16 @@ test("the first-run wizard and the first invited member", async ({
     0,
   );
 
-  // Admin sees the Invite chip and the invite from setup listed.
+  // Admin is offered Invite people, which opens the invites page with
+  // the invite from setup listed, unused.
   await A.locator(".sidebar-header .dots-menu-button").click();
   await A.getByRole("menuitem", { name: "Invite people" }).click();
-  await expect(
-    A.locator(".invite-row .invite-meta"),
-    "setup invite listed in the modal",
-  ).toContainText("0 uses");
-  await A.keyboard.press("Escape");
+  const setupInvite = A.locator(".card", { hasText: "Invites" }).locator(
+    ".dt-row",
+  );
+  await expect(setupInvite, "setup invite listed").toHaveCount(1);
+  await expect(setupInvite.locator("td").nth(3), "unused").toHaveText("0");
+  await A.getByRole("link", { name: "Back to space" }).click();
 
   // Once set up: /setup bounces to /login, and so does / for a visitor.
   const B = await (await browser.newContext()).newPage();

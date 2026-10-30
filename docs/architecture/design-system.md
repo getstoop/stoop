@@ -34,7 +34,7 @@ role is portable.
 | Token | What it is for | Where it shows |
 | ----- | -------------- | -------------- |
 | `--canvas` | The frame behind the app. | The space rail, the desktop title bar, the login page behind its card, the voice stage. |
-| `--surface` | The page. | `body`, so the message pane and settings content. Also anything cut *into* a panel: a field is a hole in the panel, as are the list rows inside a card or modal (`.user-row`, `.invite-row`). |
+| `--surface` | The page. | `body`, so the message pane and settings content. Also anything cut *into* a panel: a field is a hole in the panel, as are the list rows inside a card or modal (`.user-row`). |
 | `--panel` | Something with an edge that sits on the page. | The channel sidebar and settings nav, `.card`, `.modal`, `.popover`, the login card, the message toolbar, a table's box. |
 | `--raised` | A small thing sitting on a panel or the page, and a control under the pointer. | `.chip`, a hovered `.option` or `.icon-button`, table headers, inline code, reaction chips. |
 
@@ -342,6 +342,6 @@ review items.
 - Most failed queries render no failure state; the pane stays on
   "Loading…" or shows nothing. Only a few places read a query's error (the
   user card, the storage section, the invite preview on login).
-- `InviteModal` keeps its own copy buttons and clipboard call rather than
-  `CopyButton`, because it also copies a new invite's code on create.
+- `NewInviteModal` calls the clipboard itself, without a button: it puts a
+  new invite's link there on create. The row's Copy link is a `CopyButton`.
 - `--z-sticky` is on the ladder but no sheet uses it yet.

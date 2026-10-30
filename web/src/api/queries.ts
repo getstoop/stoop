@@ -208,6 +208,15 @@ export function useInvites(spaceId: string, enabled = true) {
   });
 }
 
+// Who joined through one invite, fetched when its row is opened.
+export function useInviteUses(inviteId: string) {
+  return useQuery({
+    queryKey: ["invite-uses", inviteId],
+    queryFn: async () => (await chatClient.listInviteUses({ inviteId })).uses,
+    enabled: inviteId !== "",
+  });
+}
+
 // One person's public face: their profile card, and the author of a
 // message by someone no longer a member (api/authors.ts). The same query
 // serves a space and a DM, which is why neither needs a fallback.
