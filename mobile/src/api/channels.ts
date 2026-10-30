@@ -1,4 +1,4 @@
-import { ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
+import { unreadCounts } from "@stoop/core/activity";
 import { type Channel, ChannelKind } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { Member } from "@stoop/gen/stoop/chat/v1/member_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
@@ -33,18 +33,16 @@ export async function loadSpaceChannels(
 ): Promise<SpaceChannels> {
   const chat = chatClient(origin, token);
   const options = { signal, timeoutMs: TIMEOUT_MS };
-  const [{ space }, { channels }, { members }, { items }] = await Promise.all([
+  const [{ space }, { channels }, { members }, activity] = await Promise.all([
     chat.getSpace({ spaceId }, options),
     chat.listChannels({ spaceId }, options),
     chat.listMembers({ spaceId }, options),
     chat.listActivity({}, options),
   ]);
   if (!space) throw new Error("The server answered with no space.");
-  const mentions: Record<string, number> = {};
-  for (const item of items) {
-    if (item.spaceId !== spaceId || item.readAt || item.muted || item.kind === ActivityKind.THREAD_REPLY) continue;
-    mentions[item.channelId] = (mentions[item.channelId] ?? 0) + 1;
-  }
+  // Counted over the whole feed; channel IDs are unique on a server, so
+  // looking up this space's channels finds only their own.
+  const mentions = Object.fromEntries(unreadCounts(activity).byChannel);
   const ordered = [...channels].sort((one, other) => one.position - other.position);
   return {
     space,
