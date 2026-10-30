@@ -126,7 +126,10 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
     "the row shows its label",
   ).toHaveText("Book club");
   await expect(row, "…and how many uses").toContainText("0 of 5");
-  await expect(row, "…and when it expires").toContainText("Within a day");
+  await expect(
+    row.locator(".invite-expiry"),
+    "…and when it expires, as a date and time",
+  ).toHaveText(/\d{1,2}:\d{2}/);
   await expect
     .poll(copied, { message: "Create puts the link on the clipboard" })
     .not.toBe("");

@@ -50,6 +50,17 @@ export function fullDateTime(d: Date): string {
   });
 }
 
+// A moment in a table that must stand on its own: "Oct 31, 2026, 12:25 PM".
+export function dateAndTime(d: Date): string {
+  return d.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 // A row's timestamp where space is short: the time today, otherwise the
 // day and time, with the year only when it differs.
 export function shortDateTime(d: Date, now: Date = new Date()): string {

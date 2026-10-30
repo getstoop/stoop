@@ -15,6 +15,7 @@ import {
   type TableColumn,
 } from "../../../components/DataTable";
 import { DotsMenu, type MenuItem } from "../../../components/DotsMenu";
+import { dateAndTime, fullDateTime } from "../../../core/dates";
 import type { Invite } from "../../../gen/stoop/chat/v1/invite_pb";
 import { type Space, SpaceRole } from "../../../gen/stoop/chat/v1/space_pb";
 import { notice } from "../../../stores/dialogs";
@@ -143,7 +144,7 @@ export function InviteTable({
             : invite.expiresAt
               ? timestampDate(invite.expiresAt).getTime()
               : Number.MAX_SAFE_INTEGER - 1,
-        meta: { width: 130 },
+        meta: { width: 190 },
         cell: ({ row: { original: invite } }) => {
           const status = inviteStatus(invite);
           if (status !== "active") {
@@ -153,12 +154,15 @@ export function InviteTable({
               </span>
             );
           }
-          const expiry = expiryOf(
-            invite.expiresAt ? timestampDate(invite.expiresAt) : undefined,
-          );
+          if (!invite.expiresAt) return "Never";
+          // The moment itself; the warning colour when it is within a week.
+          const at = timestampDate(invite.expiresAt);
           return (
-            <span className={`invite-expiry ${expiry.state}`}>
-              {expiry.text}
+            <span
+              className={`invite-expiry ${expiryOf(at).state}`}
+              title={fullDateTime(at)}
+            >
+              {dateAndTime(at)}
             </span>
           );
         },
