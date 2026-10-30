@@ -268,9 +268,14 @@ for the feed, a partial index on unread rows for the badge, and
 `message_id` for the foreign key ([below](#foreign-keys)).
 
 **`invites`** — `code UNIQUE`, `expires_at` (NULL = never), `max_uses`
-(NULL = unlimited), `use_count`, `revoked_at`, and the `role` the code
-grants. Validity is evaluated at join time rather than materialised, so an
-expiry needs no sweeper.
+(NULL = unlimited), `use_count`, `revoked_at`, a `label` for the people
+who list invites, and the `role` the code grants (always `member` since
+admin invites were withdrawn). Validity is evaluated at join time rather
+than materialised, so an expiry needs no sweeper.
+
+**`invite_uses`** — one row per join through an invite: `invite_id`,
+`user_id`, `used_at`, indexed `(invite_id, used_at DESC)` for "who joined
+with this". Both foreign keys cascade.
 
 ### instance
 

@@ -31,8 +31,9 @@ message Invite {
   // Empty when none was given. Seen by whoever can list the invite,
   // never by the person joining.
   string label = 11;
-  // created_by, resolved. Set by ListInvites; CreateInvite leaves it
-  // empty, since the creator is the caller.
+  // created_by, resolved. Set by ListInvites only; CreateInvite and
+  // RevokeInvite answer without it, so a client keeping a list should
+  // refetch rather than swap in their response.
   MessageAuthor creator = 12;
 }
 

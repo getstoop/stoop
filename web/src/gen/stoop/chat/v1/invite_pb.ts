@@ -98,8 +98,9 @@ export type Invite = Message<"stoop.chat.v1.Invite"> & {
   label: string;
 
   /**
-   * created_by, resolved. Set by ListInvites; CreateInvite leaves it
-   * empty, since the creator is the caller.
+   * created_by, resolved. Set by ListInvites only; CreateInvite and
+   * RevokeInvite answer without it, so a client keeping a list should
+   * refetch rather than swap in their response.
    *
    * @generated from field: stoop.chat.v1.MessageAuthor creator = 12;
    */

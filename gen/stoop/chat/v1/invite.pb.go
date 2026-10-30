@@ -48,8 +48,9 @@ type Invite struct {
 	// Empty when none was given. Seen by whoever can list the invite,
 	// never by the person joining.
 	Label string `protobuf:"bytes,11,opt,name=label,proto3" json:"label,omitempty"`
-	// created_by, resolved. Set by ListInvites; CreateInvite leaves it
-	// empty, since the creator is the caller.
+	// created_by, resolved. Set by ListInvites only; CreateInvite and
+	// RevokeInvite answer without it, so a client keeping a list should
+	// refetch rather than swap in their response.
 	Creator       *MessageAuthor `protobuf:"bytes,12,opt,name=creator,proto3" json:"creator,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

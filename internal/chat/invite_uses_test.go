@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -196,7 +197,7 @@ func TestInviteUses(t *testing.T) {
 	if _, err := uses(newUser(t, pool, "outsider", authctx.RoleMember), byOwner); code(err) != connect.CodePermissionDenied {
 		t.Errorf("outsider: code = %v, want PermissionDenied", code(err))
 	}
-	if _, err := uses(owner, &chatv1.Invite{Id: byOwner.Id[:len(byOwner.Id)-1] + "0"}); code(err) != connect.CodeNotFound {
+	if _, err := uses(owner, &chatv1.Invite{Id: uuid.NewString()}); code(err) != connect.CodeNotFound {
 		t.Errorf("unknown invite: code = %v, want NotFound", code(err))
 	}
 }
