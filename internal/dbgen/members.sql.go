@@ -154,6 +154,29 @@ func (q *Queries) IsSpaceMember(ctx context.Context, arg IsSpaceMemberParams) (b
 	return is_member, err
 }
 
+const joinSpaceMember = `-- name: JoinSpaceMember :execrows
+INSERT INTO space_members (space_id, user_id, role)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING
+`
+
+type JoinSpaceMemberParams struct {
+	SpaceID string
+	UserID  string
+	Role    string
+}
+
+// JoinSpaceMember is CreateSpaceMember for a join through an invite,
+// which needs to know whether the row was its to make: 0 rows means the
+// person was already in, and the join backs out.
+func (q *Queries) JoinSpaceMember(ctx context.Context, arg JoinSpaceMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, joinSpaceMember, arg.SpaceID, arg.UserID, arg.Role)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listOwnedSpaceIDs = `-- name: ListOwnedSpaceIDs :many
 SELECT id FROM spaces WHERE owner_id = $1
 `

@@ -439,9 +439,13 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.invalidateQueries({
         queryKey: ["members", payload.value.spaceId],
       });
-      // If it was us, our my_role changed too.
+      // If it was us, our my_role changed too, and with it which invites
+      // we may see: all of them with invites.manage, else only our own.
       if (payload.value.userId === useConnectionStore.getState().userId) {
         queryClient.invalidateQueries({ queryKey: ["spaces"] });
+        queryClient.removeQueries({
+          queryKey: ["invites", payload.value.spaceId],
+        });
       }
       break;
     case "memberUpdated":

@@ -6,6 +6,14 @@ INSERT INTO space_members (space_id, user_id, role)
 VALUES ($1, $2, $3)
 ON CONFLICT DO NOTHING;
 
+-- JoinSpaceMember is CreateSpaceMember for a join through an invite,
+-- which needs to know whether the row was its to make: 0 rows means the
+-- person was already in, and the join backs out.
+-- name: JoinSpaceMember :execrows
+INSERT INTO space_members (space_id, user_id, role)
+VALUES ($1, $2, $3)
+ON CONFLICT DO NOTHING;
+
 -- name: IsSpaceMember :one
 SELECT EXISTS (
     SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2

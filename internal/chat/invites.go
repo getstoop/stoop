@@ -37,6 +37,10 @@ const (
 	maxInviteLabel = 60
 )
 
+// errAlreadyMember backs a join's transaction out when the membership
+// row turned out to exist: the race between two joins by one person.
+var errAlreadyMember = errors.New("already a member")
+
 func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.CreateInviteRequest]) (*connect.Response[chatv1.CreateInviteResponse], error) {
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.InvitesCreate); err != nil {
 		return nil, err
@@ -73,6 +77,10 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 	if utf8.RuneCountInString(label) > maxInviteLabel {
 		return nil, apierr.Field(connect.CodeInvalidArgument, "label",
 			fmt.Errorf("a label is at most %d characters", maxInviteLabel))
+	}
+	if strings.ContainsRune(label, 0) {
+		return nil, apierr.Field(connect.CodeInvalidArgument, "label",
+			errors.New("a label can't contain a NUL character"))
 	}
 
 	var invite dbgen.Invite
@@ -202,7 +210,10 @@ func (s *Service) requireInviteAccess(ctx context.Context, invite dbgen.Invite) 
 	if invite.CreatedBy != authctx.UserID(ctx) {
 		return s.requirePermission(ctx, invite.SpaceID, authctx.InvitesManage)
 	}
-	if !authctx.CoversSpace(ctx, authctx.InvitesCreate, invite.SpaceID) {
+	// The creator's own: either invite grant on the credential will do,
+	// as a manager's token needn't also say invites.create.
+	if !authctx.CoversSpace(ctx, authctx.InvitesCreate, invite.SpaceID) &&
+		!authctx.CoversSpace(ctx, authctx.InvitesManage, invite.SpaceID) {
 		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.InvitesCreate))
 	}
 	caller, err := s.actorFor(ctx, invite.SpaceID)
@@ -377,10 +388,17 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 			}
 			return inviteRejection(current, time.Now())
 		}
-		if err := qtx.CreateSpaceMember(ctx, dbgen.CreateSpaceMemberParams{
+		// Two joins by the same person at once both pass the membership
+		// check above; the second finds the row there. Backing out leaves
+		// the use unconsumed and unrecorded, so one membership is one use.
+		inserted, err := qtx.JoinSpaceMember(ctx, dbgen.JoinSpaceMemberParams{
 			SpaceID: space.ID, UserID: userID, Role: string(granted),
-		}); err != nil {
+		})
+		if err != nil {
 			return fmt.Errorf("join space: %w", err)
+		}
+		if inserted == 0 {
+			return errAlreadyMember
 		}
 		// Who came in on which invite, for its creator and the admins.
 		if err := qtx.RecordInviteUse(ctx, dbgen.RecordInviteUseParams{
@@ -390,6 +408,13 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 		}
 		return nil
 	})
+	if errors.Is(err, errAlreadyMember) {
+		member, err := s.actorForUser(ctx, space.ID, userID, authctx.IsAdmin(ctx) && authctx.UserID(ctx) == userID)
+		if err != nil {
+			return dbgen.Space{}, "", err
+		}
+		return space, member.role, nil
+	}
 	if err != nil {
 		return dbgen.Space{}, "", err
 	}
