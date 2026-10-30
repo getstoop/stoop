@@ -8,6 +8,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -31,6 +32,9 @@ const (
 	// Retries on the (astronomically unlikely) code collision.
 	inviteCodeAttempts = 5
 	maxInviteLifetime  = 365 * 24 * time.Hour
+	// A label is a few words for the people who list invites; the
+	// column's check agrees.
+	maxInviteLabel = 60
 )
 
 func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.CreateInviteRequest]) (*connect.Response[chatv1.CreateInviteResponse], error) {
@@ -65,6 +69,11 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		return nil, apierr.Field(connect.CodeInvalidArgument, "role",
 			errors.New("an invite joins people as a member; make them an admin from Members once they're in"))
 	}
+	label := strings.TrimSpace(req.Msg.Label)
+	if utf8.RuneCountInString(label) > maxInviteLabel {
+		return nil, apierr.Field(connect.CodeInvalidArgument, "label",
+			fmt.Errorf("a label is at most %d characters", maxInviteLabel))
+	}
 
 	var invite dbgen.Invite
 	for attempt := 0; ; attempt++ {
@@ -75,7 +84,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		invite, err = s.q.CreateInvite(ctx, dbgen.CreateInviteParams{
 			ID: rowid.New(), SpaceID: req.Msg.SpaceId, Code: code,
 			CreatedBy: authctx.UserID(ctx), ExpiresAt: expiresAt, MaxUses: req.Msg.MaxUses,
-			Role: string(RoleMember),
+			Role: string(RoleMember), Label: label,
 		})
 		if err == nil {
 			break
@@ -90,53 +99,120 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 }
 
 // ListInvites is gated like CreateInvite: seeing live codes is as good as
-// minting them.
+// minting them. What it lists follows invites.manage: with it, every
+// invite to the space; without, only the caller's own.
 func (s *Service) ListInvites(ctx context.Context, req *connect.Request[chatv1.ListInvitesRequest]) (*connect.Response[chatv1.ListInvitesResponse], error) {
 	if err := s.requirePermission(ctx, req.Msg.SpaceId, authctx.InvitesCreate); err != nil {
 		return nil, err
 	}
-	rows, err := s.q.ListInvitesBySpace(ctx, req.Msg.SpaceId)
+	manages, err := s.managesInvites(ctx, req.Msg.SpaceId)
+	if err != nil {
+		return nil, err
+	}
+	var rows []dbgen.Invite
+	if manages {
+		rows, err = s.q.ListInvitesBySpace(ctx, req.Msg.SpaceId)
+	} else {
+		rows, err = s.q.ListInvitesByCreator(ctx, dbgen.ListInvitesByCreatorParams{
+			SpaceID: req.Msg.SpaceId, CreatedBy: authctx.UserID(ctx),
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list invites: %w", err)
+	}
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.CreatedBy
+	}
+	creators, err := s.resolveAuthors(ctx, ids)
+	if err != nil {
+		return nil, err
 	}
 	invites := make([]*chatv1.Invite, len(rows))
 	for i, r := range rows {
 		invites[i] = toProtoInvite(r)
+		invites[i].Creator = authorOrUnknown(creators, r.CreatedBy)
 	}
 	return connect.NewResponse(&chatv1.ListInvitesResponse{Invites: invites}), nil
 }
 
+// managesInvites reports whether a caller already admitted by
+// invites.create also holds invites.manage here, without the refusal
+// requirePermission would write: it shapes what is listed, it doesn't
+// gate it.
+func (s *Service) managesInvites(ctx context.Context, spaceID string) (bool, error) {
+	if !authctx.CoversSpace(ctx, authctx.InvitesManage, spaceID) {
+		return false, nil
+	}
+	caller, err := s.actorFor(ctx, spaceID)
+	if err != nil {
+		return false, err
+	}
+	return allowed(caller, authctx.InvitesManage, false), nil
+}
+
 func (s *Service) RevokeInvite(ctx context.Context, req *connect.Request[chatv1.RevokeInviteRequest]) (*connect.Response[chatv1.RevokeInviteResponse], error) {
-	userID := authctx.UserID(ctx)
 	invite, err := s.q.GetInvite(ctx, req.Msg.InviteId)
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "invite")
 	}
-	// Your own invites are yours to revoke as long as you're still in the
-	// space and the credential reaches it; anyone else's needs
-	// invites.manage.
-	if invite.CreatedBy != userID {
-		if err := s.requirePermission(ctx, invite.SpaceID, authctx.InvitesManage); err != nil {
-			return nil, err
-		}
-	} else {
-		if !authctx.CoversSpace(ctx, authctx.InvitesCreate, invite.SpaceID) {
-			return nil, connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.InvitesCreate))
-		}
-		a, err := s.actorFor(ctx, invite.SpaceID)
-		if err != nil {
-			return nil, err
-		}
-		if !a.member && !a.instanceAdmin {
-			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this space"))
-		}
+	if err := s.requireInviteAccess(ctx, invite); err != nil {
+		return nil, err
 	}
-
 	revoked, err := s.q.RevokeInvite(ctx, invite.ID)
 	if err != nil {
 		return nil, fmt.Errorf("revoke invite: %w", err)
 	}
 	return connect.NewResponse(&chatv1.RevokeInviteResponse{Invite: toProtoInvite(revoked)}), nil
+}
+
+// ListInviteUses lists who joined through one invite, newest first, for
+// whoever may act on the invite.
+func (s *Service) ListInviteUses(ctx context.Context, req *connect.Request[chatv1.ListInviteUsesRequest]) (*connect.Response[chatv1.ListInviteUsesResponse], error) {
+	invite, err := s.q.GetInvite(ctx, req.Msg.InviteId)
+	if err != nil {
+		return nil, apierr.NotFoundOr(err, "invite")
+	}
+	if err := s.requireInviteAccess(ctx, invite); err != nil {
+		return nil, err
+	}
+	rows, err := s.q.ListInviteUses(ctx, invite.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list invite uses: %w", err)
+	}
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.UserID
+	}
+	users, err := s.resolveAuthors(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	uses := make([]*chatv1.InviteUse, len(rows))
+	for i, r := range rows {
+		uses[i] = &chatv1.InviteUse{User: authorOrUnknown(users, r.UserID), UsedAt: timestamppb.New(r.UsedAt)}
+	}
+	return connect.NewResponse(&chatv1.ListInviteUsesResponse{Uses: uses}), nil
+}
+
+// requireInviteAccess admits the caller to one invite: its creator, as
+// long as they're still in the space and the credential reaches it, or
+// anyone with invites.manage. Revoking and seeing who joined share it.
+func (s *Service) requireInviteAccess(ctx context.Context, invite dbgen.Invite) error {
+	if invite.CreatedBy != authctx.UserID(ctx) {
+		return s.requirePermission(ctx, invite.SpaceID, authctx.InvitesManage)
+	}
+	if !authctx.CoversSpace(ctx, authctx.InvitesCreate, invite.SpaceID) {
+		return connect.NewError(connect.CodePermissionDenied, authctx.Refusal(ctx, authctx.InvitesCreate))
+	}
+	caller, err := s.actorFor(ctx, invite.SpaceID)
+	if err != nil {
+		return err
+	}
+	if !caller.member && !caller.instanceAdmin {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("not a member of this space"))
+	}
+	return nil
 }
 
 // JoinSpace redeems an invite code. Membership is granted and one use is
@@ -306,6 +382,12 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 		}); err != nil {
 			return fmt.Errorf("join space: %w", err)
 		}
+		// Who came in on which invite, for its creator and the admins.
+		if err := qtx.RecordInviteUse(ctx, dbgen.RecordInviteUseParams{
+			ID: rowid.New(), InviteID: invite.ID, UserID: userID,
+		}); err != nil {
+			return fmt.Errorf("record invite use: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
@@ -409,7 +491,7 @@ func toProtoInvite(i dbgen.Invite) *chatv1.Invite {
 	out := &chatv1.Invite{
 		Id: i.ID, SpaceId: i.SpaceID, Code: i.Code, CreatedBy: i.CreatedBy,
 		MaxUses: i.MaxUses, UseCount: i.UseCount, CreatedAt: timestamppb.New(i.CreatedAt),
-		Role: toProtoRole(Role(i.Role)),
+		Role: toProtoRole(Role(i.Role)), Label: i.Label,
 	}
 	out.ExpiresAt = pbtime.OrNil(i.ExpiresAt)
 	out.RevokedAt = pbtime.OrNil(i.RevokedAt)

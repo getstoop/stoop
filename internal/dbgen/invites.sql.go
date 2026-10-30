@@ -17,7 +17,7 @@ WHERE code = $1
   AND revoked_at IS NULL
   AND (expires_at IS NULL OR expires_at > now())
   AND (max_uses IS NULL OR use_count < max_uses)
-RETURNING id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role
+RETURNING id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label
 `
 
 func (q *Queries) ConsumeInvite(ctx context.Context, code string) (Invite, error) {
@@ -34,15 +34,16 @@ func (q *Queries) ConsumeInvite(ctx context.Context, code string) (Invite, error
 		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Label,
 	)
 	return i, err
 }
 
 const createInvite = `-- name: CreateInvite :one
 
-INSERT INTO invites (id, space_id, code, created_by, expires_at, max_uses, role)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role
+INSERT INTO invites (id, space_id, code, created_by, expires_at, max_uses, role, label)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label
 `
 
 type CreateInviteParams struct {
@@ -53,6 +54,7 @@ type CreateInviteParams struct {
 	ExpiresAt *time.Time
 	MaxUses   *int32
 	Role      string
+	Label     string
 }
 
 // Invites: redeemable codes granting space membership. Owned by the chat module.
@@ -66,6 +68,7 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Inv
 		arg.ExpiresAt,
 		arg.MaxUses,
 		arg.Role,
+		arg.Label,
 	)
 	var i Invite
 	err := row.Scan(
@@ -79,12 +82,13 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Inv
 		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Label,
 	)
 	return i, err
 }
 
 const getInvite = `-- name: GetInvite :one
-SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role FROM invites WHERE id = $1
+SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label FROM invites WHERE id = $1
 `
 
 func (q *Queries) GetInvite(ctx context.Context, id string) (Invite, error) {
@@ -101,12 +105,13 @@ func (q *Queries) GetInvite(ctx context.Context, id string) (Invite, error) {
 		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Label,
 	)
 	return i, err
 }
 
 const getInviteByCode = `-- name: GetInviteByCode :one
-SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role FROM invites WHERE code = $1
+SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label FROM invites WHERE code = $1
 `
 
 func (q *Queries) GetInviteByCode(ctx context.Context, code string) (Invite, error) {
@@ -123,12 +128,85 @@ func (q *Queries) GetInviteByCode(ctx context.Context, code string) (Invite, err
 		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Label,
 	)
 	return i, err
 }
 
+const listInviteUses = `-- name: ListInviteUses :many
+SELECT user_id, used_at FROM invite_uses WHERE invite_id = $1 ORDER BY used_at DESC, id DESC
+`
+
+type ListInviteUsesRow struct {
+	UserID string
+	UsedAt time.Time
+}
+
+func (q *Queries) ListInviteUses(ctx context.Context, inviteID string) ([]ListInviteUsesRow, error) {
+	rows, err := q.db.Query(ctx, listInviteUses, inviteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInviteUsesRow
+	for rows.Next() {
+		var i ListInviteUsesRow
+		if err := rows.Scan(&i.UserID, &i.UsedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInvitesByCreator = `-- name: ListInvitesByCreator :many
+SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label FROM invites WHERE space_id = $1 AND created_by = $2 ORDER BY created_at DESC, id DESC
+`
+
+type ListInvitesByCreatorParams struct {
+	SpaceID   string
+	CreatedBy string
+}
+
+// ListInvitesByCreator is what a member without invites.manage sees: only
+// what they made.
+func (q *Queries) ListInvitesByCreator(ctx context.Context, arg ListInvitesByCreatorParams) ([]Invite, error) {
+	rows, err := q.db.Query(ctx, listInvitesByCreator, arg.SpaceID, arg.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Invite
+	for rows.Next() {
+		var i Invite
+		if err := rows.Scan(
+			&i.ID,
+			&i.SpaceID,
+			&i.Code,
+			&i.CreatedBy,
+			&i.ExpiresAt,
+			&i.MaxUses,
+			&i.UseCount,
+			&i.RevokedAt,
+			&i.CreatedAt,
+			&i.Role,
+			&i.Label,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInvitesBySpace = `-- name: ListInvitesBySpace :many
-SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role FROM invites WHERE space_id = $1 ORDER BY created_at DESC, id DESC
+SELECT id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label FROM invites WHERE space_id = $1 ORDER BY created_at DESC, id DESC
 `
 
 func (q *Queries) ListInvitesBySpace(ctx context.Context, spaceID string) ([]Invite, error) {
@@ -151,6 +229,7 @@ func (q *Queries) ListInvitesBySpace(ctx context.Context, spaceID string) ([]Inv
 			&i.RevokedAt,
 			&i.CreatedAt,
 			&i.Role,
+			&i.Label,
 		); err != nil {
 			return nil, err
 		}
@@ -163,7 +242,7 @@ func (q *Queries) ListInvitesBySpace(ctx context.Context, spaceID string) ([]Inv
 }
 
 const lookupInviteByCode = `-- name: LookupInviteByCode :one
-SELECT i.id, i.space_id, i.code, i.created_by, i.expires_at, i.max_uses, i.use_count, i.revoked_at, i.created_at, i.role,
+SELECT i.id, i.space_id, i.code, i.created_by, i.expires_at, i.max_uses, i.use_count, i.revoked_at, i.created_at, i.role, i.label,
     s.name AS space_name,
     s.description AS space_description,
     s.icon_file_id AS space_icon_file_id,
@@ -198,6 +277,7 @@ func (q *Queries) LookupInviteByCode(ctx context.Context, code string) (LookupIn
 		&i.Invite.RevokedAt,
 		&i.Invite.CreatedAt,
 		&i.Invite.Role,
+		&i.Invite.Label,
 		&i.SpaceName,
 		&i.SpaceDescription,
 		&i.SpaceIconFileID,
@@ -206,11 +286,26 @@ func (q *Queries) LookupInviteByCode(ctx context.Context, code string) (LookupIn
 	return i, err
 }
 
+const recordInviteUse = `-- name: RecordInviteUse :exec
+INSERT INTO invite_uses (id, invite_id, user_id) VALUES ($1, $2, $3)
+`
+
+type RecordInviteUseParams struct {
+	ID       string
+	InviteID string
+	UserID   string
+}
+
+func (q *Queries) RecordInviteUse(ctx context.Context, arg RecordInviteUseParams) error {
+	_, err := q.db.Exec(ctx, recordInviteUse, arg.ID, arg.InviteID, arg.UserID)
+	return err
+}
+
 const revokeInvite = `-- name: RevokeInvite :one
 UPDATE invites
 SET revoked_at = COALESCE(revoked_at, now())
 WHERE id = $1
-RETURNING id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role
+RETURNING id, space_id, code, created_by, expires_at, max_uses, use_count, revoked_at, created_at, role, label
 `
 
 func (q *Queries) RevokeInvite(ctx context.Context, id string) (Invite, error) {
@@ -227,6 +322,7 @@ func (q *Queries) RevokeInvite(ctx context.Context, id string) (Invite, error) {
 		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.Role,
+		&i.Label,
 	)
 	return i, err
 }

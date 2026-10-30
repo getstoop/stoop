@@ -133,6 +133,10 @@ var procedures = map[string]authctx.Rule{
 	chatv1connect.ChatServiceCreateInviteProcedure: needs(authctx.InvitesCreate),
 	chatv1connect.ChatServiceListInvitesProcedure:  needs(authctx.InvitesCreate),
 	chatv1connect.ChatServiceRevokeInviteProcedure: needs(authctx.InvitesCreate),
+	// Who joined through an invite: the creator's to see, as revoking is
+	// the creator's to do; the handler asks invites.manage for anyone
+	// else's.
+	chatv1connect.ChatServiceListInviteUsesProcedure: needs(authctx.InvitesCreate),
 	// An invited stranger sees the space behind their code before they
 	// have an account to see it with.
 	chatv1connect.ChatServiceLookupInviteProcedure: public,

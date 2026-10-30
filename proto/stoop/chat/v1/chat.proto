@@ -32,13 +32,18 @@ service ChatService {
   // invites.create permission: space admins and the owner always hold it;
   // members only when the space's members_can_invite setting is on.
   rpc CreateInvite(CreateInviteRequest) returns (CreateInviteResponse) {}
-  // ListInvites returns every invite for a space, newest first, including
-  // revoked and exhausted ones. Same permission as CreateInvite.
+  // ListInvites returns the invites the caller may see, newest first,
+  // including revoked and exhausted ones. Same permission as
+  // CreateInvite; with invites.manage that is every invite to the space,
+  // without it only the caller's own.
   rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {}
   // RevokeInvite permanently disables a code. The invite's creator may
   // always revoke it; anyone else needs manage_invites (admin+). Revoking
   // twice is a no-op.
   rpc RevokeInvite(RevokeInviteRequest) returns (RevokeInviteResponse) {}
+  // ListInviteUses lists who joined through one invite, newest first.
+  // The invite's creator may see it; anyone else needs invites.manage.
+  rpc ListInviteUses(ListInviteUsesRequest) returns (ListInviteUsesResponse) {}
   // LookupInvite previews the space behind a code without redeeming it.
   // Public: this is what an invited stranger sees before they have an
   // account. It never returns the space's welcome text.
@@ -481,6 +486,9 @@ message CreateInviteRequest {
   // after they join. Unset or MEMBER is accepted, anything else is
   // refused with InvalidArgument. Kept on the wire for older clients.
   SpaceRole role = 4;
+  // Optional: what the invite is for, up to 60 characters. Whitespace
+  // around it is dropped.
+  string label = 5;
 }
 
 message CreateInviteResponse {
@@ -502,6 +510,15 @@ message RevokeInviteRequest {
 
 message RevokeInviteResponse {
   Invite invite = 1;
+}
+
+message ListInviteUsesRequest {
+  string invite_id = 1;
+}
+
+message ListInviteUsesResponse {
+  // Ordered newest → oldest.
+  repeated InviteUse uses = 1;
 }
 
 message LookupInviteRequest {
