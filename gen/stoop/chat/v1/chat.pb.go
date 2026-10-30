@@ -2721,8 +2721,9 @@ type CreateInviteRequest struct {
 	ExpiresIn *durationpb.Duration `protobuf:"bytes,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
 	// Maximum number of joins. Unset means unlimited.
 	MaxUses *int32 `protobuf:"varint,3,opt,name=max_uses,json=maxUses,proto3,oneof" json:"max_uses,omitempty"`
-	// Role granted on join: MEMBER (default) or ADMIN. Must not exceed the
-	// caller's own role; OWNER is rejected.
+	// Every invite joins people as a MEMBER; admins are made from Members
+	// after they join. Unset or MEMBER is accepted, anything else is
+	// refused with InvalidArgument. Kept on the wire for older clients.
 	Role          SpaceRole `protobuf:"varint,4,opt,name=role,proto3,enum=stoop.chat.v1.SpaceRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

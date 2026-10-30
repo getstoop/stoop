@@ -5,7 +5,6 @@ import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { inviteLink } from "../api/invites";
 import { useInstanceStatus, useInvites, useMe } from "../api/queries";
-import { grantableRoles, roleLabel } from "../core/permissions";
 import type { Invite } from "../gen/stoop/chat/v1/invite_pb";
 import { type Space, SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import { useFieldErrors } from "../hooks/useFieldErrors";
@@ -36,9 +35,7 @@ export function InviteModal({
   const { data: invites, isLoading } = useInvites(space.id);
   const [expiry, setExpiry] = useState(EXPIRY_OPTIONS[3].seconds);
   const [maxUses, setMaxUses] = useState("");
-  const [role, setRole] = useState<SpaceRole>(SpaceRole.MEMBER);
-  const roles = grantableRoles(space);
-  const form = useFieldErrors(["expiresIn", "maxUses", "role"]);
+  const form = useFieldErrors(["expiresIn", "maxUses"]);
   // Revoking and copying have no field to carry a failure.
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +62,6 @@ export function InviteModal({
         spaceId: space.id,
         expiresIn: expiry > 0 ? { seconds: BigInt(expiry) } : undefined,
         maxUses: uses,
-        role,
       });
       await refresh();
       if (res.invite) copy(res.invite.code, res.invite.id);
@@ -121,28 +117,11 @@ export function InviteModal({
               onChange={(e) => setMaxUses(e.target.value)}
             />
           </Field>
-          <Field
-            label="Joins as"
-            hint={
-              roles.length < 2
-                ? "You can only invite people at your own role."
-                : undefined
-            }
-            error={form.errors.role}
-          >
-            <Select
-              value={role}
-              onChange={(e) => setRole(Number(e.target.value) as SpaceRole)}
-              disabled={roles.length < 2}
-            >
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {roleLabel(r)}
-                </option>
-              ))}
-            </Select>
-          </Field>
         </div>
+        <p className="hint">
+          Everyone joins as a member. Make someone an admin from Space settings
+          → Members once they're in.
+        </p>
         {form.formError && (
           <p className="error" role="alert">
             {form.formError}
@@ -244,7 +223,9 @@ function describeInvite(invite: Invite, status: InviteStatus): string {
     invite.maxUses === undefined
       ? `${invite.useCount} uses`
       : `${invite.useCount}/${invite.maxUses} uses`;
-  const joinsAs = `joins as ${roleLabel(invite.role)}`;
+  // Only an invite from before admin invites were withdrawn grants more
+  // than member, so that is the only case worth a word.
+  const joinsAs = invite.role === SpaceRole.ADMIN ? "joins as admin · " : "";
   switch (status) {
     case "revoked":
       return `Revoked · ${uses}`;
@@ -256,7 +237,7 @@ function describeInvite(invite: Invite, status: InviteStatus): string {
       const expires = invite.expiresAt
         ? `expires ${timestampDate(invite.expiresAt).toLocaleString()}`
         : "never expires";
-      return `${joinsAs} · ${uses} · ${expires}`;
+      return `${joinsAs}${uses} · ${expires}`;
     }
   }
 }

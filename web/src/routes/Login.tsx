@@ -316,7 +316,8 @@ export function LoginPage() {
 }
 
 // What the code is an invitation to, from the server rather than the
-// link: the space's face, its size, and the role redeeming it grants.
+// link: the space's face, its size, and the role redeeming it grants
+// (member, unless an older invite still grants admin).
 function InviteHero({
   preview,
   code,

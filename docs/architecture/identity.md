@@ -421,8 +421,8 @@ creates an account under a `closed` registration policy: the same
 calling.
 
 A public procedure answers with the *public face* of a thing only.
-`LookupInvite` returns a space's name, icon, description, size and the role
-the code grants — never its welcome text, which is for people who joined.
+`LookupInvite` returns a space's name, icon, description and size — never
+its welcome text, which is for people who joined.
 
 The WebSocket upgrade and the file download handler both authenticate
 through the same `VerifyRequest` path rather than through the interceptor,

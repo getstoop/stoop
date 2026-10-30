@@ -1174,8 +1174,9 @@ export type CreateInviteRequest = Message<"stoop.chat.v1.CreateInviteRequest"> &
   maxUses?: number | undefined;
 
   /**
-   * Role granted on join: MEMBER (default) or ADMIN. Must not exceed the
-   * caller's own role; OWNER is rejected.
+   * Every invite joins people as a MEMBER; admins are made from Members
+   * after they join. Unset or MEMBER is accepted, anything else is
+   * refused with InvalidArgument. Kept on the wire for older clients.
    *
    * @generated from field: stoop.chat.v1.SpaceRole role = 4;
    */

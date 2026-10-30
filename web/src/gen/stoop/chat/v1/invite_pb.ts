@@ -78,8 +78,9 @@ export type Invite = Message<"stoop.chat.v1.Invite"> & {
   createdAt?: Timestamp | undefined;
 
   /**
-   * The role a joiner receives: MEMBER or ADMIN, never OWNER. Capped at
-   * the creator's own role when created and again when redeemed.
+   * The role a joiner receives. MEMBER for every invite made since admin
+   * invites were withdrawn; an older ADMIN invite is honoured until it is
+   * spent, capped at its creator's current role when redeemed.
    *
    * @generated from field: stoop.chat.v1.SpaceRole role = 10;
    */
@@ -131,8 +132,8 @@ export type InvitePreview = Message<"stoop.chat.v1.InvitePreview"> & {
   memberCount: number;
 
   /**
-   * The role redeeming the code would grant today, capped at its
-   * creator's own role just as an actual join would be.
+   * The role redeeming the code would grant today: MEMBER, or ADMIN for
+   * an older invite whose creator still holds it.
    *
    * @generated from field: stoop.chat.v1.SpaceRole role = 6;
    */

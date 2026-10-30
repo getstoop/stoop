@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
 	"github.com/getstoop/stoop/internal/db/dbtest"
@@ -57,6 +59,20 @@ func newUser(t *testing.T, pool *pgxpool.Pool, name string, role authctx.Role) c
 	t.Helper()
 	id := dbtest.NewUser(t, pool, name, string(role))
 	return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: id, Role: role})
+}
+
+// legacyAdminInvite plants an invite as the service minted them before
+// admin invites were withdrawn: CreateInvite refuses the role now, but
+// rows made earlier are still honoured, so the tests write one directly.
+func legacyAdminInvite(t *testing.T, pool *pgxpool.Pool, spaceID string, creator context.Context, code string) *chatv1.Invite {
+	t.Helper()
+	id := uuid.NewString()
+	if _, err := pool.Exec(context.Background(),
+		`INSERT INTO invites (id, space_id, code, created_by, role) VALUES ($1, $2, $3, $4, 'admin')`,
+		id, spaceID, code, authctx.UserID(creator)); err != nil {
+		t.Fatal(err)
+	}
+	return &chatv1.Invite{Id: id, SpaceId: spaceID, Code: code, Role: chatv1.SpaceRole_SPACE_ROLE_ADMIN}
 }
 
 func code(err error) connect.Code {

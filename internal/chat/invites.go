@@ -55,13 +55,15 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		return nil, apierr.Field(connect.CodeInvalidArgument, "max_uses",
 			errors.New("max uses must be at least 1"))
 	}
-	grant := roleFromProto(req.Msg.Role)
-	creator, err := s.actorFor(ctx, req.Msg.SpaceId)
-	if err != nil {
-		return nil, err
-	}
-	if err := grantableRole(creator, grant); err != nil {
-		return nil, apierr.WithField(err, "role")
+	// Every invite joins people as a member; admins are made from Members
+	// once they are in. The field stays on the wire, and asking for more
+	// is refused rather than quietly lowered, so nobody believes they
+	// handed out admin.
+	switch req.Msg.Role {
+	case chatv1.SpaceRole_SPACE_ROLE_UNSPECIFIED, chatv1.SpaceRole_SPACE_ROLE_MEMBER:
+	default:
+		return nil, apierr.Field(connect.CodeInvalidArgument, "role",
+			errors.New("an invite joins people as a member; make them an admin from Members once they're in"))
 	}
 
 	var invite dbgen.Invite
@@ -73,7 +75,7 @@ func (s *Service) CreateInvite(ctx context.Context, req *connect.Request[chatv1.
 		invite, err = s.q.CreateInvite(ctx, dbgen.CreateInviteParams{
 			ID: rowid.New(), SpaceID: req.Msg.SpaceId, Code: code,
 			CreatedBy: authctx.UserID(ctx), ExpiresAt: expiresAt, MaxUses: req.Msg.MaxUses,
-			Role: string(grant),
+			Role: string(RoleMember),
 		})
 		if err == nil {
 			break
@@ -278,8 +280,10 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 		return space, a.role, nil
 	}
 
-	// The invite's role is re-capped at what its creator holds *now*, so a
-	// demoted or departed creator's admin invite grants member.
+	// New invites grant member. One minted before admin invites were
+	// withdrawn is honoured until it is spent, re-capped at what its
+	// creator holds *now*, so a demoted or departed creator's admin invite
+	// grants member.
 	granted, err := s.roleGrantedBy(ctx, invite)
 	if err != nil {
 		return dbgen.Space{}, "", err
@@ -313,7 +317,9 @@ func (s *Service) joinWithCode(ctx context.Context, userID, rawCode string) (dbg
 }
 
 // roleGrantedBy resolves the role an invite confers today: its stored role,
-// capped at the creator's current effective role in the space.
+// capped at the creator's current effective role in the space. Only
+// invites from before admin invites were withdrawn store anything but
+// member.
 func (s *Service) roleGrantedBy(ctx context.Context, invite dbgen.Invite) (Role, error) {
 	granted := Role(invite.Role)
 	if granted == RoleMember {

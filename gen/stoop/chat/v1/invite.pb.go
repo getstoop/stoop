@@ -40,8 +40,9 @@ type Invite struct {
 	// Set once the invite has been revoked.
 	RevokedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=revoked_at,json=revokedAt,proto3" json:"revoked_at,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// The role a joiner receives: MEMBER or ADMIN, never OWNER. Capped at
-	// the creator's own role when created and again when redeemed.
+	// The role a joiner receives. MEMBER for every invite made since admin
+	// invites were withdrawn; an older ADMIN invite is honoured until it is
+	// spent, capped at its creator's current role when redeemed.
 	Role          SpaceRole `protobuf:"varint,10,opt,name=role,proto3,enum=stoop.chat.v1.SpaceRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -159,8 +160,8 @@ type InvitePreview struct {
 	// The space icon's file id (GET /files/{id}); empty for initials.
 	SpaceIconFileId string `protobuf:"bytes,4,opt,name=space_icon_file_id,json=spaceIconFileId,proto3" json:"space_icon_file_id,omitempty"`
 	MemberCount     int32  `protobuf:"varint,5,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
-	// The role redeeming the code would grant today, capped at its
-	// creator's own role just as an actual join would be.
+	// The role redeeming the code would grant today: MEMBER, or ADMIN for
+	// an older invite whose creator still holds it.
 	Role          SpaceRole `protobuf:"varint,6,opt,name=role,proto3,enum=stoop.chat.v1.SpaceRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
