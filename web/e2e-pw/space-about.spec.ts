@@ -118,9 +118,14 @@ test("what a space says about itself", async ({ browser }) => {
   await A.locator('.dots-menu [role="menuitem"]', {
     hasText: "Invite people",
   }).click();
-  await A.locator('.invite-form button[type="submit"]').click();
-  const code = await A.locator(".invite-row .invite-code").innerText();
-  await A.keyboard.press("Escape");
+  await A.getByRole("button", { name: "New invite" }).click();
+  await A.getByRole("button", { name: "Create invite" }).click();
+  const inviteRow = A.locator(".card", { hasText: "Invites" }).locator(
+    ".dt-row",
+  );
+  await expect(inviteRow, "the invite is listed").toHaveCount(1);
+  const code = (await inviteRow.getAttribute("data-code")) ?? "";
+  await A.getByRole("link", { name: "Back to space" }).click();
 
   const B = await (await browser.newContext({ viewport })).newPage();
   await B.goto(`/join/${code}`);

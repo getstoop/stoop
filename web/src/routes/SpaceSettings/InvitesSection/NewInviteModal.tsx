@@ -62,9 +62,10 @@ export function NewInviteModal({
         expiresIn: expiry > 0 ? { seconds: BigInt(expiry) } : undefined,
         maxUses: uses,
       });
-      await queryClient.invalidateQueries({ queryKey: ["invites", space.id] });
-      // The link is what gets shared, so it is what the Create puts on
-      // the clipboard; the row's Copy link is there if this can't be.
+      // The link is what gets shared, so it is what Create puts on the
+      // clipboard, as soon as the server answers: a browser ties the
+      // clipboard to the click, and the refetch below would outlast it.
+      // The row's Copy link is there if this can't be.
       if (res.invite) {
         navigator.clipboard
           .writeText(
@@ -72,6 +73,7 @@ export function NewInviteModal({
           )
           .catch(() => {});
       }
+      await queryClient.invalidateQueries({ queryKey: ["invites", space.id] });
       onClose();
     } catch (err) {
       form.fail(err);

@@ -356,8 +356,10 @@ test("reaching your server, in setup and on the admin page", async ({
   await A.evaluate(() => {
     window.__copied = "";
   });
+  // Making an invite puts its link on the clipboard.
   await spaceMenu(A, "Invite people");
-  await A.locator('button[title="Copy join link"]').click();
+  await A.getByRole("button", { name: "New invite" }).click();
+  await A.getByRole("button", { name: "Create invite" }).click();
   await expect
     .poll(copied, {
       message: "invite links fall back to the current origin after clearing",

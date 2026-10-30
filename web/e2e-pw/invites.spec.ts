@@ -1,5 +1,12 @@
 import type { Page } from "@playwright/test";
-import { acceptDialog, expect, pastGate, skipReachability, test } from "./lib";
+import {
+  acceptDialog,
+  COMPOSER,
+  expect,
+  pastGate,
+  skipReachability,
+  test,
+} from "./lib";
 
 // Invites end to end: setup mints the instance, the owner makes an invite
 // on Space settings → Invites, someone arrives on its link and signs up
@@ -75,7 +82,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   );
   const invitesCard = A.locator(".card", { hasText: "Invites" });
   await expect(
-    invitesCard.locator(".dt-empty, .dt-wrap"),
+    invitesCard.locator(".dt-message"),
     "the page shows an empty list",
   ).toContainText("No invites yet");
 
@@ -275,9 +282,12 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   );
   await B.goto(`${base}/s/${spaceId}/settings?tab=invites`);
   await expect(
-    B,
+    B.locator(COMPOSER),
     "a member who can't invite is sent back to the space",
-  ).toHaveURL(new RegExp(`/s/${spaceId}$`));
+  ).toBeVisible();
+  expect(new URL(B.url()).pathname, "…and off the settings page").not.toMatch(
+    /settings/,
+  );
   await pickMenu(A, "Invite people");
   await expect(row, "use count is 1 of 5 after B joined").toContainText(
     "1 of 5",

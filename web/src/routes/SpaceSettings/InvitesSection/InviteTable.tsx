@@ -17,6 +17,7 @@ import {
 import { DotsMenu, type MenuItem } from "../../../components/DotsMenu";
 import type { Invite } from "../../../gen/stoop/chat/v1/invite_pb";
 import type { Space } from "../../../gen/stoop/chat/v1/space_pb";
+import { notice } from "../../../stores/dialogs";
 import { InviteUses } from "./InviteUses";
 
 // Spent invites (revoked, expired, used up) stay behind the toolbar's
@@ -55,7 +56,14 @@ export function InviteTable({
       const items: MenuItem[] = [
         {
           label: "Copy code",
-          onSelect: () => navigator.clipboard.writeText(invite.code),
+          onSelect: async () => {
+            try {
+              await navigator.clipboard.writeText(invite.code);
+            } catch {
+              notice({ title: "Couldn't copy to the clipboard" });
+              return false;
+            }
+          },
           done: "Copied!",
         },
       ];
