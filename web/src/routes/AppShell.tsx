@@ -7,7 +7,6 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { unreadCounts } from "../api/activity";
 import { chatClient } from "../api/clients";
 import { dmUnreadTotal, useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
@@ -40,6 +39,7 @@ import { NavBackdrop } from "../components/NavBackdrop";
 import { SidePanel } from "../components/SidePanel";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
+import { unreadCounts } from "../core/activity";
 import { badgeCount } from "../core/unreads";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { SpaceCreationPolicy } from "../gen/stoop/instance/v1/instance_pb";

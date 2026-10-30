@@ -1,5 +1,5 @@
+import { activityVerb } from "../core/activity";
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
-import { activityVerb } from "./activity";
 import { isDesktop, shellNotifications } from "./platform";
 
 // Desktop banners: the browser's Notification API, and the rules for when

@@ -2,7 +2,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment } from "react";
-import { activityVerb, markActivityRead } from "../../api/activity";
+import { markActivityRead } from "../../api/activity";
 import { useChannels, useMe, useSpaces } from "../../api/queries";
 import { messageSearch } from "../../api/shareLinks";
 import { Avatar } from "../../components/Avatar";
@@ -10,12 +10,13 @@ import { ChannelName } from "../../components/ChannelName";
 import { DeletedMark } from "../../components/DeletedMark";
 import { ChatBubbleIcon, MailIcon, ReplyIcon } from "../../components/Icons";
 import { MutedMark } from "../../components/MutedMark";
-import { fullDateTime, shortDateTime } from "../../core/dates";
+import { activityTime, activityVerb } from "../../core/activity";
+import { splitPreview } from "../../core/activityPreview";
+import { fullDateTime } from "../../core/dates";
 import {
   type ActivityItem,
   ActivityKind,
 } from "../../gen/stoop/chat/v1/activity_pb";
-import { splitPreview } from "./preview";
 
 // One thing that happened to you: who did it, with the kind as a glyph
 // on their avatar; what they did and where, on one line; and a two-line
@@ -94,7 +95,7 @@ export function ActivityRow({
         className="muted small activity-time"
         title={when ? fullDateTime(when) : ""}
       >
-        {when ? rowTime(when, dated) : ""}
+        {when ? activityTime(when, dated) : ""}
       </span>
       {item.preview ? (
         <span className="activity-preview">
@@ -138,16 +139,4 @@ function KindGlyph({ kind }: { kind: ActivityKind }) {
       <span className="visually-hidden">{label}</span>
     </span>
   );
-}
-
-// A recent row says how long ago. Past a day, a dated row carries the
-// date (nothing above it does); an undated row sits under a day
-// divider, so it only needs the time of day.
-function rowTime(d: Date, dated: boolean): string {
-  const s = Math.round((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.round(s / 60)}m ago`;
-  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
-  if (dated) return shortDateTime(d);
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }

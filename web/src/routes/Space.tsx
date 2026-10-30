@@ -7,7 +7,6 @@ import {
   useParams,
 } from "@tanstack/react-router";
 import { useState } from "react";
-import { unreadCounts } from "../api/activity";
 import { landingChannel } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
@@ -42,6 +41,7 @@ import { SpaceWelcome } from "../components/SpaceWelcome";
 import { Tooltip } from "../components/Tooltip";
 import { VoiceBar } from "../components/VoiceBar";
 import { VoiceChannel } from "../components/VoiceChannel";
+import { unreadCounts } from "../core/activity";
 import { canCreateInvites, canManageChannels } from "../core/permissions";
 import { badgeCount } from "../core/unreads";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitPreview } from "./preview";
+import { splitPreview } from "./activityPreview";
 
 describe("splitPreview", () => {
   it("highlights the reader's handle", () => {

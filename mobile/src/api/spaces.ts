@@ -1,4 +1,4 @@
-import { ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
+import { unreadCounts } from "@stoop/core/activity";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { chatClient } from "./clients";
 
@@ -10,9 +10,9 @@ import { chatClient } from "./clients";
 export type SpaceListing = {
   space: Space;
   // Unread mentions and replies addressed to this account, as web's rail
-  // badge counts them (web/src/api/activity.ts → unreadCounts): from the
-  // first page of Activity, leaving out what the server stamped muted and
-  // thread replies.
+  // badge counts them (core/activity.ts → unreadCounts): from the first
+  // page of Activity, leaving out what the server stamped muted and thread
+  // replies.
   mentions: number;
 };
 
@@ -25,16 +25,12 @@ export async function loadSpaces(
 ): Promise<SpaceListing[]> {
   const chat = chatClient(origin, token);
   const options = { signal, timeoutMs: TIMEOUT_MS };
-  const [{ spaces }, { items }] = await Promise.all([
+  const [{ spaces }, activity] = await Promise.all([
     chat.listSpaces({}, options),
     chat.listActivity({}, options),
   ]);
-  const mentions = new Map<string, number>();
-  for (const item of items) {
-    if (item.readAt || item.muted || item.kind === ActivityKind.THREAD_REPLY) continue;
-    mentions.set(item.spaceId, (mentions.get(item.spaceId) ?? 0) + 1);
-  }
-  return spaces.map((space) => ({ space, mentions: mentions.get(space.id) ?? 0 }));
+  const { bySpace } = unreadCounts(activity);
+  return spaces.map((space) => ({ space, mentions: bySpace.get(space.id) ?? 0 }));
 }
 
 // "1 mention", "3 mentions": a badge's count as a screen reader says it.

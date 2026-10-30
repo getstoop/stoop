@@ -1,7 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { type ActivityData, alertingCount } from "../api/activity";
 import { captureState, isCapturing, tabTitle } from "../api/capture";
 import { isDesktop, setBadge, shellOwnsVoiceKeys } from "../api/platform";
 import { usePushToTalkStore } from "../api/pushToTalk";
@@ -10,6 +9,7 @@ import { toggleDeafen, toggleMute } from "../api/voice";
 import { stepVolume, useVoiceVolumeStore } from "../api/voiceVolume";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
+import { type ActivityData, alertingCount } from "../core/activity";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
 import { usePushToTalk } from "../hooks/usePushToTalk";
 import { useShortcut, useShortcutListener } from "../hooks/useShortcut";
