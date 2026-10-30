@@ -6,7 +6,7 @@ import { useInvites, useMe } from "../../../api/queries";
 import { PlusIcon } from "../../../components/Icons";
 import { canManageInvites } from "../../../core/permissions";
 import type { Invite } from "../../../gen/stoop/chat/v1/invite_pb";
-import type { Space } from "../../../gen/stoop/chat/v1/space_pb";
+import { type Space, SpaceRole } from "../../../gen/stoop/chat/v1/space_pb";
 import { confirm } from "../../../stores/dialogs";
 import { InviteTable } from "./InviteTable";
 import { NewInviteModal } from "./NewInviteModal";
@@ -66,6 +66,8 @@ export function InvitesSection({ space }: { space: Space }) {
           {manages
             ? `Everyone's invites to ${space.name}. Anyone with a link joins as a member; make them an admin from Members once they're in.`
             : `Invites you made. Anyone with a link joins ${space.name} as a member.`}
+          {invites?.some((invite) => invite.role === SpaceRole.ADMIN) &&
+            " An invite marked “joins as admin” is from before admin invites were withdrawn and still grants it."}
         </p>
         <InviteTable
           invites={invites}

@@ -16,7 +16,7 @@ import {
 } from "../../../components/DataTable";
 import { DotsMenu, type MenuItem } from "../../../components/DotsMenu";
 import type { Invite } from "../../../gen/stoop/chat/v1/invite_pb";
-import type { Space } from "../../../gen/stoop/chat/v1/space_pb";
+import { type Space, SpaceRole } from "../../../gen/stoop/chat/v1/space_pb";
 import { notice } from "../../../stores/dialogs";
 import { InviteUses } from "./InviteUses";
 
@@ -92,7 +92,17 @@ export function InviteTable({
             ) : (
               <span className="invite-label muted">No label</span>
             )}
-            <code className="invite-code">{invite.code}</code>
+            <code className="invite-code">
+              {invite.code}
+              {invite.role === SpaceRole.ADMIN && (
+                <span
+                  className="badge warn"
+                  title="Made before admin invites were withdrawn; it still grants admin while its creator holds it"
+                >
+                  joins as admin
+                </span>
+              )}
+            </code>
           </div>
         ),
       },

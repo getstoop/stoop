@@ -67,11 +67,14 @@ export function NewInviteModal({
       // clipboard to the click, and the refetch below would outlast it.
       // The row's Copy link is there if this can't be.
       if (res.invite) {
-        navigator.clipboard
-          .writeText(
+        try {
+          await navigator.clipboard.writeText(
             inviteLink(res.invite.code, space.name, instanceStatus?.publicUrl),
-          )
-          .catch(() => {});
+          );
+        } catch {
+          // No clipboard (plain HTTP on a LAN) or a refused write: the
+          // invite exists either way, and its row has Copy link.
+        }
       }
       await queryClient.invalidateQueries({ queryKey: ["invites", space.id] });
       onClose();
