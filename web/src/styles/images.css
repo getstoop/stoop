@@ -22,11 +22,38 @@
   font-weight: inherit;
 }
 
+/* A space's icon outside the rail (settings header, welcome, About, the
+   invite page): drawn as the rail draws the open space, a rounded
+   square, since it always names the space you are in. */
 .space-pill.static {
   cursor: default;
+  border-radius: var(--radius-lg);
   width: 44px;
   height: 44px;
   flex: none;
+}
+
+/* Space settings → General: the icon's preview left of its label and
+   description, coloured and rounded like the open space's pill in the
+   rail. IconSetting sets its side to the words' height. */
+.icon-setting-text {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.icon-preview {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-size: var(--text-xl);
 }
 
 .space-settings-title {
@@ -59,10 +86,4 @@
 .image-picker .upload-error {
   margin: 0;
   flex-basis: 100%;
-}
-
-.icon-row {
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
 }

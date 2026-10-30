@@ -8,8 +8,14 @@ import { expect, pastGate, seed, signIn, test } from "./lib";
 
 const DESCRIPTION =
   "Neighbours between 4th and 7th. Tool library, stoop sales, and the group chat that finally replaced the group text.";
-const WELCOME =
-  "**Welcome to the block.** A few things worth knowing:\n- **#general** is for anything at all.\n- Be neighbourly.";
+// Typed into the welcome's editor line by line: its input rules turn the
+// markers into bold and a list, as the composer's do; Enter in a list
+// starts the next item.
+const WELCOME = [
+  "**Welcome to the block.** A few things worth knowing:",
+  "- **#general** is for anything at all.",
+  "Be neighbourly.",
+];
 
 test("what a space says about itself", async ({ browser }) => {
   const { suffix, tokens, space } = await seed({
@@ -28,31 +34,33 @@ test("what a space says about itself", async ({ browser }) => {
     "a space with nothing to say renders no description line",
   ).toHaveCount(0);
 
-  await A.goto(`/s/${spaceId}/settings?tab=about`);
-  const about = A.locator(".about-section");
-  const fields = about.locator("textarea");
-  await expect(
-    fields,
-    "About offers a description and a welcome field",
-  ).toHaveCount(2);
-  await fields.first().fill(DESCRIPTION);
-  await fields.last().fill(WELCOME);
+  await A.goto(`/s/${spaceId}/settings`);
+  const about = A.locator(".general-section");
+  const description = about.locator("textarea");
+  await expect(description, "General offers a description field").toHaveCount(
+    1,
+  );
+  await description.fill(DESCRIPTION);
   await expect(about, "the description counts down from 200").toContainText(
     `${DESCRIPTION.length} / 200`,
   );
 
-  // The preview renders the welcome the way a member will see it: the
-  // asterisks become bold rather than staying on the page.
-  await about.locator(".chip", { hasText: "Preview" }).click();
-  const preview = A.locator(".about-preview");
-  await expect(preview, "preview renders the markdown").toContainText(
-    "Welcome to the block.",
-  );
-  await expect(preview, "and leaves no asterisks").not.toContainText("**");
-  await about.locator(".chip", { hasText: "Write" }).click();
+  // The welcome is written in the composer's editor, so it reads the way
+  // a member will see it: the asterisks become bold as they are typed.
+  const welcomeField = about.getByRole("textbox", { name: "Welcome" });
+  await welcomeField.click();
+  for (const [i, line] of WELCOME.entries()) {
+    if (i > 0) await welcomeField.press("Enter");
+    await welcomeField.pressSequentially(line);
+  }
+  await expect(
+    welcomeField.locator("strong").first(),
+    "the editor shows the bold",
+  ).toHaveText("Welcome to the block.");
+  await expect(welcomeField, "and leaves no asterisks").not.toContainText("**");
 
   await about.locator("button.primary").click();
-  await expect(about, "About saves both fields").toContainText("Saved");
+  await expect(about, "General saves both fields").toContainText("Saved");
 
   // ---- The sidebar line: one line, cut off, and it opens the dialog
   await A.goto(`/s/${spaceId}`);
@@ -177,13 +185,13 @@ test("what a space says about itself", async ({ browser }) => {
   ).toContainText("Welcome to the block.");
 
   // ---- A plain member may read it but not write it
-  await B.goto(`/s/${bSpaceId}/settings?tab=about`);
+  await B.goto(`/s/${bSpaceId}/settings`);
   await expect(
     B.locator(".composer .rich-editor-content"),
     "a member is bounced out of space settings",
   ).toBeVisible();
   await expect(
-    B.locator(".about-section"),
-    "a member has no About fields to write",
+    B.locator(".general-section"),
+    "a member has no General fields to write",
   ).toHaveCount(0);
 });

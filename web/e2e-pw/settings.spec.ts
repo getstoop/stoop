@@ -50,21 +50,22 @@ test("space settings, roles and deletion", async ({ browser }) => {
   await spaceMenu(A, "Space settings");
   await expect(A, "owner opens settings").toHaveURL(/\/settings$/);
 
-  // Rename the space: sidebar and B's pill update live.
-  const spaceName = A.getByLabel("Space name");
-  await spaceName.fill("The Porch");
-  await spaceName.press("Enter");
+  // Rename the space and let members invite, one Save for both: the
+  // sidebar and B's pill update live, and B gains the Invite chip.
+  const general = A.locator(".general-section");
+  await A.getByLabel("Space name").fill("The Porch");
+  await A.getByLabel("Members can create invites").click();
+  await expect(
+    B.locator(".space-name"),
+    "nothing applies before Save",
+  ).not.toHaveText("The Porch");
+  await general.getByRole("button", { name: "Save changes" }).click();
   await expect(A.locator(".profile-header h2"), "space renamed").toHaveText(
     "The Porch",
   );
   await expect(B.locator(".space-name"), "B sees the new name live").toHaveText(
     "The Porch",
   );
-
-  // Members can invite toggle → B gains the Invite chip live.
-  await A.locator(".toggle-row", { hasText: "Members can create invites" })
-    .locator("input")
-    .click();
   await expect
     .poll(() => menuItems(B), { message: "invite toggle reaches B live" })
     .toContain("Invite people");

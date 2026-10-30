@@ -84,7 +84,7 @@ loop, nesting the redirect parameter each time.
     /dm
       /                         conversation list
       /$channelId    ?m=<id> ?t=<root>  ChannelView with an empty space
-    /s/$spaceId/settings   ?tab=about|channels|members|banned|integrations|owner
+    /s/$spaceId/settings   ?tab=channels|members|groups|invites|banned|integrations|owner
     /s/$spaceId
       /                         space index
       /search        ?q=<words>  message search

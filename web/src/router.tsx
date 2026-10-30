@@ -310,7 +310,6 @@ const spaceIndexRoute = createRoute({
 // column takes the channel sidebar's place (components/SettingsFrame).
 // ?tab= picks the section; none is General.
 const SPACE_SETTINGS_TABS = [
-  "about",
   "channels",
   "members",
   "groups",

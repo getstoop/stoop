@@ -9,7 +9,6 @@ import {
   canManageChannels,
 } from "../../core/permissions";
 import { type Space, SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
-import { AboutSection } from "./AboutSection";
 import { BansSection } from "./BansSection";
 import { ChannelsSection } from "./ChannelsSection";
 import { DangerSection, InstanceAdminDelete } from "./DangerSection";
@@ -28,7 +27,6 @@ import { ModerationLegend } from "./ModerationLegend";
 
 type Tab =
   | "general"
-  | "about"
   | "channels"
   | "members"
   | "groups"
@@ -39,7 +37,6 @@ type Tab =
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "general", label: "General" },
-  { key: "about", label: "About" },
   { key: "channels", label: "Channels" },
   { key: "members", label: "Members" },
   { key: "groups", label: "Groups" },
@@ -124,7 +121,6 @@ export function SpaceSettingsPage() {
       ))}
     >
       {active === "general" && <GeneralSection space={space} />}
-      {active === "about" && <AboutSection space={space} />}
       {active === "channels" && <ChannelsSection space={space} />}
       {active === "members" && (
         <>

@@ -55,6 +55,7 @@ export function RichEditor({
   onPaste,
   onBlur,
   placeholder = "",
+  label,
   mentions,
   autoFocus = false,
   fieldRef,
@@ -70,6 +71,8 @@ export function RichEditor({
   onPaste?: (e: ClipboardEvent) => void;
   onBlur?: () => void;
   placeholder?: string;
+  // The field's accessible name, where no visible label points at it.
+  label?: string;
   // The members a typed @handle is drawn as a mention for.
   mentions?: MentionContext;
   // Focus on mount with the caret at the end.
@@ -127,6 +130,7 @@ export function RichEditor({
         role: "textbox",
         "aria-multiline": "true",
         "aria-placeholder": placeholderRef.current,
+        ...(label && { "aria-label": label }),
       }),
       handleKeyDown: (_view, e) => {
         handlers.current.onKeyDown(e);

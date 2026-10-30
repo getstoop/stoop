@@ -74,7 +74,9 @@
   border: 2px solid var(--accent);
 }
 
-.space-pill:hover,
+/* A static pill (the settings header) is a picture, not a link, so it
+   has no hover. */
+.space-pill:not(.static):hover,
 .space-pill.active {
   border-radius: var(--radius-lg);
   background: var(--accent);

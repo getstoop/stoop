@@ -1,137 +1,168 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { chatClient } from "../../api/clients";
-import { errorText } from "../../api/errors";
-import { filesClient } from "../../api/files";
 import { useVoiceAvailable } from "../../api/queries";
 import { MAX_SPACE_NAME } from "../../api/spaces";
-import { Field } from "../../components/Field";
-import { controlAttrs } from "../../components/fieldControl";
-import { ImagePicker } from "../../components/ImagePicker";
+import { SettingRow } from "../../components/SettingRow";
 import { Switch } from "../../components/Switch";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
+import { IconSetting } from "./IconSetting";
+import { WelcomeEditor } from "./WelcomeEditor";
 
+// The server's own limit, mirrored so the field can count down rather
+// than let a save fail (internal/chat/spaces.go).
+const DESCRIPTION_MAX = 200;
+
+// Everything a space is and says about itself, as one form with one Save:
+// the name, the line an invite shows a stranger, the greeting a member
+// reads on arrival, and the two switches. The icon is the exception
+// (IconSetting): it applies as soon as it uploads, like an avatar does.
 export function GeneralSection({ space }: { space: Space }) {
   const queryClient = useQueryClient();
-  const [name, setName] = useState(space.name);
-  const form = useFieldErrors(["name"]);
   const voiceAvailable = useVoiceAvailable();
-  // The toggles have no field to carry a refusal.
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  useEffect(() => setName(space.name), [space.name]);
+  const [name, setName] = useState(space.name);
+  const [description, setDescription] = useState(space.description);
+  const [welcome, setWelcome] = useState(space.welcome);
+  const [membersCanInvite, setMembersCanInvite] = useState(
+    space.membersCanInvite,
+  );
+  const [voiceEnabled, setVoiceEnabled] = useState(space.voiceEnabled);
+  const [state, setState] = useState<"idle" | "busy" | "saved">("idle");
+  const form = useFieldErrors(["name", "description", "welcome"]);
 
-  const update = async (patch: {
-    name?: string;
-    membersCanInvite?: boolean;
-    voiceEnabled?: boolean;
-  }) => {
-    setError(null);
+  // Another admin's edit arrives as SpaceUpdated; adopt what the server
+  // says for that field.
+  useEffect(() => setName(space.name), [space.name]);
+  useEffect(() => setDescription(space.description), [space.description]);
+  useEffect(() => setWelcome(space.welcome), [space.welcome]);
+  useEffect(
+    () => setMembersCanInvite(space.membersCanInvite),
+    [space.membersCanInvite],
+  );
+  useEffect(() => setVoiceEnabled(space.voiceEnabled), [space.voiceEnabled]);
+
+  const nameChanged = name.trim() !== space.name;
+  const descriptionChanged = description !== space.description;
+  const welcomeChanged = welcome !== space.welcome;
+  const inviteChanged = membersCanInvite !== space.membersCanInvite;
+  const voiceChanged = voiceEnabled !== space.voiceEnabled;
+  const changed =
+    nameChanged ||
+    descriptionChanged ||
+    welcomeChanged ||
+    inviteChanged ||
+    voiceChanged;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
     form.begin();
+    if (!name.trim()) {
+      form.set("name", "Enter a space name.");
+      return;
+    }
+    setState("busy");
     try {
-      await chatClient.updateSpace({ spaceId: space.id, ...patch });
+      await chatClient.updateSpace({
+        spaceId: space.id,
+        name: nameChanged ? name.trim() : undefined,
+        description: descriptionChanged ? description : undefined,
+        welcome: welcomeChanged ? welcome : undefined,
+        membersCanInvite: inviteChanged ? membersCanInvite : undefined,
+        voiceEnabled: voiceChanged ? voiceEnabled : undefined,
+      });
       await queryClient.invalidateQueries({ queryKey: ["spaces"] });
       // The voice switch decides which channels the space lists.
-      if (patch.voiceEnabled !== undefined) {
+      if (voiceChanged) {
         await queryClient.invalidateQueries({
           queryKey: ["channels", space.id],
         });
       }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
+      setState("saved");
+      setTimeout(() => setState("idle"), 1500);
     } catch (err) {
-      if (patch.name !== undefined) form.fail(err);
-      else setError(errorText(err));
+      form.fail(err);
+      setState("idle");
     }
   };
-  const rename = (e: FormEvent) => {
-    e.preventDefault();
-    if (name.trim() && name.trim() !== space.name)
-      update({ name: name.trim() });
-  };
 
   return (
-    <section className="card">
-      <h3>General</h3>
-      <form ref={form.formRef} onSubmit={rename}>
-        <Field label="Space name" error={form.errors.name}>
-          {(control) => (
-            <div className="card-row">
-              <input
-                {...controlAttrs(control)}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={MAX_SPACE_NAME}
-                required
-              />
-              <button
-                type="submit"
-                className="primary"
-                disabled={name.trim() === space.name}
-              >
-                {saved ? "Saved" : "Rename"}
-              </button>
-            </div>
-          )}
-        </Field>
-      </form>
-      <IconRow space={space} />
-      <label className="toggle-row">
-        <Switch
-          checked={space.membersCanInvite}
-          onChange={(e) => update({ membersCanInvite: e.target.checked })}
+    <form className="card general-section" ref={form.formRef} onSubmit={submit}>
+      <IconSetting space={space} />
+      <SettingRow id="space-name" title="Space name" error={form.errors.name}>
+        <input
+          id="space-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={MAX_SPACE_NAME}
+          required
         />
-        <span>
-          <strong>Members can create invites</strong>
-          <span className="muted small">
-            {" "}
-            — otherwise only admins and the owner can. Members' invites always
-            grant the member role.
-          </span>
+      </SettingRow>
+      <SettingRow
+        id="space-description"
+        title="Description"
+        description="One line, shown under the space name and to anyone holding an invite link. Plain text."
+        error={form.errors.description}
+      >
+        <textarea
+          id="space-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={DESCRIPTION_MAX}
+          rows={2}
+          placeholder="Neighbours between 4th and 7th."
+        />
+        <span className="muted small">
+          {description.length} / {DESCRIPTION_MAX}
         </span>
-      </label>
+      </SettingRow>
+      <SettingRow
+        title="Welcome"
+        description="Members see this when they first arrive, and any time after from About this space. Formatted the way a message is, but no headings."
+        error={form.errors.welcome}
+      >
+        <WelcomeEditor value={welcome} onChange={setWelcome} />
+      </SettingRow>
+      <SettingRow
+        id="members-can-invite"
+        className="ruled"
+        title="Members can create invites"
+        description="Otherwise only admins and the owner can. Members' invites always grant the member role."
+      >
+        <Switch
+          id="members-can-invite"
+          checked={membersCanInvite}
+          onChange={(e) => setMembersCanInvite(e.target.checked)}
+        />
+      </SettingRow>
       {voiceAvailable && (
-        <label className="toggle-row">
+        <SettingRow
+          id="voice-enabled"
+          className="ruled"
+          title="Voice channels"
+          description="Off hides them and ends any call; nothing is deleted."
+        >
           <Switch
-            checked={space.voiceEnabled}
-            onChange={(event) => update({ voiceEnabled: event.target.checked })}
+            id="voice-enabled"
+            checked={voiceEnabled}
+            onChange={(e) => setVoiceEnabled(e.target.checked)}
           />
-          <span>
-            <strong>Voice channels</strong>
-            <span className="muted small">
-              {" "}
-              — off hides them and ends any call; nothing is deleted.
-            </span>
-          </span>
-        </label>
+        </SettingRow>
       )}
-      {error && (
+      {form.formError && (
         <p className="error" role="alert">
-          {error}
+          {form.formError}
         </p>
       )}
-    </section>
-  );
-}
-
-// The space icon: re-encoded server-side to a 512 px square PNG; members
-// see it in the rail as soon as the SpaceUpdated event lands.
-function IconRow({ space }: { space: Space }) {
-  const queryClient = useQueryClient();
-  const upload = async (bytes: Uint8Array) => {
-    await filesClient.uploadSpaceIcon({ spaceId: space.id, data: bytes });
-    await queryClient.invalidateQueries({ queryKey: ["spaces"] });
-  };
-  return (
-    <div className="card-row icon-row">
-      <span className="muted small">
-        Icon — PNG, JPEG, GIF, or WebP up to 2 MB, cropped to a square.
-      </span>
-      <ImagePicker
-        label={space.iconFileId ? "Change icon" : "Upload icon"}
-        onPick={upload}
-      />
-    </div>
+      <div className="setting-actions">
+        <button
+          type="submit"
+          className="primary"
+          disabled={state === "busy" || !changed}
+        >
+          {state === "saved" ? "Saved" : "Save changes"}
+        </button>
+      </div>
+    </form>
   );
 }
