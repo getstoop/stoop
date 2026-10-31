@@ -306,3 +306,128 @@ func TestCloseSpaceChannelIsNotFound(t *testing.T) {
 		t.Errorf("closing a space channel: want not_found, got %v, %v", res, err)
 	}
 }
+
+// The list's preview line: the newest message as one line, its author and
+// time, with mentions as names, and nothing to quote once it is deleted.
+func TestDirectMessageLastMessage(t *testing.T) {
+	pool, _, svc := newTestService(t)
+	alice := newUser(t, pool, "alice", authctx.RoleMember)
+	bob := newUser(t, pool, "bob", authctx.RoleMember)
+
+	sp, err := svc.CreateSpace(alice, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: "Porch"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv, err := svc.CreateInvite(alice, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: sp.Msg.Space.Id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.JoinSpace(bob, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: inv.Msg.Invite.Code})); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(bob)}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	channelID := opened.Msg.DirectMessage.Channel.Id
+	if last := opened.Msg.DirectMessage.LastMessage; last != nil {
+		t.Errorf("a new conversation has no last message, got %v", last)
+	}
+	bobsLast := func() *chatv1.DirectMessageLast {
+		t.Helper()
+		res, err := svc.ListDirectMessages(bob, connect.NewRequest(&chatv1.ListDirectMessagesRequest{}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Msg.DirectMessages) != 1 {
+			t.Fatalf("bob's list: want one conversation, got %d", len(res.Msg.DirectMessages))
+		}
+		return res.Msg.DirectMessages[0].LastMessage
+	}
+
+	sent, err := svc.SendMessage(alice, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: channelID, Content: "**Saturday?** " + mentionOf(bob),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The token stored "someone"; the line reads bob's name as it is now.
+	if _, err := pool.Exec(context.Background(), `UPDATE users SET username = 'robert' WHERE id = $1`, authctx.UserID(bob)); err != nil {
+		t.Fatal(err)
+	}
+	last := bobsLast()
+	if last == nil || last.MessageId != sent.Msg.Message.Id || last.Author.GetUsername() != "alice" ||
+		last.Preview != "Saturday? @robert" || last.Deleted || !last.CreatedAt.AsTime().Equal(sent.Msg.Message.CreatedAt.AsTime()) {
+		t.Errorf("last message: got %v", last)
+	}
+
+	// Reopening an existing conversation answers with the same line.
+	again, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(alice)}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := again.Msg.DirectMessage.LastMessage.GetMessageId(); got != sent.Msg.Message.Id {
+		t.Errorf("OpenDirectMessage's last message: got %q", got)
+	}
+
+	// A deleted message hands the line back to the one before it.
+	newer, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "sure"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := bobsLast().GetPreview(); got != "sure" {
+		t.Errorf("after bob's reply: preview %q", got)
+	}
+	if _, err := svc.DeleteMessage(bob, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: newer.Msg.Message.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if got := bobsLast().GetMessageId(); got != sent.Msg.Message.Id {
+		t.Errorf("after the delete: last message %q, want alice's", got)
+	}
+
+	// A deleted message that still holds a thread stays newest, with
+	// nothing to quote.
+	if _, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{
+		ChannelId: channelID, Content: "in a thread", ThreadRootId: sent.Msg.Message.Id,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	// A reply that stays in its thread is not the conversation's newest.
+	if got := bobsLast().GetMessageId(); got != sent.Msg.Message.Id {
+		t.Errorf("after a thread reply: last message %q, want alice's", got)
+	}
+	if _, err := svc.DeleteMessage(alice, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: sent.Msg.Message.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if last := bobsLast(); last.GetMessageId() != sent.Msg.Message.Id || !last.Deleted || last.Preview != "" {
+		t.Errorf("deleted thread starter: got %v", last)
+	}
+
+	// The line quotes a message, so a token without dms.read gets none,
+	// from the RPCs that don't ask for it themselves.
+	asToken := func(grants ...authctx.Action) context.Context {
+		return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: authctx.UserID(bob), Role: authctx.RoleMember, Kind: authctx.KindPerson,
+			Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialPersonalToken, Grants: grants}})
+	}
+	posted, err := svc.OpenDirectMessage(asToken(authctx.DMsPost), connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(alice)}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := posted.Msg.DirectMessage.LastMessage; last != nil {
+		t.Errorf("OpenDirectMessage with dms.post only: got %v", last)
+	}
+	closed, err := svc.SetDirectMessageClosed(asToken(authctx.PreferencesManage), connect.NewRequest(&chatv1.SetDirectMessageClosedRequest{ChannelId: channelID, Closed: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := closed.Msg.DirectMessage.LastMessage; last != nil {
+		t.Errorf("SetDirectMessageClosed with preferences.manage only: got %v", last)
+	}
+	reopened, err := svc.SetDirectMessageClosed(asToken(authctx.PreferencesManage, authctx.DMsRead), connect.NewRequest(&chatv1.SetDirectMessageClosedRequest{ChannelId: channelID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reopened.Msg.DirectMessage.LastMessage.GetMessageId(); got != sent.Msg.Message.Id {
+		t.Errorf("SetDirectMessageClosed with dms.read: last message %q", got)
+	}
+}

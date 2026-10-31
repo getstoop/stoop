@@ -862,6 +862,22 @@ message DirectMessage {
   bool closed = 3;
   // Everyone in the conversation, the caller included.
   repeated MessageAuthor participants = 2;
+  // The newest message, for the list's preview line. Unset when the
+  // conversation has none, or the credential lacks dms.read.
+  DirectMessageLast last_message = 4;
+}
+
+// DirectMessageLast is a conversation's newest message as one line: who
+// sent it, what it says and when.
+message DirectMessageLast {
+  string message_id = 1;
+  MessageAuthor author = 2;
+  // Plain text with mentions as names, truncated; the first file's name
+  // when it has no text. Empty when the message was deleted (a deleted
+  // message stays newest while its thread still has replies).
+  string preview = 3;
+  bool deleted = 4;
+  google.protobuf.Timestamp created_at = 5;
 }
 
 message OpenDirectMessageRequest {

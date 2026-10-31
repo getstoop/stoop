@@ -50,6 +50,23 @@ WHERE c.kind = 3
   )
 ORDER BY c.last_message_id DESC NULLS LAST, c.created_at DESC;
 
+-- ListDMLastMessages is the newest message of each conversation, by the
+-- ids its channel row points at (last_message_id, which
+-- RecomputeChannelLastMessage keeps on something that shows), for the
+-- list's preview line. Only messages in the user's own conversations:
+-- an id from anywhere else finds nothing. A tombstone counts only while
+-- it holds a thread, as in RecomputeChannelLastMessage, so a delete that
+-- lands between reading the channels and this finds nothing rather than
+-- a message the channel no longer points at.
+-- name: ListDMLastMessages :many
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at,
+    (m.deleted_at IS NOT NULL)::bool AS deleted,
+    COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS first_file_id
+FROM messages m
+JOIN dm_members d ON d.channel_id = m.channel_id AND d.user_id = sqlc.arg(user_id)
+WHERE m.id = ANY(sqlc.arg('message_ids')::uuid[])
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id));
+
 -- SetDMClosed takes a conversation off the caller's own list, or puts it
 -- back. Only their row: closing is never leaving.
 -- name: SetDMClosed :exec
