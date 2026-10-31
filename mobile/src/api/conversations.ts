@@ -25,6 +25,19 @@ export async function loadConversations(origin: string, token: string): Promise<
   return { reader, dms: directMessages.filter((dm) => !dm.closed) };
 }
 
+// A conversation's menu (screens/Messages/ConversationMenu), as web's
+// channel menu: the caller's own mute, which keeps it from counting as
+// unread, and closing it, which takes it off the caller's own list until
+// someone writes in it. Only the mute is told to the caller's other
+// devices (ChannelMuted); a close is not, as on web.
+export async function setConversationMuted(origin: string, token: string, channelId: string, muted: boolean) {
+  await chatClient(origin, token).setChannelMuted({ channelId, muted }, { timeoutMs: TIMEOUT_MS });
+}
+
+export async function closeConversation(origin: string, token: string, channelId: string) {
+  await chatClient(origin, token).setDirectMessageClosed({ channelId, closed: true }, { timeoutMs: TIMEOUT_MS });
+}
+
 // Whether an event could change what the list shows: a conversation's
 // newest message, its unread count, its mute, a new one, or the people
 // in them (a renamed person, a new avatar). A direct message is a
