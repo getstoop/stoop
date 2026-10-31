@@ -4,7 +4,9 @@ name: See a direct message arrive in Messages, unread, then read, then answered
 # As ada (seed.mjs). dee writes to ada, as another device would, and the
 # row arrives live: dee's name, unread, the words. ada reads it and
 # answers elsewhere, and the row follows: no longer unread, then her
-# answer, said as hers. Rows open nothing yet (no conversation screen).
+# answer, said as hers. dee holds no socket, so her row says she is
+# offline: presence came with the socket's Ready. Rows open nothing yet
+# (no conversation screen).
 - clearKeychain
 - launchApp:
     clearState: true
@@ -40,21 +42,21 @@ name: See a direct message arrive in Messages, unread, then read, then answered
       STEP: dmSay
       TEXT: Are you around Saturday?
 - extendedWaitUntil:
-    visible: "${POSTER}, unread, .*, Are you around Saturday\\?"
+    visible: "${POSTER}, offline, unread, .*, Are you around Saturday\\?"
     timeout: 15000
 - runScript:
     file: scripts/rpc.js
     env:
       STEP: dmRead
 - extendedWaitUntil:
-    visible: "${POSTER}, [^,]*, Are you around Saturday\\?"
+    visible: "${POSTER}, offline, [^,]*, Are you around Saturday\\?"
     timeout: 10000
-- assertNotVisible: "${POSTER}, unread, .*"
+- assertNotVisible: "${POSTER}, offline, unread, .*"
 - runScript:
     file: scripts/rpc.js
     env:
       STEP: dmAnswer
       TEXT: After lunch works
 - extendedWaitUntil:
-    visible: "${POSTER}, [^,]*, You: After lunch works"
+    visible: "${POSTER}, offline, [^,]*, You: After lunch works"
     timeout: 10000

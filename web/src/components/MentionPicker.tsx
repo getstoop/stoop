@@ -1,8 +1,8 @@
 import { useRef } from "react";
 import { groupCount } from "../api/groups";
-import { presenceClass, presenceLabel } from "../api/presence";
 import { isBot } from "../core/identity";
 import { isChannelOrHere, type MentionCandidate } from "../core/mentions";
+import { presenceClass, presenceLabel } from "../core/presence";
 import { useScrollToSelected } from "../hooks/useScrollToSelected";
 import { useConnectionStore } from "../stores/connection";
 import { Avatar } from "./Avatar";

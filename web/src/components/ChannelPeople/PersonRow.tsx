@@ -1,6 +1,6 @@
-import { presenceClass, presenceLabel } from "../../api/presence";
 import { isBot } from "../../core/identity";
 import { roleLabel } from "../../core/permissions";
+import { presenceClass, presenceLabel } from "../../core/presence";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
 import { SpaceRole } from "../../gen/stoop/chat/v1/space_pb";
 import { useConnectionStore } from "../../stores/connection";

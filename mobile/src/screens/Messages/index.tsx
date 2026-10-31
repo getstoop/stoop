@@ -124,7 +124,13 @@ export default function Messages({ server }: { server: SavedServer }) {
           data={ready.list.dms}
           keyExtractor={(dm) => dm.channel?.id ?? ""}
           renderItem={({ item }) => (
-            <ConversationRow dm={item} meId={ready.list.reader.id} origin={server.origin} token={ready.token} />
+            <ConversationRow
+              dm={item}
+              meId={ready.list.reader.id}
+              serverId={server.id}
+              origin={server.origin}
+              token={ready.token}
+            />
           )}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}

@@ -12,7 +12,7 @@ import { useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
 import { isSignedOut } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
-import { presenceClass, presenceLabel, useDndActive } from "../api/presence";
+import { useDndActive } from "../api/presence";
 import {
   useActivity,
   useInstanceStatus,
@@ -41,6 +41,7 @@ import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
 import { unreadCounts } from "../core/activity";
 import { dmUnreadTotal } from "../core/dms";
+import { presenceClass, presenceLabel } from "../core/presence";
 import { badgeCount } from "../core/unreads";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { SpaceCreationPolicy } from "../gen/stoop/instance/v1/instance_pb";
