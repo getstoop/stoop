@@ -1,0 +1,80 @@
+appId: ${APP_ID}
+name: Start a conversation from New message, and land in the one that exists
+---
+# As ada (seed.mjs). The pencil on Messages opens New message: dee, who
+# shares a space with ada, is offered; bea, who shares none, isn't.
+# Start waits for someone picked; picking dee puts her in the To line,
+# and Start opens the conversation with her in place of the sheet. It is
+# the one that already exists: dee writing in hers lands there. (Only
+# ada and dee share a space in the seed, so a group isn't picked here.)
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "tab-messages"
+- extendedWaitUntil:
+    visible: "New message"
+    timeout: 15000
+- tapOn: "New message"
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}"
+    timeout: 15000
+- assertVisible: "People on .*"
+- assertNotVisible: "${OUTSIDER}, .*"
+- assertVisible: "Add more than one person to start a group."
+# Nobody picked: Start does nothing.
+- tapOn:
+    id: "start-conversation"
+- assertVisible: "${POSTER}, @${POSTER}"
+# Typing narrows the list; something nobody matches says so.
+- tapOn:
+    id: "new-message-to"
+- inputText: "zzz"
+- extendedWaitUntil:
+    visible: "No one matches that."
+    timeout: 5000
+- eraseText: 3
+- inputText: ${POSTER}
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}"
+    timeout: 5000
+- tapOn: "${POSTER}, @${POSTER}"
+- extendedWaitUntil:
+    visible: "Remove ${POSTER}"
+    timeout: 5000
+- tapOn:
+    id: "start-conversation"
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}, offline"
+    timeout: 15000
+- assertVisible: "Message ${POSTER}"
+# The conversation that was there already, not a second one.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: dmSay
+      TEXT: Found you
+- extendedWaitUntil:
+    visible: "Found you"
+    timeout: 10000

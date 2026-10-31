@@ -1,7 +1,8 @@
 import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
 
-// Who the picker offers: everyone reachable, minus the people already in
-// the conversation, narrowed by what has been typed. Matching is on both
+// Who a picker offers (web's pickers, the mobile app's New message):
+// everyone reachable, minus the people already in the conversation,
+// narrowed by what has been typed. Matching is on both
 // the display name and the username, so searching for either finds them.
 export function filterCandidates(
   users: MessageAuthor[],

@@ -38,3 +38,4 @@ executionOrder:
     - "See a mention in Activity with the tab's badge, open it, and see it read"
     - "See a direct message arrive in Messages, unread, then read, then answered"
     - "Open a conversation from Messages, read it live, answer, reply in a thread, and open it from Activity"
+    - "Start a conversation from New message, and land in the one that exists"
