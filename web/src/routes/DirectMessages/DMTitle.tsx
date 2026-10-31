@@ -1,15 +1,15 @@
+import { useDirectMessages } from "../../api/dms";
+import { presenceClass, presenceLabel } from "../../api/presence";
+import { useMe } from "../../api/queries";
+import { AvatarStack } from "../../components/AvatarStack";
+import { DeletedMark } from "../../components/DeletedMark";
 import {
   dmFaces,
   dmIsGroup,
   dmOther,
   dmTitle,
   personName,
-  useDirectMessages,
-} from "../../api/dms";
-import { presenceClass, presenceLabel } from "../../api/presence";
-import { useMe } from "../../api/queries";
-import { AvatarStack } from "../../components/AvatarStack";
-import { DeletedMark } from "../../components/DeletedMark";
+} from "../../core/dms";
 import { useConnectionStore } from "../../stores/connection";
 
 // The channel header for a DM: the other person with their presence, or a
