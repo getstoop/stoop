@@ -510,8 +510,8 @@ of unread items, newest first, with Mark all read on its heading, and a
 Read section of read ones with a rule between each, the first row of a
 day carrying the day, loading older pages as the list reaches its end. A row is the actor with the kind as a glyph on
 the avatar's corner (@, a reply arrow, a thread bubble, an envelope), a
-verb line ("mentioned you", "replied to you", "replied in a thread you're
-in", "sent you a direct message") with the channel beside it, the space
+verb line ("mentioned you", "replied to you", "replied in a thread",
+"sent you a direct message") with the channel beside it, the space
 when the reader belongs to more than one, and the muted bell when they
 silenced the room, then two lines of preview with the reader's handle and
 @channel lit. Mutes never hide a row.

@@ -468,3 +468,49 @@ export function ShareIcon({ color, size = 24, android = false }: IconProps & { a
     </Stroke>
   );
 }
+
+// The kinds an activity row marks on its avatar's corner, small and at a
+// heavier stroke so they read at 10px: a reply's arrow, a thread's
+// bubble, a direct message's envelope.
+function Glyph({ color, size, children }: { color: ColorValue; size: number; children: ReactNode }) {
+  return (
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </Svg>
+  );
+}
+
+export function ReplyGlyph({ color, size = 10 }: IconProps) {
+  return (
+    <Glyph color={color} size={size}>
+      <Path d="M9 14L4 9l5-5" />
+      <Path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+    </Glyph>
+  );
+}
+
+export function BubbleGlyph({ color, size = 10 }: IconProps) {
+  return (
+    <Glyph color={color} size={size}>
+      <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </Glyph>
+  );
+}
+
+export function MailGlyph({ color, size = 10 }: IconProps) {
+  return (
+    <Glyph color={color} size={size}>
+      <Rect x={3} y={5} width={18} height={14} rx={2} />
+      <Path d="M3 7l9 6 9-6" />
+    </Glyph>
+  );
+}

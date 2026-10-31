@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -15,7 +14,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { loadSpaces, type SpaceListing } from "../../api/spaces";
-import { ChevronDownIcon } from "../../components/Icons";
+import ServerHeader from "../../components/ServerHeader";
+import TabNotice from "../../components/TabNotice";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import SpaceRow from "./SpaceRow";
@@ -77,54 +77,25 @@ export default function Spaces({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${server.name}. Switch server`}
-          testID="server-switcher"
-          onPress={() => router.push({ pathname: "/servers", params: { current: server.id } })}
-          style={({ pressed }) => [styles.switcher, pressed && styles.pressed]}
-        >
-          <View style={styles.tile}>
-            <Text style={styles.tileLetter}>{server.name.trim().charAt(0).toUpperCase()}</Text>
-          </View>
-          <Text style={styles.server} numberOfLines={1}>
-            {server.name}
-          </Text>
-          <ChevronDownIcon color={theme.textMuted} />
-        </Pressable>
-      </View>
+      <ServerHeader server={server} />
       <Text style={styles.title} accessibilityRole="header">
         Spaces
       </Text>
       {list.state === "loading" && <ActivityIndicator style={styles.center} color={theme.textMuted} />}
       {list.state === "ended" && (
-        <View style={styles.notice} accessibilityRole="alert">
-          <Text style={styles.body}>
-            Your sign-in to {server.name} has ended. Sign in again to carry on.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              router.replace({ pathname: "/sign-in", params: { server: server.origin } })
-            }
-            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-          >
-            <Text style={styles.buttonLabel}>Sign in again</Text>
-          </Pressable>
-        </View>
+        <TabNotice
+          message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
+          action={{
+            label: "Sign in again",
+            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+          }}
+        />
       )}
       {list.state === "failed" && (
-        <View style={styles.notice} accessibilityRole="alert">
-          <Text style={styles.body}>Couldn't reach {hostOf(server.origin)}.</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={retry}
-            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-          >
-            <Text style={styles.buttonLabel}>Try again</Text>
-          </Pressable>
-        </View>
+        <TabNotice
+          message={`Couldn't reach ${hostOf(server.origin)}.`}
+          action={{ label: "Try again", onPress: retry }}
+        />
       )}
       {list.state === "ready" && (
         <FlatList
@@ -157,39 +128,6 @@ function makeStyles(theme: Theme) {
       flex: 1,
       backgroundColor: theme.surface,
     },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      height: 44,
-      paddingHorizontal: 16,
-    },
-    switcher: {
-      flexDirection: "row",
-      alignItems: "center",
-      flexShrink: 1,
-      gap: 8,
-      height: 44,
-      paddingRight: 8,
-    },
-    tile: {
-      width: 28,
-      height: 28,
-      borderRadius: tokens.radiusMd,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.accentSoft,
-    },
-    tileLetter: {
-      color: theme.accent,
-      fontSize: tokens.textUi,
-      fontWeight: "700",
-    },
-    server: {
-      flexShrink: 1,
-      color: theme.text,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
-    },
     title: {
       marginTop: 12,
       marginBottom: 8,
@@ -206,11 +144,6 @@ function makeStyles(theme: Theme) {
       paddingHorizontal: 8,
       paddingBottom: 16,
     },
-    notice: {
-      gap: 12,
-      marginTop: 8,
-      paddingHorizontal: 20,
-    },
     body: {
       color: theme.text,
       fontSize: tokens.textBody,
@@ -219,21 +152,6 @@ function makeStyles(theme: Theme) {
     empty: {
       paddingHorizontal: 12,
       color: theme.textMuted,
-    },
-    button: {
-      height: 50,
-      borderRadius: tokens.radiusMd,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.accent,
-    },
-    pressed: {
-      opacity: 0.85,
-    },
-    buttonLabel: {
-      color: theme.onAccent,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
     },
   });
 }

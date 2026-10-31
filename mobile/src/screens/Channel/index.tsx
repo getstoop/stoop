@@ -7,7 +7,8 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
-import { markActivityRead, markChannelActivityRead, markRead } from "../../api/messages";
+import { useActivity } from "../../activity/ActivityProvider";
+import { markRead } from "../../api/messages";
 import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
 import { useAudioPlayback } from "../../components/Attachments/audio";
@@ -99,6 +100,7 @@ export default function Channel({
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
   const status = useServerStatus(server.origin);
+  const { readChannel, markRead: readActivity } = useActivity();
   const { state, engine } = useChannelLog(server, spaceId, channelId);
   const { older, newer, retry, send, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder, landOn } = state;
@@ -179,8 +181,10 @@ export default function Channel({
   // on screen with the app open, as on web; not while the range stops
   // short of the newest message, whose newest row is not the channel's.
   // Its mentions are read with it, and on each coming on screen (one
-  // left unread with the marker already moved); the marker's channelRead
-  // event, sent after them, is what reloads the space's badges.
+  // left unread with the marker already moved), through the server's
+  // activity feed (src/activity), so the tab's badge follows; the
+  // marker's channelRead event, sent after them, is what reloads the
+  // space's badges.
   const newestId = messages.at(-1)?.id ?? "";
   useEffect(() => {
     if (!focused || !active) looked.current = false;
@@ -190,7 +194,7 @@ export default function Channel({
     if (!behind && looked.current) return;
     looked.current = true;
     if (behind) marked.current = newestId;
-    markChannelActivityRead(server.origin, token, channelId)
+    readChannel(channelId)
       .catch(() => 0)
       .then((read) => {
         if (behind || read > 0) return markRead(server.origin, token, channelId, newestId);
@@ -198,7 +202,7 @@ export default function Channel({
       .catch(() => {
         if (marked.current === newestId) marked.current = "";
       });
-  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer]);
+  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, readChannel]);
   // A mention arriving here while it is read is recorded after its
   // message goes out, so the pass above can miss it: its own event reads
   // it, then the marker again for the space's badges.
@@ -207,7 +211,7 @@ export default function Channel({
     const item = event.payload.value.item;
     if (!item || item.channelId !== channelId || item.threadRootId || item.readAt) return;
     if (!token || !focused || !active || hasNewer) return;
-    markActivityRead(server.origin, token, [item.id])
+    readActivity([item.id])
       .then(() => markRead(server.origin, token, channelId, item.messageId))
       .catch(() => {});
   });

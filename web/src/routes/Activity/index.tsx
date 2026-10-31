@@ -5,7 +5,8 @@ import { markActivityRead } from "../../api/activity";
 import { chatClient } from "../../api/clients";
 import { useActivity } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
-import { dayLabel, sameDay } from "../../core/dates";
+import { startsDay, withOlderPages } from "../../core/activity";
+import { dayLabel } from "../../core/dates";
 import type { ActivityItem } from "../../gen/stoop/chat/v1/activity_pb";
 import { ActivityRow } from "./ActivityRow";
 
@@ -25,10 +26,7 @@ export function ActivityPage() {
   const queryClient = useQueryClient();
 
   const recent = data?.items ?? [];
-  const all = [
-    ...recent,
-    ...older.filter((o) => !recent.some((r) => r.id === o.id)),
-  ];
+  const all = withOlderPages(recent, older);
   const fresh = all.filter((item) => !item.readAt);
   const earlier = all.filter((item) => item.readAt);
 
@@ -113,16 +111,6 @@ export function ActivityPage() {
         )}
       </div>
     </div>
-  );
-}
-
-// Newest first, so the day changes where the item above belongs to
-// another one; the first item always opens its day.
-function startsDay(item: ActivityItem, prev: ActivityItem | undefined) {
-  return (
-    !prev?.createdAt ||
-    !item.createdAt ||
-    !sameDay(timestampDate(prev.createdAt), timestampDate(item.createdAt))
   );
 }
 
