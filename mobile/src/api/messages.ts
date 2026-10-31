@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { ChannelHeader } from "@stoop/core/channelHeader";
-import { linkableChannels } from "@stoop/core/mentions";
+import { dmMembers } from "@stoop/core/dms";
+import { linkableChannels, NO_CHANNELS } from "@stoop/core/mentions";
 import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { authClient, chatClient } from "./clients";
@@ -13,15 +14,16 @@ import { authClient, chatClient } from "./clients";
 // opening, older pages as the reader scrolls up, and ListChanges from
 // the position held after a reconnect or a gap in the events), a
 // thread's replies and its root, the reader's own message, and what the
-// message menu does to one.
+// message menu does to one. A direct message is a channel with no
+// space (an empty spaceId): its header is the conversation's.
 
 const TIMEOUT_MS = 10000;
 export const PAGE = 50;
 // The server's largest ListChanges page.
 const CHANGES_PAGE = 200;
 
-// The channel's not being in the space's list means it was deleted, or
-// the reader can no longer see it.
+// The channel's not being in the space's list (or the conversation in
+// the reader's) means it was deleted, or the reader can no longer see it.
 export class ChannelGone extends Error {}
 
 export async function loadHeader(
@@ -30,6 +32,7 @@ export async function loadHeader(
   spaceId: string,
   channelId: string,
 ): Promise<ChannelHeader> {
+  if (!spaceId) return loadConversationHeader(origin, token, channelId);
   const chat = chatClient(origin, token);
   const options = { timeoutMs: TIMEOUT_MS };
   const [{ space }, { channels }, { user }, { members }, { groups }] = await Promise.all([
@@ -54,6 +57,31 @@ export async function loadHeader(
     channels: linkableChannels(channels),
     members: inChannel ? members.filter((member) => inChannel.has(member.userId)) : members,
     groups,
+  };
+}
+
+// A conversation's header: its people, who can read it and who a mention
+// may name, with no groups and no channels to link. There is no RPC for
+// one conversation, so it is found in the reader's list, which holds a
+// closed one too.
+async function loadConversationHeader(origin: string, token: string, channelId: string): Promise<ChannelHeader> {
+  const options = { timeoutMs: TIMEOUT_MS };
+  const [{ directMessages }, { user }] = await Promise.all([
+    chatClient(origin, token).listDirectMessages({}, options),
+    authClient(origin, token).getMe({}, options),
+  ]);
+  if (!user) throw new Error("The server answered with nothing.");
+  const dm = directMessages.find((candidate) => candidate.channel?.id === channelId);
+  if (!dm?.channel) throw new ChannelGone();
+  return {
+    space: undefined,
+    dm,
+    channel: dm.channel,
+    memberCount: dm.participants.length,
+    myUserId: user.id,
+    channels: NO_CHANNELS,
+    members: dmMembers(dm),
+    groups: [],
   };
 }
 

@@ -6,14 +6,33 @@ import TitlePill from "../Channel/TitlePill";
 
 // The thread screen's title, in the channel's pill: "Thread", and under
 // it the channel (a lock for a private one, as the channel's own title
-// has) and its space, once they are known.
-export default function ThreadTitle({ channel, spaceName }: { channel?: Channel; spaceName: string }) {
+// has) and its space, once they are known; in a direct message, the
+// conversation's title (`conversation`) instead.
+export default function ThreadTitle({
+  channel,
+  spaceName,
+  conversation,
+}: {
+  channel?: Channel;
+  spaceName: string;
+  conversation?: string;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const label = conversation
+    ? `Thread, ${conversation}`
+    : channel
+      ? `Thread, ${channel.name}, ${spaceName}`
+      : "Thread";
   return (
-    <TitlePill label={channel ? `Thread, ${channel.name}, ${spaceName}` : "Thread"}>
+    <TitlePill label={label}>
       <Text style={styles.name}>Thread</Text>
-      {channel && (
+      {conversation ? (
+        <Text style={styles.about} numberOfLines={1}>
+          {conversation}
+        </Text>
+      ) : (
+        channel && (
         <View style={styles.line}>
           {channel.private && <LockIcon color={theme.textMuted} size={12} />}
           <Text style={styles.about} numberOfLines={1}>
@@ -21,6 +40,7 @@ export default function ThreadTitle({ channel, spaceName }: { channel?: Channel;
             {channel.name} · {spaceName}
           </Text>
         </View>
+        )
       )}
     </TitlePill>
   );

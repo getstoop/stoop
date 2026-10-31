@@ -118,7 +118,8 @@ export type ComposerHandle = { open: () => void };
 export default forwardRef<
   ComposerHandle,
   {
-    channelName: string;
+    // #name, or a conversation's title (core headerPlace), for "Message …".
+    place: string;
     // Who and what a handle typed here names, and the server and session
     // the list's avatars are fetched with.
     mentionNames: ComposerMentions;
@@ -142,7 +143,7 @@ export default forwardRef<
     onEditDone: () => void;
   }
 >(function Composer(
-  { channelName, mentionNames, origin, token, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
+  { place, mentionNames, origin, token, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
   ref,
 ) {
   const theme = useTheme();
@@ -246,7 +247,7 @@ export default forwardRef<
     return () => sub.remove();
   }, []);
 
-  const placeholder = editing ? "Edit message" : inThread ? "Reply in thread" : `Message #${channelName}`;
+  const placeholder = editing ? "Edit message" : inThread ? "Reply in thread" : `Message ${place}`;
   const blank = isBlankMessage(draft);
   // Past the server's limit (written characters, a mention as its handle):
   // Send dims, and a line under the field says by how much.
@@ -490,7 +491,7 @@ export default forwardRef<
           </View>
           )
         )}
-        {inThread && !editing && <AlsoSendRow channelName={channelName} checked={alsoSend} onChange={setAlsoSend} />}
+        {inThread && !editing && <AlsoSendRow place={place} checked={alsoSend} onChange={setAlsoSend} />}
         <RichField
           ref={input}
           testID="composer"

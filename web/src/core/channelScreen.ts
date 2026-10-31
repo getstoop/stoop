@@ -509,7 +509,7 @@ function loses(state: ChannelScreen, event: ServerEvent): boolean {
   if (header)
     return losesChannel(
       event,
-      header.space.id,
+      header.space?.id ?? "",
       header.channel.id,
       header.myUserId,
     );

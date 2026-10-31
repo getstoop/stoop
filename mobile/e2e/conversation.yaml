@@ -1,0 +1,121 @@
+appId: ${APP_ID}
+name: Open a conversation from Messages, read it live, answer, reply in a thread, and open it from Activity
+---
+# As ada (seed.mjs). dee writes to ada as another device would; ada opens
+# the conversation from her Messages row. Its title says who it is with
+# (dee holds no socket, so offline), the history starts with the line a
+# conversation has, and what ada sends lands there once. dee writing
+# while it is open arrives live and is read, so back on Messages the row
+# isn't unread. A thread works as in a channel, titled by the
+# conversation, and the Activity tab's direct message row opens it too.
+- clearKeychain
+- launchApp:
+    clearState: true
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${SERVER}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${MEMBER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "tab-messages"
+- extendedWaitUntil:
+    visible: "New message"
+    timeout: 15000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: dmSay
+      TEXT: Can you water the plants Friday?
+- extendedWaitUntil:
+    visible: "${POSTER}, offline, unread, .*, Can you water the plants Friday\\?"
+    timeout: 15000
+- tapOn: "${POSTER}, offline, unread, .*"
+# The conversation: who it is with in the title, dee's message, and the
+# composer naming her.
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}, offline"
+    timeout: 15000
+- assertVisible: "Can you water the plants Friday\\?"
+- scrollUntilVisible:
+    element: "This is the beginning of your conversation with ${POSTER}."
+    direction: UP
+    timeout: 30000
+- tapOn: "Message ${POSTER}"
+- extendedWaitUntil:
+    visible:
+      id: "composer"
+    timeout: 5000
+- inputText: "Happy to, leave the key out"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "Happy to, leave the key out"
+    timeout: 10000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: count
+      CHANNEL_ID: ${output.dmId}
+      TEXT: Happy to, leave the key out
+- assertTrue: ${output.count == 1}
+# Live while open, and read.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: dmSay
+      TEXT: Thanks, it's under the mat
+- extendedWaitUntil:
+    visible: "Thanks, it's under the mat"
+    timeout: 10000
+# A thread in the conversation, titled by it. A tap on a message puts the
+# keyboard away first, as the long press would otherwise only do that.
+- tapOn: "Thanks, it's under the mat"
+- extendedWaitUntil:
+    notVisible:
+      id: "composer"
+    timeout: 5000
+- waitForAnimationToEnd:
+    timeout: 3000
+- longPressOn: "Thanks, it's under the mat"
+- extendedWaitUntil:
+    visible: "Reply in thread"
+    timeout: 5000
+- tapOn: "Reply in thread"
+- extendedWaitUntil:
+    visible: "Thread, ${POSTER}"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}, offline"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "${POSTER}, offline, [^,]*, Thanks, it's under the mat"
+    timeout: 10000
+- assertNotVisible: "${POSTER}, offline, unread, .*"
+# The Activity tab's row for dee's message opens the conversation at it.
+- tapOn:
+    id: "tab-activity"
+- extendedWaitUntil:
+    visible: ".*${POSTER} sent you a direct message.*Thanks, it's under the mat"
+    timeout: 15000
+- tapOn: ".*${POSTER} sent you a direct message.*Thanks, it's under the mat"
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}, offline"
+    timeout: 10000
+- assertVisible: "Thanks, it's under the mat"

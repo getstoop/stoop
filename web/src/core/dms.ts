@@ -1,5 +1,8 @@
+import { create } from "@bufbuild/protobuf";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
+import { type Member, MemberSchema } from "../gen/stoop/chat/v1/member_pb";
 import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
+import { SpaceRole } from "../gen/stoop/chat/v1/space_pb";
 import { sameDay } from "./dates";
 
 // How a direct message is named, drawn and counted, for web's DM list and
@@ -27,6 +30,20 @@ export function dmOthers(
 // own, so its title and face are made from who is in it.
 export function dmIsGroup(dm: DirectMessage): boolean {
   return dm.participants.length > 2;
+}
+
+// Everyone in a conversation as the members a mention typed in it may
+// name: a conversation has no space, so its people are its participants.
+export function dmMembers(dm: DirectMessage): Member[] {
+  return dm.participants.map((p) =>
+    create(MemberSchema, {
+      userId: p.id,
+      username: p.username,
+      displayName: p.displayName,
+      avatarFileId: p.avatarFileId,
+      role: SpaceRole.MEMBER,
+    }),
+  );
 }
 
 export function personName(p: MessageAuthor | undefined): string {

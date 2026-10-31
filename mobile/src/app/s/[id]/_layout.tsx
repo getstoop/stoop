@@ -5,8 +5,9 @@ import { useTheme } from "../../../theme";
 
 // Everything under /s/<id> is one saved server; an ID this phone doesn't
 // have goes back to the start. A stack: the four tabs at the bottom of
-// it, and a channel pushed over them, as a conversation covers the tab
-// bar in the system's own apps, with room for the composer. What is
+// it, and a channel or a direct message (/dm) pushed over them, as a
+// conversation covers the tab bar in the system's own apps, with room
+// for the composer. What is
 // under it reads the server from CurrentServer: a screen reached by
 // pressing gets none of this layout's route params. The server's
 // activity feed is held here too, for the Activity tab, its badge and
@@ -47,6 +48,8 @@ export default function ServerLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="space/[spaceId]/channel/[channelId]/index" options={floating} />
           <Stack.Screen name="space/[spaceId]/channel/[channelId]/thread/[rootId]" options={floating} />
+          <Stack.Screen name="dm/[channelId]/index" options={floating} />
+          <Stack.Screen name="dm/[channelId]/thread/[rootId]" options={floating} />
           {/* Search draws its own header row: the back button and the field's
               pill, floating as the channel's do. */}
           <Stack.Screen name="space/[spaceId]/search" options={{ headerShown: false }} />

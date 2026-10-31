@@ -1,3 +1,4 @@
+import { headerPlace } from "@stoop/core/channelHeader";
 import { isShown, threadItems } from "@stoop/core/channelLog";
 import { firstUnreadReplyId, type GroupedRow, threadRows } from "@stoop/core/grouping";
 import { canDeleteAnyMessage } from "@stoop/core/permissions";
@@ -230,11 +231,15 @@ export default function Thread({
       ),
     [pushOnce, router, server.id, spaceId, channelId],
   );
-  const search = header ? { spaceName: header.space.name, onPress: openSearch } : undefined;
+  // A direct message has no space to search, as on web.
+  const search = header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined;
+  const conversation = header?.dm ? headerPlace(header) : undefined;
   const title = (
     <Stack.Screen
       options={{
-        headerTitle: () => <ThreadTitle channel={header?.channel} spaceName={header?.space.name ?? ""} />,
+        headerTitle: () => (
+          <ThreadTitle channel={header?.channel} spaceName={header?.space?.name ?? ""} conversation={conversation} />
+        ),
         ...(Platform.OS === "ios"
           ? {
               unstable_headerRightItems: () => [
@@ -269,7 +274,7 @@ export default function Thread({
   if (outcome === "gone") {
     return (
       <Screen title={title}>
-        <Unavailable message="This channel isn't available any more." />
+        <Unavailable message={`This ${spaceId ? "channel" : "conversation"} isn't available any more.`} />
       </Screen>
     );
   }
@@ -334,7 +339,7 @@ export default function Thread({
                     onLongPress={actions.openMenu}
                     onReact={actions.reactTo}
                     target={actions.targetOf(item.message) ?? (item.message.id === flashId ? "focus" : undefined)}
-                    alsoSentTo={item.message.inChannel ? `#${channel.name}` : undefined}
+                    alsoSentTo={item.message.inChannel ? headerPlace(header) : undefined}
                     withDay
                   />
                 ) : (
@@ -385,7 +390,7 @@ export default function Thread({
             <Composer
               ref={actions.composer}
               key={rootId}
-              channelName={channel.name}
+              place={headerPlace(header)}
               mentionNames={mentionNames}
               origin={server.origin}
               token={token}
@@ -408,7 +413,7 @@ export default function Thread({
           <MessageMenu
             message={menuMessage}
             myUserId={myUserId}
-            canModerate={canDeleteAnyMessage(space)}
+            canModerate={!!space && canDeleteAnyMessage(space)}
             origin={server.origin}
             token={token}
             link={threadMessageLink(server.origin, spaceId, menuMessage)}

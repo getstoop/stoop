@@ -10,6 +10,7 @@ import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
+import { channelRoute, threadRoute } from "../Channel/routes";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ActivityRow from "./ActivityRow";
 import { type FeedRow, feedRows } from "./rows";
@@ -23,9 +24,9 @@ import { usePlaces } from "./usePlaces";
 // day. The first page is the server's feed (src/activity), the one the
 // tab's badge counts, kept live there with the older pages loaded as
 // the list reaches its end (held there too, so a read stamps them), and
-// a pull loads the feed again. Opening a row reads
-// it and opens the channel at the message, or its thread at the reply;
-// a direct message opens nothing until there is a conversation screen.
+// a pull loads the feed again. Opening a row reads it and opens the
+// channel (a direct message's conversation) at the message, or its
+// thread at the reply.
 
 export default function Activity({ server }: { server: SavedServer }) {
   const theme = useTheme();
@@ -65,18 +66,15 @@ export default function Activity({ server }: { server: SavedServer }) {
 
   const open = useCallback(
     (item: ActivityItem) => {
-      if (!item.spaceId) return;
       // Read on the way; a refusal doesn't hold the channel back.
       if (!item.readAt) markRead([item.id]).catch(() => {});
-      const params = { id: server.id, spaceId: item.spaceId, channelId: item.channelId, focus: item.messageId };
+      // A direct message has no space: its conversation's route.
+      const { spaceId, channelId, threadRootId, messageId } = item;
       pushOnce(() =>
         router.push(
-          item.threadRootId
-            ? {
-                pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
-                params: { ...params, rootId: item.threadRootId },
-              }
-            : { pathname: "/s/[id]/space/[spaceId]/channel/[channelId]", params },
+          threadRootId
+            ? threadRoute(server.id, spaceId, channelId, threadRootId, messageId)
+            : channelRoute(server.id, spaceId, channelId, messageId),
         ),
       );
     },

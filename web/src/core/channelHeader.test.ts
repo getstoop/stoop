@@ -2,6 +2,7 @@ import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 import { Permission } from "../gen/stoop/access/v1/access_pb";
 import { ChannelKind, ChannelSchema } from "../gen/stoop/chat/v1/channel_pb";
+import { DirectMessageSchema } from "../gen/stoop/chat/v1/chat_pb";
 import { GroupSchema } from "../gen/stoop/chat/v1/group_pb";
 import { MemberSchema } from "../gen/stoop/chat/v1/member_pb";
 import { SpaceRole, SpaceSchema } from "../gen/stoop/chat/v1/space_pb";
@@ -12,7 +13,9 @@ import {
 import {
   type ChannelHeader,
   changesMentionNames,
+  headerBeginning,
   headerMentionNames,
+  headerPlace,
   losesChannel,
   withHeaderEvent,
 } from "./channelHeader";
@@ -78,7 +81,7 @@ describe("withHeaderEvent", () => {
         value: { space: create(SpaceSchema, { id: "s1", name: "The Yard" }) },
       }),
     );
-    expect(moved.space.name).toBe("The Yard");
+    expect(moved.space?.name).toBe("The Yard");
     expect(moved.channel.name).toBe("lobby");
   });
 
@@ -176,9 +179,11 @@ describe("withHeaderEvent", () => {
         value: { space: create(SpaceSchema, { id: "s1", name: "The Yard" }) },
       }),
     );
-    expect(updated.space.name).toBe("The Yard");
-    expect(updated.space.myRole).toBe(SpaceRole.ADMIN);
-    expect(updated.space.myPermissions).toEqual([Permission.MESSAGES_MODERATE]);
+    expect(updated.space?.name).toBe("The Yard");
+    expect(updated.space?.myRole).toBe(SpaceRole.ADMIN);
+    expect(updated.space?.myPermissions).toEqual([
+      Permission.MESSAGES_MODERATE,
+    ]);
   });
 
   it("follows the reader's mute of the channel, and not another's", () => {
@@ -210,7 +215,7 @@ describe("withHeaderEvent", () => {
         value: { spaceId: "s1", userId: "me", role: SpaceRole.ADMIN },
       }),
     );
-    expect(demoted.space.myRole).toBe(SpaceRole.ADMIN);
+    expect(demoted.space?.myRole).toBe(SpaceRole.ADMIN);
     const held = header();
     expect(
       withHeaderEvent(
@@ -371,5 +376,73 @@ describe("changesMentionNames", () => {
     expect(
       changes({ case: "channelDeleted", value: { channelId: "c1" } }),
     ).toBe(false);
+  });
+});
+
+describe("a direct message's header", () => {
+  const person = (id: string, displayName: string) => ({
+    id,
+    username: id,
+    displayName,
+  });
+  const conversation = (...others: ReturnType<typeof person>[]) =>
+    header({
+      space: undefined,
+      channel: create(ChannelSchema, { id: "d1", name: "" }),
+      dm: create(DirectMessageSchema, {
+        participants: [person("me", "Me"), ...others],
+      }),
+    });
+
+  it("is named after who it is with, and a channel by its #name", () => {
+    expect(headerPlace(conversation(person("sam", "Sam Ortiz")))).toBe(
+      "Sam Ortiz",
+    );
+    expect(headerPlace(header())).toBe("#general");
+    expect(headerBeginning(conversation(person("sam", "Sam Ortiz")))).toBe(
+      "This is the beginning of your conversation with Sam Ortiz.",
+    );
+    expect(
+      headerBeginning(
+        conversation(person("june", "June"), person("theo", "Theo")),
+      ),
+    ).toBe("This is the beginning of this conversation.");
+    expect(headerBeginning(header())).toBe(
+      "This is the beginning of #general.",
+    );
+  });
+
+  // DM events carry an empty space_id: another conversation starting is
+  // not a channel a link here could open.
+  it("takes no space's events, nor another conversation as a channel", () => {
+    const dm = conversation(person("sam", "Sam Ortiz"));
+    const events: Parameters<typeof event>[0][] = [
+      {
+        case: "channelCreated",
+        value: { id: "d2", spaceId: "", kind: ChannelKind.TEXT },
+      },
+      { case: "channelDeleted", value: { channelId: "d2", spaceId: "" } },
+      { case: "memberJoined", value: { spaceId: "" } },
+      {
+        case: "memberRoleChanged",
+        value: { spaceId: "", userId: "me", role: SpaceRole.ADMIN },
+      },
+      {
+        case: "spaceUpdated",
+        value: { space: create(SpaceSchema, { id: "" }) },
+      },
+    ];
+    for (const payload of events) {
+      expect(withHeaderEvent(dm, event(payload))).toBe(dm);
+    }
+  });
+
+  it("still follows its own channel's mute", () => {
+    const dm = conversation(person("sam", "Sam Ortiz"));
+    const muted = withHeaderEvent(
+      dm,
+      event({ case: "channelMuted", value: { channelId: "d1", muted: true } }),
+    );
+    expect(muted.channel.muted).toBe(true);
   });
 });

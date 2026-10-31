@@ -15,11 +15,14 @@ const NO_NAMES: ComposerMentions = {
 };
 
 // From the header the channel and thread screens share; nobody before it
-// loads.
+// loads. A direct message has no space to grant @channel and @here, as on
+// web.
 export function useMentionNames(header: ChannelHeader | null): ComposerMentions {
   return useMemo(
     () =>
-      header ? { ...headerMentionNames(header), channelAndHere: canMentionEntireChannel(header.space) } : NO_NAMES,
+      header
+        ? { ...headerMentionNames(header), channelAndHere: !!header.space && canMentionEntireChannel(header.space) }
+        : NO_NAMES,
     [header],
   );
 }

@@ -1,3 +1,4 @@
+import { headerBeginning, headerPlace } from "@stoop/core/channelHeader";
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { canDeleteAnyMessage, canManageChannels, canStartThreads } from "@stoop/core/permissions";
@@ -23,6 +24,7 @@ import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelTitle from "./ChannelTitle";
+import ConversationTitle from "./ConversationTitle";
 import Composer from "./Composer";
 import ComposerDock from "./ComposerDock";
 import Divider from "./Divider";
@@ -32,6 +34,7 @@ import MessageRow from "./MessageRow";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
 import type { ChannelEngine } from "./channelEngine";
+import { threadRoute } from "./routes";
 import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
@@ -78,6 +81,10 @@ import { useMessageActions } from "./useMessageActions";
 // what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
 // this screen marks read and draws.
+//
+// A direct message is this screen with no space (an empty spaceId, its
+// route under /dm): titled by who it is with (ConversationTitle), with
+// no Search and no pins, as on web, and nobody's messages to moderate.
 
 export default function Channel({
   server,
@@ -155,12 +162,7 @@ export default function Channel({
   // The thread pushed over the channel, by its root's id.
   const pushThread = useCallback(
     (rootId: string, focusId?: string) =>
-      pushOnce(() =>
-        router.push({
-          pathname: "/s/[id]/space/[spaceId]/channel/[channelId]/thread/[rootId]",
-          params: { id: server.id, spaceId, channelId, rootId, ...(focusId ? { focus: focusId } : {}) },
-        }),
-      ),
+      pushOnce(() => router.push(threadRoute(server.id, spaceId, channelId, rootId, focusId))),
     [pushOnce, router, server.id, spaceId, channelId],
   );
   // The space's search, starting in this channel.
@@ -317,7 +319,9 @@ export default function Channel({
       />
     );
   }
-  if (outcome === "gone") return <Unavailable message="This channel isn't available any more." />;
+  if (outcome === "gone") {
+    return <Unavailable message={`This ${spaceId ? "channel" : "conversation"} isn't available any more.`} />;
+  }
   if (outcome === "failed") {
     return (
       <Unavailable message={`Couldn't reach ${hostOf(server.origin)}.`} action={{ label: "Try again", onPress: retry }} />
@@ -331,18 +335,29 @@ export default function Channel({
     );
   }
 
-  const { space, channel, memberCount, myUserId } = header;
+  const { space, dm, channel, memberCount, myUserId } = header;
   const { hasOlder } = log.channel;
-  const search = { spaceName: space.name, onPress: openSearch };
+  const search = space && { spaceName: space.name, onPress: openSearch };
 
   return (
     <View style={styles.screen}>
       <Stack.Screen
         options={{
-          headerTitle: () => <ChannelTitle channel={channel} spaceName={space.name} memberCount={memberCount} />,
+          headerTitle: () =>
+            dm ? (
+              <ConversationTitle
+                dm={dm}
+                myUserId={myUserId}
+                serverId={server.id}
+                origin={server.origin}
+                token={token}
+              />
+            ) : (
+              <ChannelTitle channel={channel} spaceName={space?.name ?? ""} memberCount={memberCount} />
+            ),
           ...(Platform.OS === "ios"
-            ? { unstable_headerRightItems: () => [searchItem(search)] }
-            : { headerRight: () => <SearchButton {...search} /> }),
+            ? { unstable_headerRightItems: () => (search ? [searchItem(search)] : []) }
+            : { headerRight: search ? () => <SearchButton {...search} /> : undefined }),
         }}
       />
       <ComposerDock
@@ -426,7 +441,8 @@ export default function Channel({
                   <ActivityIndicator style={styles.edge} color={theme.textMuted} />
                 ) : !hasOlder ? (
                   <Text style={styles.beginning}>
-                    {messages.length === 0 ? "No messages yet. " : ""}This is the beginning of #{channel.name}.
+                    {messages.length === 0 ? "No messages yet. " : ""}
+                    {headerBeginning(header)}
                   </Text>
                 ) : undefined
               }
@@ -448,7 +464,7 @@ export default function Channel({
           <Composer
             ref={actions.composer}
             key={channelId}
-            channelName={channel.name}
+            place={headerPlace(header)}
             mentionNames={mentionNames}
             origin={server.origin}
             token={token}
@@ -469,7 +485,7 @@ export default function Channel({
           <MessageMenu
             message={menuMessage}
             myUserId={myUserId}
-            canModerate={canDeleteAnyMessage(space)}
+            canModerate={!!space && canDeleteAnyMessage(space)}
             origin={server.origin}
             token={token}
             link={messageLink(server.origin, spaceId, menuMessage)}
@@ -487,7 +503,9 @@ export default function Channel({
             onPin={
               // As web's: where the reader manages channels, and not on a
               // reply also sent here; never in a thread.
-              canManageChannels(space) && !menuMessage.threadRootId ? () => actions.togglePin(menuMessage) : undefined
+              space && canManageChannels(space) && !menuMessage.threadRootId
+                ? () => actions.togglePin(menuMessage)
+                : undefined
             }
             onQuote={() => actions.quote(menuMessage)}
             onEdit={() => actions.startEdit(menuMessage)}
