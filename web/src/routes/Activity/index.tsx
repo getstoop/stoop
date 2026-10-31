@@ -1,4 +1,4 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { timestampDate, timestampNow } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { markActivityRead } from "../../api/activity";
@@ -43,6 +43,16 @@ export function ActivityPage() {
     }
   };
 
+  // The server reads everything, older pages included, but only the
+  // first page is in the cache it stamps, so the page stamps the rest.
+  const markAllRead = async () => {
+    await markActivityRead(queryClient, "all");
+    const readAt = timestampNow();
+    setOlder((o) =>
+      o.map((item) => (item.readAt ? item : { ...item, readAt })),
+    );
+  };
+
   return (
     <div className="activity-page">
       <header className="channel-header activity-page-header">
@@ -71,7 +81,7 @@ export function ActivityPage() {
               <button
                 type="button"
                 className="chip activity-mark-all"
-                onClick={() => markActivityRead(queryClient, "all")}
+                onClick={markAllRead}
               >
                 Mark all read
               </button>

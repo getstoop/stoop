@@ -11,7 +11,11 @@ import {
 } from "../gen/stoop/realtime/v1/realtime_pb";
 import { useConnectionStore } from "../stores/connection";
 import { useVoiceStore } from "../stores/voice";
-import { receiveActivityItem, refetchActivityAfterRead } from "./activity";
+import {
+  receiveActivityItem,
+  refetchActivityAfterDelete,
+  refetchActivityAfterRead,
+} from "./activity";
 import { applyEvent as applyToLog, forget, reconnected } from "./channelLog";
 import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
@@ -280,6 +284,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       // A root deleted while its thread has replies arrives as an update.
       applyToLog(event);
       refetchCopy(queryClient, payload.value.channelId, payload.value.id);
+      if (payload.value.deleted) {
+        refetchActivityAfterDelete(queryClient, payload.value.id);
+      }
       break;
     }
     case "threadChanged": {
@@ -331,6 +338,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.invalidateQueries({
         queryKey: d.spaceId ? ["channels", d.spaceId] : ["dms"],
       });
+      refetchActivityAfterDelete(queryClient, d.messageId);
       break;
     }
     case "channelUpdated": {
