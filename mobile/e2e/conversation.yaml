@@ -56,6 +56,19 @@ name: Open a conversation from Messages, read it live, answer, reply in a thread
     element: "This is the beginning of your conversation with ${POSTER}."
     direction: UP
     timeout: 30000
+# A thread in the conversation, titled by it, before the keyboard is up.
+- longPressOn: "Can you water the plants Friday\\?"
+- extendedWaitUntil:
+    visible: "Reply in thread"
+    timeout: 5000
+- tapOn: "Reply in thread"
+- extendedWaitUntil:
+    visible: "Thread, ${POSTER}"
+    timeout: 10000
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "${POSTER}, @${POSTER}, offline"
+    timeout: 10000
 - tapOn: "Message ${POSTER}"
 - extendedWaitUntil:
     visible:
@@ -81,27 +94,6 @@ name: Open a conversation from Messages, read it live, answer, reply in a thread
       TEXT: Thanks, it's under the mat
 - extendedWaitUntil:
     visible: "Thanks, it's under the mat"
-    timeout: 10000
-# A thread in the conversation, titled by it. A tap on a message puts the
-# keyboard away first, as the long press would otherwise only do that.
-- tapOn: "Thanks, it's under the mat"
-- extendedWaitUntil:
-    notVisible:
-      id: "composer"
-    timeout: 5000
-- waitForAnimationToEnd:
-    timeout: 3000
-- longPressOn: "Thanks, it's under the mat"
-- extendedWaitUntil:
-    visible: "Reply in thread"
-    timeout: 5000
-- tapOn: "Reply in thread"
-- extendedWaitUntil:
-    visible: "Thread, ${POSTER}"
-    timeout: 10000
-- tapOn: "Back"
-- extendedWaitUntil:
-    visible: "${POSTER}, @${POSTER}, offline"
     timeout: 10000
 - tapOn: "Back"
 - extendedWaitUntil:
