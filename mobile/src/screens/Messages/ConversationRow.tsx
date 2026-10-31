@@ -1,24 +1,30 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { dmFaces, dmPreview, dmTime, dmTitle } from "@stoop/core/dms";
+import { dmFaces, dmIsGroup, dmOther, dmPreview, dmTime, dmTitle } from "@stoop/core/dms";
+import { presenceLabel } from "@stoop/core/presence";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { MutedIcon } from "../../components/Icons";
+import { usePresence } from "../../realtime/RealtimeProvider";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ConversationFaces from "./ConversationFaces";
 
 // One conversation in the Messages tab: who it is with, when it last
 // moved, and its newest message on one line. Unread, the name is bold
-// and a dot ends the line, unless it is muted. Opens nothing yet: the
-// conversation screen comes later, so it is drawn but is not a button.
+// and a dot ends the line, unless it is muted. With one other person,
+// their presence sits on their face; a group has none, as on web. Opens
+// nothing yet: the conversation screen comes later, so it is drawn but
+// is not a button.
 export default memo(function ConversationRow({
   dm,
   meId,
+  serverId,
   origin,
   token,
 }: {
   dm: DirectMessage;
   meId: string;
+  serverId: string;
   origin: string;
   token: string;
 }) {
@@ -31,11 +37,14 @@ export default memo(function ConversationRow({
   const when = sent ? dmTime(timestampDate(sent)) : "";
   const muted = channel?.muted ?? false;
   const unread = !muted && (channel?.unreadCount ?? 0) > 0;
-  const label = [title, muted && "muted", unread && "unread", when, preview].filter(Boolean).join(", ");
+  const other = dmIsGroup(dm) ? undefined : dmOther(dm, meId);
+  const presence = usePresence(serverId, other?.id);
+  const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);
+  const label = [title, status, muted && "muted", unread && "unread", when, preview].filter(Boolean).join(", ");
 
   return (
     <View style={styles.row} accessible accessibilityLabel={label} testID={`conversation-${channel?.id ?? ""}`}>
-      <ConversationFaces faces={dmFaces(dm, meId)} origin={origin} token={token} />
+      <ConversationFaces faces={dmFaces(dm, meId)} presence={presence} origin={origin} token={token} />
       <View style={styles.main}>
         <View style={styles.line}>
           <Text style={[styles.title, unread && styles.unread]} numberOfLines={1}>
