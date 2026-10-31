@@ -2,7 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Conversations, loadConversations, touchesConversations } from "../../api/conversations";
 import { hostOf } from "../../api/probe";
@@ -21,8 +21,8 @@ import ConversationRow from "./ConversationRow";
 // newest first, as web's DM list (web/src/routes/DirectMessages), each
 // with its newest message. Loaded on opening, on a pull, on coming back
 // to the app, and a moment after the socket says a conversation changed.
-// A row opens its conversation (the channel screen with no space). New
-// message opens nothing yet: its screen comes later.
+// A row opens its conversation (the channel screen with no space); the
+// pencil opens New message over the tab.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -108,10 +108,15 @@ export default function Messages({ server }: { server: SavedServer }) {
       <ServerHeader
         server={server}
         action={
-          // Drawn where the mockup has it; the new message screen comes later.
-          <View style={styles.compose} accessible accessibilityLabel="New message" testID="new-message">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="New message"
+            testID="new-message"
+            onPress={() => pushOnce(() => router.push({ pathname: "/s/[id]/new-message", params: { id: server.id } }))}
+            style={({ pressed }) => [styles.compose, pressed && styles.composePressed]}
+          >
             <PencilIcon color={theme.accent} />
-          </View>
+          </Pressable>
         }
       />
       <Text style={styles.title} accessibilityRole="header">
@@ -162,8 +167,12 @@ function makeStyles(theme: Theme) {
     compose: {
       width: 44,
       height: 44,
+      borderRadius: 22,
       alignItems: "center",
       justifyContent: "center",
+    },
+    composePressed: {
+      backgroundColor: theme.hover,
     },
     title: {
       marginTop: 12,

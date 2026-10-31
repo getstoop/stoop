@@ -53,6 +53,9 @@ export default function ServerLayout() {
           {/* Search draws its own header row: the back button and the field's
               pill, floating as the channel's do. */}
           <Stack.Screen name="space/[spaceId]/search" options={{ headerShown: false }} />
+          {/* New message is a sheet over the tabs, with its own Cancel and
+              Start row. */}
+          <Stack.Screen name="new-message" options={{ headerShown: false, presentation: "modal" }} />
         </Stack>
       </ActivityProvider>
     </CurrentServer>

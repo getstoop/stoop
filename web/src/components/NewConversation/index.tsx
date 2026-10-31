@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { filterCandidates } from "../../api/candidates";
 import { openDirectMessage, useDMCandidates } from "../../api/dms";
 import { errorText } from "../../api/errors";
+import { filterCandidates } from "../../core/candidates";
 import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
 import { notice } from "../../stores/dialogs";
 import { CandidateRow } from "../CandidateRow";

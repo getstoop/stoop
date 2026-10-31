@@ -1,11 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
-import { filterCandidates } from "../../api/candidates";
 import { GROUP_HANDLE_HINT, MAX_GROUP_NAME, saveGroup } from "../../api/groups";
 import { CandidateRow } from "../../components/CandidateRow";
 import { Field } from "../../components/Field";
 import { Input } from "../../components/Input";
 import { Modal } from "../../components/Modal";
+import { filterCandidates } from "../../core/candidates";
 import { isBot } from "../../core/identity";
 import type { Group } from "../../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../../gen/stoop/chat/v1/member_pb";
