@@ -86,7 +86,8 @@ export function dmPreview(dm: DirectMessage, meId: string | undefined): string {
   if (!last) return "";
   if (last.deleted) return "Message deleted";
   if (last.author?.id && last.author.id === meId) return `You: ${last.preview}`;
-  if (dmIsGroup(dm)) return `${personName(last.author)}: ${last.preview}`;
+  const who = personName(last.author);
+  if (dmIsGroup(dm) && who) return `${who}: ${last.preview}`;
   return last.preview;
 }
 
@@ -97,13 +98,12 @@ export function dmTime(d: Date, now: Date = new Date()): string {
   if (sameDay(d, now)) {
     return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-  );
-  const days = (startOfToday.getTime() - d.getTime()) / 86400000;
-  if (days < 6) return d.toLocaleDateString([], { weekday: "short" });
+  // Calendar days, not 24-hour spans: a clock change makes one day 23 or
+  // 25 hours long.
+  const startOf = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(d)) / 86400000);
+  if (days < 7) return d.toLocaleDateString([], { weekday: "short" });
   return d.toLocaleDateString([], {
     month: "short",
     day: "numeric",

@@ -197,6 +197,20 @@ describe("dmPreview", () => {
     ).toBe("Message deleted");
   });
 
+  it("leaves a group's line unnamed when its sender isn't known", () => {
+    const unknown = {
+      id: "u9",
+      username: "",
+      displayName: "",
+    } as MessageAuthor;
+    expect(
+      dmPreview(
+        said(groupDm(channel("g1"), [casey, ada, bea]), unknown, "snacks"),
+        "u1",
+      ),
+    ).toBe("snacks");
+  });
+
   it("is empty with no message yet", () => {
     expect(dmPreview(dm(channel("d1"), [casey, ada]), "u1")).toBe("");
   });
@@ -221,6 +235,20 @@ describe("dmTime", () => {
         d.toLocaleDateString([], { weekday: "short" }),
       );
     }
+  });
+
+  // Counted in calendar days: the night the clocks went back (Oct 25,
+  // 2026 in much of Europe; Nov 1 in the US) doesn't move the cutoff.
+  it("counts days by the calendar, from the very start of a day", () => {
+    const fromMonday = at(10, 24, 0);
+    expect(dmTime(fromMonday, now)).toBe(
+      fromMonday.toLocaleDateString([], { weekday: "short" }),
+    );
+    const usNow = new Date(2026, 10, 6, 15, 0);
+    const lastSaturday = new Date(2026, 9, 31, 0, 30);
+    expect(dmTime(lastSaturday, usNow)).toBe(
+      lastSaturday.toLocaleDateString([], { weekday: "short" }),
+    );
   });
 
   it("is the date a week back, before the weekday repeats", () => {
