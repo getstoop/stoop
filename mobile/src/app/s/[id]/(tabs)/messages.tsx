@@ -1,5 +1,6 @@
-import Placeholder from "../../../../screens/Placeholder";
+import Messages from "../../../../screens/Messages";
+import { useCurrentServer } from "../../../../servers";
 
 export default function MessagesTab() {
-  return <Placeholder title="Messages" />;
+  return <Messages server={useCurrentServer()} />;
 }

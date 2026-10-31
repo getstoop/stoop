@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
-import { dmFaces, dmIsGroup, dmOther, dmTitle, dmUnreadTotal } from "./dms";
+import {
+  dmFaces,
+  dmIsGroup,
+  dmOther,
+  dmPreview,
+  dmTime,
+  dmTitle,
+  dmUnreadTotal,
+} from "./dms";
 
 const author = (
   id: string,
@@ -147,5 +155,89 @@ describe("dmUnreadTotal", () => {
   it("is zero with nothing unread, and with nothing loaded", () => {
     expect(dmUnreadTotal([dm(unreadChannel("a", 0), [casey, ada])])).toBe(0);
     expect(dmUnreadTotal(undefined)).toBe(0);
+  });
+});
+
+describe("dmPreview", () => {
+  const said = (
+    d: DirectMessage,
+    from: MessageAuthor,
+    preview: string,
+    deleted = false,
+  ): DirectMessage =>
+    ({
+      ...d,
+      lastMessage: { author: from, preview, deleted },
+    }) as unknown as DirectMessage;
+
+  it("is the words alone from the other person in a 1:1", () => {
+    expect(
+      dmPreview(said(dm(channel("d1"), [casey, ada]), ada, "around?"), "u1"),
+    ).toBe("around?");
+  });
+
+  it("says when it was you", () => {
+    expect(
+      dmPreview(said(dm(channel("d1"), [casey, ada]), casey, "thanks"), "u1"),
+    ).toBe("You: thanks");
+  });
+
+  it("names who said it in a group", () => {
+    expect(
+      dmPreview(
+        said(groupDm(channel("g1"), [casey, ada, bea]), bea, "snacks"),
+        "u1",
+      ),
+    ).toBe("bea: snacks");
+  });
+
+  it("says a deleted message was deleted, whoever wrote it", () => {
+    expect(
+      dmPreview(said(dm(channel("d1"), [casey, ada]), casey, "", true), "u1"),
+    ).toBe("Message deleted");
+  });
+
+  it("is empty with no message yet", () => {
+    expect(dmPreview(dm(channel("d1"), [casey, ada]), "u1")).toBe("");
+  });
+});
+
+describe("dmTime", () => {
+  // Local time, and Intl output rather than English, as dates.test.ts.
+  const at = (m: number, d: number, h = 12, y = 2026) =>
+    new Date(y, m - 1, d, h, 0);
+  const now = at(10, 30, 15); // a Friday afternoon
+
+  it("is the time of day today", () => {
+    const d = at(10, 30, 8);
+    expect(dmTime(d, now)).toBe(
+      d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    );
+  });
+
+  it("is the weekday within the week", () => {
+    for (const d of [at(10, 29), at(10, 24, 9)]) {
+      expect(dmTime(d, now)).toBe(
+        d.toLocaleDateString([], { weekday: "short" }),
+      );
+    }
+  });
+
+  it("is the date a week back, before the weekday repeats", () => {
+    const d = at(10, 23);
+    expect(dmTime(d, now)).toBe(
+      d.toLocaleDateString([], { month: "short", day: "numeric" }),
+    );
+  });
+
+  it("carries the year from another year", () => {
+    const d = at(12, 31, 12, 2025);
+    expect(dmTime(d, now)).toBe(
+      d.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    );
   });
 });

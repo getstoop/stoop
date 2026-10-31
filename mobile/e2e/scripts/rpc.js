@@ -36,6 +36,19 @@ var steps = {
   "delete": function () {
     rpc("DeleteChannel", OWNER_TOKEN, { channelId: output.channelId });
   },
+  // In dee's conversation with ada (messages.yaml): dee writes TEXT, ada
+  // reads it, and ada answers with TEXT, each as another device would.
+  // Opening is idempotent, so a run after the first finds the same one.
+  dmSay: function () {
+    output.dmId = rpc("OpenDirectMessage", POSTER_TOKEN, { userIds: [MEMBER_ID] }).directMessage.channel.id;
+    rpc("SendMessage", POSTER_TOKEN, { channelId: output.dmId, content: TEXT });
+  },
+  dmRead: function () {
+    rpc("MarkChannelRead", OWNER_TOKEN, { channelId: output.dmId });
+  },
+  dmAnswer: function () {
+    rpc("SendMessage", OWNER_TOKEN, { channelId: output.dmId, content: TEXT });
+  },
   // In CHANNEL_ID (channel.yaml): dee writes TEXT, rewords that message to
   // TEXT, then deletes it.
   say: function () {

@@ -1,5 +1,6 @@
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
+import { sameDay } from "./dates";
 
 // How a direct message is named, drawn and counted, for web's DM list and
 // header and the phone's Messages tab. Web keeps the list in its query
@@ -75,4 +76,37 @@ export function dmUnreadTotal(dms: DirectMessage[] | undefined): number {
     }
   }
   return total;
+}
+
+// The line under a conversation's name: its newest message, said as
+// from you or, in a group, from whom; a 1:1's other person needs no
+// name, it is in the title. Empty when there is none to show.
+export function dmPreview(dm: DirectMessage, meId: string | undefined): string {
+  const last = dm.lastMessage;
+  if (!last) return "";
+  if (last.deleted) return "Message deleted";
+  if (last.author?.id && last.author.id === meId) return `You: ${last.preview}`;
+  if (dmIsGroup(dm)) return `${personName(last.author)}: ${last.preview}`;
+  return last.preview;
+}
+
+// When a conversation last moved, where a row has room for a word: the
+// time today, the weekday within the week, then the date, with the year
+// only when it differs.
+export function dmTime(d: Date, now: Date = new Date()): string {
+  if (sameDay(d, now)) {
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const days = (startOfToday.getTime() - d.getTime()) / 86400000;
+  if (days < 6) return d.toLocaleDateString([], { weekday: "short" });
+  return d.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
 }

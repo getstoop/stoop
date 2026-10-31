@@ -1,18 +1,20 @@
 import { useRouter } from "expo-router";
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { SavedServer } from "../servers";
 import { type Theme, tokens, useTheme } from "../theme";
 import { ChevronDownIcon } from "./Icons";
 
-// The top of a server's tabs (Spaces, Activity): the server's tile and
-// name with a chevron, opening the server switcher over it.
-export default function ServerHeader({ server }: { server: SavedServer }) {
+// The top of a server's tabs (Spaces, Activity, Messages): the server's
+// tile and name with a chevron, opening the server switcher over it, and
+// the tab's own button at the other end, if it has one.
+export default function ServerHeader({ server, action }: { server: SavedServer; action?: ReactNode }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, action !== undefined && styles.withAction]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${server.name}. Switch server`}
@@ -28,6 +30,7 @@ export default function ServerHeader({ server }: { server: SavedServer }) {
         </Text>
         <ChevronDownIcon color={theme.textMuted} />
       </Pressable>
+      {action}
     </View>
   );
 }
@@ -37,8 +40,13 @@ function makeStyles(theme: Theme) {
     header: {
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "space-between",
       height: 44,
       paddingHorizontal: 16,
+    },
+    // A button's own 44pt square holds its icon off the edge.
+    withAction: {
+      paddingRight: 8,
     },
     switcher: {
       flexDirection: "row",
