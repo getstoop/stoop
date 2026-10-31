@@ -290,10 +290,14 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 	if err != nil {
 		return nil, err
 	}
+	// The line quotes a message, so it needs the read grant: opening a
+	// conversation asks only dms.post, and closing one preferences.manage.
 	var lastIDs []string
-	for _, row := range rows {
-		if row.Channel.LastMessageID != nil {
-			lastIDs = append(lastIDs, *row.Channel.LastMessageID)
+	if authctx.Covers(ctx, authctx.DMsRead) {
+		for _, row := range rows {
+			if row.Channel.LastMessageID != nil {
+				lastIDs = append(lastIDs, *row.Channel.LastMessageID)
+			}
 		}
 	}
 	last, err := s.dmLastMessages(ctx, lastIDs, authors)

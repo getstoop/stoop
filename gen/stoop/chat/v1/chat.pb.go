@@ -5885,7 +5885,7 @@ type DirectMessage struct {
 	// Everyone in the conversation, the caller included.
 	Participants []*MessageAuthor `protobuf:"bytes,2,rep,name=participants,proto3" json:"participants,omitempty"`
 	// The newest message, for the list's preview line. Unset when the
-	// conversation has none.
+	// conversation has none, or the credential lacks dms.read.
 	LastMessage   *DirectMessageLast `protobuf:"bytes,4,opt,name=last_message,json=lastMessage,proto3" json:"last_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

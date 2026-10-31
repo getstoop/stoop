@@ -402,4 +402,32 @@ func TestDirectMessageLastMessage(t *testing.T) {
 	if last := bobsLast(); last.GetMessageId() != sent.Msg.Message.Id || !last.Deleted || last.Preview != "" {
 		t.Errorf("deleted thread starter: got %v", last)
 	}
+
+	// The line quotes a message, so a token without dms.read gets none,
+	// from the RPCs that don't ask for it themselves.
+	asToken := func(grants ...authctx.Action) context.Context {
+		return authctx.WithIdentity(context.Background(), authctx.Identity{UserID: authctx.UserID(bob), Role: authctx.RoleMember, Kind: authctx.KindPerson,
+			Credential: authctx.Credential{ID: uuid.NewString(), Kind: authctx.CredentialPersonalToken, Grants: grants}})
+	}
+	posted, err := svc.OpenDirectMessage(asToken(authctx.DMsPost), connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{authctx.UserID(alice)}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := posted.Msg.DirectMessage.LastMessage; last != nil {
+		t.Errorf("OpenDirectMessage with dms.post only: got %v", last)
+	}
+	closed, err := svc.SetDirectMessageClosed(asToken(authctx.PreferencesManage), connect.NewRequest(&chatv1.SetDirectMessageClosedRequest{ChannelId: channelID, Closed: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := closed.Msg.DirectMessage.LastMessage; last != nil {
+		t.Errorf("SetDirectMessageClosed with preferences.manage only: got %v", last)
+	}
+	reopened, err := svc.SetDirectMessageClosed(asToken(authctx.PreferencesManage, authctx.DMsRead), connect.NewRequest(&chatv1.SetDirectMessageClosedRequest{ChannelId: channelID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reopened.Msg.DirectMessage.LastMessage.GetMessageId(); got != sent.Msg.Message.Id {
+		t.Errorf("SetDirectMessageClosed with dms.read: last message %q", got)
+	}
 }

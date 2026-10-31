@@ -192,6 +192,7 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at,
 FROM messages m
 JOIN dm_members d ON d.channel_id = m.channel_id AND d.user_id = $1
 WHERE m.id = ANY($2::uuid[])
+  AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
 `
 
 type ListDMLastMessagesParams struct {
@@ -213,7 +214,10 @@ type ListDMLastMessagesRow struct {
 // ids its channel row points at (last_message_id, which
 // RecomputeChannelLastMessage keeps on something that shows), for the
 // list's preview line. Only messages in the user's own conversations:
-// an id from anywhere else finds nothing.
+// an id from anywhere else finds nothing. A tombstone counts only while
+// it holds a thread, as in RecomputeChannelLastMessage, so a delete that
+// lands between reading the channels and this finds nothing rather than
+// a message the channel no longer points at.
 func (q *Queries) ListDMLastMessages(ctx context.Context, arg ListDMLastMessagesParams) ([]ListDMLastMessagesRow, error) {
 	rows, err := q.db.Query(ctx, listDMLastMessages, arg.UserID, arg.MessageIds)
 	if err != nil {

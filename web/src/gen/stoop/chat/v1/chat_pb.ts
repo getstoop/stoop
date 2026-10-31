@@ -2595,7 +2595,7 @@ export type DirectMessage = Message<"stoop.chat.v1.DirectMessage"> & {
 
   /**
    * The newest message, for the list's preview line. Unset when the
-   * conversation has none.
+   * conversation has none, or the credential lacks dms.read.
    *
    * @generated from field: stoop.chat.v1.DirectMessageLast last_message = 4;
    */

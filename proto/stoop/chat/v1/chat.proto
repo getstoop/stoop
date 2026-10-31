@@ -863,7 +863,7 @@ message DirectMessage {
   // Everyone in the conversation, the caller included.
   repeated MessageAuthor participants = 2;
   // The newest message, for the list's preview line. Unset when the
-  // conversation has none.
+  // conversation has none, or the credential lacks dms.read.
   DirectMessageLast last_message = 4;
 }
 
