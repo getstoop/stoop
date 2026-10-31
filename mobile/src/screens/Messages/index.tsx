@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   type Conversations,
@@ -27,15 +28,17 @@ import { channelRoute } from "../Channel/routes";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ConversationMenu from "./ConversationMenu";
 import ConversationRow, { type ConversationAction } from "./ConversationRow";
+import SwipeToClose from "./SwipeToClose";
 
 // The Messages tab: this account's direct messages on the current server,
 // newest first, as web's DM list (web/src/routes/DirectMessages), each
 // with its newest message. Loaded on opening, on a pull, on coming back
 // to the app, and a moment after the socket says a conversation changed.
-// A row opens its conversation (the channel screen with no space), and a
-// long press its menu (ConversationMenu): a mute or a close shows at
-// once and is put back, and said, if the server refuses it. The pencil
-// opens New message over the tab.
+// A row opens its conversation (the channel screen with no space), a
+// long press its menu (ConversationMenu), and a swipe left shows Close
+// (SwipeToClose): a mute or a close shows at once and is put back, and
+// said, if the server refuses it. The pencil opens New message over the
+// tab.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -108,8 +111,17 @@ export default function Messages({ server }: { server: SavedServer }) {
 
   const ready = view.state === "ready" ? view : null;
   const pushOnce = usePushOnce();
+  // The row resting open on Close, closed as another is swiped and as a
+  // conversation opens.
+  const openRow = useRef<SwipeableMethods | null>(null);
+  const swiped = useCallback((row: SwipeableMethods) => {
+    if (openRow.current !== row) openRow.current?.close();
+    openRow.current = row;
+  }, []);
   const open = useCallback(
     (dm: DirectMessage) => {
+      openRow.current?.close();
+      openRow.current = null;
       const channelId = dm.channel?.id;
       if (channelId) pushOnce(() => router.push(channelRoute(server.id, "", channelId)));
     },
@@ -224,16 +236,18 @@ export default function Messages({ server }: { server: SavedServer }) {
           data={ready.list.dms}
           keyExtractor={(dm) => dm.channel?.id ?? ""}
           renderItem={({ item }) => (
-            <ConversationRow
-              dm={item}
-              meId={ready.list.reader.id}
-              serverId={server.id}
-              origin={server.origin}
-              token={ready.token}
-              onPress={open}
-              onLongPress={openMenu}
-              onAction={act}
-            />
+            <SwipeToClose onClose={() => act(item, "close")} onSwipe={swiped}>
+              <ConversationRow
+                dm={item}
+                meId={ready.list.reader.id}
+                serverId={server.id}
+                origin={server.origin}
+                token={ready.token}
+                onPress={open}
+                onLongPress={openMenu}
+                onAction={act}
+              />
+            </SwipeToClose>
           )}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
