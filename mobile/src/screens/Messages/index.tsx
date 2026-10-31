@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
@@ -9,8 +10,10 @@ import { sessionToken } from "../../api/servers";
 import { PencilIcon } from "../../components/Icons";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
+import { channelRoute } from "../Channel/routes";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ConversationRow from "./ConversationRow";
 
@@ -18,8 +21,8 @@ import ConversationRow from "./ConversationRow";
 // newest first, as web's DM list (web/src/routes/DirectMessages), each
 // with its newest message. Loaded on opening, on a pull, on coming back
 // to the app, and a moment after the socket says a conversation changed.
-// Neither a row nor New message opens anything yet: the conversation and
-// new message screens come later.
+// A row opens its conversation (the channel screen with no space). New
+// message opens nothing yet: its screen comes later.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -91,6 +94,14 @@ export default function Messages({ server }: { server: SavedServer }) {
   };
 
   const ready = view.state === "ready" ? view : null;
+  const pushOnce = usePushOnce();
+  const open = useCallback(
+    (dm: DirectMessage) => {
+      const channelId = dm.channel?.id;
+      if (channelId) pushOnce(() => router.push(channelRoute(server.id, "", channelId)));
+    },
+    [pushOnce, router, server.id],
+  );
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -130,6 +141,7 @@ export default function Messages({ server }: { server: SavedServer }) {
               serverId={server.id}
               origin={server.origin}
               token={ready.token}
+              onPress={open}
             />
           )}
           contentContainerStyle={styles.list}

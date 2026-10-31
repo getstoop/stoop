@@ -17,8 +17,7 @@ const AVATAR = 40;
 // (or @channel, @here) lit while it is new. A new row is a card; a read
 // one is flat with a rule under it, the first of its day carrying the
 // day, so its time needs only the time of day. A direct message names no
-// place, the verb already does, and opens nothing yet (no conversation
-// screen), so it is drawn the same but is not a button.
+// place, the verb already does. A press opens where it happened.
 export default memo(function ActivityRow({
   item,
   unread,
@@ -124,13 +123,6 @@ export default memo(function ActivityRow({
   );
   const content = day ? styles.column : styles.row;
 
-  if (dm) {
-    return (
-      <View style={[content, ...shape]} accessible accessibilityLabel={`${label}: ${said}`}>
-        {inner}
-      </View>
-    );
-  }
   return (
     <Pressable
       accessible

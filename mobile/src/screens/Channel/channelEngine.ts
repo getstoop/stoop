@@ -445,6 +445,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       if (
         event.payload.case === "memberRoleChanged" &&
         header &&
+        !!header.space &&
         event.payload.value.spaceId === header.space.id &&
         event.payload.value.userId === header.myUserId
       )

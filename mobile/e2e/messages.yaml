@@ -5,8 +5,8 @@ name: See a direct message arrive in Messages, unread, then read, then answered
 # row arrives live: dee's name, unread, the words. ada reads it and
 # answers elsewhere, and the row follows: no longer unread, then her
 # answer, said as hers. dee holds no socket, so her row says she is
-# offline: presence came with the socket's Ready. Rows open nothing yet
-# (no conversation screen).
+# offline: presence came with the socket's Ready. Opening a row is
+# conversation.yaml's.
 - clearKeychain
 - launchApp:
     clearState: true

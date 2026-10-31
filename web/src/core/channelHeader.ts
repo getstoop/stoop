@@ -1,8 +1,10 @@
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
+import { dmIsGroup, dmTitle } from "./dms";
 import {
   type MentionChannels,
   type MentionNames,
@@ -26,8 +28,13 @@ import {
 // channel.private. And who a mention may name there: the people who can
 // read it (the space's members, or a private channel's), and the space's
 // groups (none in a private channel), loaded again when they change.
+//
+// A direct message has no space: `space` is unset and `dm` holds the
+// conversation, whose participants are who can read it and who a mention
+// may name. It has no groups and no channels to link.
 export type ChannelHeader = {
-  space: Space;
+  space: Space | undefined;
+  dm?: DirectMessage;
   channel: Channel;
   memberCount: number;
   myUserId: string;
@@ -45,6 +52,23 @@ export function headerMentionNames(header: ChannelHeader): MentionNames {
     groups: mentionGroups(closed ? [] : header.groups),
     channels: closed ? NO_CHANNELS : header.channels,
   };
+}
+
+// What the channel is called where a sentence names it ("Message …",
+// "Also send to …"): #name, or a conversation's title.
+export function headerPlace(header: ChannelHeader): string {
+  return header.dm
+    ? dmTitle(header.dm, header.myUserId)
+    : `#${header.channel.name}`;
+}
+
+// The line at the top of a channel's history, once nothing older is left.
+export function headerBeginning(header: ChannelHeader): string {
+  const { dm } = header;
+  if (!dm) return `This is the beginning of #${header.channel.name}.`;
+  return dmIsGroup(dm)
+    ? "This is the beginning of this conversation."
+    : `This is the beginning of your conversation with ${dmTitle(dm, header.myUserId)}.`;
 }
 
 // Whether an event means the reader can no longer see the channel: it, or
@@ -112,16 +136,18 @@ export function withHeaderEvent(
   event: ServerEvent,
 ): ChannelHeader {
   const { space, channel } = header;
+  // A direct message's events carry no space, so none matches one.
+  const spaceId = space?.id ?? NO_SPACE;
   const payload = event.payload;
   switch (payload.case) {
     case "channelCreated":
-      if (payload.value.spaceId !== space.id) return header;
+      if (payload.value.spaceId !== spaceId) return header;
       return withChannels(
         header,
         withLinkableChannel(header.channels, payload.value),
       );
     case "channelDeleted":
-      if (payload.value.spaceId !== space.id) return header;
+      if (payload.value.spaceId !== spaceId) return header;
       return withChannels(
         header,
         withoutChannel(header.channels, payload.value.channelId),
@@ -129,7 +155,7 @@ export function withHeaderEvent(
     case "channelUpdated": {
       const updated = payload.value;
       const linked =
-        updated.spaceId === space.id
+        updated.spaceId === spaceId
           ? withChannels(header, withLinkableChannel(header.channels, updated))
           : header;
       if (updated.id !== channel.id) return linked;
@@ -141,7 +167,7 @@ export function withHeaderEvent(
     }
     case "spaceUpdated": {
       const updated = payload.value.space;
-      if (!updated || updated.id !== space.id) return header;
+      if (!space || !updated || updated.id !== space.id) return header;
       // A broadcast space carries nobody's role or permissions
       // (realtime.proto SpaceUpdated), so the held ones stay.
       return {
@@ -157,6 +183,7 @@ export function withHeaderEvent(
       // The event says the new role, not what it permits: the screen asks
       // for the header again for that (useChannelLog).
       if (
+        !space ||
         payload.value.spaceId !== space.id ||
         payload.value.userId !== header.myUserId
       )
@@ -175,7 +202,7 @@ export function withHeaderEvent(
     case "memberJoined":
     case "memberRemoved":
       // A private channel's members join and leave it on their own.
-      if (channel.private || payload.value.spaceId !== space.id) return header;
+      if (channel.private || payload.value.spaceId !== spaceId) return header;
       return withMemberCount(header, payload.case === "memberJoined" ? 1 : -1);
     case "channelMemberJoined":
     case "channelMemberLeft":
@@ -189,6 +216,9 @@ export function withHeaderEvent(
       return header;
   }
 }
+
+// Never a space's ID: what a direct message's header matches events with.
+const NO_SPACE = "\u0000";
 
 function withChannels(header: ChannelHeader, channels: MentionChannels) {
   return channels === header.channels ? header : { ...header, channels };

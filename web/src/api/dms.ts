@@ -1,12 +1,10 @@
-import { create } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { dmMembers } from "../core/dms";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
-import { type Member, MemberSchema } from "../gen/stoop/chat/v1/member_pb";
-import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
-import { SpaceRole } from "../gen/stoop/chat/v1/space_pb";
+import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import { chatClient } from "./clients";
 import { useChannels, useMembers } from "./queries";
 
@@ -57,21 +55,8 @@ export function usePeople(
     ? undefined
     : dms.data?.find((d) => d.channel?.id === channelId);
   // The same array until the conversation's record changes.
-  const participants = useMemo(
-    () => dm?.participants.map(participantAsMember),
-    [dm],
-  );
+  const participants = useMemo(() => dm && dmMembers(dm), [dm]);
   return spaceId ? members.data : participants;
-}
-
-function participantAsMember(p: MessageAuthor): Member {
-  return create(MemberSchema, {
-    userId: p.id,
-    username: p.username,
-    displayName: p.displayName,
-    avatarFileId: p.avatarFileId,
-    role: SpaceRole.MEMBER,
-  });
 }
 
 // Opens the conversation with these people, creating it if it does not

@@ -3,30 +3,31 @@ import { dmFaces, dmIsGroup, dmOther, dmPreview, dmTime, dmTitle } from "@stoop/
 import { presenceLabel } from "@stoop/core/presence";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import { memo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MutedIcon } from "../../components/Icons";
 import { usePresence } from "../../realtime/RealtimeProvider";
 import { type Theme, tokens, useTheme } from "../../theme";
-import ConversationFaces from "./ConversationFaces";
+import ConversationFaces from "../../components/ConversationFaces";
 
 // One conversation in the Messages tab: who it is with, when it last
 // moved, and its newest message on one line. Unread, the name is bold
 // and a dot ends the line, unless it is muted. With one other person,
-// their presence sits on their face; a group has none, as on web. Opens
-// nothing yet: the conversation screen comes later, so it is drawn but
-// is not a button.
+// their presence sits on their face; a group has none, as on web. A
+// press opens the conversation.
 export default memo(function ConversationRow({
   dm,
   meId,
   serverId,
   origin,
   token,
+  onPress,
 }: {
   dm: DirectMessage;
   meId: string;
   serverId: string;
   origin: string;
   token: string;
+  onPress: (dm: DirectMessage) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -43,7 +44,14 @@ export default memo(function ConversationRow({
   const label = [title, status, muted && "muted", unread && "unread", when, preview].filter(Boolean).join(", ");
 
   return (
-    <View style={styles.row} accessible accessibilityLabel={label} testID={`conversation-${channel?.id ?? ""}`}>
+    <Pressable
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      testID={`conversation-${channel?.id ?? ""}`}
+      onPress={() => onPress(dm)}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
       <ConversationFaces faces={dmFaces(dm, meId)} presence={presence} origin={origin} token={token} />
       <View style={styles.main}>
         <View style={styles.line}>
@@ -60,7 +68,7 @@ export default memo(function ConversationRow({
           {unread && <View style={styles.dot} />}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 });
 
@@ -72,6 +80,10 @@ function makeStyles(theme: Theme) {
       gap: 12,
       minHeight: 72,
       paddingHorizontal: 12,
+      borderRadius: tokens.radiusMd,
+    },
+    pressed: {
+      backgroundColor: theme.hover,
     },
     main: {
       flex: 1,

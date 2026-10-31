@@ -5,13 +5,15 @@ import { type Theme, tokens, useTheme } from "../../theme";
 const BOX = 18;
 
 // The thread composer's line over its field: a checkbox, "Also send to
-// #channel", the whole line one control, so the label toggles it too.
+// #channel" (or to the conversation), the whole line one control, so the
+// label toggles it too.
 export default function AlsoSendRow({
-  channelName,
+  place,
   checked,
   onChange,
 }: {
-  channelName: string;
+  // #name, or a conversation's title (core headerPlace).
+  place: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
@@ -28,7 +30,7 @@ export default function AlsoSendRow({
       <View style={[styles.box, checked && styles.checked]}>
         {checked && <CheckIcon color={theme.onAccent} size={14} />}
       </View>
-      <Text style={styles.label}>Also send to #{channelName}</Text>
+      <Text style={styles.label}>Also send to {place}</Text>
     </Pressable>
   );
 }
