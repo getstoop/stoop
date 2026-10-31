@@ -171,24 +171,6 @@ export async function markRead(origin: string, token: string, channelId: string,
   await chatClient(origin, token).markChannelRead({ channelId, messageId }, { timeoutMs: TIMEOUT_MS });
 }
 
-// Reads the reader's unread activity in the channel itself (mentions and
-// replies there, not in its threads), as web's useAutoReadActivity: the
-// channel's mention badge counts these, not the marker. Says how many.
-export async function markChannelActivityRead(origin: string, token: string, channelId: string): Promise<number> {
-  const chat = chatClient(origin, token);
-  const { items } = await chat.listActivity({}, { timeoutMs: TIMEOUT_MS });
-  const ids = items
-    .filter((item) => !item.readAt && item.channelId === channelId && !item.threadRootId)
-    .map((item) => item.id);
-  if (ids.length > 0) await chat.markActivityRead({ ids }, { timeoutMs: TIMEOUT_MS });
-  return ids.length;
-}
-
-// Reads the reader's activity items by ID.
-export async function markActivityRead(origin: string, token: string, ids: string[]): Promise<void> {
-  await chatClient(origin, token).markActivityRead({ ids }, { timeoutMs: TIMEOUT_MS });
-}
-
 // Moves the reader's marker in a thread to its newest reply.
 export async function markThreadRead(origin: string, token: string, rootId: string): Promise<void> {
   await chatClient(origin, token).markThreadRead({ messageId: rootId }, { timeoutMs: TIMEOUT_MS });

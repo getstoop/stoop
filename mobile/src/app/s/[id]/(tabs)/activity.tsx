@@ -1,5 +1,6 @@
-import Placeholder from "../../../../screens/Placeholder";
+import Activity from "../../../../screens/Activity";
+import { useCurrentServer } from "../../../../servers";
 
 export default function ActivityTab() {
-  return <Placeholder title="Activity" />;
+  return <Activity server={useCurrentServer()} />;
 }

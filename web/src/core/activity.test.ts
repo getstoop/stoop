@@ -10,9 +10,11 @@ import {
   activityVerb,
   alertingCount,
   readMayClearActivity,
+  startsDay,
   unreadCounts,
   withActivityItem,
   withActivityRead,
+  withOlderPages,
 } from "./activity";
 
 const stamp = (seconds: number): Timestamp =>
@@ -272,5 +274,52 @@ describe("activityTime", () => {
     expect(activityTime(old, false, now)).toBe(time);
     expect(activityTime(old, true, now)).toContain(time);
     expect(activityTime(old, true, now)).not.toBe(time);
+  });
+});
+
+describe("withOlderPages", () => {
+  it("puts the older pages after the first", () => {
+    const shown = withOlderPages([item("c"), item("b")], [item("a")]);
+    expect(shown.map((x) => x.id)).toEqual(["c", "b", "a"]);
+  });
+
+  it("leaves out an older item the first page now holds", () => {
+    // The first page moved on after the older page was fetched.
+    const recent = [item("d", { readAt: stamp(5) }), item("c")];
+    const shown = withOlderPages(recent, [item("d"), item("b")]);
+    expect(shown.map((x) => x.id)).toEqual(["d", "c", "b"]);
+    expect(shown[0].readAt).toEqual(stamp(5));
+  });
+
+  it("is the first page alone with nothing older", () => {
+    expect(withOlderPages([item("a")], []).map((x) => x.id)).toEqual(["a"]);
+  });
+});
+
+describe("startsDay", () => {
+  const at = (iso: string) => stamp(new Date(iso).getTime() / 1000);
+
+  it("opens a day on the first item", () => {
+    expect(
+      startsDay(item("a", { createdAt: at("2026-10-30T09:00:00") }), undefined),
+    ).toBe(true);
+  });
+
+  it("opens one where the item above is from another day", () => {
+    const above = item("b", { createdAt: at("2026-10-30T09:00:00") });
+    const below = item("a", { createdAt: at("2026-10-29T21:00:00") });
+    expect(startsDay(below, above)).toBe(true);
+  });
+
+  it("opens none under an item from the same day", () => {
+    const above = item("b", { createdAt: at("2026-10-30T18:00:00") });
+    const below = item("a", { createdAt: at("2026-10-30T09:00:00") });
+    expect(startsDay(below, above)).toBe(false);
+  });
+
+  it("opens one when either has no time", () => {
+    expect(
+      startsDay(item("a"), item("b", { createdAt: at("2026-10-30T09:00:00") })),
+    ).toBe(true);
   });
 });
