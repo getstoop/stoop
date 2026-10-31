@@ -1,12 +1,22 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { type Conversations, loadConversations, touchesConversations } from "../../api/conversations";
+import {
+  type Conversations,
+  closeConversation,
+  loadConversations,
+  setConversationMuted,
+  touchesConversations,
+} from "../../api/conversations";
+import { errorText } from "../../api/errors";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
+import { conversationLink } from "../../api/shareLinks";
 import { PencilIcon } from "../../components/Icons";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
@@ -15,14 +25,17 @@ import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { channelRoute } from "../Channel/routes";
 import { type Theme, tokens, useTheme } from "../../theme";
-import ConversationRow from "./ConversationRow";
+import ConversationMenu from "./ConversationMenu";
+import ConversationRow, { type ConversationAction } from "./ConversationRow";
 
 // The Messages tab: this account's direct messages on the current server,
 // newest first, as web's DM list (web/src/routes/DirectMessages), each
 // with its newest message. Loaded on opening, on a pull, on coming back
 // to the app, and a moment after the socket says a conversation changed.
-// A row opens its conversation (the channel screen with no space); the
-// pencil opens New message over the tab.
+// A row opens its conversation (the channel screen with no space), and a
+// long press its menu (ConversationMenu): a mute or a close shows at
+// once and is put back, and said, if the server refuses it. The pencil
+// opens New message over the tab.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -103,6 +116,77 @@ export default function Messages({ server }: { server: SavedServer }) {
     [pushOnce, router, server.id],
   );
 
+  // The menu's conversation as the list now draws it, so a mute or a
+  // reload under it shows; once off the list (closed), as it was when
+  // the menu opened, so the sheet can slide out over it.
+  const [menuFor, setMenuFor] = useState<DirectMessage | null>(null);
+  const menuDm = menuFor && (ready?.list.dms.find((dm) => dm.channel?.id === menuFor.channel?.id) ?? menuFor);
+  // A refusal is said once the sheet has gone: on iOS an alert over a
+  // modal goes with it (as AttachSheet waits for its own).
+  const menuOpen = useRef(false);
+  const unsaid = useRef<[string, string?] | null>(null);
+  const say = useCallback((title: string, body?: string) => {
+    if (menuOpen.current) unsaid.current = [title, body];
+    else Alert.alert(title, body);
+  }, []);
+  const openMenu = useCallback((dm: DirectMessage) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    menuOpen.current = true;
+    setMenuFor(dm);
+  }, []);
+  const closeMenu = useCallback(() => {
+    menuOpen.current = false;
+    setMenuFor(null);
+    const held = unsaid.current;
+    unsaid.current = null;
+    if (held) Alert.alert(...held);
+  }, []);
+
+  // The list as shown, changed before the server says so. A load already
+  // on its way knows nothing of the change, so it is dropped (latest);
+  // the list is asked for again once the server has answered.
+  const change = useCallback((edit: (dms: DirectMessage[]) => DirectMessage[]) => {
+    latest.current++;
+    setView((held) => (held.state === "ready" ? { ...held, list: { ...held.list, dms: edit(held.list.dms) } } : held));
+  }, []);
+
+  // The session's token, read when an action runs, so the actions (and
+  // the rows given them) stay the same across loads.
+  const token = useRef("");
+  token.current = ready?.token ?? "";
+
+  const act = useCallback(
+    (dm: DirectMessage, action: ConversationAction) => {
+      const id = dm.channel?.id;
+      if (!id || !token.current) return;
+      if (action === "copyLink") {
+        Clipboard.setStringAsync(conversationLink(server.origin, id)).then(
+          () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
+          () => say("Couldn't copy the link"),
+        );
+        return;
+      }
+      if (action === "mute") {
+        const muted = !dm.channel?.muted;
+        const set = (to: boolean) =>
+          change((dms) => dms.map((d) => (d.channel?.id === id ? { ...d, channel: { ...d.channel, muted: to } } : d)));
+        set(muted);
+        setConversationMuted(server.origin, token.current, id, muted)
+          .catch((err) => {
+            set(!muted);
+            say(muted ? "Couldn't mute the conversation" : "Couldn't unmute the conversation", errorText(err));
+          })
+          .finally(refresh);
+        return;
+      }
+      change((dms) => dms.filter((d) => d.channel?.id !== id));
+      closeConversation(server.origin, token.current, id)
+        .catch((err) => say("Couldn't close the conversation", errorText(err)))
+        .finally(refresh);
+    },
+    [change, refresh, say, server.origin],
+  );
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ServerHeader
@@ -147,11 +231,24 @@ export default function Messages({ server }: { server: SavedServer }) {
               origin={server.origin}
               token={ready.token}
               onPress={open}
+              onLongPress={openMenu}
+              onAction={act}
             />
           )}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
           ListEmptyComponent={<Text style={styles.empty}>No conversations yet.</Text>}
+        />
+      )}
+      {ready && menuDm && (
+        <ConversationMenu
+          dm={menuDm}
+          meId={ready.list.reader.id}
+          serverId={server.id}
+          origin={server.origin}
+          token={ready.token}
+          onAction={(action) => act(menuDm, action)}
+          onClose={closeMenu}
         />
       )}
     </View>

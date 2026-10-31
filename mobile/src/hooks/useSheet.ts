@@ -1,15 +1,16 @@
 import { useCallback, useMemo, useRef } from "react";
 import { Animated, type LayoutChangeEvent, PanResponder } from "react-native";
-import { tokens } from "../../theme";
+import { tokens } from "../theme";
 
-// A sheet drawn up from the bottom of the message menu's modal: it slides
-// in from its own height below its place once measured, follows a finger
-// dragging it down, and closes on a swipe far or fast enough, or on
-// dismiss, sliding out while the modal's scrim (`shown`, the modal's
-// own) fades; onClose runs when both are done. A sheet on its way out
-// takes no more actions (`closing`): a second tap during the slide-out
-// would otherwise do the first one's work again. The menu and the
-// emoji picker are each one of these, over the one scrim.
+// A sheet drawn up from the bottom of a modal (the message menu, Attach,
+// the conversation menu): it slides in from its own height below its
+// place once measured, follows a finger dragging it down, and closes on
+// a swipe far or fast enough, or on dismiss, sliding out while the
+// modal's scrim (`shown`, the modal's own) fades; onClose runs when both
+// are done. A sheet on its way out takes no more actions (`closing`): a
+// second tap during the slide-out would otherwise do the first one's
+// work again. The message menu and its emoji picker are each one of
+// these, over the one scrim.
 
 // Off screen until the sheet has been measured.
 const OFF = 2000;
