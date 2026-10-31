@@ -2,13 +2,7 @@ import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useChannelItems, useOpenView } from "../../api/channelLog";
 import { channelNameText, isAnnouncement } from "../../api/channels";
-import {
-  dmIsGroup,
-  dmTitle,
-  useChannelRecord,
-  useDirectMessages,
-  usePeople,
-} from "../../api/dms";
+import { useChannelRecord, useDirectMessages, usePeople } from "../../api/dms";
 import { useMe, useSpaces } from "../../api/queries";
 import { joinVoice } from "../../api/voice";
 import { ChannelGlyph } from "../../components/ChannelGlyph";
@@ -19,6 +13,7 @@ import { MenuButton } from "../../components/MenuButton";
 import { PinnedMessages } from "../../components/PinnedMessages";
 import { SearchLauncher } from "../../components/SearchLauncher";
 import { VoiceStage } from "../../components/VoiceStage";
+import { dmIsGroup, dmTitle } from "../../core/dms";
 import { canPost, canStartThreads } from "../../core/permissions";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";

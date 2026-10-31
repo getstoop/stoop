@@ -11,12 +11,7 @@ import {
 } from "../../api/channelLog";
 import { channelNameText } from "../../api/channels";
 import { chatClient } from "../../api/clients";
-import {
-  dmIsGroup,
-  dmTitle,
-  useChannelRecord,
-  useDirectMessages,
-} from "../../api/dms";
+import { useChannelRecord, useDirectMessages } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import {
   useInstanceStatus,
@@ -39,6 +34,7 @@ import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
 import { Tooltip } from "../../components/Tooltip";
 import { isShown } from "../../core/channelLog";
+import { dmIsGroup, dmTitle } from "../../core/dms";
 import { canDeleteAnyMessage } from "../../core/permissions";
 import { threadRepliesClosed } from "../../core/threadReplies";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";

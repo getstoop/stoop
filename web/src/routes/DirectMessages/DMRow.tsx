@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { dmFaces, dmIsGroup, dmOther, dmTitle } from "../../api/dms";
 import { isMuted } from "../../api/mutes";
 import { presenceClass, presenceLabel } from "../../api/presence";
 import { useMe } from "../../api/queries";
@@ -8,6 +7,7 @@ import { isAlerting } from "../../api/unreads";
 import { AvatarStack } from "../../components/AvatarStack";
 import { ChannelMenu } from "../../components/ChannelMenu";
 import { DeletedMark } from "../../components/DeletedMark";
+import { dmFaces, dmIsGroup, dmOther, dmTitle } from "../../core/dms";
 import { badgeCount } from "../../core/unreads";
 import type { DirectMessage } from "../../gen/stoop/chat/v1/chat_pb";
 import { useConnectionStore } from "../../stores/connection";
