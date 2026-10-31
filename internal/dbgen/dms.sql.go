@@ -185,6 +185,63 @@ func (q *Queries) ListDMChannelsByUser(ctx context.Context, userID string) ([]Li
 	return items, nil
 }
 
+const listDMLastMessages = `-- name: ListDMLastMessages :many
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at,
+    (m.deleted_at IS NOT NULL)::bool AS deleted,
+    COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS first_file_id
+FROM messages m
+JOIN dm_members d ON d.channel_id = m.channel_id AND d.user_id = $1
+WHERE m.id = ANY($2::uuid[])
+`
+
+type ListDMLastMessagesParams struct {
+	UserID     string
+	MessageIds []string
+}
+
+type ListDMLastMessagesRow struct {
+	ID          string
+	ChannelID   string
+	AuthorID    string
+	Content     string
+	CreatedAt   time.Time
+	Deleted     bool
+	FirstFileID string
+}
+
+// ListDMLastMessages is the newest message of each conversation, by the
+// ids its channel row points at (last_message_id, which
+// RecomputeChannelLastMessage keeps on something that shows), for the
+// list's preview line. Only messages in the user's own conversations:
+// an id from anywhere else finds nothing.
+func (q *Queries) ListDMLastMessages(ctx context.Context, arg ListDMLastMessagesParams) ([]ListDMLastMessagesRow, error) {
+	rows, err := q.db.Query(ctx, listDMLastMessages, arg.UserID, arg.MessageIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDMLastMessagesRow
+	for rows.Next() {
+		var i ListDMLastMessagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChannelID,
+			&i.AuthorID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.Deleted,
+			&i.FirstFileID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDMMembers = `-- name: ListDMMembers :many
 SELECT user_id FROM dm_members WHERE channel_id = $1 ORDER BY user_id
 `

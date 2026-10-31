@@ -5883,7 +5883,10 @@ type DirectMessage struct {
 	// message. Still listed here so a link to it still resolves.
 	Closed bool `protobuf:"varint,3,opt,name=closed,proto3" json:"closed,omitempty"`
 	// Everyone in the conversation, the caller included.
-	Participants  []*MessageAuthor `protobuf:"bytes,2,rep,name=participants,proto3" json:"participants,omitempty"`
+	Participants []*MessageAuthor `protobuf:"bytes,2,rep,name=participants,proto3" json:"participants,omitempty"`
+	// The newest message, for the list's preview line. Unset when the
+	// conversation has none.
+	LastMessage   *DirectMessageLast `protobuf:"bytes,4,opt,name=last_message,json=lastMessage,proto3" json:"last_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5939,6 +5942,94 @@ func (x *DirectMessage) GetParticipants() []*MessageAuthor {
 	return nil
 }
 
+func (x *DirectMessage) GetLastMessage() *DirectMessageLast {
+	if x != nil {
+		return x.LastMessage
+	}
+	return nil
+}
+
+// DirectMessageLast is a conversation's newest message as one line: who
+// sent it, what it says and when.
+type DirectMessageLast struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Author    *MessageAuthor         `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`
+	// Plain text with mentions as names, truncated; the first file's name
+	// when it has no text. Empty when the message was deleted (a deleted
+	// message stays newest while its thread still has replies).
+	Preview       string                 `protobuf:"bytes,3,opt,name=preview,proto3" json:"preview,omitempty"`
+	Deleted       bool                   `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DirectMessageLast) Reset() {
+	*x = DirectMessageLast{}
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[120]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DirectMessageLast) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DirectMessageLast) ProtoMessage() {}
+
+func (x *DirectMessageLast) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[120]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DirectMessageLast.ProtoReflect.Descriptor instead.
+func (*DirectMessageLast) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{120}
+}
+
+func (x *DirectMessageLast) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *DirectMessageLast) GetAuthor() *MessageAuthor {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+func (x *DirectMessageLast) GetPreview() string {
+	if x != nil {
+		return x.Preview
+	}
+	return ""
+}
+
+func (x *DirectMessageLast) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+func (x *DirectMessageLast) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
 type OpenDirectMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Everyone else in the conversation, without the caller: 1 to 9 of them.
@@ -5949,7 +6040,7 @@ type OpenDirectMessageRequest struct {
 
 func (x *OpenDirectMessageRequest) Reset() {
 	*x = OpenDirectMessageRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[120]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5961,7 +6052,7 @@ func (x *OpenDirectMessageRequest) String() string {
 func (*OpenDirectMessageRequest) ProtoMessage() {}
 
 func (x *OpenDirectMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[120]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5974,7 +6065,7 @@ func (x *OpenDirectMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenDirectMessageRequest.ProtoReflect.Descriptor instead.
 func (*OpenDirectMessageRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{120}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *OpenDirectMessageRequest) GetUserIds() []string {
@@ -5993,7 +6084,7 @@ type OpenDirectMessageResponse struct {
 
 func (x *OpenDirectMessageResponse) Reset() {
 	*x = OpenDirectMessageResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[121]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6005,7 +6096,7 @@ func (x *OpenDirectMessageResponse) String() string {
 func (*OpenDirectMessageResponse) ProtoMessage() {}
 
 func (x *OpenDirectMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[121]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6018,7 +6109,7 @@ func (x *OpenDirectMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenDirectMessageResponse.ProtoReflect.Descriptor instead.
 func (*OpenDirectMessageResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{121}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *OpenDirectMessageResponse) GetDirectMessage() *DirectMessage {
@@ -6036,7 +6127,7 @@ type ListDirectMessagesRequest struct {
 
 func (x *ListDirectMessagesRequest) Reset() {
 	*x = ListDirectMessagesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[122]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6048,7 +6139,7 @@ func (x *ListDirectMessagesRequest) String() string {
 func (*ListDirectMessagesRequest) ProtoMessage() {}
 
 func (x *ListDirectMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[122]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6061,7 +6152,7 @@ func (x *ListDirectMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListDirectMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{122}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{123}
 }
 
 type ListDirectMessagesResponse struct {
@@ -6073,7 +6164,7 @@ type ListDirectMessagesResponse struct {
 
 func (x *ListDirectMessagesResponse) Reset() {
 	*x = ListDirectMessagesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[123]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6085,7 +6176,7 @@ func (x *ListDirectMessagesResponse) String() string {
 func (*ListDirectMessagesResponse) ProtoMessage() {}
 
 func (x *ListDirectMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[123]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6098,7 +6189,7 @@ func (x *ListDirectMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListDirectMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{123}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *ListDirectMessagesResponse) GetDirectMessages() []*DirectMessage {
@@ -6118,7 +6209,7 @@ type SetDirectMessageClosedRequest struct {
 
 func (x *SetDirectMessageClosedRequest) Reset() {
 	*x = SetDirectMessageClosedRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[124]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6130,7 +6221,7 @@ func (x *SetDirectMessageClosedRequest) String() string {
 func (*SetDirectMessageClosedRequest) ProtoMessage() {}
 
 func (x *SetDirectMessageClosedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[124]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6143,7 +6234,7 @@ func (x *SetDirectMessageClosedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDirectMessageClosedRequest.ProtoReflect.Descriptor instead.
 func (*SetDirectMessageClosedRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{124}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *SetDirectMessageClosedRequest) GetChannelId() string {
@@ -6169,7 +6260,7 @@ type SetDirectMessageClosedResponse struct {
 
 func (x *SetDirectMessageClosedResponse) Reset() {
 	*x = SetDirectMessageClosedResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[125]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6181,7 +6272,7 @@ func (x *SetDirectMessageClosedResponse) String() string {
 func (*SetDirectMessageClosedResponse) ProtoMessage() {}
 
 func (x *SetDirectMessageClosedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[125]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6194,7 +6285,7 @@ func (x *SetDirectMessageClosedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDirectMessageClosedResponse.ProtoReflect.Descriptor instead.
 func (*SetDirectMessageClosedResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{125}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *SetDirectMessageClosedResponse) GetDirectMessage() *DirectMessage {
@@ -6212,7 +6303,7 @@ type ListDirectMessageCandidatesRequest struct {
 
 func (x *ListDirectMessageCandidatesRequest) Reset() {
 	*x = ListDirectMessageCandidatesRequest{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[126]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6224,7 +6315,7 @@ func (x *ListDirectMessageCandidatesRequest) String() string {
 func (*ListDirectMessageCandidatesRequest) ProtoMessage() {}
 
 func (x *ListDirectMessageCandidatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[126]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6237,7 +6328,7 @@ func (x *ListDirectMessageCandidatesRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListDirectMessageCandidatesRequest.ProtoReflect.Descriptor instead.
 func (*ListDirectMessageCandidatesRequest) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{126}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{127}
 }
 
 type ListDirectMessageCandidatesResponse struct {
@@ -6249,7 +6340,7 @@ type ListDirectMessageCandidatesResponse struct {
 
 func (x *ListDirectMessageCandidatesResponse) Reset() {
 	*x = ListDirectMessageCandidatesResponse{}
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[127]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6261,7 +6352,7 @@ func (x *ListDirectMessageCandidatesResponse) String() string {
 func (*ListDirectMessageCandidatesResponse) ProtoMessage() {}
 
 func (x *ListDirectMessageCandidatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_chat_proto_msgTypes[127]
+	mi := &file_stoop_chat_v1_chat_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6274,7 +6365,7 @@ func (x *ListDirectMessageCandidatesResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ListDirectMessageCandidatesResponse.ProtoReflect.Descriptor instead.
 func (*ListDirectMessageCandidatesResponse) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{127}
+	return file_stoop_chat_v1_chat_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *ListDirectMessageCandidatesResponse) GetUsers() []*MessageAuthor {
@@ -6625,11 +6716,20 @@ const file_stoop_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
 	"channel_id\x18\x01 \x01(\tR\tchannelId\"N\n" +
 	"\x1aListPinnedMessagesResponse\x120\n" +
-	"\x04pins\x18\x01 \x03(\v2\x1c.stoop.chat.v1.PinnedMessageR\x04pins\"\x9b\x01\n" +
+	"\x04pins\x18\x01 \x03(\v2\x1c.stoop.chat.v1.PinnedMessageR\x04pins\"\xe0\x01\n" +
 	"\rDirectMessage\x120\n" +
 	"\achannel\x18\x01 \x01(\v2\x16.stoop.chat.v1.ChannelR\achannel\x12\x16\n" +
 	"\x06closed\x18\x03 \x01(\bR\x06closed\x12@\n" +
-	"\fparticipants\x18\x02 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\fparticipants\"D\n" +
+	"\fparticipants\x18\x02 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\fparticipants\x12C\n" +
+	"\flast_message\x18\x04 \x01(\v2 .stoop.chat.v1.DirectMessageLastR\vlastMessage\"\xd7\x01\n" +
+	"\x11DirectMessageLast\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\x124\n" +
+	"\x06author\x18\x02 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\x06author\x12\x18\n" +
+	"\apreview\x18\x03 \x01(\tR\apreview\x12\x18\n" +
+	"\adeleted\x18\x04 \x01(\bR\adeleted\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"D\n" +
 	"\x18OpenDirectMessageRequest\x12\x19\n" +
 	"\buser_ids\x18\x02 \x03(\tR\auserIdsJ\x04\b\x01\x10\x02R\auser_id\"`\n" +
 	"\x19OpenDirectMessageResponse\x12C\n" +
@@ -6727,7 +6827,7 @@ func file_stoop_chat_v1_chat_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_chat_proto_rawDescData
 }
 
-var file_stoop_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 128)
+var file_stoop_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 129)
 var file_stoop_chat_v1_chat_proto_goTypes = []any{
 	(*CreateSpaceRequest)(nil),                  // 0: stoop.chat.v1.CreateSpaceRequest
 	(*CreateSpaceResponse)(nil),                 // 1: stoop.chat.v1.CreateSpaceResponse
@@ -6849,216 +6949,220 @@ var file_stoop_chat_v1_chat_proto_goTypes = []any{
 	(*ListPinnedMessagesRequest)(nil),           // 117: stoop.chat.v1.ListPinnedMessagesRequest
 	(*ListPinnedMessagesResponse)(nil),          // 118: stoop.chat.v1.ListPinnedMessagesResponse
 	(*DirectMessage)(nil),                       // 119: stoop.chat.v1.DirectMessage
-	(*OpenDirectMessageRequest)(nil),            // 120: stoop.chat.v1.OpenDirectMessageRequest
-	(*OpenDirectMessageResponse)(nil),           // 121: stoop.chat.v1.OpenDirectMessageResponse
-	(*ListDirectMessagesRequest)(nil),           // 122: stoop.chat.v1.ListDirectMessagesRequest
-	(*ListDirectMessagesResponse)(nil),          // 123: stoop.chat.v1.ListDirectMessagesResponse
-	(*SetDirectMessageClosedRequest)(nil),       // 124: stoop.chat.v1.SetDirectMessageClosedRequest
-	(*SetDirectMessageClosedResponse)(nil),      // 125: stoop.chat.v1.SetDirectMessageClosedResponse
-	(*ListDirectMessageCandidatesRequest)(nil),  // 126: stoop.chat.v1.ListDirectMessageCandidatesRequest
-	(*ListDirectMessageCandidatesResponse)(nil), // 127: stoop.chat.v1.ListDirectMessageCandidatesResponse
-	(*Space)(nil),                               // 128: stoop.chat.v1.Space
-	(*Channel)(nil),                             // 129: stoop.chat.v1.Channel
-	(*SpaceSummary)(nil),                        // 130: stoop.chat.v1.SpaceSummary
-	(*Member)(nil),                              // 131: stoop.chat.v1.Member
-	(*ActivityItem)(nil),                        // 132: stoop.chat.v1.ActivityItem
-	(SpaceRole)(0),                              // 133: stoop.chat.v1.SpaceRole
-	(*MessageAuthor)(nil),                       // 134: stoop.chat.v1.MessageAuthor
-	(*timestamppb.Timestamp)(nil),               // 135: google.protobuf.Timestamp
-	(*Group)(nil),                               // 136: stoop.chat.v1.Group
-	(*durationpb.Duration)(nil),                 // 137: google.protobuf.Duration
-	(*Invite)(nil),                              // 138: stoop.chat.v1.Invite
-	(*InviteUse)(nil),                           // 139: stoop.chat.v1.InviteUse
-	(*InvitePreview)(nil),                       // 140: stoop.chat.v1.InvitePreview
-	(ChannelKind)(0),                            // 141: stoop.chat.v1.ChannelKind
-	(*Message)(nil),                             // 142: stoop.chat.v1.Message
-	(ChannelPostPolicy)(0),                      // 143: stoop.chat.v1.ChannelPostPolicy
-	(*PinnedMessage)(nil),                       // 144: stoop.chat.v1.PinnedMessage
+	(*DirectMessageLast)(nil),                   // 120: stoop.chat.v1.DirectMessageLast
+	(*OpenDirectMessageRequest)(nil),            // 121: stoop.chat.v1.OpenDirectMessageRequest
+	(*OpenDirectMessageResponse)(nil),           // 122: stoop.chat.v1.OpenDirectMessageResponse
+	(*ListDirectMessagesRequest)(nil),           // 123: stoop.chat.v1.ListDirectMessagesRequest
+	(*ListDirectMessagesResponse)(nil),          // 124: stoop.chat.v1.ListDirectMessagesResponse
+	(*SetDirectMessageClosedRequest)(nil),       // 125: stoop.chat.v1.SetDirectMessageClosedRequest
+	(*SetDirectMessageClosedResponse)(nil),      // 126: stoop.chat.v1.SetDirectMessageClosedResponse
+	(*ListDirectMessageCandidatesRequest)(nil),  // 127: stoop.chat.v1.ListDirectMessageCandidatesRequest
+	(*ListDirectMessageCandidatesResponse)(nil), // 128: stoop.chat.v1.ListDirectMessageCandidatesResponse
+	(*Space)(nil),                               // 129: stoop.chat.v1.Space
+	(*Channel)(nil),                             // 130: stoop.chat.v1.Channel
+	(*SpaceSummary)(nil),                        // 131: stoop.chat.v1.SpaceSummary
+	(*Member)(nil),                              // 132: stoop.chat.v1.Member
+	(*ActivityItem)(nil),                        // 133: stoop.chat.v1.ActivityItem
+	(SpaceRole)(0),                              // 134: stoop.chat.v1.SpaceRole
+	(*MessageAuthor)(nil),                       // 135: stoop.chat.v1.MessageAuthor
+	(*timestamppb.Timestamp)(nil),               // 136: google.protobuf.Timestamp
+	(*Group)(nil),                               // 137: stoop.chat.v1.Group
+	(*durationpb.Duration)(nil),                 // 138: google.protobuf.Duration
+	(*Invite)(nil),                              // 139: stoop.chat.v1.Invite
+	(*InviteUse)(nil),                           // 140: stoop.chat.v1.InviteUse
+	(*InvitePreview)(nil),                       // 141: stoop.chat.v1.InvitePreview
+	(ChannelKind)(0),                            // 142: stoop.chat.v1.ChannelKind
+	(*Message)(nil),                             // 143: stoop.chat.v1.Message
+	(ChannelPostPolicy)(0),                      // 144: stoop.chat.v1.ChannelPostPolicy
+	(*PinnedMessage)(nil),                       // 145: stoop.chat.v1.PinnedMessage
 }
 var file_stoop_chat_v1_chat_proto_depIdxs = []int32{
-	128, // 0: stoop.chat.v1.CreateSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	129, // 1: stoop.chat.v1.CreateSpaceResponse.default_channel:type_name -> stoop.chat.v1.Channel
-	128, // 2: stoop.chat.v1.ListSpacesResponse.spaces:type_name -> stoop.chat.v1.Space
-	130, // 3: stoop.chat.v1.ListAllSpacesResponse.spaces:type_name -> stoop.chat.v1.SpaceSummary
-	128, // 4: stoop.chat.v1.GetSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	128, // 5: stoop.chat.v1.JoinSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	131, // 6: stoop.chat.v1.GetMemberResponse.member:type_name -> stoop.chat.v1.Member
-	132, // 7: stoop.chat.v1.ListActivityResponse.items:type_name -> stoop.chat.v1.ActivityItem
-	131, // 8: stoop.chat.v1.ListMembersResponse.members:type_name -> stoop.chat.v1.Member
-	133, // 9: stoop.chat.v1.SetMemberRoleRequest.role:type_name -> stoop.chat.v1.SpaceRole
-	131, // 10: stoop.chat.v1.SetMemberRoleResponse.member:type_name -> stoop.chat.v1.Member
-	128, // 11: stoop.chat.v1.AddMemberResponse.space:type_name -> stoop.chat.v1.Space
-	134, // 12: stoop.chat.v1.Ban.user:type_name -> stoop.chat.v1.MessageAuthor
-	135, // 13: stoop.chat.v1.Ban.created_at:type_name -> google.protobuf.Timestamp
+	129, // 0: stoop.chat.v1.CreateSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	130, // 1: stoop.chat.v1.CreateSpaceResponse.default_channel:type_name -> stoop.chat.v1.Channel
+	129, // 2: stoop.chat.v1.ListSpacesResponse.spaces:type_name -> stoop.chat.v1.Space
+	131, // 3: stoop.chat.v1.ListAllSpacesResponse.spaces:type_name -> stoop.chat.v1.SpaceSummary
+	129, // 4: stoop.chat.v1.GetSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	129, // 5: stoop.chat.v1.JoinSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	132, // 6: stoop.chat.v1.GetMemberResponse.member:type_name -> stoop.chat.v1.Member
+	133, // 7: stoop.chat.v1.ListActivityResponse.items:type_name -> stoop.chat.v1.ActivityItem
+	132, // 8: stoop.chat.v1.ListMembersResponse.members:type_name -> stoop.chat.v1.Member
+	134, // 9: stoop.chat.v1.SetMemberRoleRequest.role:type_name -> stoop.chat.v1.SpaceRole
+	132, // 10: stoop.chat.v1.SetMemberRoleResponse.member:type_name -> stoop.chat.v1.Member
+	129, // 11: stoop.chat.v1.AddMemberResponse.space:type_name -> stoop.chat.v1.Space
+	135, // 12: stoop.chat.v1.Ban.user:type_name -> stoop.chat.v1.MessageAuthor
+	136, // 13: stoop.chat.v1.Ban.created_at:type_name -> google.protobuf.Timestamp
 	33,  // 14: stoop.chat.v1.ListBansResponse.bans:type_name -> stoop.chat.v1.Ban
-	136, // 15: stoop.chat.v1.ListGroupsResponse.groups:type_name -> stoop.chat.v1.Group
-	136, // 16: stoop.chat.v1.CreateGroupResponse.group:type_name -> stoop.chat.v1.Group
-	136, // 17: stoop.chat.v1.UpdateGroupResponse.group:type_name -> stoop.chat.v1.Group
-	134, // 18: stoop.chat.v1.ListBlockedUsersResponse.users:type_name -> stoop.chat.v1.MessageAuthor
-	128, // 19: stoop.chat.v1.TransferOwnershipResponse.space:type_name -> stoop.chat.v1.Space
-	128, // 20: stoop.chat.v1.UpdateSpaceResponse.space:type_name -> stoop.chat.v1.Space
-	137, // 21: stoop.chat.v1.CreateInviteRequest.expires_in:type_name -> google.protobuf.Duration
-	133, // 22: stoop.chat.v1.CreateInviteRequest.role:type_name -> stoop.chat.v1.SpaceRole
-	138, // 23: stoop.chat.v1.CreateInviteResponse.invite:type_name -> stoop.chat.v1.Invite
-	138, // 24: stoop.chat.v1.ListInvitesResponse.invites:type_name -> stoop.chat.v1.Invite
-	138, // 25: stoop.chat.v1.RevokeInviteResponse.invite:type_name -> stoop.chat.v1.Invite
-	139, // 26: stoop.chat.v1.ListInviteUsesResponse.uses:type_name -> stoop.chat.v1.InviteUse
-	140, // 27: stoop.chat.v1.LookupInviteResponse.preview:type_name -> stoop.chat.v1.InvitePreview
-	141, // 28: stoop.chat.v1.CreateChannelRequest.kind:type_name -> stoop.chat.v1.ChannelKind
-	129, // 29: stoop.chat.v1.CreateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
-	129, // 30: stoop.chat.v1.SetChannelMutedResponse.channel:type_name -> stoop.chat.v1.Channel
-	128, // 31: stoop.chat.v1.SetSpaceMutedResponse.space:type_name -> stoop.chat.v1.Space
+	137, // 15: stoop.chat.v1.ListGroupsResponse.groups:type_name -> stoop.chat.v1.Group
+	137, // 16: stoop.chat.v1.CreateGroupResponse.group:type_name -> stoop.chat.v1.Group
+	137, // 17: stoop.chat.v1.UpdateGroupResponse.group:type_name -> stoop.chat.v1.Group
+	135, // 18: stoop.chat.v1.ListBlockedUsersResponse.users:type_name -> stoop.chat.v1.MessageAuthor
+	129, // 19: stoop.chat.v1.TransferOwnershipResponse.space:type_name -> stoop.chat.v1.Space
+	129, // 20: stoop.chat.v1.UpdateSpaceResponse.space:type_name -> stoop.chat.v1.Space
+	138, // 21: stoop.chat.v1.CreateInviteRequest.expires_in:type_name -> google.protobuf.Duration
+	134, // 22: stoop.chat.v1.CreateInviteRequest.role:type_name -> stoop.chat.v1.SpaceRole
+	139, // 23: stoop.chat.v1.CreateInviteResponse.invite:type_name -> stoop.chat.v1.Invite
+	139, // 24: stoop.chat.v1.ListInvitesResponse.invites:type_name -> stoop.chat.v1.Invite
+	139, // 25: stoop.chat.v1.RevokeInviteResponse.invite:type_name -> stoop.chat.v1.Invite
+	140, // 26: stoop.chat.v1.ListInviteUsesResponse.uses:type_name -> stoop.chat.v1.InviteUse
+	141, // 27: stoop.chat.v1.LookupInviteResponse.preview:type_name -> stoop.chat.v1.InvitePreview
+	142, // 28: stoop.chat.v1.CreateChannelRequest.kind:type_name -> stoop.chat.v1.ChannelKind
+	130, // 29: stoop.chat.v1.CreateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
+	130, // 30: stoop.chat.v1.SetChannelMutedResponse.channel:type_name -> stoop.chat.v1.Channel
+	129, // 31: stoop.chat.v1.SetSpaceMutedResponse.space:type_name -> stoop.chat.v1.Space
 	77,  // 32: stoop.chat.v1.ListThreadMutesResponse.threads:type_name -> stoop.chat.v1.MutedThread
-	142, // 33: stoop.chat.v1.MutedThread.root:type_name -> stoop.chat.v1.Message
+	143, // 33: stoop.chat.v1.MutedThread.root:type_name -> stoop.chat.v1.Message
 	81,  // 34: stoop.chat.v1.ListAllChannelsResponse.channels:type_name -> stoop.chat.v1.ManagedChannel
-	129, // 35: stoop.chat.v1.ManagedChannel.channel:type_name -> stoop.chat.v1.Channel
-	129, // 36: stoop.chat.v1.ListChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
-	143, // 37: stoop.chat.v1.UpdateChannelRequest.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
-	129, // 38: stoop.chat.v1.UpdateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
-	129, // 39: stoop.chat.v1.ReorderChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
-	142, // 40: stoop.chat.v1.SendMessageResponse.message:type_name -> stoop.chat.v1.Message
-	142, // 41: stoop.chat.v1.EditMessageResponse.message:type_name -> stoop.chat.v1.Message
-	142, // 42: stoop.chat.v1.ToggleReactionResponse.message:type_name -> stoop.chat.v1.Message
-	142, // 43: stoop.chat.v1.ListMessagesResponse.messages:type_name -> stoop.chat.v1.Message
-	142, // 44: stoop.chat.v1.ListChangesResponse.messages:type_name -> stoop.chat.v1.Message
-	142, // 45: stoop.chat.v1.SearchMessagesResponse.messages:type_name -> stoop.chat.v1.Message
-	144, // 46: stoop.chat.v1.SetMessagePinnedResponse.pin:type_name -> stoop.chat.v1.PinnedMessage
-	144, // 47: stoop.chat.v1.ListPinnedMessagesResponse.pins:type_name -> stoop.chat.v1.PinnedMessage
-	129, // 48: stoop.chat.v1.DirectMessage.channel:type_name -> stoop.chat.v1.Channel
-	134, // 49: stoop.chat.v1.DirectMessage.participants:type_name -> stoop.chat.v1.MessageAuthor
-	119, // 50: stoop.chat.v1.OpenDirectMessageResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
-	119, // 51: stoop.chat.v1.ListDirectMessagesResponse.direct_messages:type_name -> stoop.chat.v1.DirectMessage
-	119, // 52: stoop.chat.v1.SetDirectMessageClosedResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
-	134, // 53: stoop.chat.v1.ListDirectMessageCandidatesResponse.users:type_name -> stoop.chat.v1.MessageAuthor
-	0,   // 54: stoop.chat.v1.ChatService.CreateSpace:input_type -> stoop.chat.v1.CreateSpaceRequest
-	2,   // 55: stoop.chat.v1.ChatService.ListSpaces:input_type -> stoop.chat.v1.ListSpacesRequest
-	4,   // 56: stoop.chat.v1.ChatService.ListAllSpaces:input_type -> stoop.chat.v1.ListAllSpacesRequest
-	6,   // 57: stoop.chat.v1.ChatService.GetSpace:input_type -> stoop.chat.v1.GetSpaceRequest
-	8,   // 58: stoop.chat.v1.ChatService.JoinSpace:input_type -> stoop.chat.v1.JoinSpaceRequest
-	57,  // 59: stoop.chat.v1.ChatService.CreateInvite:input_type -> stoop.chat.v1.CreateInviteRequest
-	59,  // 60: stoop.chat.v1.ChatService.ListInvites:input_type -> stoop.chat.v1.ListInvitesRequest
-	61,  // 61: stoop.chat.v1.ChatService.RevokeInvite:input_type -> stoop.chat.v1.RevokeInviteRequest
-	63,  // 62: stoop.chat.v1.ChatService.ListInviteUses:input_type -> stoop.chat.v1.ListInviteUsesRequest
-	65,  // 63: stoop.chat.v1.ChatService.LookupInvite:input_type -> stoop.chat.v1.LookupInviteRequest
-	10,  // 64: stoop.chat.v1.ChatService.GetMember:input_type -> stoop.chat.v1.GetMemberRequest
-	20,  // 65: stoop.chat.v1.ChatService.ListMembers:input_type -> stoop.chat.v1.ListMembersRequest
-	22,  // 66: stoop.chat.v1.ChatService.SetMemberRole:input_type -> stoop.chat.v1.SetMemberRoleRequest
-	24,  // 67: stoop.chat.v1.ChatService.KickMember:input_type -> stoop.chat.v1.KickMemberRequest
-	26,  // 68: stoop.chat.v1.ChatService.AddMember:input_type -> stoop.chat.v1.AddMemberRequest
-	28,  // 69: stoop.chat.v1.ChatService.BanMember:input_type -> stoop.chat.v1.BanMemberRequest
-	30,  // 70: stoop.chat.v1.ChatService.UnbanMember:input_type -> stoop.chat.v1.UnbanMemberRequest
-	32,  // 71: stoop.chat.v1.ChatService.ListBans:input_type -> stoop.chat.v1.ListBansRequest
-	35,  // 72: stoop.chat.v1.ChatService.ListGroups:input_type -> stoop.chat.v1.ListGroupsRequest
-	37,  // 73: stoop.chat.v1.ChatService.CreateGroup:input_type -> stoop.chat.v1.CreateGroupRequest
-	39,  // 74: stoop.chat.v1.ChatService.UpdateGroup:input_type -> stoop.chat.v1.UpdateGroupRequest
-	41,  // 75: stoop.chat.v1.ChatService.DeleteGroup:input_type -> stoop.chat.v1.DeleteGroupRequest
-	43,  // 76: stoop.chat.v1.ChatService.BlockUser:input_type -> stoop.chat.v1.BlockUserRequest
-	45,  // 77: stoop.chat.v1.ChatService.UnblockUser:input_type -> stoop.chat.v1.UnblockUserRequest
-	47,  // 78: stoop.chat.v1.ChatService.ListBlockedUsers:input_type -> stoop.chat.v1.ListBlockedUsersRequest
-	49,  // 79: stoop.chat.v1.ChatService.LeaveSpace:input_type -> stoop.chat.v1.LeaveSpaceRequest
-	51,  // 80: stoop.chat.v1.ChatService.TransferOwnership:input_type -> stoop.chat.v1.TransferOwnershipRequest
-	53,  // 81: stoop.chat.v1.ChatService.UpdateSpace:input_type -> stoop.chat.v1.UpdateSpaceRequest
-	55,  // 82: stoop.chat.v1.ChatService.DeleteSpace:input_type -> stoop.chat.v1.DeleteSpaceRequest
-	67,  // 83: stoop.chat.v1.ChatService.CreateChannel:input_type -> stoop.chat.v1.CreateChannelRequest
-	78,  // 84: stoop.chat.v1.ChatService.ListChannels:input_type -> stoop.chat.v1.ListChannelsRequest
-	79,  // 85: stoop.chat.v1.ChatService.ListAllChannels:input_type -> stoop.chat.v1.ListAllChannelsRequest
-	82,  // 86: stoop.chat.v1.ChatService.ListChannelMembers:input_type -> stoop.chat.v1.ListChannelMembersRequest
-	84,  // 87: stoop.chat.v1.ChatService.AddChannelMembers:input_type -> stoop.chat.v1.AddChannelMembersRequest
-	86,  // 88: stoop.chat.v1.ChatService.RemoveChannelMember:input_type -> stoop.chat.v1.RemoveChannelMemberRequest
-	88,  // 89: stoop.chat.v1.ChatService.LeaveChannel:input_type -> stoop.chat.v1.LeaveChannelRequest
-	91,  // 90: stoop.chat.v1.ChatService.UpdateChannel:input_type -> stoop.chat.v1.UpdateChannelRequest
-	93,  // 91: stoop.chat.v1.ChatService.DeleteChannel:input_type -> stoop.chat.v1.DeleteChannelRequest
-	95,  // 92: stoop.chat.v1.ChatService.ReorderChannels:input_type -> stoop.chat.v1.ReorderChannelsRequest
-	69,  // 93: stoop.chat.v1.ChatService.SetChannelMuted:input_type -> stoop.chat.v1.SetChannelMutedRequest
-	71,  // 94: stoop.chat.v1.ChatService.SetSpaceMuted:input_type -> stoop.chat.v1.SetSpaceMutedRequest
-	73,  // 95: stoop.chat.v1.ChatService.SetThreadMuted:input_type -> stoop.chat.v1.SetThreadMutedRequest
-	75,  // 96: stoop.chat.v1.ChatService.ListThreadMutes:input_type -> stoop.chat.v1.ListThreadMutesRequest
-	97,  // 97: stoop.chat.v1.ChatService.SendMessage:input_type -> stoop.chat.v1.SendMessageRequest
-	109, // 98: stoop.chat.v1.ChatService.ListMessages:input_type -> stoop.chat.v1.ListMessagesRequest
-	111, // 99: stoop.chat.v1.ChatService.ListChanges:input_type -> stoop.chat.v1.ListChangesRequest
-	113, // 100: stoop.chat.v1.ChatService.SearchMessages:input_type -> stoop.chat.v1.SearchMessagesRequest
-	115, // 101: stoop.chat.v1.ChatService.SetMessagePinned:input_type -> stoop.chat.v1.SetMessagePinnedRequest
-	117, // 102: stoop.chat.v1.ChatService.ListPinnedMessages:input_type -> stoop.chat.v1.ListPinnedMessagesRequest
-	99,  // 103: stoop.chat.v1.ChatService.EditMessage:input_type -> stoop.chat.v1.EditMessageRequest
-	101, // 104: stoop.chat.v1.ChatService.DeleteMessage:input_type -> stoop.chat.v1.DeleteMessageRequest
-	103, // 105: stoop.chat.v1.ChatService.DismissLinkPreview:input_type -> stoop.chat.v1.DismissLinkPreviewRequest
-	105, // 106: stoop.chat.v1.ChatService.DeleteThread:input_type -> stoop.chat.v1.DeleteThreadRequest
-	107, // 107: stoop.chat.v1.ChatService.ToggleReaction:input_type -> stoop.chat.v1.ToggleReactionRequest
-	120, // 108: stoop.chat.v1.ChatService.OpenDirectMessage:input_type -> stoop.chat.v1.OpenDirectMessageRequest
-	122, // 109: stoop.chat.v1.ChatService.ListDirectMessages:input_type -> stoop.chat.v1.ListDirectMessagesRequest
-	124, // 110: stoop.chat.v1.ChatService.SetDirectMessageClosed:input_type -> stoop.chat.v1.SetDirectMessageClosedRequest
-	126, // 111: stoop.chat.v1.ChatService.ListDirectMessageCandidates:input_type -> stoop.chat.v1.ListDirectMessageCandidatesRequest
-	12,  // 112: stoop.chat.v1.ChatService.MarkChannelRead:input_type -> stoop.chat.v1.MarkChannelReadRequest
-	14,  // 113: stoop.chat.v1.ChatService.MarkThreadRead:input_type -> stoop.chat.v1.MarkThreadReadRequest
-	16,  // 114: stoop.chat.v1.ChatService.ListActivity:input_type -> stoop.chat.v1.ListActivityRequest
-	18,  // 115: stoop.chat.v1.ChatService.MarkActivityRead:input_type -> stoop.chat.v1.MarkActivityReadRequest
-	1,   // 116: stoop.chat.v1.ChatService.CreateSpace:output_type -> stoop.chat.v1.CreateSpaceResponse
-	3,   // 117: stoop.chat.v1.ChatService.ListSpaces:output_type -> stoop.chat.v1.ListSpacesResponse
-	5,   // 118: stoop.chat.v1.ChatService.ListAllSpaces:output_type -> stoop.chat.v1.ListAllSpacesResponse
-	7,   // 119: stoop.chat.v1.ChatService.GetSpace:output_type -> stoop.chat.v1.GetSpaceResponse
-	9,   // 120: stoop.chat.v1.ChatService.JoinSpace:output_type -> stoop.chat.v1.JoinSpaceResponse
-	58,  // 121: stoop.chat.v1.ChatService.CreateInvite:output_type -> stoop.chat.v1.CreateInviteResponse
-	60,  // 122: stoop.chat.v1.ChatService.ListInvites:output_type -> stoop.chat.v1.ListInvitesResponse
-	62,  // 123: stoop.chat.v1.ChatService.RevokeInvite:output_type -> stoop.chat.v1.RevokeInviteResponse
-	64,  // 124: stoop.chat.v1.ChatService.ListInviteUses:output_type -> stoop.chat.v1.ListInviteUsesResponse
-	66,  // 125: stoop.chat.v1.ChatService.LookupInvite:output_type -> stoop.chat.v1.LookupInviteResponse
-	11,  // 126: stoop.chat.v1.ChatService.GetMember:output_type -> stoop.chat.v1.GetMemberResponse
-	21,  // 127: stoop.chat.v1.ChatService.ListMembers:output_type -> stoop.chat.v1.ListMembersResponse
-	23,  // 128: stoop.chat.v1.ChatService.SetMemberRole:output_type -> stoop.chat.v1.SetMemberRoleResponse
-	25,  // 129: stoop.chat.v1.ChatService.KickMember:output_type -> stoop.chat.v1.KickMemberResponse
-	27,  // 130: stoop.chat.v1.ChatService.AddMember:output_type -> stoop.chat.v1.AddMemberResponse
-	29,  // 131: stoop.chat.v1.ChatService.BanMember:output_type -> stoop.chat.v1.BanMemberResponse
-	31,  // 132: stoop.chat.v1.ChatService.UnbanMember:output_type -> stoop.chat.v1.UnbanMemberResponse
-	34,  // 133: stoop.chat.v1.ChatService.ListBans:output_type -> stoop.chat.v1.ListBansResponse
-	36,  // 134: stoop.chat.v1.ChatService.ListGroups:output_type -> stoop.chat.v1.ListGroupsResponse
-	38,  // 135: stoop.chat.v1.ChatService.CreateGroup:output_type -> stoop.chat.v1.CreateGroupResponse
-	40,  // 136: stoop.chat.v1.ChatService.UpdateGroup:output_type -> stoop.chat.v1.UpdateGroupResponse
-	42,  // 137: stoop.chat.v1.ChatService.DeleteGroup:output_type -> stoop.chat.v1.DeleteGroupResponse
-	44,  // 138: stoop.chat.v1.ChatService.BlockUser:output_type -> stoop.chat.v1.BlockUserResponse
-	46,  // 139: stoop.chat.v1.ChatService.UnblockUser:output_type -> stoop.chat.v1.UnblockUserResponse
-	48,  // 140: stoop.chat.v1.ChatService.ListBlockedUsers:output_type -> stoop.chat.v1.ListBlockedUsersResponse
-	50,  // 141: stoop.chat.v1.ChatService.LeaveSpace:output_type -> stoop.chat.v1.LeaveSpaceResponse
-	52,  // 142: stoop.chat.v1.ChatService.TransferOwnership:output_type -> stoop.chat.v1.TransferOwnershipResponse
-	54,  // 143: stoop.chat.v1.ChatService.UpdateSpace:output_type -> stoop.chat.v1.UpdateSpaceResponse
-	56,  // 144: stoop.chat.v1.ChatService.DeleteSpace:output_type -> stoop.chat.v1.DeleteSpaceResponse
-	68,  // 145: stoop.chat.v1.ChatService.CreateChannel:output_type -> stoop.chat.v1.CreateChannelResponse
-	90,  // 146: stoop.chat.v1.ChatService.ListChannels:output_type -> stoop.chat.v1.ListChannelsResponse
-	80,  // 147: stoop.chat.v1.ChatService.ListAllChannels:output_type -> stoop.chat.v1.ListAllChannelsResponse
-	83,  // 148: stoop.chat.v1.ChatService.ListChannelMembers:output_type -> stoop.chat.v1.ListChannelMembersResponse
-	85,  // 149: stoop.chat.v1.ChatService.AddChannelMembers:output_type -> stoop.chat.v1.AddChannelMembersResponse
-	87,  // 150: stoop.chat.v1.ChatService.RemoveChannelMember:output_type -> stoop.chat.v1.RemoveChannelMemberResponse
-	89,  // 151: stoop.chat.v1.ChatService.LeaveChannel:output_type -> stoop.chat.v1.LeaveChannelResponse
-	92,  // 152: stoop.chat.v1.ChatService.UpdateChannel:output_type -> stoop.chat.v1.UpdateChannelResponse
-	94,  // 153: stoop.chat.v1.ChatService.DeleteChannel:output_type -> stoop.chat.v1.DeleteChannelResponse
-	96,  // 154: stoop.chat.v1.ChatService.ReorderChannels:output_type -> stoop.chat.v1.ReorderChannelsResponse
-	70,  // 155: stoop.chat.v1.ChatService.SetChannelMuted:output_type -> stoop.chat.v1.SetChannelMutedResponse
-	72,  // 156: stoop.chat.v1.ChatService.SetSpaceMuted:output_type -> stoop.chat.v1.SetSpaceMutedResponse
-	74,  // 157: stoop.chat.v1.ChatService.SetThreadMuted:output_type -> stoop.chat.v1.SetThreadMutedResponse
-	76,  // 158: stoop.chat.v1.ChatService.ListThreadMutes:output_type -> stoop.chat.v1.ListThreadMutesResponse
-	98,  // 159: stoop.chat.v1.ChatService.SendMessage:output_type -> stoop.chat.v1.SendMessageResponse
-	110, // 160: stoop.chat.v1.ChatService.ListMessages:output_type -> stoop.chat.v1.ListMessagesResponse
-	112, // 161: stoop.chat.v1.ChatService.ListChanges:output_type -> stoop.chat.v1.ListChangesResponse
-	114, // 162: stoop.chat.v1.ChatService.SearchMessages:output_type -> stoop.chat.v1.SearchMessagesResponse
-	116, // 163: stoop.chat.v1.ChatService.SetMessagePinned:output_type -> stoop.chat.v1.SetMessagePinnedResponse
-	118, // 164: stoop.chat.v1.ChatService.ListPinnedMessages:output_type -> stoop.chat.v1.ListPinnedMessagesResponse
-	100, // 165: stoop.chat.v1.ChatService.EditMessage:output_type -> stoop.chat.v1.EditMessageResponse
-	102, // 166: stoop.chat.v1.ChatService.DeleteMessage:output_type -> stoop.chat.v1.DeleteMessageResponse
-	104, // 167: stoop.chat.v1.ChatService.DismissLinkPreview:output_type -> stoop.chat.v1.DismissLinkPreviewResponse
-	106, // 168: stoop.chat.v1.ChatService.DeleteThread:output_type -> stoop.chat.v1.DeleteThreadResponse
-	108, // 169: stoop.chat.v1.ChatService.ToggleReaction:output_type -> stoop.chat.v1.ToggleReactionResponse
-	121, // 170: stoop.chat.v1.ChatService.OpenDirectMessage:output_type -> stoop.chat.v1.OpenDirectMessageResponse
-	123, // 171: stoop.chat.v1.ChatService.ListDirectMessages:output_type -> stoop.chat.v1.ListDirectMessagesResponse
-	125, // 172: stoop.chat.v1.ChatService.SetDirectMessageClosed:output_type -> stoop.chat.v1.SetDirectMessageClosedResponse
-	127, // 173: stoop.chat.v1.ChatService.ListDirectMessageCandidates:output_type -> stoop.chat.v1.ListDirectMessageCandidatesResponse
-	13,  // 174: stoop.chat.v1.ChatService.MarkChannelRead:output_type -> stoop.chat.v1.MarkChannelReadResponse
-	15,  // 175: stoop.chat.v1.ChatService.MarkThreadRead:output_type -> stoop.chat.v1.MarkThreadReadResponse
-	17,  // 176: stoop.chat.v1.ChatService.ListActivity:output_type -> stoop.chat.v1.ListActivityResponse
-	19,  // 177: stoop.chat.v1.ChatService.MarkActivityRead:output_type -> stoop.chat.v1.MarkActivityReadResponse
-	116, // [116:178] is the sub-list for method output_type
-	54,  // [54:116] is the sub-list for method input_type
-	54,  // [54:54] is the sub-list for extension type_name
-	54,  // [54:54] is the sub-list for extension extendee
-	0,   // [0:54] is the sub-list for field type_name
+	130, // 35: stoop.chat.v1.ManagedChannel.channel:type_name -> stoop.chat.v1.Channel
+	130, // 36: stoop.chat.v1.ListChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
+	144, // 37: stoop.chat.v1.UpdateChannelRequest.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
+	130, // 38: stoop.chat.v1.UpdateChannelResponse.channel:type_name -> stoop.chat.v1.Channel
+	130, // 39: stoop.chat.v1.ReorderChannelsResponse.channels:type_name -> stoop.chat.v1.Channel
+	143, // 40: stoop.chat.v1.SendMessageResponse.message:type_name -> stoop.chat.v1.Message
+	143, // 41: stoop.chat.v1.EditMessageResponse.message:type_name -> stoop.chat.v1.Message
+	143, // 42: stoop.chat.v1.ToggleReactionResponse.message:type_name -> stoop.chat.v1.Message
+	143, // 43: stoop.chat.v1.ListMessagesResponse.messages:type_name -> stoop.chat.v1.Message
+	143, // 44: stoop.chat.v1.ListChangesResponse.messages:type_name -> stoop.chat.v1.Message
+	143, // 45: stoop.chat.v1.SearchMessagesResponse.messages:type_name -> stoop.chat.v1.Message
+	145, // 46: stoop.chat.v1.SetMessagePinnedResponse.pin:type_name -> stoop.chat.v1.PinnedMessage
+	145, // 47: stoop.chat.v1.ListPinnedMessagesResponse.pins:type_name -> stoop.chat.v1.PinnedMessage
+	130, // 48: stoop.chat.v1.DirectMessage.channel:type_name -> stoop.chat.v1.Channel
+	135, // 49: stoop.chat.v1.DirectMessage.participants:type_name -> stoop.chat.v1.MessageAuthor
+	120, // 50: stoop.chat.v1.DirectMessage.last_message:type_name -> stoop.chat.v1.DirectMessageLast
+	135, // 51: stoop.chat.v1.DirectMessageLast.author:type_name -> stoop.chat.v1.MessageAuthor
+	136, // 52: stoop.chat.v1.DirectMessageLast.created_at:type_name -> google.protobuf.Timestamp
+	119, // 53: stoop.chat.v1.OpenDirectMessageResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
+	119, // 54: stoop.chat.v1.ListDirectMessagesResponse.direct_messages:type_name -> stoop.chat.v1.DirectMessage
+	119, // 55: stoop.chat.v1.SetDirectMessageClosedResponse.direct_message:type_name -> stoop.chat.v1.DirectMessage
+	135, // 56: stoop.chat.v1.ListDirectMessageCandidatesResponse.users:type_name -> stoop.chat.v1.MessageAuthor
+	0,   // 57: stoop.chat.v1.ChatService.CreateSpace:input_type -> stoop.chat.v1.CreateSpaceRequest
+	2,   // 58: stoop.chat.v1.ChatService.ListSpaces:input_type -> stoop.chat.v1.ListSpacesRequest
+	4,   // 59: stoop.chat.v1.ChatService.ListAllSpaces:input_type -> stoop.chat.v1.ListAllSpacesRequest
+	6,   // 60: stoop.chat.v1.ChatService.GetSpace:input_type -> stoop.chat.v1.GetSpaceRequest
+	8,   // 61: stoop.chat.v1.ChatService.JoinSpace:input_type -> stoop.chat.v1.JoinSpaceRequest
+	57,  // 62: stoop.chat.v1.ChatService.CreateInvite:input_type -> stoop.chat.v1.CreateInviteRequest
+	59,  // 63: stoop.chat.v1.ChatService.ListInvites:input_type -> stoop.chat.v1.ListInvitesRequest
+	61,  // 64: stoop.chat.v1.ChatService.RevokeInvite:input_type -> stoop.chat.v1.RevokeInviteRequest
+	63,  // 65: stoop.chat.v1.ChatService.ListInviteUses:input_type -> stoop.chat.v1.ListInviteUsesRequest
+	65,  // 66: stoop.chat.v1.ChatService.LookupInvite:input_type -> stoop.chat.v1.LookupInviteRequest
+	10,  // 67: stoop.chat.v1.ChatService.GetMember:input_type -> stoop.chat.v1.GetMemberRequest
+	20,  // 68: stoop.chat.v1.ChatService.ListMembers:input_type -> stoop.chat.v1.ListMembersRequest
+	22,  // 69: stoop.chat.v1.ChatService.SetMemberRole:input_type -> stoop.chat.v1.SetMemberRoleRequest
+	24,  // 70: stoop.chat.v1.ChatService.KickMember:input_type -> stoop.chat.v1.KickMemberRequest
+	26,  // 71: stoop.chat.v1.ChatService.AddMember:input_type -> stoop.chat.v1.AddMemberRequest
+	28,  // 72: stoop.chat.v1.ChatService.BanMember:input_type -> stoop.chat.v1.BanMemberRequest
+	30,  // 73: stoop.chat.v1.ChatService.UnbanMember:input_type -> stoop.chat.v1.UnbanMemberRequest
+	32,  // 74: stoop.chat.v1.ChatService.ListBans:input_type -> stoop.chat.v1.ListBansRequest
+	35,  // 75: stoop.chat.v1.ChatService.ListGroups:input_type -> stoop.chat.v1.ListGroupsRequest
+	37,  // 76: stoop.chat.v1.ChatService.CreateGroup:input_type -> stoop.chat.v1.CreateGroupRequest
+	39,  // 77: stoop.chat.v1.ChatService.UpdateGroup:input_type -> stoop.chat.v1.UpdateGroupRequest
+	41,  // 78: stoop.chat.v1.ChatService.DeleteGroup:input_type -> stoop.chat.v1.DeleteGroupRequest
+	43,  // 79: stoop.chat.v1.ChatService.BlockUser:input_type -> stoop.chat.v1.BlockUserRequest
+	45,  // 80: stoop.chat.v1.ChatService.UnblockUser:input_type -> stoop.chat.v1.UnblockUserRequest
+	47,  // 81: stoop.chat.v1.ChatService.ListBlockedUsers:input_type -> stoop.chat.v1.ListBlockedUsersRequest
+	49,  // 82: stoop.chat.v1.ChatService.LeaveSpace:input_type -> stoop.chat.v1.LeaveSpaceRequest
+	51,  // 83: stoop.chat.v1.ChatService.TransferOwnership:input_type -> stoop.chat.v1.TransferOwnershipRequest
+	53,  // 84: stoop.chat.v1.ChatService.UpdateSpace:input_type -> stoop.chat.v1.UpdateSpaceRequest
+	55,  // 85: stoop.chat.v1.ChatService.DeleteSpace:input_type -> stoop.chat.v1.DeleteSpaceRequest
+	67,  // 86: stoop.chat.v1.ChatService.CreateChannel:input_type -> stoop.chat.v1.CreateChannelRequest
+	78,  // 87: stoop.chat.v1.ChatService.ListChannels:input_type -> stoop.chat.v1.ListChannelsRequest
+	79,  // 88: stoop.chat.v1.ChatService.ListAllChannels:input_type -> stoop.chat.v1.ListAllChannelsRequest
+	82,  // 89: stoop.chat.v1.ChatService.ListChannelMembers:input_type -> stoop.chat.v1.ListChannelMembersRequest
+	84,  // 90: stoop.chat.v1.ChatService.AddChannelMembers:input_type -> stoop.chat.v1.AddChannelMembersRequest
+	86,  // 91: stoop.chat.v1.ChatService.RemoveChannelMember:input_type -> stoop.chat.v1.RemoveChannelMemberRequest
+	88,  // 92: stoop.chat.v1.ChatService.LeaveChannel:input_type -> stoop.chat.v1.LeaveChannelRequest
+	91,  // 93: stoop.chat.v1.ChatService.UpdateChannel:input_type -> stoop.chat.v1.UpdateChannelRequest
+	93,  // 94: stoop.chat.v1.ChatService.DeleteChannel:input_type -> stoop.chat.v1.DeleteChannelRequest
+	95,  // 95: stoop.chat.v1.ChatService.ReorderChannels:input_type -> stoop.chat.v1.ReorderChannelsRequest
+	69,  // 96: stoop.chat.v1.ChatService.SetChannelMuted:input_type -> stoop.chat.v1.SetChannelMutedRequest
+	71,  // 97: stoop.chat.v1.ChatService.SetSpaceMuted:input_type -> stoop.chat.v1.SetSpaceMutedRequest
+	73,  // 98: stoop.chat.v1.ChatService.SetThreadMuted:input_type -> stoop.chat.v1.SetThreadMutedRequest
+	75,  // 99: stoop.chat.v1.ChatService.ListThreadMutes:input_type -> stoop.chat.v1.ListThreadMutesRequest
+	97,  // 100: stoop.chat.v1.ChatService.SendMessage:input_type -> stoop.chat.v1.SendMessageRequest
+	109, // 101: stoop.chat.v1.ChatService.ListMessages:input_type -> stoop.chat.v1.ListMessagesRequest
+	111, // 102: stoop.chat.v1.ChatService.ListChanges:input_type -> stoop.chat.v1.ListChangesRequest
+	113, // 103: stoop.chat.v1.ChatService.SearchMessages:input_type -> stoop.chat.v1.SearchMessagesRequest
+	115, // 104: stoop.chat.v1.ChatService.SetMessagePinned:input_type -> stoop.chat.v1.SetMessagePinnedRequest
+	117, // 105: stoop.chat.v1.ChatService.ListPinnedMessages:input_type -> stoop.chat.v1.ListPinnedMessagesRequest
+	99,  // 106: stoop.chat.v1.ChatService.EditMessage:input_type -> stoop.chat.v1.EditMessageRequest
+	101, // 107: stoop.chat.v1.ChatService.DeleteMessage:input_type -> stoop.chat.v1.DeleteMessageRequest
+	103, // 108: stoop.chat.v1.ChatService.DismissLinkPreview:input_type -> stoop.chat.v1.DismissLinkPreviewRequest
+	105, // 109: stoop.chat.v1.ChatService.DeleteThread:input_type -> stoop.chat.v1.DeleteThreadRequest
+	107, // 110: stoop.chat.v1.ChatService.ToggleReaction:input_type -> stoop.chat.v1.ToggleReactionRequest
+	121, // 111: stoop.chat.v1.ChatService.OpenDirectMessage:input_type -> stoop.chat.v1.OpenDirectMessageRequest
+	123, // 112: stoop.chat.v1.ChatService.ListDirectMessages:input_type -> stoop.chat.v1.ListDirectMessagesRequest
+	125, // 113: stoop.chat.v1.ChatService.SetDirectMessageClosed:input_type -> stoop.chat.v1.SetDirectMessageClosedRequest
+	127, // 114: stoop.chat.v1.ChatService.ListDirectMessageCandidates:input_type -> stoop.chat.v1.ListDirectMessageCandidatesRequest
+	12,  // 115: stoop.chat.v1.ChatService.MarkChannelRead:input_type -> stoop.chat.v1.MarkChannelReadRequest
+	14,  // 116: stoop.chat.v1.ChatService.MarkThreadRead:input_type -> stoop.chat.v1.MarkThreadReadRequest
+	16,  // 117: stoop.chat.v1.ChatService.ListActivity:input_type -> stoop.chat.v1.ListActivityRequest
+	18,  // 118: stoop.chat.v1.ChatService.MarkActivityRead:input_type -> stoop.chat.v1.MarkActivityReadRequest
+	1,   // 119: stoop.chat.v1.ChatService.CreateSpace:output_type -> stoop.chat.v1.CreateSpaceResponse
+	3,   // 120: stoop.chat.v1.ChatService.ListSpaces:output_type -> stoop.chat.v1.ListSpacesResponse
+	5,   // 121: stoop.chat.v1.ChatService.ListAllSpaces:output_type -> stoop.chat.v1.ListAllSpacesResponse
+	7,   // 122: stoop.chat.v1.ChatService.GetSpace:output_type -> stoop.chat.v1.GetSpaceResponse
+	9,   // 123: stoop.chat.v1.ChatService.JoinSpace:output_type -> stoop.chat.v1.JoinSpaceResponse
+	58,  // 124: stoop.chat.v1.ChatService.CreateInvite:output_type -> stoop.chat.v1.CreateInviteResponse
+	60,  // 125: stoop.chat.v1.ChatService.ListInvites:output_type -> stoop.chat.v1.ListInvitesResponse
+	62,  // 126: stoop.chat.v1.ChatService.RevokeInvite:output_type -> stoop.chat.v1.RevokeInviteResponse
+	64,  // 127: stoop.chat.v1.ChatService.ListInviteUses:output_type -> stoop.chat.v1.ListInviteUsesResponse
+	66,  // 128: stoop.chat.v1.ChatService.LookupInvite:output_type -> stoop.chat.v1.LookupInviteResponse
+	11,  // 129: stoop.chat.v1.ChatService.GetMember:output_type -> stoop.chat.v1.GetMemberResponse
+	21,  // 130: stoop.chat.v1.ChatService.ListMembers:output_type -> stoop.chat.v1.ListMembersResponse
+	23,  // 131: stoop.chat.v1.ChatService.SetMemberRole:output_type -> stoop.chat.v1.SetMemberRoleResponse
+	25,  // 132: stoop.chat.v1.ChatService.KickMember:output_type -> stoop.chat.v1.KickMemberResponse
+	27,  // 133: stoop.chat.v1.ChatService.AddMember:output_type -> stoop.chat.v1.AddMemberResponse
+	29,  // 134: stoop.chat.v1.ChatService.BanMember:output_type -> stoop.chat.v1.BanMemberResponse
+	31,  // 135: stoop.chat.v1.ChatService.UnbanMember:output_type -> stoop.chat.v1.UnbanMemberResponse
+	34,  // 136: stoop.chat.v1.ChatService.ListBans:output_type -> stoop.chat.v1.ListBansResponse
+	36,  // 137: stoop.chat.v1.ChatService.ListGroups:output_type -> stoop.chat.v1.ListGroupsResponse
+	38,  // 138: stoop.chat.v1.ChatService.CreateGroup:output_type -> stoop.chat.v1.CreateGroupResponse
+	40,  // 139: stoop.chat.v1.ChatService.UpdateGroup:output_type -> stoop.chat.v1.UpdateGroupResponse
+	42,  // 140: stoop.chat.v1.ChatService.DeleteGroup:output_type -> stoop.chat.v1.DeleteGroupResponse
+	44,  // 141: stoop.chat.v1.ChatService.BlockUser:output_type -> stoop.chat.v1.BlockUserResponse
+	46,  // 142: stoop.chat.v1.ChatService.UnblockUser:output_type -> stoop.chat.v1.UnblockUserResponse
+	48,  // 143: stoop.chat.v1.ChatService.ListBlockedUsers:output_type -> stoop.chat.v1.ListBlockedUsersResponse
+	50,  // 144: stoop.chat.v1.ChatService.LeaveSpace:output_type -> stoop.chat.v1.LeaveSpaceResponse
+	52,  // 145: stoop.chat.v1.ChatService.TransferOwnership:output_type -> stoop.chat.v1.TransferOwnershipResponse
+	54,  // 146: stoop.chat.v1.ChatService.UpdateSpace:output_type -> stoop.chat.v1.UpdateSpaceResponse
+	56,  // 147: stoop.chat.v1.ChatService.DeleteSpace:output_type -> stoop.chat.v1.DeleteSpaceResponse
+	68,  // 148: stoop.chat.v1.ChatService.CreateChannel:output_type -> stoop.chat.v1.CreateChannelResponse
+	90,  // 149: stoop.chat.v1.ChatService.ListChannels:output_type -> stoop.chat.v1.ListChannelsResponse
+	80,  // 150: stoop.chat.v1.ChatService.ListAllChannels:output_type -> stoop.chat.v1.ListAllChannelsResponse
+	83,  // 151: stoop.chat.v1.ChatService.ListChannelMembers:output_type -> stoop.chat.v1.ListChannelMembersResponse
+	85,  // 152: stoop.chat.v1.ChatService.AddChannelMembers:output_type -> stoop.chat.v1.AddChannelMembersResponse
+	87,  // 153: stoop.chat.v1.ChatService.RemoveChannelMember:output_type -> stoop.chat.v1.RemoveChannelMemberResponse
+	89,  // 154: stoop.chat.v1.ChatService.LeaveChannel:output_type -> stoop.chat.v1.LeaveChannelResponse
+	92,  // 155: stoop.chat.v1.ChatService.UpdateChannel:output_type -> stoop.chat.v1.UpdateChannelResponse
+	94,  // 156: stoop.chat.v1.ChatService.DeleteChannel:output_type -> stoop.chat.v1.DeleteChannelResponse
+	96,  // 157: stoop.chat.v1.ChatService.ReorderChannels:output_type -> stoop.chat.v1.ReorderChannelsResponse
+	70,  // 158: stoop.chat.v1.ChatService.SetChannelMuted:output_type -> stoop.chat.v1.SetChannelMutedResponse
+	72,  // 159: stoop.chat.v1.ChatService.SetSpaceMuted:output_type -> stoop.chat.v1.SetSpaceMutedResponse
+	74,  // 160: stoop.chat.v1.ChatService.SetThreadMuted:output_type -> stoop.chat.v1.SetThreadMutedResponse
+	76,  // 161: stoop.chat.v1.ChatService.ListThreadMutes:output_type -> stoop.chat.v1.ListThreadMutesResponse
+	98,  // 162: stoop.chat.v1.ChatService.SendMessage:output_type -> stoop.chat.v1.SendMessageResponse
+	110, // 163: stoop.chat.v1.ChatService.ListMessages:output_type -> stoop.chat.v1.ListMessagesResponse
+	112, // 164: stoop.chat.v1.ChatService.ListChanges:output_type -> stoop.chat.v1.ListChangesResponse
+	114, // 165: stoop.chat.v1.ChatService.SearchMessages:output_type -> stoop.chat.v1.SearchMessagesResponse
+	116, // 166: stoop.chat.v1.ChatService.SetMessagePinned:output_type -> stoop.chat.v1.SetMessagePinnedResponse
+	118, // 167: stoop.chat.v1.ChatService.ListPinnedMessages:output_type -> stoop.chat.v1.ListPinnedMessagesResponse
+	100, // 168: stoop.chat.v1.ChatService.EditMessage:output_type -> stoop.chat.v1.EditMessageResponse
+	102, // 169: stoop.chat.v1.ChatService.DeleteMessage:output_type -> stoop.chat.v1.DeleteMessageResponse
+	104, // 170: stoop.chat.v1.ChatService.DismissLinkPreview:output_type -> stoop.chat.v1.DismissLinkPreviewResponse
+	106, // 171: stoop.chat.v1.ChatService.DeleteThread:output_type -> stoop.chat.v1.DeleteThreadResponse
+	108, // 172: stoop.chat.v1.ChatService.ToggleReaction:output_type -> stoop.chat.v1.ToggleReactionResponse
+	122, // 173: stoop.chat.v1.ChatService.OpenDirectMessage:output_type -> stoop.chat.v1.OpenDirectMessageResponse
+	124, // 174: stoop.chat.v1.ChatService.ListDirectMessages:output_type -> stoop.chat.v1.ListDirectMessagesResponse
+	126, // 175: stoop.chat.v1.ChatService.SetDirectMessageClosed:output_type -> stoop.chat.v1.SetDirectMessageClosedResponse
+	128, // 176: stoop.chat.v1.ChatService.ListDirectMessageCandidates:output_type -> stoop.chat.v1.ListDirectMessageCandidatesResponse
+	13,  // 177: stoop.chat.v1.ChatService.MarkChannelRead:output_type -> stoop.chat.v1.MarkChannelReadResponse
+	15,  // 178: stoop.chat.v1.ChatService.MarkThreadRead:output_type -> stoop.chat.v1.MarkThreadReadResponse
+	17,  // 179: stoop.chat.v1.ChatService.ListActivity:output_type -> stoop.chat.v1.ListActivityResponse
+	19,  // 180: stoop.chat.v1.ChatService.MarkActivityRead:output_type -> stoop.chat.v1.MarkActivityReadResponse
+	119, // [119:181] is the sub-list for method output_type
+	57,  // [57:119] is the sub-list for method input_type
+	57,  // [57:57] is the sub-list for extension type_name
+	57,  // [57:57] is the sub-list for extension extendee
+	0,   // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_chat_proto_init() }
@@ -7086,7 +7190,7 @@ func file_stoop_chat_v1_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_chat_proto_rawDesc), len(file_stoop_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   128,
+			NumMessages:   129,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

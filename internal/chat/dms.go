@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -18,6 +19,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
+	"github.com/getstoop/stoop/internal/text"
 )
 
 // Direct messages: see docs/architecture/messaging.md → Direct messages.
@@ -288,6 +290,16 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 	if err != nil {
 		return nil, err
 	}
+	var lastIDs []string
+	for _, row := range rows {
+		if row.Channel.LastMessageID != nil {
+			lastIDs = append(lastIDs, *row.Channel.LastMessageID)
+		}
+	}
+	last, err := s.dmLastMessages(ctx, lastIDs, authors)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]*chatv1.DirectMessage, len(rows))
 	for i, row := range rows {
 		channel := toProtoChannel(row.Channel)
@@ -296,11 +308,52 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 		}
 		channel.UnreadCount = int32(row.UnreadCount)
 		channel.Muted = row.Muted
-		dm := &chatv1.DirectMessage{Channel: channel, Closed: row.ClosedAt != nil}
+		dm := &chatv1.DirectMessage{Channel: channel, Closed: row.ClosedAt != nil, LastMessage: last[row.Channel.ID]}
 		for _, participantID := range byChannel[row.Channel.ID] {
 			dm.Participants = append(dm.Participants, authorOrUnknown(authors, participantID))
 		}
 		out[i] = dm
+	}
+	return out, nil
+}
+
+// dmLastMessages is each conversation's newest message as the list's
+// preview line, by channel ID, previewed as an activity item is: mentions
+// as names, the first file's name when there is no text. The author is
+// a participant (membership never changes), so authors already has them.
+func (s *Service) dmLastMessages(ctx context.Context, messageIDs []string, authors map[string]*chatv1.MessageAuthor) (map[string]*chatv1.DirectMessageLast, error) {
+	if len(messageIDs) == 0 {
+		return nil, nil
+	}
+	messages, err := s.q.ListDMLastMessages(ctx, dbgen.ListDMLastMessagesParams{UserID: authctx.UserID(ctx), MessageIds: messageIDs})
+	if err != nil {
+		return nil, fmt.Errorf("list last messages: %w", err)
+	}
+	var fileIDs, contents []string
+	for _, msg := range messages {
+		if msg.FirstFileID != "" {
+			fileIDs = append(fileIDs, msg.FirstFileID)
+		}
+		contents = append(contents, msg.Content)
+	}
+	files, err := s.fileRecords(ctx, fileIDs)
+	if err != nil {
+		return nil, err
+	}
+	names, err := s.mentionNames(ctx, contents...)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*chatv1.DirectMessageLast, len(messages))
+	for _, msg := range messages {
+		last := &chatv1.DirectMessageLast{
+			MessageId: msg.ID, Author: authorOrUnknown(authors, msg.AuthorID),
+			Deleted: msg.Deleted, CreatedAt: timestamppb.New(msg.CreatedAt),
+		}
+		if !msg.Deleted {
+			last.Preview = text.Truncate(previewText(names.current(msg.Content), files[msg.FirstFileID].label()), previewLen)
+		}
+		out[msg.ChannelID] = last
 	}
 	return out, nil
 }
