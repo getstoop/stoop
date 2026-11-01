@@ -39,4 +39,5 @@ executionOrder:
     - "See a direct message arrive in Messages, unread, then read, then answered"
     - "Open a conversation from Messages, read it live, answer, reply in a thread, and open it from Activity"
     - "Long-press a conversation in Messages, mute and unmute it, copy its link, and close it until it is written in"
+    - "Swipe a conversation in Messages to Close and tap it, then swipe one all the way to close it"
     - "Start a conversation from New message, and land in the one that exists"
