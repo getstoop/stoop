@@ -1,8 +1,8 @@
 import * as Haptics from "expo-haptics";
 import { type ReactNode, useRef, useState } from "react";
-import { type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { type LayoutChangeEvent, Pressable, StyleSheet, Text } from "react-native";
 import Swipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
-import { type SharedValue, useAnimatedReaction, useSharedValue } from "react-native-reanimated";
+import Animated, { type SharedValue, SlideOutLeft, useAnimatedReaction, useSharedValue } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { CloseIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -15,7 +15,9 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // as Close growing. One row rests open at a time (onSwipe: the screen
 // closes the last as another starts). Close is drawn under every row,
 // so a screen reader is kept from it until the row is open; it has Close
-// among the row's own actions instead.
+// among the row's own actions instead. However it goes (a swipe, Close,
+// the menu), a closed row slides on off to the left as it leaves the
+// list, and the list closes up behind it (Messages' itemLayoutAnimation).
 
 const ACTION_WIDTH = 88;
 // How far across the row, as a share of its width, a swipe closes it.
@@ -43,7 +45,8 @@ export default function SwipeToClose({
   };
 
   return (
-    <View
+    <Animated.View
+      exiting={SlideOutLeft.duration(tokens.dur)}
       onLayout={(event: LayoutChangeEvent) => {
         width.value = event.nativeEvent.layout.width;
       }}
@@ -78,7 +81,7 @@ export default function SwipeToClose({
       >
         {children}
       </Swipeable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -106,10 +109,12 @@ function CloseAction({
   );
   return (
     <Pressable
+      // Hidden, it has no name either: Android's view tree keeps a view
+      // a screen reader is kept from, and Maestro reads that tree.
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       accessibilityRole="button"
-      accessibilityLabel="Close conversation"
+      accessibilityLabel={hidden ? undefined : "Close conversation"}
       onPress={onPress}
       style={({ pressed }) => [styles.action, pressed && styles.pressed]}
     >
