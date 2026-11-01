@@ -4,8 +4,9 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
+import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   type Conversations,
@@ -232,8 +233,11 @@ export default function Messages({ server }: { server: SavedServer }) {
         <TabNotice message={`Couldn't reach ${hostOf(server.origin)}.`} action={{ label: "Try again", onPress: retry }} />
       )}
       {ready && (
-        <FlatList
+        <Animated.FlatList
           data={ready.list.dms}
+          // Rows close up over one that has gone, and move when a reload
+          // reorders them.
+          itemLayoutAnimation={LinearTransition.duration(tokens.dur)}
           keyExtractor={(dm) => dm.channel?.id ?? ""}
           renderItem={({ item }) => (
             <SwipeToClose onClose={() => act(item, "close")} onSwipe={swiped}>
