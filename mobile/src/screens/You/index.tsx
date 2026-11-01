@@ -21,7 +21,7 @@ import SignOutButton from "./SignOutButton";
 
 // The You tab: who you are on the current server, every server on this
 // phone, what is set on it, and signing out. Loaded on opening, on a pull,
-// on coming back to the app, and a moment after the socket says this
+// on coming back to it or the app, and a moment after the socket says this
 // account's username or avatar changed (a server sends no event for its
 // name or pronouns). What is set on this phone needs no server, so it
 // stays when the server can't say who you are, and so does the way out.
@@ -59,16 +59,8 @@ export default function You({ server }: { server: SavedServer }) {
     }
   }, [server]);
 
-  // What waits on the other servers, asked again when this tab comes back
-  // into view as well as on what follows.
   const { servers } = useServers();
   const { waiting, refresh: refreshWaiting } = useWaiting(servers, server.id);
-  const focused = useIsFocused();
-  const wasFocused = useRef(focused);
-  useEffect(() => {
-    if (focused && !wasFocused.current) refreshWaiting();
-    wasFocused.current = focused;
-  }, [focused, refreshWaiting]);
 
   // As the Messages tab: only the latest load started is shown, and
   // leaving the screen makes none the latest.
@@ -79,6 +71,18 @@ export default function You({ server }: { server: SavedServer }) {
     if (mine !== latest.current) return;
     setView((held) => (next.state === "failed" && held.state === "ready" ? held : next));
   }, [load]);
+
+  // Coming back into view: from another tab, or from Edit with what was
+  // just saved, which no event says (a name, pronouns).
+  const focused = useIsFocused();
+  const wasFocused = useRef(focused);
+  useEffect(() => {
+    if (focused && !wasFocused.current) {
+      refresh();
+      refreshWaiting();
+    }
+    wasFocused.current = focused;
+  }, [focused, refresh, refreshWaiting]);
 
   const reload = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
@@ -142,7 +146,16 @@ export default function You({ server }: { server: SavedServer }) {
             action={{ label: "Try again", onPress: retry }}
           />
         )}
-        {view.state === "ready" && <Identity user={view.user} server={server} token={view.token} />}
+        {view.state === "ready" && (
+          <Identity
+            user={view.user}
+            server={server}
+            token={view.token}
+            onEdit={() =>
+              pushOnce(() => router.push({ pathname: "/s/[id]/edit-profile", params: { id: server.id } }))
+            }
+          />
+        )}
         <ServersSection current={server} waiting={waiting} />
         <Section title="This phone">
           <SettingRow

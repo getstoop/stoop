@@ -744,7 +744,9 @@ picked through Files from On My iPhone (`e2e/media`, which
 server from the switcher and switch back (the same server by
 `127.0.0.1`, which the app counts as another), see every server on You,
 switch, remove one from a swipe and a long press and see its session end,
-sign in again to one signed out, and sign out onto the next, create an account from a
+sign in again to one signed out, and sign out onto the next, edit a profile and see a taken
+username refused, a rename from elsewhere arrive live and a locked username
+held, create an account from a
 pasted invite link,
 open an invite the way the web's open-in-app page does, then sign in and
 join, and see a mention arrive in Activity with the tab's badge, open

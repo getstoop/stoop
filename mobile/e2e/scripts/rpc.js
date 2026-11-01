@@ -23,7 +23,38 @@ function adaSessions() {
   return (JSON.parse(res.body).sessions || []).length;
 }
 
+function authRpc(proc, token, body) {
+  var res = http.post(SERVER + "/stoop.auth.v1.AuthService/" + proc, {
+    headers: { "content-type": "application/json", authorization: "Bearer " + token },
+    body: JSON.stringify(body),
+  });
+  if (res.status !== 200) throw new Error(proc + ": " + res.status + " " + res.body);
+  return JSON.parse(res.body);
+}
+
 var steps = {
+  // Gil's profile as the server holds it (edit-profile.yaml).
+  editorProfile: function () {
+    var user = authRpc("GetMe", EDITOR_TOKEN, {}).user;
+    output.editorName = user.displayName;
+    output.editorUsername = user.username;
+    output.editorPronouns = user.pronouns || "";
+    output.editorBio = user.bio || "";
+  },
+  // Gil's username changed to TEXT, as from his laptop.
+  renameEditor: function () {
+    var user = authRpc("GetMe", EDITOR_TOKEN, {}).user;
+    authRpc("UpdateProfile", EDITOR_TOKEN, { displayName: user.displayName, username: TEXT });
+  },
+  // Gil's username locked, as a server admin would. Ada, the first
+  // account, is one.
+  freezeEditor: function () {
+    var res = http.post(SERVER + "/stoop.instance.v1.InstanceService/SetUsernameFrozen", {
+      headers: { "content-type": "application/json", authorization: "Bearer " + OWNER_TOKEN },
+      body: JSON.stringify({ userId: EDITOR_ID, frozen: true }),
+    });
+    if (res.status !== 200) throw new Error("SetUsernameFrozen: " + res.status + " " + res.body);
+  },
   // Every session fay has ended, as from her laptop (you-servers.yaml).
   endLeaverSessions: function () {
     var res = http.post(SERVER + "/stoop.auth.v1.AuthService/SignOutEverywhere", {
