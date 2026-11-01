@@ -1,14 +1,12 @@
-import { Code, ConnectError } from "@connectrpc/connect";
-import { type NativeStackNavigationProp, useNavigation, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { sessionToken } from "../../api/servers";
-import { mentionTotal } from "../../api/spaces";
 import { PlusIcon } from "../../components/Icons";
 import { type SavedServer, useServers } from "../../servers";
+import { type ServerNavigation, swapServer } from "../../servers/swapServer";
+import { useWaiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
-import ServerRow, { type Waiting } from "./ServerRow";
+import ServerRow from "./ServerRow";
 
 // The server switcher: a sheet over the Spaces tab listing every server
 // on this phone, the current one ticked, each other one with a badge for
@@ -21,42 +19,19 @@ export default function ServerSwitcher({ current }: { current?: string }) {
   const styles = makeStyles(theme);
   const router = useRouter();
   const { servers, switchTo } = useServers();
-  const navigation = useNavigation<NativeStackNavigationProp<{}>>();
-  // By server ID; a server not in here yet is still being asked.
-  const [waiting, setWaiting] = useState<Record<string, Waiting>>({});
-
-  useEffect(() => {
-    let live = true;
-    for (const server of servers) {
-      if (server.id === current) continue;
-      waitingOn(server).then((w) => live && setWaiting((all) => ({ ...all, [server.id]: w })));
-    }
-    return () => {
-      live = false;
-    };
-  }, [servers, current]);
+  const navigation = useNavigation<ServerNavigation>();
+  const { waiting } = useWaiting(servers, current);
 
   // The sheet closes before the app moves on: a screen pushed from inside
   // a sheet would open inside it. Another server instead replaces the
   // screen under the sheet first, so the sheet closes onto it, swapped in
   // place. Replaced after, the old server went blank behind the closing
-  // sheet. This is a plain stack replace aimed at that screen:
-  // expo-router's own replace to /s/<id> stays inside the old server
-  // (src/app/index.tsx). The server is put first only once the sheet is
-  // going, so the list doesn't reorder in view.
+  // sheet. The server is put first only once the sheet is going, so the
+  // list doesn't reorder in view.
   const open = (server: SavedServer) => {
     const ended = waiting[server.id]?.state === "ended";
     if (server.id !== current && !ended) {
-      const state = navigation.getState();
-      const below = state?.routes[state.index - 1];
-      if (state && below) {
-        navigation.dispatch({
-          type: "REPLACE",
-          payload: { name: "s/[id]", params: { id: server.id } },
-          source: below.key,
-          target: state.key,
-        });
-      }
+      swapServer(navigation, server.id);
       router.back();
       switchTo(server.id);
       return;
@@ -104,20 +79,6 @@ export default function ServerSwitcher({ current }: { current?: string }) {
       </Text>
     </View>
   );
-}
-
-// As the Spaces tab: only the server saying the session is over counts as
-// signed out. One that can't be reached just shows no badge.
-async function waitingOn(server: SavedServer): Promise<Waiting> {
-  const token = await sessionToken(server.id).catch(() => null);
-  if (!token) return { state: "ended" };
-  try {
-    return { state: "ready", mentions: await mentionTotal(server.origin, token) };
-  } catch (err) {
-    return err instanceof ConnectError && err.code === Code.Unauthenticated
-      ? { state: "ended" }
-      : { state: "failed" };
-  }
 }
 
 function makeStyles(theme: Theme) {
