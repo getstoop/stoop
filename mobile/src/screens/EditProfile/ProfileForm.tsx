@@ -1,4 +1,3 @@
-import { Code, ConnectError } from "@connectrpc/connect";
 import { BIO_MAX, DISPLAY_NAME_MAX, PRONOUNS_MAX, profileEdits } from "@stoop/core/profile";
 import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { Stack, useRouter } from "expo-router";
@@ -6,11 +5,11 @@ import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Keyboard, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { authClient } from "../../api/clients";
-import { errorText, fieldOf } from "../../api/errors";
-import Avatar from "../../components/Avatar";
+import { errorText, fieldOf, unreached } from "../../api/errors";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import AvatarPicker from "./AvatarPicker";
 import Field from "./Field";
 import SaveButton from "./SaveButton";
 import { saveItem } from "./saveItem";
@@ -30,13 +29,6 @@ function usernameNote(me: User): string {
   if (me.usernameFrozen) return "How people mention you. Locked by a server admin.";
   if (me.usernamePending) return "How people mention you. This one came from your login provider. Make it yours.";
   return "How people mention you. 3 to 32 letters, numbers or underscores.";
-}
-
-// The server couldn't answer, rather than answered no: its words for that
-// are the transport's, which say nothing to a person.
-function unreached(err: unknown): boolean {
-  if (!(err instanceof ConnectError)) return true;
-  return [Code.Unknown, Code.Unavailable, Code.DeadlineExceeded, Code.Internal].includes(err.code);
 }
 
 export default function ProfileForm({ server, token, me }: { server: SavedServer; token: string; me: User }) {
@@ -143,15 +135,7 @@ export default function ProfileForm({ server, token, me }: { server: SavedServer
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        <View style={styles.avatar}>
-          <Avatar
-            name={me.displayName || me.username}
-            fileId={me.avatarFileId}
-            origin={server.origin}
-            token={token}
-            size={84}
-          />
-        </View>
+        <AvatarPicker server={server} token={token} me={me} />
         <Field
           label="Display name"
           testID="profile-name"
@@ -221,9 +205,6 @@ function makeStyles(theme: Theme) {
       gap: 14,
       paddingTop: 8,
       paddingHorizontal: 16,
-    },
-    avatar: {
-      alignItems: "center",
     },
     formError: {
       marginHorizontal: 4,

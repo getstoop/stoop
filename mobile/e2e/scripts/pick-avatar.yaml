@@ -1,0 +1,60 @@
+# The system's picker and cropper, from where "Change avatar" was tapped.
+# They differ by platform. Takes CHOICE: "cancel" backs out of the picker,
+# "choose" takes the newest photo and accepts the crop.
+appId: ${APP_ID}
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Cancel"
+          timeout: 10000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: "Photo taken on .*"
+          timeout: 10000
+- runFlow:
+    when:
+      platform: iOS
+      true: ${CHOICE == "cancel"}
+    commands:
+      - tapOn: "Cancel"
+- runFlow:
+    when:
+      platform: Android
+      true: ${CHOICE == "cancel"}
+    commands:
+      - back
+- runFlow:
+    when:
+      platform: iOS
+      true: ${CHOICE == "choose"}
+    commands:
+      # Each photo's own label, in full: the grid's label strings every
+      # photo's together, so it would match a looser pattern.
+      - tapOn:
+          text: "Photo, January 0?1, 2100, [^,]*"
+          index: 0
+      - extendedWaitUntil:
+          visible: "Choose"
+          timeout: 15000
+      - tapOn: "Choose"
+- runFlow:
+    when:
+      platform: Android
+      true: ${CHOICE == "choose"}
+    commands:
+      # Newest first: the one the flow just added.
+      - tapOn:
+          text: "Photo taken on .*"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            id: "${APP_ID}:id/crop_image_menu_crop"
+          timeout: 15000
+      - tapOn:
+          id: "${APP_ID}:id/crop_image_menu_crop"
