@@ -49,6 +49,17 @@ var steps = {
   dmAnswer: function () {
     rpc("SendMessage", OWNER_TOKEN, { channelId: output.dmId, content: TEXT });
   },
+  // The conversation as ada's list holds it (conversation-menu.yaml):
+  // whether she muted it, and whether she closed it.
+  dmState: function () {
+    var dms = rpc("ListDirectMessages", OWNER_TOKEN, {}).directMessages || [];
+    for (var i = 0; i < dms.length; i++) {
+      if (dms[i].channel.id === output.dmId) {
+        output.dmMuted = !!dms[i].channel.muted;
+        output.dmClosed = !!dms[i].closed;
+      }
+    }
+  },
   // In CHANNEL_ID (channel.yaml): dee writes TEXT, rewords that message to
   // TEXT, then deletes it.
   say: function () {

@@ -1,4 +1,4 @@
-import { messageLinkPath, threadPath } from "@stoop/core/shareLinks";
+import { channelPath, messageLinkPath, threadPath } from "@stoop/core/shareLinks";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 
 // The link to a message, with the path web builds for Copy link
@@ -23,4 +23,10 @@ export function threadMessageLink(origin: string, spaceId: string, message: Mess
   const { channelId, threadRootId, id } = message;
   if (!threadRootId || threadRootId === id) return messageLink(origin, spaceId, message);
   return origin.replace(/\/+$/, "") + threadPath(spaceId, channelId, threadRootId, id);
+}
+
+// A conversation's link, web's /dm/ path for Copy link in its menu, on
+// the same address as a message's.
+export function conversationLink(origin: string, channelId: string): string {
+  return origin.replace(/\/+$/, "") + channelPath("", channelId);
 }

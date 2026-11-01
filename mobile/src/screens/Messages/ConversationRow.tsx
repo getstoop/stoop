@@ -13,7 +13,12 @@ import ConversationFaces from "../../components/ConversationFaces";
 // moved, and its newest message on one line. Unread, the name is bold
 // and a dot ends the line, unless it is muted. With one other person,
 // their presence sits on their face; a group has none, as on web. A
-// press opens the conversation.
+// press opens the conversation and a long press its menu
+// (ConversationMenu), whose items a screen reader is given as the row's
+// own actions. Drawn as that menu's card, it takes neither.
+
+export type ConversationAction = "mute" | "copyLink" | "close";
+
 export default memo(function ConversationRow({
   dm,
   meId,
@@ -21,13 +26,17 @@ export default memo(function ConversationRow({
   origin,
   token,
   onPress,
+  onLongPress,
+  onAction,
 }: {
   dm: DirectMessage;
   meId: string;
   serverId: string;
   origin: string;
   token: string;
-  onPress: (dm: DirectMessage) => void;
+  onPress?: (dm: DirectMessage) => void;
+  onLongPress?: (dm: DirectMessage) => void;
+  onAction?: (dm: DirectMessage, action: ConversationAction) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -42,14 +51,24 @@ export default memo(function ConversationRow({
   const presence = usePresence(serverId, other?.id);
   const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);
   const label = [title, status, muted && "muted", unread && "unread", when, preview].filter(Boolean).join(", ");
+  const actions = onAction
+    ? [
+        { name: "mute", label: muted ? "Unmute" : "Mute" },
+        { name: "copyLink", label: "Copy link" },
+        { name: "close", label: "Close conversation" },
+      ]
+    : undefined;
 
   return (
     <Pressable
       accessible
-      accessibilityRole="button"
+      accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={label}
-      testID={`conversation-${channel?.id ?? ""}`}
-      onPress={() => onPress(dm)}
+      accessibilityActions={actions}
+      onAccessibilityAction={(event) => onAction?.(dm, event.nativeEvent.actionName as ConversationAction)}
+      testID={onPress ? `conversation-${channel?.id ?? ""}` : undefined}
+      onPress={() => onPress?.(dm)}
+      onLongPress={onLongPress && (() => onLongPress(dm))}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <ConversationFaces faces={dmFaces(dm, meId)} presence={presence} origin={origin} token={token} />

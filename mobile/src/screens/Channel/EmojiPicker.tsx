@@ -5,8 +5,8 @@ import { Animated, FlatList, Pressable, StyleSheet, Text, TextInput, useWindowDi
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { rememberEmoji } from "../../api/emoji";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
+import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
-import { useSheet } from "./useSheet";
 
 // The reaction picker, in the message menu's place when More reactions
 // is pressed: web's EmojiPicker as a sheet. A search field over every

@@ -17,10 +17,10 @@ import {
   ThreadIcon,
   TrashIcon,
 } from "../../components/Icons";
+import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
 import EmojiPicker, { type EmojiPickerHandle } from "./EmojiPicker";
 import MessageRow from "./MessageRow";
-import { useSheet } from "./useSheet";
 
 // The message menu, opened by a long press on a row: a scrim over the
 // channel, the message drawn once more as a card above a sheet of the

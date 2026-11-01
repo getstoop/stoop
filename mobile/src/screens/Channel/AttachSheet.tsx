@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraIcon, FileIcon, PhotoIcon } from "../../components/Icons";
+import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
-import { useSheet } from "./useSheet";
 
 // Where the composer's Attach (the + in the pill or the card) picks files
 // from: a sheet over a scrim, drawn as the message menu's is (useSheet),
