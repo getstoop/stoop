@@ -27,8 +27,8 @@ count or a sign-in that has ended, and Add a server; Activity, what
 has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the count of what is new and addressed
 to you on its tab, each opening its channel or thread at the message;
-Messages, still empty; and You, a stand-in that says who you are, picks
-the theme and signs out.
+Messages, still empty; and You, which says who you are, picks the
+theme and signs out.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
