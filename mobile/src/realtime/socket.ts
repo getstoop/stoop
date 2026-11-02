@@ -23,12 +23,12 @@ const CLOSE_SESSION_ENDED = 4001;
 // (HTTP 401), which React Native reports as an ordinary close, the same as
 // a server that is down. So a dial that never opened asks the server, by a
 // request that says either way (isSessionOver), and only the server's own
-// Unauthenticated counts. An outage answers that too, so it is asked sparingly: at once on
-// a socket's first dial, which is how a session already over is found on
-// coming back to the app; after a drop, only if the server still refuses
-// well past a restart; and then no more often than this, a small share of
-// the dials going on at MAX_BACKOFF_MS anyway. The dials keep their own
-// schedule meanwhile.
+// Unauthenticated counts. An outage answers that too, so it is asked
+// sparingly: at once on a socket's first dial, which is how a session already
+// over is found on coming back to the app; after a drop, only if the server
+// still refuses well past a restart; and then no more often than this, a small
+// share of the dials going on at MAX_BACKOFF_MS anyway. The dials keep their
+// own schedule meanwhile.
 const CHECK_AFTER_DROP_MS = 30_000;
 const CHECK_EVERY_MS = 5 * 60_000;
 
