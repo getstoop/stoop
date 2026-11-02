@@ -547,8 +547,8 @@ reopens after a backoff when it drops, and stays shut after the server
 says its session has ended (close code 4001) until a new sign-in
 leaves another session in the keychain. A sign-in to a server already
 saved keeps its ID, and may be another account's, so it starts everything
-held for the session before: the sockets reopen on the new token (all of
-them, for now), the server's stack mounts again, a channel's log is a new
+held for the session before: its socket reopens on the new token, the
+server's stack mounts again, a channel's log is a new
 one, the old session is logged out, best effort, and the cached files go,
 as on signing out (`session` in `src/api/servers.ts`). Who is in each voice room is
 kept there (Ready, then VoiceStateChanged); a screen that needs other
