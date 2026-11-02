@@ -49,7 +49,7 @@ in their head. Add to this when a new rule earns its place.
   `index.css` before `mobile.css`.
 - **Shared controls go in the kit** — `controls.css`, `fields.css`,
   `surfaces.css` (next section); page furniture and utilities (`.muted`,
-  `.small`, `.hint`, `.eyebrow`, `.error`, `.empty-state`) in `base.css`. A class the
+  `.small`, `.hint`, `.eyebrow`, `.error`, `.empty-state`, `.skeleton-bar`) in `base.css`. A class the
   second feature wants to reuse moves there.
 - **Order is the cascade.** `index.css` runs general → specific: `tokens`,
   `base`, the kit, then pages and features, then `mobile.css` last. Ties on

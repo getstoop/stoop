@@ -596,8 +596,8 @@ top-to-bottom scroll container that starts at the bottom. Below, "the
 window" is what the view's range holds.
 
 - **One item per row** (`MessageList/items.ts`): the head (the window's
-  older edge — "Loading earlier messages…", the beginning marker with the
-  first-run card, or a thread's root above its reply count), a day line,
+  older edge — skeleton rows while more lies older, the beginning marker
+  with the first-run card, or a thread's root above its reply count), a day line,
   the "New messages" line, each message, and the foot (the newer edge).
   Dividers are rows beside the messages, never wrappers round them
   (`.new-divider + *` is still the message it introduces). The head and

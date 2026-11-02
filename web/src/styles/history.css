@@ -2,20 +2,13 @@
 
 .history-head {
   flex: 0 0 auto;
-  min-height: 34px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.history-head.history-start {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
   padding: 12px 0 8px;
   font-size: var(--text-ui);
+  color: var(--text-muted);
 }
 
 .history-start span {
@@ -27,20 +20,83 @@
   content: "This is where it started.";
 }
 
-/* The window's newer edge: a forward-paging sentinel with room for its
-   "Loading…" text while the window isn't live; a hairline once it is. */
+/* The window's newer edge: a forward-paging sentinel holding skeleton
+   rows while the window isn't live; a hairline once it is. */
 .history-foot {
   flex: 0 0 auto;
-  min-height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
+  min-height: 1px;
 }
 
-.history-foot[data-live="true"] {
-  min-height: 1px;
+/* ---- Skeleton rows ---------------------------------------------------- */
+
+/* An edge with more beyond it: three rows the shape of a page, laid out
+   like a message row (messages.css → Rows) so they sit where the page
+   will, under their own classes so nothing counting messages counts
+   them. The bars pulse while a page is out and hold still otherwise. */
+.skeleton-row {
+  position: relative;
+  margin: 0 -10px;
+  /* off-scale: the avatar column, 10 + 40 + 12, as .message */
+  padding: 6px 10px 6px 62px;
+}
+
+.skeleton-row.continued {
+  /* off-scale: continuation rows sit nearly flush, as .message */
+  padding-block: 1px;
+}
+
+.skeleton-avatar {
+  position: absolute;
+  left: 10px;
+  top: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.skeleton-author {
+  width: 96px;
+  height: 14px;
+}
+
+.skeleton-time {
+  width: 48px;
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0 4px;
+}
+
+.skeleton-row.continued .skeleton-lines {
+  padding: 4px 0;
+}
+
+.message-skeleton[data-loading="true"] .skeleton-bar {
+  animation: skeleton-pulse 1.2s var(--ease) infinite alternate;
+}
+
+@keyframes skeleton-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: var(--disabled);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-skeleton .skeleton-bar {
+    animation: none;
+  }
 }
 
 /* ---- Jump to latest -------------------------------------------------- */

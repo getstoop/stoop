@@ -62,6 +62,7 @@ import {
   listItems,
 } from "./items";
 import { ListHead } from "./ListHead";
+import { MessageSkeleton } from "./MessageSkeleton";
 import { useRowHandlers } from "./useRowHandlers";
 
 // Rows rendered beyond the visible ones at each end, so a scroll has
@@ -316,16 +317,22 @@ export function MessageList({
   // stays at the bottom when it is there. A row's first measurement keeps
   // the virtualiser's rule — the rows a landing is still settling over
   // must not each move the view. Not while scrolling up, where rows
-  // settling above would cascade — except for the head, which grows when
-  // the beginning is reached, which is where an upward scroll ends.
+  // settling above would cascade — except for the head, which changes
+  // when the beginning is reached, which is where an upward scroll ends.
+  // That change is a shrink (skeleton rows to the marker) and may happen
+  // in view: the view moves with it so the rows under it stay put, as
+  // far as the top allows. A head that grows in view (a thread's root
+  // gaining a preview, the first-run card filling in) is being read, and
+  // stays where it is.
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (
     item,
-    _delta,
+    delta,
     instance,
   ) => {
     const offset = instance.scrollOffset ?? 0;
     if (!instance.itemSizeCache.has(item.key)) return item.start < offset;
     if (liveRef.current && atBottomRef.current) return true;
+    if (item.index === 0 && delta < 0) return offset > 0;
     return (
       item.end <= offset &&
       (item.index === 0 || instance.scrollDirection !== "backward")
@@ -664,9 +671,12 @@ export function MessageList({
                       ref={virtualizer.measureElement}
                       style={{ top: position.top }}
                     >
-                      {!live && status.loading
-                        ? "Loading newer messages…"
-                        : null}
+                      {!live && (
+                        <MessageSkeleton
+                          edge="newer"
+                          loading={status.loading}
+                        />
+                      )}
                     </div>
                   );
                 case "day":

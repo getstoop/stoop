@@ -135,6 +135,15 @@ input {
   margin: 0;
 }
 
+/* A bar standing in for a line of content that has not arrived: a
+   table's rows, a page of messages. Sized by the place it stands in. */
+.skeleton-bar {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+}
+
 .empty-state {
   text-align: center;
 }

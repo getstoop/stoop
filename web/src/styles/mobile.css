@@ -192,6 +192,17 @@
     left: 8px;
   }
 
+  .skeleton-row {
+    /* off-scale: the avatar column, 8 + 36 + 10, as .message */
+    padding-left: 54px;
+  }
+
+  .skeleton-avatar {
+    left: 8px;
+    width: 36px;
+    height: 36px;
+  }
+
   .avatar.medium {
     --avatar-size: 36px;
     font-size: var(--text-ui);

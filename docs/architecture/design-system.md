@@ -250,12 +250,14 @@ Loading and empty states are plain text, shaped by where they sit:
 - **A whole pane**: `<div className="centered muted">Loading…</div>`. An
   empty pane is `.centered` around an `.empty-state`.
 - **A scrolling pane**: the message sits where the content would, muted
-  (`.muted.empty-state` in Activity and Search; the history head's
-  "Loading earlier messages…").
+  (`.muted.empty-state` in Activity and Search). The channel view is the
+  exception: its edges draw skeleton rows (`MessageSkeleton`) whenever
+  more messages lie beyond them, pulsing while a page is out.
 - **A list, form section or popover**: one `.muted` line (`.muted.small` in
   a dense list).
 - **A table**: `rows` undefined draws skeleton rows; an empty array shows
-  the section's `empty` line.
+  the section's `empty` line. The bar both skeletons draw is
+  `.skeleton-bar` in `base.css`; each sizes it for its place.
 
 ## How a part gets into the kit
 

@@ -5,7 +5,7 @@ import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 
 // The rows of a timeline, oldest first, each one an item the virtualiser
 // positions and measures on its own: the head (the window's older edge —
-// "Loading…", the beginning marker, or a thread's root), a day line above
+// skeleton rows, the beginning marker, or a thread's root), a day line above
 // the first message of each day, the "New messages" line above the first
 // unread one, every message, and the foot (the newer edge). A divider is a
 // row beside the messages, never a wrapper round one: from a divider, the
@@ -84,7 +84,9 @@ export function indexOfNewLine(items: ListItem[]): number {
 }
 
 // A row's height before it is measured: close enough that the scrollbar
-// and the first landing are about right, corrected as rows render.
+// and the first landing are about right, corrected as rows render. The
+// head and foot vary most (skeleton rows, a marker, a hairline) and are
+// measured on their first render, before any landing reads them.
 export function estimateSize(item: ListItem): number {
   switch (item.kind) {
     case "head":

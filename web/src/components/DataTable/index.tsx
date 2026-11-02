@@ -252,7 +252,7 @@ export function DataTable<T extends RowData>({
                     {headers.map((h) => (
                       <td key={h.id}>
                         {!h.column.columnDef.meta?.actions && (
-                          <span className="dt-skeleton" />
+                          <span className="skeleton-bar dt-skeleton" />
                         )}
                       </td>
                     ))}
