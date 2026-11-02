@@ -19,7 +19,8 @@ import type { ComposerHandle } from "./Composer";
 // leaves, once, while the screen is the one on top (`focused`). Where
 // no composer is shown (`composing` false: a thread that takes no
 // replies, a channel the reader can't post in) there is nothing to
-// quote or edit into, and a quote or an edit held goes as that starts.
+// quote or edit into, and a quote or an edit held goes as that starts
+// (the composer unmounts, and an unsent draft goes with it, for good).
 // A change of `scope` (another channel, another thread) lets it all go.
 // A link preview's × asks first, as web's does, and takes the card off
 // for everyone.

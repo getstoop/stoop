@@ -85,7 +85,8 @@ import { useMessageActions } from "./useMessageActions";
 // this screen marks read and draws. In an announcement channel, for
 // someone who can't post there (core/permissions canPost), a line says
 // so in the composer's place, as on web, and the menu has no Quote in
-// reply or Edit message; a quote or an edit begun goes as that starts.
+// reply or Edit message; a quote or an edit begun goes as that starts,
+// and so does an unsent draft, for good, as on web.
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with

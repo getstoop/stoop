@@ -397,8 +397,8 @@ import a screen; the screens themselves live in `src/screens`, so
   (`core/permissions` `canPost`) has a card in the composer's place
   saying so in web's words (`src/screens/Channel/PostingClosed.tsx`),
   and a menu with no Quote in reply or Edit message, both of which act
-  through the composer; a quote or an edit begun goes as that starts.
-  They can still react, copy, and delete their own. Admins have the
+  through the composer; a quote or an edit begun goes as that starts,
+  and so does an unsent draft, for good, as on web. They can still react, copy, and delete their own. Admins have the
   composer as in any channel.
 - A root with replies has a line under it, as the server summarises the
   thread (`message.thread`; nothing is counted on the phone): the two
