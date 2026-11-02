@@ -6,11 +6,10 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
 import { useActivity } from "../../activity/ActivityProvider";
 import { markRead } from "../../api/messages";
-import { hostOf } from "../../api/probe";
 import { messageLink } from "../../api/shareLinks";
 import { useAudioPlayback } from "../../components/Attachments/audio";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
@@ -18,11 +17,13 @@ import MessageContexts from "../../components/MessageContexts";
 import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
+import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import ChannelOutcome from "./ChannelOutcome";
 import ChannelTitle from "./ChannelTitle";
 import ConversationTitle from "./ConversationTitle";
 import Composer from "./Composer";
@@ -34,7 +35,6 @@ import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
 import SearchButton from "./SearchButton";
-import Unavailable from "./Unavailable";
 import type { ChannelEngine } from "./channelEngine";
 import { readArrived, readShown } from "./readPass";
 import { threadRoute } from "./routes";
@@ -45,6 +45,7 @@ import { useFlash } from "./useFlash";
 import { useFollowSend } from "./useFollowSend";
 import { useMentionNames } from "./useMentionNames";
 import { useMessageActions } from "./useMessageActions";
+import { useScrollRetry } from "./useScrollRetry";
 
 // A channel, pushed over its space: its messages newest at the bottom,
 // older pages loading as the reader scrolls up, and the realtime socket
@@ -120,7 +121,7 @@ export default function Channel({
   const { older, newer, retry, send, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder, landOn } = state;
   const { hasNewer } = log.channel;
-  const [active, setActive] = useState(AppState.currentState === "active");
+  const active = useAppActive();
   // The thread Reply in thread opens once the menu has gone, by its root.
   const threadAfterMenu = useRef<string | null>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
@@ -155,11 +156,6 @@ export default function Channel({
     [],
   );
   const { flashId, flash } = useFlash();
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
-    return () => sub.remove();
-  }, []);
 
   // The channel's shown rows, oldest first; the same array while nothing
   // shown changed.
@@ -239,9 +235,7 @@ export default function Channel({
     () => (readerId !== undefined ? groupedRows(messages, newAfter, readerId).reverse() : []),
     [messages, newAfter, readerId, today],
   );
-  // The latest rows, for a scroll retried after they may have shifted.
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
+  const retryScroll = useScrollRetry(list, items);
   // Whether the reader may post here: otherwise there is no composer, and
   // nothing to quote or edit into.
   const posting = canPost(header?.space, header?.channel);
@@ -350,25 +344,7 @@ export default function Channel({
     };
   }, [header, server.id, server.origin, token, openSearch]);
 
-  if (outcome === "ended") {
-    return (
-      <Unavailable
-        message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
-        action={{
-          label: "Sign in again",
-          onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
-        }}
-      />
-    );
-  }
-  if (outcome === "gone") {
-    return <Unavailable message={`This ${spaceId ? "channel" : "conversation"} isn't available any more.`} />;
-  }
-  if (outcome === "failed") {
-    return (
-      <Unavailable message={`Couldn't reach ${hostOf(server.origin)}.`} action={{ label: "Try again", onPress: retry }} />
-    );
-  }
+  if (outcome) return <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retry} />;
   if (!header) {
     return (
       <View style={styles.screen}>
@@ -420,17 +396,7 @@ export default function Channel({
               // while the range stops short of the newest message.
               onStartReached={focused ? newer : undefined}
               onStartReachedThreshold={0.5}
-              onScrollToIndexFailed={({ index }) => {
-                // Rows not measured yet: get near, then try again once drawn,
-                // for the same row, since a page or an arrival may have moved
-                // it meanwhile (a row gone meanwhile is nothing to land on).
-                const key = itemsRef.current[index]?.key;
-                list.current?.scrollToOffset({ offset: index * 60, animated: false });
-                setTimeout(() => {
-                  const again = itemsRef.current.findIndex((item) => item.key === key);
-                  if (again >= 0) list.current?.scrollToIndex({ index: again, viewPosition: 0.5, animated: false });
-                }, 100);
-              }}
+              onScrollToIndexFailed={retryScroll}
               // Away from the newest message once scrolled further from the
               // bottom edge than the list follows new rows from.
               // Every frame: Android drops a throttled event for good, and the

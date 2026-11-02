@@ -6,8 +6,7 @@ import { threadRepliesClosed } from "@stoop/core/threadReplies";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
-import { hostOf } from "../../api/probe";
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { errorText } from "../../api/errors";
 import { useServerStatus } from "../../api/instance";
 import { threadMessageLink } from "../../api/shareLinks";
@@ -17,11 +16,13 @@ import MessageContexts from "../../components/MessageContexts";
 import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
+import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
+import ChannelOutcome from "../Channel/ChannelOutcome";
 import PageRetry from "../Channel/PageRetry";
 import Composer from "../Channel/Composer";
 import ComposerDock from "../Channel/ComposerDock";
@@ -37,6 +38,7 @@ import { useFlash } from "../Channel/useFlash";
 import { useFollowSend } from "../Channel/useFollowSend";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
+import { useScrollRetry } from "../Channel/useScrollRetry";
 import MuteButton from "./MuteButton";
 import { muteItem } from "./muteItem";
 import ThreadHead from "./ThreadHead";
@@ -100,16 +102,11 @@ export default function Thread({
   const { log, header, outcome, token, threads } = state;
   const thread = threads[rootId];
   const view = log.threads[rootId];
-  const [active, setActive] = useState(AppState.currentState === "active");
+  const active = useAppActive();
   const list = useRef<FlatList<GroupedRow>>(null);
   const followSend = useFollowSend(list);
   const landed = useRef(false);
   const { flashId, flash } = useFlash();
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
-    return () => sub.remove();
-  }, []);
 
   const held = log.rows.get(rootId);
   const root = held && isShown(held) ? held : undefined;
@@ -158,9 +155,7 @@ export default function Thread({
     () => (decided ? threadRows(replies, firstNew ?? undefined).reverse() : []),
     [decided, replies, firstNew],
   );
-  // The latest rows, for a scroll retried after they may have shifted.
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  const retryScroll = useScrollRetry(list, rows);
 
   // Opening lands on the reply it was opened on, ringed for a moment, or
   // else the "New" line, once.
@@ -272,23 +267,14 @@ export default function Thread({
     };
   }, [header, muted, muting, toggleMute, openSearch]);
   const title = <Stack.Screen options={options} />;
-  if (outcome === "ended") {
+  const retryOpen = () => {
+    if (outcome === "failed") engine.retry();
+    engine.retryThread(rootId);
+  };
+  if (outcome === "ended" || outcome === "gone") {
     return (
       <Screen title={title}>
-        <Unavailable
-          message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
-          action={{
-            label: "Sign in again",
-            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
-          }}
-        />
-      </Screen>
-    );
-  }
-  if (outcome === "gone") {
-    return (
-      <Screen title={title}>
-        <Unavailable message={`This ${spaceId ? "channel" : "conversation"} isn't available any more.`} />
+        <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
@@ -299,20 +285,10 @@ export default function Thread({
       </Screen>
     );
   }
-  const failed = outcome === "failed" || thread?.outcome === "failed";
-  if (failed) {
+  if (outcome === "failed" || thread?.outcome === "failed") {
     return (
       <Screen title={title}>
-        <Unavailable
-          message={`Couldn't reach ${hostOf(server.origin)}.`}
-          action={{
-            label: "Try again",
-            onPress: () => {
-              if (outcome === "failed") engine.retry();
-              engine.retryThread(rootId);
-            },
-          }}
-        />
+        <ChannelOutcome outcome="failed" server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
@@ -362,17 +338,7 @@ export default function Thread({
               }
               onEndReached={() => engine.olderReplies(rootId)}
               onEndReachedThreshold={0.5}
-              onScrollToIndexFailed={({ index }) => {
-                // Rows not measured yet: get near, then try again once drawn,
-                // for the same row, since a reply arriving may have moved it
-                // meanwhile (as the channel's does).
-                const key = rowsRef.current[index]?.key;
-                list.current?.scrollToOffset({ offset: index * 60, animated: false });
-                setTimeout(() => {
-                  const again = rowsRef.current.findIndex((row) => row.key === key);
-                  if (again >= 0) list.current?.scrollToIndex({ index: again, viewPosition: 0.5, animated: false });
-                }, 100);
-              }}
+              onScrollToIndexFailed={retryScroll}
               // As the channel's: scrolling leaves the keyboard in place.
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
               // Drawn upside down, so the top padding is the bottom edge, and
