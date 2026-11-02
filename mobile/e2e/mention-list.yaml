@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Pick mentions from the list, from @, the @ button and #, and see them sent
+name: "Pick mentions from the list, from @, the @ button and #, and see them sent"
 ---
 - clearKeychain
 - launchApp:

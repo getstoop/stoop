@@ -2,7 +2,7 @@ appId: ${APP_ID}
 name: Start a conversation from New message, and land in the one that exists
 ---
 # As ada (seed.mjs). The pencil on Messages opens New message: dee, who
-# shares a space with ada, is offered; bea, who shares none, isn't.
+# shares a space with ada, is offered; fay, who shares none, isn't.
 # Start waits for someone picked; picking dee puts her in the To line,
 # and Start opens the conversation with her in place of the sheet. It is
 # the one that already exists: dee writing in hers lands there. (Only
@@ -41,7 +41,7 @@ name: Start a conversation from New message, and land in the one that exists
     visible: "${POSTER}, @${POSTER}"
     timeout: 15000
 - assertVisible: "People on .*"
-- assertNotVisible: "${OUTSIDER}, .*"
+- assertNotVisible: "${LEAVER}, .*"
 - assertVisible: "Add more than one person to start a group."
 # Nobody picked: Start does nothing.
 - tapOn:

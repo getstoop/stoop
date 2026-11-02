@@ -249,8 +249,8 @@ const env = {
   // A plain member of the space, who moderates nothing.
   POSTER: `dee${s.suffix}`,
   OUTSIDER: `bea${s.suffix}`,
-  // In no space, and in no flow but you-servers.yaml, whose sign-ins it
-  // ends from elsewhere with the token.
+  // In no space. you-servers.yaml ends its sign-ins from elsewhere with the
+  // token; new-message.yaml looks for it and shouldn't find it.
   LEAVER: `fay${s.suffix}`,
   LEAVER_TOKEN: s.tokens.fay,
   // In no space, and in no flow but edit-profile.yaml, which renames it.

@@ -64,6 +64,12 @@ name: See link previews under messages, open a message's menu from one, and remo
 - extendedWaitUntil:
     notVisible: "Quote in reply"
     timeout: 5000
+# The top card's × sits under the header's Search button; bring it clear.
+- swipe:
+    start: 50%,40%
+    end: 50%,60%
+- waitForAnimationToEnd:
+    timeout: 3000
 # The author's × takes the trail's card off, for everyone, once asked.
 - tapOn:
     text: "Remove preview"
