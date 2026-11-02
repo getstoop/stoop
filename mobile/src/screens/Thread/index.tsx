@@ -224,10 +224,6 @@ export default function Thread({
   // the space is, and the bell once the thread is on screen (with the
   // dock, where a refusal is said) with a summary to mute.
   const summary = !outcome && !thread?.outcome && decided ? root?.thread : undefined;
-  const mute =
-    header && summary
-      ? { muted: summary.muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
-      : undefined;
   const pushOnce = usePushOnce();
   const openSearch = useCallback(
     () =>
@@ -236,33 +232,41 @@ export default function Thread({
       ),
     [pushOnce, router, server.id, spaceId, channelId],
   );
-  // A direct message has no space to search, as on web.
-  const search = header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined;
-  const conversation = header?.dm ? headerPlace(header) : undefined;
-  const title = (
-    <Stack.Screen
-      options={{
-        headerTitle: () => (
-          <ThreadTitle channel={header?.channel} spaceName={header?.space?.name ?? ""} conversation={conversation} />
-        ),
-        ...(Platform.OS === "ios"
-          ? {
-              unstable_headerRightItems: () => [
-                ...(search ? [searchItem(search)] : []),
-                ...(mute ? [muteItem(mute)] : []),
-              ],
-            }
-          : {
-              headerRight: () => (
-                <View style={styles.headerItems}>
-                  {search && <SearchButton {...search} />}
-                  {mute && <MuteButton {...mute} />}
-                </View>
-              ),
-            }),
-      }}
-    />
-  );
+  // Muted says a summary is there, so a change to either is a change here.
+  const muted = summary?.muted;
+  // The same options while nothing they read changed: new ones are a
+  // setOptions, and this renders on every event in the channel and every
+  // step of the keyboard. All the header draws comes from what is listed.
+  const options = useMemo(() => {
+    const mute =
+      header && muted !== undefined
+        ? { muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
+        : undefined;
+    // A direct message has no space to search, as on web.
+    const search = header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined;
+    const conversation = header?.dm ? headerPlace(header) : undefined;
+    return {
+      headerTitle: () => (
+        <ThreadTitle channel={header?.channel} spaceName={header?.space?.name ?? ""} conversation={conversation} />
+      ),
+      ...(Platform.OS === "ios"
+        ? {
+            unstable_headerRightItems: () => [
+              ...(search ? [searchItem(search)] : []),
+              ...(mute ? [muteItem(mute)] : []),
+            ],
+          }
+        : {
+            headerRight: () => (
+              <View style={headerStyles.items}>
+                {search && <SearchButton {...search} />}
+                {mute && <MuteButton {...mute} />}
+              </View>
+            ),
+          }),
+    };
+  }, [header, muted, muting, toggleMute, openSearch]);
+  const title = <Stack.Screen options={options} />;
   if (outcome === "ended") {
     return (
       <Screen title={title}>
@@ -458,6 +462,15 @@ function Screen({ title, children }: { title: ReactNode; children: ReactNode }) 
   );
 }
 
+// Apart from the theme's: the header's options keep it.
+const headerStyles = StyleSheet.create({
+  items: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+});
+
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
     screen: {
@@ -469,11 +482,6 @@ function makeStyles(theme: Theme) {
     },
     edge: {
       marginVertical: 16,
-    },
-    headerItems: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
     },
     closed: {
       marginHorizontal: 16,

@@ -329,6 +329,27 @@ export default function Channel({
     if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
   }, [items.length, newIndex, focusId]);
 
+  // The same options while nothing they read changed: new ones are a
+  // setOptions, and this renders on every event in the channel and every
+  // step of the keyboard, under a thread too. All the header draws comes
+  // from what is listed.
+  const options = useMemo(() => {
+    if (!header) return undefined;
+    const { space, dm, channel, memberCount, myUserId } = header;
+    const search = space && { spaceName: space.name, onPress: openSearch };
+    return {
+      headerTitle: () =>
+        dm ? (
+          <ConversationTitle dm={dm} myUserId={myUserId} serverId={server.id} origin={server.origin} token={token} />
+        ) : (
+          <ChannelTitle channel={channel} spaceName={space?.name ?? ""} memberCount={memberCount} />
+        ),
+      ...(Platform.OS === "ios"
+        ? { unstable_headerRightItems: () => (search ? [searchItem(search)] : []) }
+        : { headerRight: search ? () => <SearchButton {...search} /> : undefined }),
+    };
+  }, [header, server.id, server.origin, token, openSearch]);
+
   if (outcome === "ended") {
     return (
       <Unavailable
@@ -356,31 +377,12 @@ export default function Channel({
     );
   }
 
-  const { space, dm, channel, memberCount, myUserId } = header;
+  const { space, channel, myUserId } = header;
   const { hasOlder } = log.channel;
-  const search = space && { spaceName: space.name, onPress: openSearch };
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen
-        options={{
-          headerTitle: () =>
-            dm ? (
-              <ConversationTitle
-                dm={dm}
-                myUserId={myUserId}
-                serverId={server.id}
-                origin={server.origin}
-                token={token}
-              />
-            ) : (
-              <ChannelTitle channel={channel} spaceName={space?.name ?? ""} memberCount={memberCount} />
-            ),
-          ...(Platform.OS === "ios"
-            ? { unstable_headerRightItems: () => (search ? [searchItem(search)] : []) }
-            : { headerRight: search ? () => <SearchButton {...search} /> : undefined }),
-        }}
-      />
+      <Stack.Screen options={options} />
       <ComposerDock
         keyboard={keyboard}
         notice={actions.notice}
