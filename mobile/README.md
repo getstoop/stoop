@@ -393,6 +393,13 @@ import a screen; the screens themselves live in `src/screens`, so
   does, in a channel and in a thread alike; a screen reader hears it
   before the name. There is no list of a channel's pins on the phone
   yet, and no pin in the header: those are follow-ups.
+- In an announcement channel, someone who can't post there
+  (`core/permissions` `canPost`) has a card in the composer's place
+  saying so in web's words (`src/screens/Channel/PostingClosed.tsx`),
+  and a menu with no Quote in reply or Edit message, both of which act
+  through the composer; a quote or an edit begun goes as that starts.
+  They can still react, copy, and delete their own. Admins have the
+  composer as in any channel.
 - A root with replies has a line under it, as the server summarises the
   thread (`message.thread`; nothing is counted on the phone): the two
   who replied last, "N replies" in the accent, an "N new" badge while

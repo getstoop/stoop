@@ -18,10 +18,11 @@ import type { ComposerHandle } from "./Composer";
 // has gone, and its row is scrolled to the middle of what the keyboard
 // leaves, once, while the screen is the one on top (`focused`). Where
 // no composer is shown (`composing` false: a thread that takes no
-// replies) there is nothing to quote or edit into, and a quote or an
-// edit held goes as that starts. A change of `scope` (another channel,
-// another thread) lets it all go. A link preview's × asks first, as
-// web's does, and takes the card off for everyone.
+// replies, a channel the reader can't post in) there is nothing to
+// quote or edit into, and a quote or an edit held goes as that starts.
+// A change of `scope` (another channel, another thread) lets it all go.
+// A link preview's × asks first, as web's does, and takes the card off
+// for everyone.
 
 // How long a refusal's line stays.
 const NOTICE_MS = 4000;
