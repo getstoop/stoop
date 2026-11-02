@@ -12,7 +12,8 @@ const MAX_BACKOFF_MS = 15_000;
 // The gateway's close code when the session the socket was opened with
 // has ended: signed out, revoked or expired. That session will never work
 // again, so the socket waits, still reading the keychain on the backoff,
-// until a new sign-in leaves another there.
+// until a new sign-in leaves another there, which also replaces this
+// socket (RealtimeProvider).
 const CLOSE_SESSION_ENDED = 4001;
 
 // React Native's WebSocket takes headers as a third argument, which the

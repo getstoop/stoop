@@ -572,6 +572,12 @@ Password sign-in on the phone is `Login`, whose response carries the
 token for bearer clients; a new account is `Register` and then `Login`,
 since `Register` sets only a cookie.
 
+Signing in to a server already saved replaces its session, whichever
+account it is. Once the new token is kept, the app sends `Logout` with the
+old one, which ends that session alone and is refused, unnoticed, if it
+has already ended. There is no check first that the account differs: a
+second sign-in as the same account has no use for the old session either.
+
 The app makes every request without cookies (`mobile/src/api/fetch.ts`).
 These routes and `Login` also set the browser session cookie, and React
 Native keeps cookies by default: kept, it would be a second copy of the

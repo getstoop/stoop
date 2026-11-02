@@ -1,7 +1,8 @@
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import { clearFileCaches } from "../api/downloads";
-import { forgetServer, loadServers, moveToFront, type SavedServer, saveSignIn } from "../api/servers";
+import { forgetServer, loadServers, moveToFront, type SavedServer } from "../api/servers";
+import { keepSignIn } from "./keepSignIn";
 import ServerListUnread from "./ServerListUnread";
 import { serverList, type ServerListView } from "./serverList";
 
@@ -34,11 +35,7 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
   }, [read]);
 
   const signedIn = useCallback(
-    async (origin: string, name: string, token: string) => {
-      // saveSignIn puts the server it saved first.
-      const list = await change((list) => saveSignIn(list, origin, name, token));
-      return list[0].id;
-    },
+    (origin: string, name: string, token: string) => keepSignIn(change, origin, name, token),
     [change],
   );
 

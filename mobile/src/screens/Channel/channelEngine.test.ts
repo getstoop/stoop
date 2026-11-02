@@ -314,3 +314,12 @@ describe("a page refused for good", () => {
     });
   });
 });
+
+describe("a new sign-in to the same server", () => {
+  it("is not handed the log still held for the session before", async () => {
+    const { engine } = await openEngine();
+    const signedInAgain = { ...SERVER, session: (SERVER.session ?? 0) + 1 };
+    expect(channelEngine(SERVER, "s1", CHANNEL, () => () => {})).toBe(engine);
+    expect(channelEngine(signedInAgain, "s1", CHANNEL, () => () => {})).not.toBe(engine);
+  });
+});

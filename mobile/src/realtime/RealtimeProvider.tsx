@@ -5,6 +5,7 @@ import { sessionToken } from "../api/servers";
 import { useServers } from "../servers";
 import { applyPresenceEvent, OFFLINE, type Presence, type PresenceRoster } from "./presence";
 import { openRealtime, type Realtime } from "./socket";
+import { socketKey } from "./socketKey";
 import { applyVoiceEvent, type VoiceRoster } from "./voice";
 
 // By server ID: who is in voice there, or undefined while its socket is
@@ -29,12 +30,7 @@ const ListenersContext = createContext<Listeners>(new Map());
 // that needs other events listens for them with useServerEvents.
 export default function RealtimeProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
-  // Switching servers reorders the list; only a server added or forgotten
-  // changes which sockets there are.
-  const key = servers
-    .map((server) => `${server.id} ${server.origin}`)
-    .sort()
-    .join("\n");
+  const key = socketKey(servers);
   const targets = useMemo(
     () =>
       key

@@ -45,6 +45,7 @@ import {
 import { sessionToken } from "../../api/servers";
 import type { Subscribe } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
+import { sessionKey } from "../../servers/sessionKey";
 
 // A channel's log while a screen shows it: the channel screen, and a
 // thread screen pushed over it, share one, so a reply, an edit or a read
@@ -178,10 +179,12 @@ const newLifetime = (): Lifetime => ({
 
 export type ChannelEngine = ReturnType<typeof createEngine>;
 
-// By server and channel: the log every screen showing that channel holds.
+// By server, session and channel: the log every screen showing that channel
+// holds. By session too, so a sign-in as someone else is never handed the
+// log, or the token, of the account before.
 const engines = new Map<string, ChannelEngine>();
 
-export const engineKey = (server: SavedServer, channelId: string) => `${server.id}/${channelId}`;
+export const engineKey = (server: SavedServer, channelId: string) => `${sessionKey(server)}/${channelId}`;
 
 // The channel's engine as a screen first renders: the one a screen holds
 // already, or a new one that nothing knows of until it is held.

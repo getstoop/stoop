@@ -213,8 +213,9 @@ import a screen; the screens themselves live in `src/screens`, so
   `expo-file-system` and `expo-sharing`; the server's file id must be a
   UUID and the name is made safe and short, `api/fileNames.ts`, and the
   file is written beside its place and moved in whole); a failure says "Couldn't
-  download" there until the next tap. Signing out or removing a server
-  forgets every cached picture and downloaded file, for every server. Each file is its own
+  download" there until the next tap. Signing out or removing a server,
+  or signing in over a session saved for it, forgets every cached picture
+  and downloaded file, for every server. Each file is its own
   element for a screen reader, named by its kind and name ("Image 2 of
   4, IMG_2111.jpg", "Video, IMG_2042.mov, 18.6 MB. Plays full
   screen"). A long press on any of them is the row's, and the
@@ -544,7 +545,12 @@ socket at once; the server's grace period (`STOOP_PRESENCE_GRACE`)
 keeps a quick trip to another app from showing them offline. A socket
 reopens after a backoff when it drops, and stays shut after the server
 says its session has ended (close code 4001) until a new sign-in
-leaves another session in the keychain. Who is in each voice room is
+leaves another session in the keychain. A sign-in to a server already
+saved keeps its ID, and may be another account's, so it starts everything
+held for the session before: the sockets reopen on the new token (all of
+them, for now), the server's stack mounts again, a channel's log is a new
+one, the old session is logged out, best effort, and the cached files go,
+as on signing out (`session` in `src/api/servers.ts`). Who is in each voice room is
 kept there (Ready, then VoiceStateChanged); a screen that needs other
 events listens with `useServerEvents`. A space's channels screen
 reloads, after a moment's quiet, whenever one touches that space, as

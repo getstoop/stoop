@@ -109,9 +109,9 @@ export function shareDownloaded(uri: string, attachment: Attachment): Promise<vo
   return shareAsync(uri, { mimeType: attachment.contentType, dialogTitle: attachment.name });
 }
 
-// Signing out of any server forgets every server's pictures and files:
-// a photo from a private channel shouldn't outlive the session on a
-// shared phone. The image cache can't be cleared one server at a time.
+// Signing out of any server, or signing in over a session saved for it,
+// forgets every server's pictures and files: a photo from a private
+// channel shouldn't outlive the session on a shared phone. The image cache can't be cleared one server at a time.
 export async function clearFileCaches(): Promise<void> {
   clearPosters();
   await Promise.all([Image.clearDiskCache(), Image.clearMemoryCache()]).catch(() => {});

@@ -1,6 +1,7 @@
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import ActivityProvider from "../../../activity/ActivityProvider";
 import { CurrentServer, useServer } from "../../../servers";
+import { sessionKey } from "../../../servers/sessionKey";
 import { useTheme } from "../../../theme";
 
 // Everything under /s/<id> is one saved server; an ID this phone doesn't
@@ -11,7 +12,8 @@ import { useTheme } from "../../../theme";
 // under it reads the server from CurrentServer: a screen reached by
 // pressing gets none of this layout's route params. The server's
 // activity feed is held here too, for the Activity tab, its badge and
-// the channel screens that read it.
+// the channel screens that read it. All of it starts again on a new
+// sign-in, which may be another account's on the same ID.
 export const unstable_settings = { anchor: "(tabs)" };
 
 // A channel's header, and a thread's, has no bar of its own: the list
@@ -34,7 +36,7 @@ export default function ServerLayout() {
 
   return (
     <CurrentServer server={server}>
-      <ActivityProvider key={server.id} server={server}>
+      <ActivityProvider key={sessionKey(server)} server={server}>
         <Stack
           screenOptions={{
             title: "",
