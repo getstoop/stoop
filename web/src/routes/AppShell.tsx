@@ -22,7 +22,6 @@ import {
   useUpdate,
 } from "../api/queries";
 import { MAX_SPACE_NAME } from "../api/spaces";
-import { isAlerting } from "../api/unreads";
 import { startVoiceBridge } from "../api/voiceBridge";
 import { startRealtime } from "../api/ws";
 import { Announcer } from "../components/Announcer";
@@ -133,12 +132,10 @@ function SpaceRail() {
   );
   const { data: activity } = useActivity();
   const { bySpace: unreadBySpace } = unreadCounts(activity);
-  // Direct messages: a dot for anything unread, a badge counting the
-  // messages the rows count (api/dms.ts → dmUnreadTotal).
+  // Direct messages: a badge counting the messages the rows count
+  // (api/dms.ts → dmUnreadTotal). No unread tab: every unread message
+  // counts, so the badge is always there when the tab would be.
   const { data: dms } = useDirectMessages();
-  const dmUnread = dms?.some(
-    (d) => d.channel && !d.closed && isAlerting(queryClient, "", d.channel),
-  );
   const dmAlerts = dmUnreadTotal(dms);
   const { data: instanceStatus } = useInstanceStatus();
   const canCreateSpace =
@@ -200,10 +197,8 @@ function SpaceRail() {
           aria-label="Direct messages"
         >
           <MessagesIcon />
-          {dmAlerts > 0 ? (
+          {dmAlerts > 0 && (
             <span className="pill-badge">{badgeCount(dmAlerts)}</span>
-          ) : (
-            dmUnread && <span className="pill-dot" title="Unread messages" />
           )}
         </Link>
         <span className="rail-divider" aria-hidden="true" />
@@ -223,15 +218,16 @@ function SpaceRail() {
               >
                 <SpaceIcon name={space.name} fileId={space.iconFileId} />
                 {/* A muted space draws nothing: no badge, no dot, dimmed
-                    like a muted channel row. */}
-                {space.muted ? null : (unreadBySpace.get(space.id) ?? 0) > 0 ? (
+                    like a muted channel row. Otherwise the dot and the
+                    badge are independent: unread anywhere draws the dot,
+                    mentions and alerts draw the count on top. */}
+                {!space.muted && space.hasUnread && (
+                  <span className="pill-dot" title="Unread messages" />
+                )}
+                {!space.muted && (unreadBySpace.get(space.id) ?? 0) > 0 && (
                   <span className="pill-badge">
                     {badgeCount(unreadBySpace.get(space.id) ?? 0)}
                   </span>
-                ) : (
-                  space.hasUnread && (
-                    <span className="pill-dot" title="Unread messages" />
-                  )
                 )}
               </Link>
             </Tooltip>
@@ -274,7 +270,7 @@ function SpaceRail() {
         >
           <PulseIcon />
           {(activity?.unreadCount ?? 0) > 0 && (
-            <span className="pill-dot" title="Unread activity" />
+            <span className="pill-dot corner" title="Unread activity" />
           )}
         </Link>
         {permissions?.includes(Permission.INSTANCE_READ) && (
@@ -287,7 +283,7 @@ function SpaceRail() {
             <GearIcon />
             {update?.outdated && (
               <span
-                className="pill-dot warn"
+                className="pill-dot corner warn"
                 role="img"
                 aria-label="This server is no longer supported"
               />

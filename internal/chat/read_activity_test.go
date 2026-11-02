@@ -5,16 +5,20 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/chat"
+	"github.com/getstoop/stoop/internal/events"
 )
 
 // readActivityFixture is a space of ada, bea and casey, for what moving a
 // read marker does to activity.
 type readActivityFixture struct {
 	t         *testing.T
+	pool      *pgxpool.Pool
 	svc       *chat.Service
 	spaceID   string
 	channelID string
@@ -26,7 +30,7 @@ func newReadActivityFixture(t *testing.T) *readActivityFixture {
 	t.Helper()
 	pool, _, svc := newTestService(t)
 	fx := &readActivityFixture{
-		t: t, svc: svc,
+		t: t, pool: pool, svc: svc,
 		ada:   newUser(t, pool, "ada", authctx.RoleMember),
 		bea:   newUser(t, pool, "bea", authctx.RoleMember),
 		casey: newUser(t, pool, "casey", authctx.RoleMember),
@@ -200,6 +204,58 @@ func TestThreadReadClearsActivity(t *testing.T) {
 	fx.readThread(fx.ada, rootA.Id, "")
 	if got, _ := fx.unread(fx.ada); len(got) != 1 {
 		t.Errorf("ada read thread A again: unread %v, want thread B's mention alone", got)
+	}
+}
+
+// readsOnThreadChanged is a bus whose ThreadChanged runs a read before
+// SendMessage carries on, as a client answering the event can.
+type readsOnThreadChanged struct {
+	events.Bus
+	read func()
+}
+
+func (bus readsOnThreadChanged) Publish(topic string, ev *realtimev1.ServerEvent) {
+	bus.Bus.Publish(topic, ev)
+	if _, ok := ev.Payload.(*realtimev1.ServerEvent_ThreadChanged); ok {
+		bus.read()
+	}
+}
+
+// SendMessage publishes a reply before it writes the reply's activity, so
+// a read answering the event can land first and leave the item unread. A
+// read after that clears the item with no new reply, whatever its kind,
+// so a client need only read again when the item's own event comes.
+func TestThreadReadBeforeTheItemIsWritten(t *testing.T) {
+	fx := newReadActivityFixture(t)
+	root := fx.send(fx.ada, &chatv1.SendMessageRequest{Content: "ladder"})
+	racing := chat.New(fx.pool, readsOnThreadChanged{events.NewInProcBus(), func() {
+		fx.readThread(fx.ada, root.Id, "")
+	}}, dbDirectory{fx.pool})
+
+	replies := []struct {
+		name string
+		req  *chatv1.SendMessageRequest
+		kind chatv1.ActivityKind
+	}{
+		{"a thread reply", &chatv1.SendMessageRequest{Content: "mine"}, chatv1.ActivityKind_ACTIVITY_KIND_THREAD_REPLY},
+		{"a mention", &chatv1.SendMessageRequest{Content: mentionOf(fx.ada) + " come get it"}, chatv1.ActivityKind_ACTIVITY_KIND_MENTION},
+		{"a mention also sent to the channel", &chatv1.SendMessageRequest{Content: mentionOf(fx.ada) + " on the porch", AlsoSendToChannel: true}, chatv1.ActivityKind_ACTIVITY_KIND_MENTION},
+	}
+	for _, reply := range replies {
+		t.Run(reply.name, func(t *testing.T) {
+			reply.req.ChannelId, reply.req.ThreadRootId = fx.channelID, root.Id
+			res, err := racing.SendMessage(fx.bea, connect.NewRequest(reply.req))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, _ := fx.unread(fx.ada); got[res.Msg.Message.Id] != reply.kind {
+				t.Fatalf("ada after the read landed first = %v, want the item unread", got)
+			}
+			fx.readThread(fx.ada, root.Id, "")
+			if got, _ := fx.unread(fx.ada); len(got) != 0 {
+				t.Errorf("ada read again: unread %v, want none", got)
+			}
+		})
 	}
 }
 

@@ -1,11 +1,8 @@
-import { Code, ConnectError } from "@connectrpc/connect";
-import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { loadMe } from "../../api/me";
+import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
-import { sessionToken } from "../../api/servers";
 import TabNotice from "../../components/TabNotice";
 import type { SavedServer } from "../../servers";
 import { type Theme, useTheme } from "../../theme";
@@ -14,11 +11,7 @@ import ProfileForm from "./ProfileForm";
 // Edit profile, pushed over the You tab: who you are on this server, asked
 // of the server on opening so the form starts from what it holds.
 
-type State =
-  | { state: "loading" }
-  | { state: "ready"; token: string; user: User }
-  | { state: "ended" }
-  | { state: "failed" };
+type State = { state: "loading" } | SignedInMe;
 
 export default function EditProfile({ server }: { server: SavedServer }) {
   const theme = useTheme();
@@ -26,28 +19,17 @@ export default function EditProfile({ server }: { server: SavedServer }) {
   const router = useRouter();
   const [view, setView] = useState<State>({ state: "loading" });
 
-  const load = useCallback(async (): Promise<State> => {
-    const token = await sessionToken(server.id).catch(() => null);
-    if (!token) return { state: "ended" };
-    try {
-      const user = await loadMe(server.origin, token);
-      return user ? { state: "ready", token, user } : { state: "ended" };
-    } catch (err) {
-      return err instanceof ConnectError && err.code === Code.Unauthenticated ? { state: "ended" } : { state: "failed" };
-    }
-  }, [server]);
-
   useEffect(() => {
     let live = true;
-    load().then((next) => live && setView(next));
+    loadSignedInMe(server).then((next) => live && setView(next));
     return () => {
       live = false;
     };
-  }, [load]);
+  }, [server]);
 
   const retry = async () => {
     setView({ state: "loading" });
-    setView(await load());
+    setView(await loadSignedInMe(server));
   };
 
   if (view.state === "ready") return <ProfileForm server={server} token={view.token} me={view.user} />;

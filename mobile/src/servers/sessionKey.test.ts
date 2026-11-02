@@ -12,7 +12,7 @@ describe("sessionKey", () => {
     expect(sessionKey({ ...SERVER, id: "bbbbbb" })).not.toBe(sessionKey(SERVER));
   });
 
-  it("stays when only the name or the place in the list changes", () => {
+  it("stays when only the name changes", () => {
     expect(sessionKey({ ...SERVER, name: "Renamed" })).toBe(sessionKey(SERVER));
   });
 

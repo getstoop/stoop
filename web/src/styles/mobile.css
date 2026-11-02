@@ -39,8 +39,12 @@
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 
+  /* Scrolling makes this a clip box, and it would otherwise be only as
+     wide as the pills: full width keeps the unread tab, which hangs
+     off a pill's edge, inside it. */
   .space-rail-top {
     overflow-y: auto;
+    width: 100%;
   }
 
   .channel-sidebar {

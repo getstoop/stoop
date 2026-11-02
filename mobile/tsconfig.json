@@ -18,7 +18,9 @@
       // The app's unit tests run with web's Vitest (web/vitest.config.ts),
       // so its types come from web's install (`make mobile-typecheck`
       // installs it first).
-      "vitest": ["../web/node_modules/vitest"]
+      "vitest": ["../web/node_modules/vitest"],
+      // What RealtimeProvider's test renders with, from the same install.
+      "react-dom/client": ["../web/node_modules/@types/react-dom/client"]
     }
   },
   // All of web/src/core, not only what the app imports so far, so lint
