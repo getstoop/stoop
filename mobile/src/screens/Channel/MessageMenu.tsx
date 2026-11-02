@@ -85,7 +85,8 @@ export default function MessageMenu({
   // Only where the reader may pin: in the channel, on a message that is
   // not a reply, with manage_channels.
   onPin?: () => void;
-  // Not where nothing can be written: a thread that takes no replies.
+  // Not where nothing can be written: a thread that takes no replies, or
+  // a channel the reader can't post in.
   onQuote?: () => void;
   onEdit?: () => void;
   onDelete: () => void;
