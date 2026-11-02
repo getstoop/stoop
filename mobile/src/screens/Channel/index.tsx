@@ -34,6 +34,7 @@ import MessageRow from "./MessageRow";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
 import type { ChannelEngine } from "./channelEngine";
+import { readPass } from "./readPass";
 import { threadRoute } from "./routes";
 import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
@@ -184,29 +185,38 @@ export default function Channel({
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web; not while the range stops
   // short of the newest message, whose newest row is not the channel's.
-  // Its mentions are read with it, and on each coming on screen (one
-  // left unread with the marker already moved), through the server's
-  // activity feed (src/activity), so the tab's badge follows; the
-  // marker's channelRead event, sent after them, is what reloads the
+  // Moving it reads the activity it passes, on the server. What that
+  // can't reach (one left unread with the marker already moved) is read
+  // through the server's activity feed (src/activity), so the tab's badge
+  // follows, once per coming on screen (readPass): `looked` falls whenever
+  // this screen could not read what arrived (covered, the app away, the
+  // range short of the newest, a catch-up owed after a reconnect or a gap
+  // in the events), and a read that fails lets the next pass go again.
+  // The marker's channelRead event, sent after them, is what reloads the
   // space's badges.
   const newestId = messages.at(-1)?.id ?? "";
+  const owing = log.needsCatchUp;
   useEffect(() => {
-    if (!focused || !active) looked.current = false;
+    if (!focused || !active || hasNewer || owing) looked.current = false;
     if (!newestId || !token || !focused || !active || !header || hasNewer) return;
-    const readTo = header.channel.lastReadMessageId;
-    const behind = newestId > readTo && newestId > marked.current;
-    if (!behind && looked.current) return;
-    looked.current = true;
-    if (behind) marked.current = newestId;
-    readChannel(channelId)
-      .catch(() => 0)
-      .then((read) => {
-        if (behind || read > 0) return markRead(server.origin, token, channelId, newestId);
+    const pass = readPass(newestId, header.channel.lastReadMessageId, marked.current, looked.current, owing);
+    if (!pass) return;
+    if (!owing) looked.current = true;
+    if (pass.moveMarker) marked.current = newestId;
+    const read = pass.readActivity
+      ? readChannel(channelId).catch(() => {
+          looked.current = false;
+          return 0;
+        })
+      : Promise.resolve(0);
+    read
+      .then((count) => {
+        if (pass.moveMarker || count > 0) return markRead(server.origin, token, channelId, newestId);
       })
       .catch(() => {
         if (marked.current === newestId) marked.current = "";
       });
-  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, readChannel]);
+  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, owing, readChannel]);
   // A mention arriving here while it is read is recorded after its
   // message goes out, so the pass above can miss it: its own event reads
   // it, then the marker again for the space's badges.
@@ -217,7 +227,9 @@ export default function Channel({
     if (!token || !focused || !active || hasNewer) return;
     readActivity([item.id])
       .then(() => markRead(server.origin, token, channelId, item.messageId))
-      .catch(() => {});
+      .catch(() => {
+        looked.current = false;
+      });
   });
 
   // Newest first, for a list drawn from the bottom up.
