@@ -19,6 +19,7 @@ import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
@@ -37,6 +38,7 @@ import { useFlash } from "../Channel/useFlash";
 import { useFollowSend } from "../Channel/useFollowSend";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
+import { itemInThread } from "./itemInThread";
 import MuteButton from "./MuteButton";
 import { muteItem } from "./muteItem";
 import ThreadHead from "./ThreadHead";
@@ -147,6 +149,16 @@ export default function Thread({
       clearTimeout(timer);
     };
   }, [decided, replyCount, unread, focused, active, engine, rootId, retries]);
+  // A reply's activity is written after the reply goes out, so the read
+  // above can land first and leave its item unread, with nothing changed
+  // here to read again. The item's own event asks again, now or when the
+  // screen is next on top with the app open. That read clears the item,
+  // and its ThreadRead event reloads the feed and the space's badges.
+  useServerEvents(server.id, (event) => {
+    if (!itemInThread(event, rootId)) return;
+    readAt.current = -1;
+    setRetries((count) => count + 1);
+  });
 
   // Newest first, for a list drawn from the bottom up.
   const rows = useMemo(
