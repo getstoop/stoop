@@ -4,13 +4,14 @@ import { authClient, filesClient } from "../../api/clients";
 import { Avatar } from "../../components/Avatar";
 import { ImagePicker } from "../../components/ImagePicker";
 import { SettingRow } from "../../components/SettingRow";
+import {
+  BIO_MAX,
+  DISPLAY_NAME_MAX,
+  PRONOUNS_MAX,
+  profileEdits,
+} from "../../core/profile";
 import type { User } from "../../gen/stoop/auth/v1/auth_pb";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
-
-// The server's own caps, mirrored so the fields count down rather than
-// let a save fail (internal/auth/profile.go).
-const PRONOUNS_MAX = 40;
-const BIO_MAX = 300;
 
 // Who other people see: the avatar, the two names, and what you say
 // about yourself. One form and one UpdateProfile call; the button wakes
@@ -31,23 +32,20 @@ export function ProfileForm({ me }: { me: User }) {
   useEffect(() => setPronouns(me.pronouns), [me.pronouns]);
   useEffect(() => setBio(me.bio), [me.bio]);
 
-  const nameChanged = name.trim() !== me.displayName;
-  const handleChanged = handle.trim() !== me.username;
-  const pronounsChanged = pronouns !== me.pronouns;
-  const bioChanged = bio !== me.bio;
-  const changed = nameChanged || handleChanged || pronounsChanged || bioChanged;
+  const edits = profileEdits(me, {
+    displayName: name,
+    username: handle,
+    pronouns,
+    bio,
+  });
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!edits) return;
     setState("busy");
     form.begin();
     try {
-      await authClient.updateProfile({
-        displayName: name.trim(),
-        username: handleChanged ? handle.trim() : undefined,
-        pronouns: pronounsChanged ? pronouns : undefined,
-        bio: bioChanged ? bio : undefined,
-      });
+      await authClient.updateProfile(edits);
       await queryClient.invalidateQueries({ queryKey: ["me"] });
       setState("saved");
       setTimeout(() => setState("idle"), 1500);
@@ -76,7 +74,7 @@ export function ProfileForm({ me }: { me: User }) {
           id="display-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          maxLength={50}
+          maxLength={DISPLAY_NAME_MAX}
           required
         />
       </SettingRow>
@@ -145,7 +143,7 @@ export function ProfileForm({ me }: { me: User }) {
         <button
           type="submit"
           className="primary"
-          disabled={state === "busy" || !changed}
+          disabled={state === "busy" || !edits}
         >
           {state === "saved" ? "Saved" : "Save changes"}
         </button>

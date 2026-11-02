@@ -1,12 +1,22 @@
 import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Avatar from "../../components/Avatar";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // Who you are on this server: your avatar, your name, and your handle
-// and pronouns with the server's name.
-export default function Identity({ user, server, token }: { user: User; server: SavedServer; token: string }) {
+// and pronouns with the server's name, and the way to change them.
+export default function Identity({
+  user,
+  server,
+  token,
+  onEdit,
+}: {
+  user: User;
+  server: SavedServer;
+  token: string;
+  onEdit: () => void;
+}) {
   const styles = makeStyles(useTheme());
   const name = user.displayName || user.username;
   const line = [`@${user.username}`, user.pronouns, `on ${server.name}`].filter(Boolean).join(" · ");
@@ -20,6 +30,16 @@ export default function Identity({ user, server, token }: { user: User; server: 
         </Text>
         <Text style={styles.line}>{line}</Text>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Edit profile"
+        testID="edit-profile"
+        hitSlop={4}
+        onPress={onEdit}
+        style={({ pressed }) => [styles.edit, pressed && styles.pressed]}
+      >
+        <Text style={styles.editLabel}>Edit</Text>
+      </Pressable>
     </View>
   );
 }
@@ -46,6 +66,21 @@ function makeStyles(theme: Theme) {
     line: {
       color: theme.textMuted,
       fontSize: tokens.textUi,
+    },
+    edit: {
+      height: 36,
+      paddingHorizontal: 14,
+      borderRadius: tokens.radiusMd,
+      justifyContent: "center",
+      backgroundColor: theme.raised,
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+    editLabel: {
+      color: theme.text,
+      fontSize: tokens.textUi,
+      fontWeight: "600",
     },
   });
 }
