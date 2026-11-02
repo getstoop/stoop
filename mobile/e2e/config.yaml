@@ -26,6 +26,7 @@ executionOrder:
     - "Pick mentions from the list, from @, the @ button and #, and see them sent"
     - "Add a second server from the switcher, see the first one's badge, switch back"
     - "Add a server, sign in, see Spaces, change the theme, sign out"
+    - "See who you are on You, refreshed by a pull, and think better of signing out"
     - "Open a space and see its channels, with what is waiting in each, kept live"
     - "Open a thread from its replies line and from Reply in thread, and read it, kept live"
     - "Reply in a thread, also to the channel, and edit, react and delete there"

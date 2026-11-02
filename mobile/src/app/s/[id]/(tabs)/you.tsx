@@ -1,6 +1,6 @@
-import SignedIn from "../../../../screens/SignedIn";
+import You from "../../../../screens/You";
 import { useCurrentServer } from "../../../../servers";
 
 export default function YouTab() {
-  return <SignedIn server={useCurrentServer()} />;
+  return <You server={useCurrentServer()} />;
 }

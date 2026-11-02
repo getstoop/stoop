@@ -15,6 +15,14 @@ function rpc(proc, token, body) {
 }
 
 var steps = {
+  // Ada's pronouns, set as from her laptop (you.yaml). Empty clears them.
+  setPronouns: function () {
+    var res = http.post(SERVER + "/stoop.auth.v1.AuthService/UpdateProfile", {
+      headers: { "content-type": "application/json", authorization: "Bearer " + OWNER_TOKEN },
+      body: JSON.stringify({ displayName: MEMBER, pronouns: TEXT || "" }),
+    });
+    if (res.status !== 200) throw new Error("UpdateProfile: " + res.status + " " + res.body);
+  },
   // In Book club (space-channels.yaml): ada, its owner, makes CHANNEL_NAME;
   // dee writes in it, then mentions ada there; ada deletes it.
   create: function () {

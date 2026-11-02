@@ -7,13 +7,16 @@ import { type Theme, tokens, useTheme } from "../theme";
 export default function TabNotice({
   message,
   action,
+  flush,
 }: {
   message: string;
   action: { label: string; onPress: () => void };
+  // For a screen whose content already has its own margins.
+  flush?: boolean;
 }) {
   const styles = makeStyles(useTheme());
   return (
-    <View style={styles.notice} accessibilityRole="alert">
+    <View style={[styles.notice, flush && styles.flush]} accessibilityRole="alert">
       <Text style={styles.body}>{message}</Text>
       <Pressable
         accessibilityRole="button"
@@ -32,6 +35,10 @@ function makeStyles(theme: Theme) {
       gap: 12,
       marginTop: 8,
       paddingHorizontal: 20,
+    },
+    flush: {
+      marginTop: 0,
+      paddingHorizontal: 0,
     },
     body: {
       color: theme.text,
