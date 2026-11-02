@@ -1,6 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,19 +10,21 @@ import { sessionToken } from "../../api/servers";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
-import type { SavedServer } from "../../servers";
+import { type SavedServer, useServers } from "../../servers";
+import { useWaiting } from "../../servers/useWaiting";
 import { type Theme, themeList, useTheme, useThemeName } from "../../theme";
 import Identity from "./Identity";
 import Section from "./Section";
+import ServersSection from "./ServersSection";
 import SettingRow from "./SettingRow";
 import SignOutButton from "./SignOutButton";
 
-// The You tab: who you are on the current server, what is set on this
-// phone, and signing out. Loaded on opening, on a pull, on coming back to
-// the app, and a moment after the socket says this account's username or
-// avatar changed (a server sends no event for its name or pronouns). What
-// is set on this phone needs no server, so it stays when the server can't
-// say who you are, and so does the way out.
+// The You tab: who you are on the current server, every server on this
+// phone, what is set on it, and signing out. Loaded on opening, on a pull,
+// on coming back to the app, and a moment after the socket says this
+// account's username or avatar changed (a server sends no event for its
+// name or pronouns). What is set on this phone needs no server, so it
+// stays when the server can't say who you are, and so does the way out.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -57,6 +59,17 @@ export default function You({ server }: { server: SavedServer }) {
     }
   }, [server]);
 
+  // What waits on the other servers, asked again when this tab comes back
+  // into view as well as on what follows.
+  const { servers } = useServers();
+  const { waiting, refresh: refreshWaiting } = useWaiting(servers, server.id);
+  const focused = useIsFocused();
+  const wasFocused = useRef(focused);
+  useEffect(() => {
+    if (focused && !wasFocused.current) refreshWaiting();
+    wasFocused.current = focused;
+  }, [focused, refreshWaiting]);
+
   // As the Messages tab: only the latest load started is shown, and
   // leaving the screen makes none the latest.
   const latest = useRef(0);
@@ -70,13 +83,17 @@ export default function You({ server }: { server: SavedServer }) {
   const reload = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     refresh();
-    const sub = AppState.addEventListener("change", (state) => state === "active" && refresh());
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      refresh();
+      refreshWaiting();
+    });
     return () => {
       latest.current++;
       sub.remove();
       clearTimeout(reload.current);
     };
-  }, [refresh]);
+  }, [refresh, refreshWaiting]);
 
   // One change to this account arrives once per space it is in, so a
   // moment's quiet goes before one reload. Ready follows a reconnect.
@@ -90,6 +107,8 @@ export default function You({ server }: { server: SavedServer }) {
 
   const pull = async () => {
     setRefreshing(true);
+    // The spinner is this tab's own: one unreachable server mustn't hold it.
+    refreshWaiting();
     await refresh();
     setRefreshing(false);
   };
@@ -124,6 +143,7 @@ export default function You({ server }: { server: SavedServer }) {
           />
         )}
         {view.state === "ready" && <Identity user={view.user} server={server} token={view.token} />}
+        <ServersSection current={server} waiting={waiting} />
         <Section title="This phone">
           <SettingRow
             label="Theme"

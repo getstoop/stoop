@@ -1,0 +1,256 @@
+appId: ${APP_ID}
+name: See every server on You, switch, remove from a swipe and a long press, sign in again, and sign out onto the next
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- runFlow:
+    file: scripts/add-server.yaml
+    env:
+      ADDRESS: ${SERVER}
+      USER: ${MEMBER}
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, current server"
+    timeout: 15000
+# A second server, added from You: the first now carries its badge.
+- runFlow:
+    file: scripts/add-server.yaml
+    env:
+      ADDRESS: ${SECOND_SERVER}
+      USER: ${MEMBER}
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, current server"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, 1 mention"
+    timeout: 15000
+# The current server's row goes to its Spaces tab, another's switches.
+- tapOn: ".*, 127\\.0\\.0\\.1:\\d+, current server"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 5000
+- tapOn:
+    id: "tab-you"
+- tapOn: ".*, localhost:\\d+, 1 mention"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, current server"
+    timeout: 15000
+- extendedWaitUntil:
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+    timeout: 15000
+# A long press offers Remove; Cancel leaves the server and the menu.
+- longPressOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+- tapOn: "Remove from this phone"
+- extendedWaitUntil:
+    visible: "Remove .* from this phone\\?"
+    timeout: 5000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: sessionsBefore
+- tapOn: "Cancel"
+- tapOn: "Remove from this phone"
+- extendedWaitUntil:
+    visible: "Remove .* from this phone\\?"
+    timeout: 5000
+- tapOn: "Remove"
+- extendedWaitUntil:
+    notVisible: ".*, 127\\.0\\.0\\.1:\\d+.*"
+    timeout: 5000
+# Its session ended on the server too, sent without waiting for an answer.
+- repeat:
+    while:
+      true: ${output.sessionsNow >= output.sessionsBefore}
+    times: 10
+    commands:
+      - runScript:
+          file: scripts/rpc.js
+          env:
+            STEP: sessionsNow
+      - waitForAnimationToEnd:
+          timeout: 500
+- assertTrue: ${output.sessionsNow < output.sessionsBefore}
+- assertVisible: ".*, localhost:\\d+, current server"
+# The switcher agrees.
+- tapOn:
+    id: "tab-spaces"
+- tapOn:
+    id: "server-switcher"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, current server"
+    timeout: 5000
+- assertNotVisible: ".*, 127\\.0\\.0\\.1:\\d+.*"
+- tapOn: ".*, localhost:\\d+, current server"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 5000
+# Back again, then a swipe left shows Remove on the other server.
+- tapOn:
+    id: "tab-you"
+- runFlow:
+    file: scripts/add-server.yaml
+    env:
+      ADDRESS: ${SECOND_SERVER}
+      USER: ${MEMBER}
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, 1 mention"
+    timeout: 15000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: sessionsBefore
+- swipe:
+    from:
+      text: ".*, localhost:\\d+, 1 mention"
+    direction: LEFT
+- tapOn: "Remove .*"
+- extendedWaitUntil:
+    visible: "Remove .* from this phone\\?"
+    timeout: 5000
+- tapOn: "Remove"
+- extendedWaitUntil:
+    notVisible: ".*, localhost:\\d+.*"
+    timeout: 5000
+# Its session ended on the server too, sent without waiting for an answer.
+- repeat:
+    while:
+      true: ${output.sessionsNow >= output.sessionsBefore}
+    times: 10
+    commands:
+      - runScript:
+          file: scripts/rpc.js
+          env:
+            STEP: sessionsNow
+      - waitForAnimationToEnd:
+          timeout: 500
+- assertTrue: ${output.sessionsNow < output.sessionsBefore}
+# fay on the first address, then her sign-ins ended elsewhere: from the
+# second address it reads as signed out, here and in the switcher.
+- runFlow:
+    file: scripts/add-server.yaml
+    env:
+      ADDRESS: ${SERVER}
+      USER: ${LEAVER}
+- extendedWaitUntil:
+    visible: "You're not in any spaces here yet."
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+    timeout: 15000
+- tapOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: endLeaverSessions
+- tapOn:
+    id: "server-switcher"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, signed out"
+    timeout: 15000
+- tapOn: ".*, 127\\.0\\.0\\.1:\\d+, current server"
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, signed out"
+    timeout: 15000
+# Signing in again from its row clears it in both places.
+- tapOn: ".*, localhost:\\d+, signed out"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${LEAVER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"
+- extendedWaitUntil:
+    visible: "You're not in any spaces here yet."
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, current server"
+    timeout: 15000
+- tapOn: ".*, 127\\.0\\.0\\.1:\\d+.*"
+- extendedWaitUntil:
+    visible: "${SPACE}, .*"
+    timeout: 15000
+- tapOn:
+    id: "server-switcher"
+- extendedWaitUntil:
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, current server"
+    timeout: 5000
+- assertNotVisible: ".*signed out.*"
+- tapOn: ".*, 127\\.0\\.0\\.1:\\d+, current server"
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, current server"
+    timeout: 15000
+- assertNotVisible: ".*signed out.*"
+# Signing out lands on the server left.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: sessionsBefore
+- tapOn: "Sign out of .*"
+- tapOn: "Sign out"
+- extendedWaitUntil:
+    visible: "You're not in any spaces here yet."
+    timeout: 15000
+# Its session ended on the server too, sent without waiting for an answer.
+- repeat:
+    while:
+      true: ${output.sessionsNow >= output.sessionsBefore}
+    times: 10
+    commands:
+      - runScript:
+          file: scripts/rpc.js
+          env:
+            STEP: sessionsNow
+      - waitForAnimationToEnd:
+          timeout: 500
+- assertTrue: ${output.sessionsNow < output.sessionsBefore}
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: ".*, localhost:\\d+, current server"
+    timeout: 15000
+- assertNotVisible: ".*, 127\\.0\\.0\\.1:\\d+.*"
+# Removing the last server, the current one, goes back to the start.
+- longPressOn: ".*, localhost:\\d+, current server"
+- tapOn: "Remove from this phone"
+- extendedWaitUntil:
+    visible: "Remove .* from this phone\\?"
+    timeout: 5000
+- tapOn: "Remove"
+- extendedWaitUntil:
+    visible: "I have an invite link"
+    timeout: 15000

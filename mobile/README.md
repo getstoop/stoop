@@ -201,8 +201,8 @@ import a screen; the screens themselves live in `src/screens`, so
   `expo-file-system` and `expo-sharing`; the server's file id must be a
   UUID and the name is made safe and short, `api/fileNames.ts`, and the
   file is written beside its place and moved in whole); a failure says "Couldn't
-  download" there until the next tap. Signing out forgets every cached
-  picture and downloaded file, for every server. Each file is its own
+  download" there until the next tap. Signing out or removing a server
+  forgets every cached picture and downloaded file, for every server. Each file is its own
   element for a screen reader, named by its kind and name ("Image 2 of
   4, IMG_2111.jpg", "Video, IMG_2042.mov, 18.6 MB. Plays full
   screen"). A long press on any of them is the row's, and the
@@ -742,7 +742,9 @@ camera refused (denied as the flow launches the app), and send a PDF
 picked through Files from On My iPhone (`e2e/media`, which
 `scripts/mobile-e2e.sh` copies there), add a second
 server from the switcher and switch back (the same server by
-`127.0.0.1`, which the app counts as another), create an account from a
+`127.0.0.1`, which the app counts as another), see every server on You,
+switch, remove one from a swipe and a long press and see its session end,
+sign in again to one signed out, and sign out onto the next, create an account from a
 pasted invite link,
 open an invite the way the web's open-in-app page does, then sign in and
 join, and see a mention arrive in Activity with the tab's badge, open

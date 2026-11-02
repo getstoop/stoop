@@ -4,13 +4,8 @@ import { hostOf } from "../../api/probe";
 import { mentionLabel } from "../../api/spaces";
 import { CheckIcon } from "../../components/Icons";
 import type { SavedServer } from "../../servers";
+import type { Waiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
-
-// What the switcher learned about a server that isn't the current one.
-export type Waiting =
-  | { state: "ready"; mentions: number }
-  | { state: "ended" }
-  | { state: "failed" };
 
 // One server in the switcher: its first letter, its name over its
 // address, and a tick on the current one or a mention count on another.

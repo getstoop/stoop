@@ -1,32 +1,20 @@
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text } from "react-native";
-import { authClient } from "../../api/clients";
-import { sessionToken } from "../../api/servers";
-import { type SavedServer, useServers } from "../../servers";
+import type { SavedServer } from "../../servers";
+import { useLeaveServer } from "../../servers/useLeaveServer";
 import { type Theme, tokens, useTheme } from "../../theme";
 
-const LOGOUT_TIMEOUT_MS = 5000;
-
-// Signing out of the current server, once confirmed. It ends the session
-// on the server when it can be reached, and forgets it here either way;
-// the route's guard then leaves for the next server or the start. The
-// server gets a few seconds: one that never answers mustn't keep the
-// token saved and the button stuck.
+// Signing out of the current server, once confirmed; the route's guard
+// then leaves for the next server or the start.
 export default function SignOutButton({ server }: { server: SavedServer }) {
   const styles = makeStyles(useTheme());
-  const { forget } = useServers();
+  const leave = useLeaveServer();
   const [leaving, setLeaving] = useState(false);
 
   const signOut = async () => {
     setLeaving(true);
-    const token = await sessionToken(server.id).catch(() => null);
-    if (token) {
-      await authClient(server.origin, token)
-        .logout({}, { timeoutMs: LOGOUT_TIMEOUT_MS })
-        .catch(() => {});
-    }
     try {
-      await forget(server.id);
+      await leave(server);
     } catch {
       setLeaving(false);
       Alert.alert(`Couldn't sign out of ${server.name}`);

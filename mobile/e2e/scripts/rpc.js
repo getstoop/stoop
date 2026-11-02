@@ -14,7 +14,33 @@ function rpc(proc, token, body) {
   return JSON.parse(res.body);
 }
 
+function adaSessions() {
+  var res = http.post(SERVER + "/stoop.auth.v1.AuthService/ListSessions", {
+    headers: { "content-type": "application/json", authorization: "Bearer " + OWNER_TOKEN },
+    body: "{}",
+  });
+  if (res.status !== 200) throw new Error("ListSessions: " + res.status + " " + res.body);
+  return (JSON.parse(res.body).sessions || []).length;
+}
+
 var steps = {
+  // Every session fay has ended, as from her laptop (you-servers.yaml).
+  endLeaverSessions: function () {
+    var res = http.post(SERVER + "/stoop.auth.v1.AuthService/SignOutEverywhere", {
+      headers: { "content-type": "application/json", authorization: "Bearer " + LEAVER_TOKEN },
+      body: "{}",
+    });
+    if (res.status !== 200) throw new Error("SignOutEverywhere: " + res.status + " " + res.body);
+  },
+  // How many sessions ada has (you-servers.yaml): held before leaving a
+  // server, then read again, to see it ended on the server.
+  sessionsBefore: function () {
+    output.sessionsBefore = adaSessions();
+    output.sessionsNow = output.sessionsBefore;
+  },
+  sessionsNow: function () {
+    output.sessionsNow = adaSessions();
+  },
   // Ada's pronouns, set as from her laptop (you.yaml). Empty clears them.
   setPronouns: function () {
     var res = http.post(SERVER + "/stoop.auth.v1.AuthService/UpdateProfile", {
