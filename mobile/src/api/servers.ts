@@ -23,7 +23,11 @@ const LIST_KEY = "servers";
 const tokenKey = (id: string) => `session.${id}`;
 const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
-// Most recently signed in to or switched to first.
+// Most recently signed in to or switched to first. Rejects when the
+// keychain refuses the read, which says nothing about what the list holds.
+// A stored value that can't be understood is empty instead: the read
+// worked, so trying again would only get the same bytes, and they hold no
+// server to keep.
 export async function loadServers(): Promise<SavedServer[]> {
   const raw = await SecureStore.getItemAsync(LIST_KEY, OPTIONS);
   if (!raw) return [];

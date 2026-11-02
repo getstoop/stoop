@@ -48,6 +48,10 @@ import a screen; the screens themselves live in `src/screens`, so
   layout sees only its own path segments (`[id]`), never the `?query`:
   a guard on a query parameter goes in the route file instead
   (`src/app/sign-in/index.tsx`).
+- No route renders until the saved server list has been read
+  (`src/servers/ServersProvider.tsx`). A read the keychain refuses is not an
+  empty list: the app says so and tries again when it next becomes active,
+  and nothing can write the list until a read has succeeded.
 - Buttons navigate with `useRouter()` in `onPress`, not by sitting inside
   `<Link asChild>`: the link hands its own props down and drops a
   `Pressable`'s style function, so the button loses its look.

@@ -1,31 +1,64 @@
+import * as SecureStore from "expo-secure-store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveSignIn, sessionToken } from "./servers";
-
-const store = vi.hoisted(() => ({
-  values: new Map<string, string>(),
-  writes: [] as string[],
-}));
+import { loadServers, saveSignIn, sessionToken } from "./servers";
 
 vi.mock("expo-secure-store", () => ({
-  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 0,
-  getItemAsync: async (key: string) => store.values.get(key) ?? null,
-  setItemAsync: async (key: string, value: string) => {
-    store.values.set(key, value);
-    store.writes.push(key);
-  },
-  deleteItemAsync: async (key: string) => {
-    store.values.delete(key);
-  },
+  WHEN_UNLOCKED_THIS_DEVICE_ONLY: 1,
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
 }));
 
-const ORIGIN = "https://stoop.example";
+const stored = vi.mocked(SecureStore.getItemAsync);
+const ONE = { id: "aaaaaa", origin: "https://one.example", name: "One" };
 
-beforeEach(() => {
-  store.values.clear();
-  store.writes.length = 0;
+describe("loadServers", () => {
+  beforeEach(() => {
+    stored.mockReset();
+  });
+
+  it("rejects when the keychain refuses the read", async () => {
+    stored.mockRejectedValue(new Error("locked"));
+    await expect(loadServers()).rejects.toThrow("locked");
+  });
+
+  it("reads nothing stored as empty", async () => {
+    stored.mockResolvedValue(null);
+    expect(await loadServers()).toEqual([]);
+  });
+
+  it("reads the stored list", async () => {
+    stored.mockResolvedValue(JSON.stringify([ONE]));
+    expect(await loadServers()).toEqual([ONE]);
+  });
+
+  it.each(["not json", "{}", "[null]"])("reads %s as empty, which no retry could change", async (raw) => {
+    stored.mockResolvedValue(raw);
+    expect(await loadServers()).toEqual([]);
+  });
 });
 
 describe("saveSignIn", () => {
+  const ORIGIN = "https://stoop.example";
+  const values = new Map<string, string>();
+  const writes: string[] = [];
+
+  beforeEach(() => {
+    values.clear();
+    writes.length = 0;
+    stored.mockReset();
+    stored.mockImplementation(async (key) => values.get(key) ?? null);
+    vi.mocked(SecureStore.setItemAsync).mockReset();
+    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
+      values.set(key, value);
+      writes.push(key);
+    });
+    vi.mocked(SecureStore.deleteItemAsync).mockReset();
+    vi.mocked(SecureStore.deleteItemAsync).mockImplementation(async (key) => {
+      values.delete(key);
+    });
+  });
+
   it("starts a new server at its first session", async () => {
     const [server] = await saveSignIn([], ORIGIN, "Stoop", "alice");
     expect(server.session).toBe(1);
@@ -48,6 +81,6 @@ describe("saveSignIn", () => {
 
   it("leaves the token in the keychain before the list that reopens the socket", async () => {
     const [server] = await saveSignIn([], ORIGIN, "Stoop", "alice");
-    expect(store.writes).toEqual([`session.${server.id}`, "servers"]);
+    expect(writes).toEqual([`session.${server.id}`, "servers"]);
   });
 });
