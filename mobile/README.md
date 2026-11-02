@@ -543,9 +543,11 @@ online on mobile while that is all they have open, and web draws a
 phone in place of their dot. Going to the background closes every
 socket at once; the server's grace period (`STOOP_PRESENCE_GRACE`)
 keeps a quick trip to another app from showing them offline. A socket
-reopens after a backoff when it drops, and stays shut after the server
-says its session has ended (close code 4001) until a new sign-in
-replaces it. A sign-in to a server already
+reopens after a backoff when it drops. Told its session has ended (close
+code 4001), it stops until a new sign-in replaces it or the app next comes
+back to the foreground; a socket opened then on the ended session is
+refused (HTTP 401, not 4001) and retries on the backoff while the app is
+open. A sign-in to a server already
 saved keeps its ID, and may be another account's, so it starts everything
 held for the session before: its socket reopens on the new token, the
 server's stack mounts again, a channel's log is a new

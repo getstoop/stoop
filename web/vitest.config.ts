@@ -10,12 +10,16 @@ import { defineConfig } from "vitest/config";
 // its own): files that need no React Native, with the app's @stoop/*
 // paths pointed at the same web folders its tsconfig maps them to. Every
 // file compiles under web's tsconfig: the app's extends Expo's, which
-// only the app's own tools can find.
+// only the app's own tools can find. React resolves from web's install
+// whatever imports it: mobile/ has none in CI's Web job, and the one
+// RealtimeProvider's test renders with is web's react-dom, which needs its
+// own react.
 export default defineConfig({
   oxc: {
     tsconfig: fileURLToPath(new URL("./tsconfig.json", import.meta.url)),
   },
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@stoop/core": fileURLToPath(new URL("./src/core", import.meta.url)),
       "@stoop/gen": fileURLToPath(new URL("./src/gen", import.meta.url)),

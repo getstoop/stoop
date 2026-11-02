@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 class FakeSocket {
   static opened: FakeSocket[] = [];
+  onmessage?: (event: { data: ArrayBuffer }) => void;
   onclose?: (event: { code: number }) => void;
   bearer: string;
   constructor(_url: string, _protocols: null, options: { headers: Record<string, string> }) {
@@ -39,7 +40,7 @@ describe("openRealtime", () => {
 
   // The session is over, and a new sign-in replaces this socket: nothing
   // here reads the keychain, so it can't pick up a token ahead of the list.
-  it("stays shut once the server says the session has ended", async () => {
+  it("stops once the server says the session has ended", async () => {
     const token = vi.fn().mockResolvedValue("first");
     const onClose = vi.fn();
     const socket = openRealtime("https://a.example", token, () => {}, onClose);
@@ -54,13 +55,23 @@ describe("openRealtime", () => {
   });
 
   it("says nothing and tries nothing once closed", async () => {
+    const onEvent = vi.fn();
     const onClose = vi.fn();
-    const socket = openRealtime("https://a.example", () => Promise.resolve("first"), () => {}, onClose);
+    const socket = openRealtime("https://a.example", () => Promise.resolve("first"), onEvent, onClose);
     await wait(0);
     socket.close();
+    FakeSocket.opened[0].onmessage?.({ data: new ArrayBuffer(0) });
     FakeSocket.opened[0].onclose?.({ code: 1000 });
     await wait(60_000);
+    expect(onEvent).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(FakeSocket.opened).toHaveLength(1);
+  });
+
+  it("dials nothing when closed while the token is still being read", async () => {
+    const socket = openRealtime("https://a.example", () => Promise.resolve("first"), () => {}, () => {});
+    socket.close();
+    await wait(0);
+    expect(FakeSocket.opened).toHaveLength(0);
   });
 });
