@@ -28,8 +28,8 @@ has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the count of what is new and addressed
 to you on its tab, each opening its channel or thread at the message;
 Messages, still empty; and You, which says who you are, opens Edit
-profile (your names, pronouns, bio and avatar), picks the theme and signs
-out.
+profile (your names, pronouns, bio and avatar; leaving with unsaved edits
+asks first), picks the theme and signs out.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes

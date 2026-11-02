@@ -15,6 +15,19 @@ describe("profileEdits", () => {
     ).toBeNull();
   });
 
+  it("counts spaces in the pronouns and bio, which go as typed", () => {
+    expect(profileEdits(me, { ...me, bio: " " })?.bio).toBe(" ");
+    expect(profileEdits(me, { ...me, pronouns: "she/her " })?.pronouns).toBe(
+      "she/her ",
+    );
+  });
+
+  it("counts a display name of only spaces as a change", () => {
+    expect(profileEdits(me, { ...me, displayName: "  " })?.displayName).toBe(
+      "",
+    );
+  });
+
   it("always sends the display name and only the rest that changed", () => {
     expect(profileEdits(me, { ...me, bio: "Reads a lot" })).toEqual({
       displayName: "Ada",

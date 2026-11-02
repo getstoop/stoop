@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
@@ -6,6 +7,7 @@ import TabNotice from "../../components/TabNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { type Theme, useTheme } from "../../theme";
+import { backOptions } from "./backOptions";
 import ProfileForm from "./ProfileForm";
 
 // Edit profile, pushed over the You tab: who you are on this server, asked
@@ -16,6 +18,7 @@ type State = { state: "loading" } | SignedInMe;
 export default function EditProfile({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
   const [view, setView] = useState<State>({ state: "loading" });
 
@@ -32,9 +35,14 @@ export default function EditProfile({ server }: { server: SavedServer }) {
     setView(await loadSignedInMe(server));
   };
 
+  // The same back button the form shows, so it doesn't change as the form
+  // arrives; with no form, there is nothing to ask.
+  const options = useMemo(() => backOptions(() => router.back(), theme.text), [router, theme.text]);
+
   if (view.state === "ready") return <ProfileForm server={server} token={view.token} me={view.user} />;
   return (
     <View style={styles.screen}>
+      <Stack.Screen options={options} />
       {view.state === "loading" && <ActivityIndicator style={styles.loading} color={theme.textMuted} />}
       {view.state === "ended" && (
         <TabNotice
