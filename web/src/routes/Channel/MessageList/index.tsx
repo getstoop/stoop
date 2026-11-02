@@ -62,6 +62,7 @@ import {
   listItems,
 } from "./items";
 import { ListHead } from "./ListHead";
+import { MessageSkeleton } from "./MessageSkeleton";
 import { useRowHandlers } from "./useRowHandlers";
 
 // Rows rendered beyond the visible ones at each end, so a scroll has
@@ -227,8 +228,31 @@ export function MessageList({
   // page is asked for we note where the edge's message sits on screen;
   // once the window has changed we put it back there, so neither prepends
   // nor pruning move the view.
+  // Where a row sits on screen, by the virtualiser's account rather than
+  // the document's. The rows a commit mounts are measured as they mount,
+  // before its effects run, but the positions those measurements give
+  // reach the document only on the render after: a top read from the
+  // element then is a measurement stale (the "New messages" line above a
+  // landing's first row, taller than its estimate). getTotalSize brings
+  // the measurements up to date before the offset is read.
+  const rowTop = useCallback(
+    (instance: Virtualizer<HTMLDivElement, HTMLDivElement>, id: string) => {
+      const list = listRef.current;
+      const index = indexOfMessage(itemsRef.current, id);
+      if (!list || index < 0) return undefined;
+      instance.getTotalSize();
+      const start = instance.measurementsCache[index]?.start;
+      if (start === undefined) return undefined;
+      return list.getBoundingClientRect().top + start - list.scrollTop;
+    },
+    [],
+  );
+
   const checkEdges = useCallback(
     (instance: Virtualizer<HTMLDivElement, HTMLDivElement>) => {
+      const settle = settling.current;
+      if (settle && (instance.scrollOffset ?? 0) !== settle.from)
+        settle.rendered = true;
       const list = listRef.current;
       if (!landedOnce.current || !list) return;
       // Not while a replaced range has yet to land: a row measured as it
@@ -270,10 +294,8 @@ export function MessageList({
         id: string | undefined,
         load: typeof loadOlder,
       ) => {
-        const element = id && document.getElementById(`${rowIdPrefix}${id}`);
-        anchor.current = element
-          ? { edge, id, top: element.getBoundingClientRect().top }
-          : null;
+        const top = id ? rowTop(instance, id) : undefined;
+        anchor.current = id && top !== undefined ? { edge, id, top } : null;
         void load(view).then((brought) => {
           if (brought === 0) anchor.current = null;
         });
@@ -285,7 +307,7 @@ export function MessageList({
         page("newer", rows[rows.length - 1]?.id, loadNewer);
       }
     },
-    [view, rowIdPrefix],
+    [view, rowTop],
   );
 
   // The virtualiser. Rows are keyed by message, so a page prepended keeps
@@ -311,21 +333,48 @@ export function MessageList({
     ),
     onChange: checkEdges,
   });
+  // The row a page's landing pinned, for the one render its scroll
+  // raises: the rows it mounts above the pinned row measure for the first
+  // time and move the view with them, in view or not, so the pinned row
+  // stays put. The virtualiser's own rule only counts rows above the
+  // viewport, and the head's height leaves room for a few of the page's
+  // rows between the viewport's top and the pinned row. Held longer, it
+  // would move the view under a reader scrolling up into the page: once
+  // the virtualiser has seen the scroll leave the offset the landing
+  // found (rendered), the next commit, which mounts the rows there, is
+  // the last it serves. Nothing, otherwise.
+  const settling = useRef<{
+    index: number;
+    from: number;
+    rendered: boolean;
+  } | null>(null);
+  useLayoutEffect(() => {
+    if (settling.current?.rendered) settling.current = null;
+  });
   // A row measured again, taller or shorter than it was (an image arriving,
   // a preview): the view keeps its place when the row is above it, and
   // stays at the bottom when it is there. A row's first measurement keeps
   // the virtualiser's rule — the rows a landing is still settling over
-  // must not each move the view. Not while scrolling up, where rows
-  // settling above would cascade — except for the head, which grows when
-  // the beginning is reached, which is where an upward scroll ends.
+  // must not each move the view — and, while a landing settles, the
+  // pinned row's. Not while scrolling up, where rows settling above would
+  // cascade — except for the head, which changes when the beginning is
+  // reached, which is where an upward scroll ends. That change is a
+  // shrink (skeleton rows to the marker) and may happen in view: the view
+  // moves with it so the rows under it stay put, as far as the top
+  // allows. A head that grows in view (a thread's root gaining a preview,
+  // the first-run card filling in) is being read, and stays where it is.
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (
     item,
-    _delta,
+    delta,
     instance,
   ) => {
     const offset = instance.scrollOffset ?? 0;
-    if (!instance.itemSizeCache.has(item.key)) return item.start < offset;
+    if (!instance.itemSizeCache.has(item.key))
+      return (
+        item.start < offset || item.index < (settling.current?.index ?? -1)
+      );
     if (liveRef.current && atBottomRef.current) return true;
+    if (item.index === 0 && delta < 0) return offset > 0;
     return (
       item.end <= offset &&
       (item.index === 0 || instance.scrollDirection !== "backward")
@@ -377,6 +426,7 @@ export function MessageList({
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs after every change to the rows
   useLayoutEffect(() => {
     edges.current = { older: false, newer: false };
+    settling.current = null;
     const land = readStatus(view).landOn;
     if (land) {
       anchor.current = null;
@@ -398,8 +448,8 @@ export function MessageList({
     // A change elsewhere while the page is still out (an arrival, an edit)
     // keeps the anchor for the page; its top follows any scroll since.
     if (!anchorMoved(pinned, messages)) {
-      const row = document.getElementById(`${rowIdPrefix}${pinned.id}`);
-      if (row) pinned.top = row.getBoundingClientRect().top;
+      const top = rowTop(virtualizer, pinned.id);
+      if (top !== undefined) pinned.top = top;
       return;
     }
     anchor.current = null;
@@ -409,12 +459,35 @@ export function MessageList({
     virtualizer.getTotalSize();
     const start = virtualizer.measurementsCache[index]?.start;
     if (index < 0 || start === undefined) return;
+    settling.current = {
+      index,
+      from: virtualizer.scrollOffset ?? 0,
+      rendered: false,
+    };
     // The body sits at the top of the scrolled content, so a row's top on
     // screen is the list's top plus its offset less the scroll. The scroll
     // event this raises is the virtualiser's cue to render the rows there
     // before the frame is painted.
     list.scrollTop = list.getBoundingClientRect().top + start - pinned.top;
   }, [items]);
+
+  // A scroll while a page is out moves the pinned row on screen: the
+  // landing keeps it where the scroll left it, not where the request
+  // found it. Not the landing's own scroll, which clears the anchor
+  // first; nor the virtualiser's adjustments, which move the row's offset
+  // and the scroll alike.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const follow = () => {
+      const pinned = anchor.current;
+      if (!pinned) return;
+      const top = rowTop(virtualizer, pinned.id);
+      if (top !== undefined) pinned.top = top;
+    };
+    list.addEventListener("scroll", follow, { passive: true });
+    return () => list.removeEventListener("scroll", follow);
+  }, [virtualizer, rowTop]);
 
   // An edit beginning brings its row on screen: the composer's ArrowUp
   // picks the reader's last message wherever the view is.
@@ -664,9 +737,12 @@ export function MessageList({
                       ref={virtualizer.measureElement}
                       style={{ top: position.top }}
                     >
-                      {!live && status.loading
-                        ? "Loading newer messages…"
-                        : null}
+                      {!live && (
+                        <MessageSkeleton
+                          edge="newer"
+                          loading={status.loading}
+                        />
+                      )}
                     </div>
                   );
                 case "day":

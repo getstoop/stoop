@@ -333,11 +333,8 @@ th[aria-sort] .dt-sort-arrow {
 }
 
 .dt-skeleton {
-  display: block;
   width: 60%;
   height: 10px;
-  border-radius: var(--radius-sm);
-  background: var(--raised);
 }
 
 .dt-footer {

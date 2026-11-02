@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { FirstRunCard } from "../FirstRunCard";
+import { MessageSkeleton } from "./MessageSkeleton";
 
-// The view's older edge, the first virtual row: "Loading earlier
-// messages…" while a page is in flight, the beginning marker once there
-// is nothing older (with the first-run card under it in a channel), or a
-// thread's root above the count of its replies. Measured like any row, so
-// its contents changing moves the rows below it, never the view.
+// The view's older edge, the first virtual row: skeleton rows while
+// something lies older (pulsing while a page is in flight), the
+// beginning marker once there is nothing older (with the first-run card
+// under it in a channel), or a thread's root above the count of its
+// replies. Measured like any row, so its contents changing moves the
+// rows below it, never the view.
 export function ListHead({
   index,
   top,
@@ -48,30 +50,24 @@ export function ListHead({
       ref={measure}
       style={{ top }}
     >
-      {!(threadRoot && atStart) && (
-        <div
-          className={`history-head ${atStart ? "history-start" : ""}`}
-          data-state={atStart ? "start" : loading ? "loading" : "idle"}
-        >
-          {atStart ? (
-            <span>
-              {group ? (
-                "Beginning of this conversation"
-              ) : dm ? (
-                `Beginning of your conversation with ${channelName}`
-              ) : (
-                <>Beginning of {channelLabel ?? channelName}</>
-              )}
-              {retentionNote && (
-                <>
-                  {" · "}
-                  <strong>{retentionNote}</strong>
-                </>
-              )}
-            </span>
-          ) : loading ? (
-            "Loading earlier messages…"
-          ) : null}
+      {!atStart && <MessageSkeleton edge="older" loading={loading} />}
+      {atStart && !threadRoot && (
+        <div className="history-head history-start">
+          <span>
+            {group ? (
+              "Beginning of this conversation"
+            ) : dm ? (
+              `Beginning of your conversation with ${channelName}`
+            ) : (
+              <>Beginning of {channelLabel ?? channelName}</>
+            )}
+            {retentionNote && (
+              <>
+                {" · "}
+                <strong>{retentionNote}</strong>
+              </>
+            )}
+          </span>
         </div>
       )}
       {!threadRoot && atStart && <FirstRunCard channelId={channelId} />}
