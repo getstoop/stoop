@@ -72,6 +72,22 @@ name: Write in a channel and see it land, once, where it was sent
       CHANNEL_ID: ${CHAPTERS_ID}
       TEXT: And a pen
 - assertTrue: ${output.count == 1}
+# Scrolled up from the newest message, the list doesn't follow a row by
+# itself, but the reader's own send still brings them back to it.
+- swipe:
+    start: 50%,18%
+    end: 50%,48%
+- extendedWaitUntil:
+    visible: "Jump to the latest message"
+    timeout: 5000
+- inputText: "One more thing"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible: "One more thing"
+    timeout: 10000
+- extendedWaitUntil:
+    notVisible: "Jump to the latest message"
+    timeout: 5000
 # Formatting opens its row, which scrolls sideways; nothing in it does
 # anything yet.
 - tapOn: "Formatting"

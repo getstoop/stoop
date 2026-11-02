@@ -33,6 +33,7 @@ import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
 import { useFlash } from "../Channel/useFlash";
+import { useFollowSend } from "../Channel/useFollowSend";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
 import MuteButton from "./MuteButton";
@@ -99,6 +100,7 @@ export default function Thread({
   const view = log.threads[rootId];
   const [active, setActive] = useState(AppState.currentState === "active");
   const list = useRef<FlatList<GroupedRow>>(null);
+  const followSend = useFollowSend(list);
   const landed = useRef(false);
   const { flashId, flash } = useFlash();
 
@@ -210,9 +212,11 @@ export default function Thread({
       });
   }, [engine, muteThread, rootId, notify]);
   const sendHere = useCallback(
-    (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) =>
-      send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend, attachmentIds }),
-    [send, rootId],
+    async (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => {
+      await send(content, { replyToMessageId, threadRootId: rootId, alsoSendToChannel: alsoSend, attachmentIds });
+      followSend();
+    },
+    [send, rootId, followSend],
   );
 
   // The header in every state, the channel once it is known, Search once
