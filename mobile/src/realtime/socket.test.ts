@@ -15,7 +15,10 @@ class FakeSocket {
     FakeSocket.opened.push(this);
     if (FakeSocket.refusing) setTimeout(() => this.onclose?.({}), 0);
   }
-  close() {}
+  closes = 0;
+  close() {
+    this.closes += 1;
+  }
 }
 vi.stubGlobal("WebSocket", FakeSocket);
 const { openRealtime } = await import("./socket");
@@ -48,6 +51,8 @@ const hangs = (_input: RequestInfo | URL, init?: RequestInit) =>
   new Promise<Response>((_resolve, reject) => {
     init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
   });
+const proxy401 = (body: string, headers?: Record<string, string>) => () =>
+  Promise.resolve(new Response(body, { status: 401, headers }));
 const CHECK_PATH = "/stoop.auth.v1.AuthService/GetMe";
 const heard = (onEvent: ReturnType<typeof vi.fn>) => onEvent.mock.calls.map(([event]) => event.payload.case);
 
@@ -118,6 +123,11 @@ describe("openRealtime", () => {
       ["a 503", gatewayError(503)],
       ["a 504", gatewayError(504)],
       ["a timeout", hangs],
+      ["an HTML 401", proxy401("<html>Sign in</html>", { "Content-Type": "text/html" })],
+      ["a 401 with no content type", proxy401("")],
+      ["a JSON 401 with an empty body", proxy401("", { "Content-Type": "application/json" })],
+      ["a JSON 401 of another shape", proxy401('{"error":"nope"}', { "Content-Type": "application/json" })],
+      ["a Connect 401 with no message", proxy401('{"code":"unauthenticated"}', { "Content-Type": "application/json" })],
     ])("keeps retrying on its usual backoff on %s", async (_answer, answer) => {
       FakeSocket.refusing = true;
       server.mockImplementation(answer);
@@ -180,37 +190,26 @@ describe("openRealtime", () => {
       socket.close();
     });
 
-    // A new sign-in saves its token just before the list that replaces this
-    // socket: that session isn't the one the server just refused.
-    it("carries on, on the new token, if the one refused has been replaced", async () => {
-      const token = vi.fn().mockResolvedValue("first");
+    it("ignores a check that answers after a socket has opened, which stays open", async () => {
       let answer: (response: Response) => void = () => {};
-      server.mockImplementation(() =>
-        new Promise((resolve) => {
-          answer = resolve;
-        }),
+      server.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
       );
       const onEvent = vi.fn();
-      const socket = openRealtime("https://a.example", token, onEvent, () => {});
+      const onClose = vi.fn();
+      const socket = openRealtime("https://a.example", () => Promise.resolve("first"), onEvent, onClose);
       await wait(0);
       FakeSocket.opened[0].onclose?.({});
-      token.mockResolvedValue("second");
-      answer((await refused()) as Response);
       await wait(1000);
-      expect(onEvent).not.toHaveBeenCalled();
-      expect(FakeSocket.opened.map((open) => open.bearer)).toEqual(["Bearer first", "Bearer second"]);
-      socket.close();
-    });
-
-    it("says nothing when the keychain won't say what is kept", async () => {
-      const token = vi.fn().mockResolvedValueOnce("first").mockRejectedValue(new Error("locked"));
-      server.mockImplementation(refused);
-      const onEvent = vi.fn();
-      const socket = openRealtime("https://a.example", token, onEvent, () => {});
-      await wait(0);
-      FakeSocket.opened[0].onclose?.({});
+      FakeSocket.opened[1].onopen?.();
+      answer((await refused()) as Response);
       await wait(0);
       expect(onEvent).not.toHaveBeenCalled();
+      expect(FakeSocket.opened[1].closes).toBe(0);
+      expect(onClose).toHaveBeenCalledTimes(1);
       socket.close();
     });
 

@@ -61,16 +61,18 @@ vi.stubGlobal("WebSocket", FakeSocket);
 // What the socket asks after a dial that never opened: the keychain's token
 // that is over on this server, by bearer, and everything else out of reach.
 const over = new Set<string>();
-vi.stubGlobal("fetch", (_input: RequestInfo | URL, init?: RequestInit) =>
-  over.has(new Headers(init?.headers).get("Authorization") ?? "")
-    ? Promise.resolve(
-        new Response(JSON.stringify({ code: "unauthenticated" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        }),
-      )
-    : Promise.reject(new TypeError("Network request failed")),
-);
+// What the answer waits on, for a test that needs it still out.
+let answerWhen = Promise.resolve();
+vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+  await answerWhen;
+  if (!over.has(new Headers(init?.headers).get("Authorization") ?? "")) {
+    throw new TypeError("Network request failed");
+  }
+  return new Response(JSON.stringify({ code: "unauthenticated", message: "authentication required" }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+});
 // react-dom looks for a window as it loads, and for this much of an element
 // to render into. The tree draws nothing, so nothing else is asked of them.
 vi.stubGlobal("window", {});
@@ -270,10 +272,18 @@ describe("RealtimeProvider", () => {
       await draw(ALPHA, BETA);
       const old = on("one");
       over.add("Bearer one");
-      keep(ALPHA, "three");
+      let answer = () => {};
+      answerWhen = new Promise((resolve) => {
+        answer = resolve;
+      });
       await act(async () => old?.onclose?.({ code: 1006 }));
+      keep(ALPHA, "three");
       await draw({ ...ALPHA, session: 2 }, BETA);
-      await act(async () => old?.onclose?.({ code: 4001 }));
+      await act(async () => {
+        answer();
+        old?.onclose?.({ code: 4001 });
+      });
+      answerWhen = Promise.resolve();
       expect(heard).toEqual([]);
     });
   });

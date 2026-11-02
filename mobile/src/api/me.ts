@@ -12,15 +12,23 @@ export async function loadMe(origin: string, token: string): Promise<User | unde
   return user;
 }
 
-// Whether the server says this session is over. Unauthenticated is the one
-// answer that does: an unreachable server, a 5xx or a timeout says nothing
-// about the session.
+// Whether the server itself says this session is over: Unauthenticated, in
+// a Connect error with a message of its own. An unreachable server, a 5xx
+// or a timeout says nothing about the session, and neither does a 401 from
+// something in front of the server, which Connect also reads as
+// Unauthenticated, with the message "HTTP 401", or none from JSON of another
+// shape.
 export async function isSessionOver(origin: string, token: string): Promise<boolean> {
   try {
     await loadMe(origin, token);
     return false;
   } catch (err) {
-    return err instanceof ConnectError && err.code === Code.Unauthenticated;
+    return (
+      err instanceof ConnectError &&
+      err.code === Code.Unauthenticated &&
+      err.rawMessage !== "" &&
+      !/^HTTP \d+$/.test(err.rawMessage)
+    );
   }
 }
 

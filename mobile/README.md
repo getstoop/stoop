@@ -549,7 +549,8 @@ which it is told by close code 4001 on a live connection. A refusal at the
 upgrade (HTTP 401) looks to React Native like any other close, so a dial
 that never opened asks the server with GetMe: at once on a socket's first
 dial, 30 s into a failure after a drop, then at most every 5 minutes, and
-only `Unauthenticated` counts, so an outage just keeps retrying. Either way
+only the server's own `Unauthenticated` counts, so an outage just keeps
+retrying. Either way
 the screens on that server hear CredentialRevoked through `useServerEvents`
 and show that the sign-in has ended. A sign-in to a server already
 saved keeps its ID, and may be another account's, so it starts everything

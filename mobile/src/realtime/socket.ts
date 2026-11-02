@@ -22,8 +22,8 @@ const CLOSE_SESSION_ENDED = 4001;
 // A session that ended while no socket was open is refused at the upgrade
 // (HTTP 401), which React Native reports as an ordinary close, the same as
 // a server that is down. So a dial that never opened asks the server, by a
-// request that says either way (isSessionOver), and only its Unauthenticated
-// counts. An outage answers that too, so it is asked sparingly: at once on
+// request that says either way (isSessionOver), and only the server's own
+// Unauthenticated counts. An outage answers that too, so it is asked sparingly: at once on
 // a socket's first dial, which is how a session already over is found on
 // coming back to the app; after a drop, only if the server still refuses
 // well past a restart; and then no more often than this, a small share of
@@ -61,6 +61,8 @@ export function openRealtime(
   let attempts = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let checkAt = 0;
+  // How many sockets have opened: one since a check began has its own answer.
+  let opens = 0;
 
   const stop = () => {
     closed = true;
@@ -73,13 +75,12 @@ export function openRealtime(
     onEvent(create(ServerEventSchema, { payload: { case: "credentialRevoked", value: create(CredentialRevokedSchema) } }));
   };
 
-  // What was refused is only over if it is still the session kept here: a
-  // new sign-in saves its token just before the list that replaces this
-  // socket, and that token is not what the server has just refused.
+  // A socket that opened while this was out has been let in since, and is
+  // told itself should that stop being so (a 4001).
   const check = async (session: string) => {
-    if (!(await isSessionOver(origin, session))) return;
-    const kept = await token().catch(() => null);
-    if (!closed && kept === session) ended();
+    const opensBefore = opens;
+    const over = await isSessionOver(origin, session);
+    if (over && !closed && opens === opensBefore) ended();
   };
 
   const connect = async () => {
@@ -91,6 +92,7 @@ export function openRealtime(
     let opened = false;
     socket.onopen = () => {
       opened = true;
+      opens += 1;
       attempts = 0;
     };
     socket.onmessage = (e: MessageEvent<ArrayBuffer>) => {
