@@ -37,10 +37,3 @@ export async function loadSpaces(
 export function mentionLabel(n: number): string {
   return n === 1 ? "1 mention" : `${n} mentions`;
 }
-
-// What is waiting on a whole server, for its badge in the switcher: the
-// mentions in every space that isn't muted, as the Spaces tab badges them.
-export async function mentionTotal(origin: string, token: string): Promise<number> {
-  const listings = await loadSpaces(origin, token);
-  return listings.reduce((n, l) => (l.space.muted ? n : n + l.mentions), 0);
-}

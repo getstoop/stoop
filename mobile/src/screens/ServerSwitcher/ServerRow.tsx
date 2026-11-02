@@ -1,14 +1,13 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
-import { mentionLabel } from "../../api/spaces";
 import { CheckIcon } from "../../components/Icons";
 import type { SavedServer } from "../../servers";
 import type { Waiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // One server in the switcher: its first letter, its name over its
-// address, and a tick on the current one or a mention count on another.
+// address, and a tick on the current one or a count of what is new on another.
 // A server whose sign-in has ended is dimmed and says so instead of its
 // address; tapping it signs in again.
 export default function ServerRow({
@@ -26,12 +25,12 @@ export default function ServerRow({
   const styles = makeStyles(theme);
   const host = hostOf(server.origin);
   const ended = waiting?.state === "ended";
-  const mentions = waiting?.state === "ready" ? waiting.mentions : 0;
+  const count = waiting?.state === "ready" ? waiting.count : 0;
 
   const label = [
     server.name,
     host,
-    current ? "current server" : ended ? "signed out" : mentions > 0 ? mentionLabel(mentions) : null,
+    current ? "current server" : ended ? "signed out" : count > 0 ? `${badgeCount(count)} new` : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -63,9 +62,9 @@ export default function ServerRow({
       </View>
       {current ? (
         <CheckIcon color={theme.accent} size={20} />
-      ) : mentions > 0 ? (
+      ) : count > 0 ? (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badgeCount(mentions)}</Text>
+          <Text style={styles.badgeText}>{badgeCount(count)}</Text>
         </View>
       ) : null}
     </Pressable>

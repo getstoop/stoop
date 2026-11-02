@@ -1,13 +1,12 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
-import { mentionLabel } from "../../api/spaces";
 import type { SavedServer } from "../../servers";
 import type { Waiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // A server in the You tab's list: its first letter and name, and "Current",
-// a mention count, or "Signed out" with its tile dimmed. Without onPress
+// a count of what is new, or "Signed out" with its tile dimmed. Without onPress
 // it only shows, as the card over its menu.
 export default function ServerEntry({
   server,
@@ -28,11 +27,11 @@ export default function ServerEntry({
 }) {
   const styles = makeStyles(useTheme());
   const ended = !current && waiting?.state === "ended";
-  const mentions = !current && waiting?.state === "ready" ? waiting.mentions : 0;
+  const count = !current && waiting?.state === "ready" ? waiting.count : 0;
   const label = [
     server.name,
     hostOf(server.origin),
-    current ? "current server" : ended ? "signed out" : mentions > 0 ? mentionLabel(mentions) : null,
+    current ? "current server" : ended ? "signed out" : count > 0 ? `${badgeCount(count)} new` : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -56,9 +55,9 @@ export default function ServerEntry({
       </Text>
       {current && <Text style={styles.note}>Current</Text>}
       {ended && <Text style={styles.ended}>Signed out</Text>}
-      {mentions > 0 && (
+      {count > 0 && (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badgeCount(mentions)}</Text>
+          <Text style={styles.badgeText}>{badgeCount(count)}</Text>
         </View>
       )}
     </Pressable>
