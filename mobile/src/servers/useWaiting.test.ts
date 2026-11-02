@@ -63,6 +63,12 @@ describe("waitingOn", () => {
     expect(activity).not.toHaveBeenCalled();
   });
 
+  it("has failed when the keychain won't give up the token, without asking the server", async () => {
+    token.mockRejectedValue(new Error("keychain"));
+    expect(await waitingOn(SERVER)).toEqual({ state: "failed" });
+    expect(activity).not.toHaveBeenCalled();
+  });
+
   it("has ended when the server says it is over", async () => {
     activity.mockRejectedValue(new ConnectError("no", Code.Unauthenticated));
     expect(await waitingOn(SERVER)).toEqual({ state: "ended" });
