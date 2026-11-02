@@ -125,15 +125,47 @@
   margin-top: 0;
 }
 
+/* The rail's unread marker: a small tab flush with the rail's edge,
+   centred on the pill (the pill sits 12px in, --rail-w 68 less 44). The
+   counting badge (activity.css) keeps the corner. */
 .pill-dot {
   position: absolute;
-  top: 0px;
-  right: 0px;
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-sm);
+  top: 50%;
+  right: -12px;
+  width: 4px;
+  height: 8px;
+  transform: translateY(-50%);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
   background: var(--text);
+  transition: height var(--dur-fast) var(--ease);
+}
+
+/* On the selected pill the tab stretches into a short line. The pill's
+   2px accent border moves its inner box in; the tab steps back out to
+   stay flush with the edge. */
+.space-pill.active .pill-dot:not(.corner) {
+  right: -14px;
+  height: 20px;
+}
+
+/* The footer pills (Activity, Server admin) are not places with unread
+   rooms, so they carry a small dot on the icon's rim instead of the
+   tab, ringed in the canvas colour. */
+.pill-dot.corner {
+  top: 2px;
+  right: 2px;
+  width: 10px;
+  height: 10px;
+  transform: none;
+  border-radius: 50%;
   border: 2px solid var(--canvas);
+}
+
+/* The selected pill's border moves its inner box in by 2px; the dot
+   steps back out so it doesn't jump. */
+.space-pill.active .pill-dot.corner {
+  top: 0;
+  right: 0;
 }
 
 .pill-dot.warn {
