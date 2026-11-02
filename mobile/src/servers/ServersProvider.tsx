@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clearFileCaches } from "../api/downloads";
 import { forgetServer, loadServers, moveToFront, type SavedServer, saveSignIn } from "../api/servers";
+import { endReplaced, type Replaced, sessionToReplace } from "./replacedSession";
 
 type ServersState = {
   servers: SavedServer[];
@@ -46,8 +47,15 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
 
   const signedIn = useCallback(
     async (origin: string, name: string, token: string) => {
+      // The session being replaced is read in turn, so a sign-in overlapping
+      // this one can't leave it reading a token already overwritten.
+      let replaced = null as Replaced | null;
       // saveSignIn puts the server it saved first.
-      const list = await change((list) => saveSignIn(list, origin, name, token));
+      const list = await change(async (list) => {
+        replaced = await sessionToReplace(list, origin);
+        return saveSignIn(list, origin, name, token);
+      });
+      if (replaced) await endReplaced(replaced, token);
       return list[0].id;
     },
     [change],

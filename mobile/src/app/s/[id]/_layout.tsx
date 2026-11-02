@@ -11,7 +11,8 @@ import { useTheme } from "../../../theme";
 // under it reads the server from CurrentServer: a screen reached by
 // pressing gets none of this layout's route params. The server's
 // activity feed is held here too, for the Activity tab, its badge and
-// the channel screens that read it.
+// the channel screens that read it. All of it starts again on a new
+// sign-in, which may be another account's on the same ID.
 export const unstable_settings = { anchor: "(tabs)" };
 
 // A channel's header, and a thread's, has no bar of its own: the list
@@ -34,7 +35,7 @@ export default function ServerLayout() {
 
   return (
     <CurrentServer server={server}>
-      <ActivityProvider key={server.id} server={server}>
+      <ActivityProvider key={`${server.id}/${server.session ?? 0}`} server={server}>
         <Stack
           screenOptions={{
             title: "",

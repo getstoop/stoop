@@ -12,6 +12,11 @@ export type SavedServer = {
   id: string;
   origin: string;
   name: string;
+  // Counts the sign-ins kept under this ID, each of which may be another
+  // account's. What belongs to one session is keyed on it (the socket, the
+  // server's stack, a channel's log), so none of it outlives that session.
+  // Missing from a list saved before it was added.
+  session?: number;
 };
 
 const LIST_KEY = "servers";
@@ -43,7 +48,7 @@ export async function saveSignIn(
   token: string,
 ): Promise<SavedServer[]> {
   const known = servers.find((s) => s.origin === origin);
-  const server = { id: known?.id ?? newId(servers), origin, name };
+  const server = { id: known?.id ?? newId(servers), origin, name, session: (known?.session ?? 0) + 1 };
   await SecureStore.setItemAsync(tokenKey(server.id), token, OPTIONS);
   const list = [server, ...servers.filter((s) => s.id !== server.id)];
   await SecureStore.setItemAsync(LIST_KEY, JSON.stringify(list), OPTIONS);
