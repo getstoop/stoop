@@ -188,10 +188,7 @@ export default function Channel({
   // Moving it reads the activity it passes, on the server. What that
   // can't reach (one left unread with the marker already moved) is read
   // through the server's activity feed (src/activity), so the tab's badge
-  // follows, once per coming on screen (readPass): `looked` falls whenever
-  // this screen could not read what arrived (covered, the app away, the
-  // range short of the newest, a catch-up owed after a reconnect or a gap
-  // in the events), and a read that fails lets the next pass go again.
+  // follows, once per coming on screen; readPass says when that is again.
   // The marker's channelRead event, sent after them, is what reloads the
   // space's badges.
   const newestId = messages.at(-1)?.id ?? "";

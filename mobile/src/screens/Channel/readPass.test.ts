@@ -114,6 +114,40 @@ describe("readShown", () => {
     expect(requests.readActivity).toHaveBeenCalledTimes(1);
   });
 
+  it("moves the marker once for a row, however many passes see it", async () => {
+    const { pass, requests } = await settled();
+    await pass({ newestId: "6" });
+    await pass({ newestId: "6" });
+    expect(requests.moveMarker).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for nothing until it is loaded", async () => {
+    const { pass, requests } = reader();
+    await pass({ loaded: false, readTo: "", newestId: "6" });
+    expect(requests.readActivity).not.toHaveBeenCalled();
+    expect(requests.moveMarker).not.toHaveBeenCalled();
+  });
+
+  it("keeps two passes in flight apart: one feed read, and a late failure leaves the newer marker", async () => {
+    const { pass, requests, memory } = reader();
+    let answer = (_count: number) => {};
+    requests.readActivity.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    // The second pass has no feed read to wait for, so its marker goes first.
+    requests.moveMarker.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("refused"));
+    const first = pass({ newestId: "6" });
+    const second = pass({ newestId: "7" });
+    expect(requests.readActivity).toHaveBeenCalledTimes(1);
+    await second;
+    answer(0);
+    await first;
+    expect(requests.moveMarker).toHaveBeenCalledTimes(2);
+    expect(memory.marked.current).toBe("7");
+  });
+
   it("reads the feed on the next pass after one that failed, and still moves the marker", async () => {
     const { pass, requests } = reader();
     requests.readActivity.mockRejectedValueOnce(new Error("refused"));

@@ -1,5 +1,7 @@
-// How the channel screen reads what it shows: this holds every rule, and
-// the screen hands it the facts and the requests.
+// How the channel screen reads what it shows, given the facts and the
+// requests: what a pass does, when `looked` falls, and what a failed read
+// leaves behind. Which arriving items its event reads, and starting afresh
+// for another channel, are the screen's.
 
 // What a pass does, once the screen is showing the channel's newest row
 // with the app open.
@@ -61,7 +63,7 @@ export type ReadRequests = {
 
 // Whether what arrived has still been read: not while the screen could
 // not read it.
-export const stillLooked = (looked: boolean, { onScreen, hasNewer, owing }: Shown) =>
+const stillLooked =(looked: boolean, { onScreen, hasNewer, owing }: Shown) =>
   looked && onScreen && !hasNewer && !owing;
 
 // One pass over what the screen shows. A feed read that fails lets the
