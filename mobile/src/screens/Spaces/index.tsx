@@ -16,6 +16,7 @@ import { sessionToken } from "../../api/servers";
 import { loadSpaces, type SpaceListing } from "../../api/spaces";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import SpaceRow from "./SpaceRow";
@@ -38,6 +39,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   const [list, setList] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -87,7 +89,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
           message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
           action={{
             label: "Sign in again",
-            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+            onPress: signInAgain,
           }}
         />
       )}

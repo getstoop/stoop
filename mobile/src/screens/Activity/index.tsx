@@ -9,6 +9,7 @@ import { hostOf } from "../../api/probe";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { channelRoute, threadRoute } from "../Channel/routes";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -33,6 +34,7 @@ export default function Activity({ server }: { server: SavedServer }) {
   const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   const pushOnce = usePushOnce();
   const { feed, refresh, reload, loadMore, markRead } = useActivity();
   const [refreshing, setRefreshing] = useState(false);
@@ -124,7 +126,7 @@ export default function Activity({ server }: { server: SavedServer }) {
           message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
           action={{
             label: "Sign in again",
-            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+            onPress: signInAgain,
           }}
         />
       )}

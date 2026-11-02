@@ -8,6 +8,7 @@ import { loadCandidates, MAX_PARTICIPANTS, openConversation } from "../../api/co
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import TabNotice from "../../components/TabNotice";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { channelRoute } from "../Channel/routes";
@@ -32,6 +33,7 @@ export default function NewMessage({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const pushOnce = usePushOnce();
   const [view, setView] = useState<State>({ state: "loading" });
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<MessageAuthor[]>([]);
@@ -167,10 +169,11 @@ export default function NewMessage({ server }: { server: SavedServer }) {
           message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
           action={{
             label: "Sign in again",
-            onPress: () => {
-              router.dismiss();
-              router.replace({ pathname: "/sign-in", params: { server: server.origin } });
-            },
+            onPress: () =>
+              pushOnce(() => {
+                router.dismiss();
+                router.push({ pathname: "/sign-in", params: { server: server.origin } });
+              }),
           }}
         />
       )}

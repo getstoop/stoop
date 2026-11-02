@@ -6,6 +6,7 @@ import { loadSpaceChannels, memberName, type SpaceChannels, touchesSpace } from 
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import SpaceIcon from "../../components/SpaceIcon";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents, useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
 import type { SavedServer } from "../../servers";
@@ -36,6 +37,7 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   const roster = useVoiceRoster(server.id);
   const [view, setView] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +111,7 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
               <Text style={styles.body}>Your sign-in to {server.name} has ended. Sign in again to carry on.</Text>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.replace({ pathname: "/sign-in", params: { server: server.origin } })}
+                onPress={signInAgain}
                 style={({ pressed }) => [styles.button, pressed && styles.pressed]}
               >
                 <Text style={styles.buttonLabel}>Sign in again</Text>
