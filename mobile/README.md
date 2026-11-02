@@ -114,7 +114,9 @@ import a screen; the screens themselves live in `src/screens`, so
   tap to retry" row at that edge (`PageRetry.tsx`), and the list's own
   asking there gets no request for ten seconds after it (`channelEngine`
   `PAGE_COOLDOWN_MS`), since the list asks again each time its content
-  length changes, which a spinner going does. Any
+  length changes, which a spinner going does. A refusal a retry can't
+  help (the sign-in ended, the channel or the thread gone) shows as such
+  instead. Any
   thread screen sharing the log keeps its own range. A result in the
   channel under the search dismisses to that screen with the new
   `focus`, which it jumps to once per value, without mounting again.

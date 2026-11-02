@@ -96,6 +96,14 @@ const notFound = (err: unknown) => err instanceof ConnectError && err.code === C
 // what the reader may do to it.
 const ended = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
 
+// What a failed page says beyond its own failure, when a retry can't help:
+// the sign-in has ended, or what was being paged is gone (the cursors in a
+// page's request aren't looked up, so NotFound is never about those). Not
+// outcomeOf, which takes PermissionDenied as gone: permission errors must
+// not fail destructively, and how background reads treat them is still
+// undecided (STOOPMOBIL-18), so a page refused that way keeps the retry row.
+const pageOutcome = (err: unknown): "ended" | "gone" | null => (ended(err) ? "ended" : notFound(err) ? "gone" : null);
+
 // Whether another older page of replies fits in a thread's view. A view
 // holds at most LOG_CAP rows and a page past that prunes the newest, the
 // edge the thread screen keeps live with no way back yet, so a thread's
@@ -605,8 +613,11 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       try {
         const res = await loadOlder(server.origin, token, channelId, view.oldestId);
         if (!mine.ended) dispatch({ type: "paged", res, generation: view.generation });
-      } catch {
-        if (!mine.ended) dispatch({ type: "pageFailed", generation: view.generation, at: Date.now() });
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch({ type: "pageFailed", generation: view.generation, at: Date.now() });
+        const outcome = pageOutcome(err);
+        if (outcome) dispatch({ type: "failed", outcome });
       }
     },
 
@@ -628,8 +639,11 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       try {
         const res = await loadNewer(server.origin, token, channelId, view.newestId);
         if (!mine.ended) dispatch({ type: "pagedNewer", res, generation: view.generation });
-      } catch {
-        if (!mine.ended) dispatch({ type: "newerFailed", generation: view.generation, at: Date.now() });
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch({ type: "newerFailed", generation: view.generation, at: Date.now() });
+        const outcome = pageOutcome(err);
+        if (outcome) dispatch({ type: "failed", outcome });
       }
     },
 
@@ -696,10 +710,14 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         if (!mine.ended) {
           dispatch({ type: "threadPaged", rootId, epoch: thread.epoch, res, generation: view.generation });
         }
-      } catch {
-        if (!mine.ended) {
-          dispatch({ type: "threadPageFailed", rootId, epoch: thread.epoch, generation: view.generation, at: Date.now() });
-        }
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch({ type: "threadPageFailed", rootId, epoch: thread.epoch, generation: view.generation, at: Date.now() });
+        // As openThread: a NotFound here may be the root's, so it is the
+        // thread that is gone, not the channel.
+        const outcome = pageOutcome(err);
+        if (outcome === "ended") dispatch({ type: "failed", outcome });
+        else if (outcome) dispatch({ type: "threadFailed", rootId, outcome });
       }
     },
 

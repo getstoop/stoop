@@ -309,6 +309,19 @@ describe("newer pages", () => {
     expect(failed.loadingNewer).toBe(false);
     expect(failed.newerFailedAt).toBe(1000);
     expect(shown(failed)).toEqual(shown(away));
+    const replaced = run(
+      [
+        { type: "pagingNewer" },
+        {
+          type: "newerFailed",
+          generation: away.log.channel.generation - 1,
+          at: 1000,
+        },
+      ],
+      away,
+    );
+    expect(replaced.loadingNewer).toBe(false);
+    expect(replaced.newerFailedAt).toBeNull();
     const again = screenReducer(failed, { type: "pagingNewer" });
     expect(again.newerFailedAt).toBeNull();
     expect(

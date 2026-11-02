@@ -1,3 +1,4 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import { id, message, page, rows } from "@stoop/core/channelLog/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadAround, loadChannel, loadNewer, loadOlder, loadReplies, loadRoot } from "../../api/messages";
@@ -8,7 +9,14 @@ import { channelEngine, holdEngine } from "./channelEngine";
 vi.mock("react-native", () => ({ AppState: { currentState: "active" } }));
 vi.mock("@connectrpc/connect", () => ({
   Code: { Unauthenticated: 16, NotFound: 5, PermissionDenied: 7, InvalidArgument: 3 },
-  ConnectError: class extends Error {},
+  ConnectError: class extends Error {
+    constructor(
+      message: string,
+      readonly code: number,
+    ) {
+      super(message);
+    }
+  },
 }));
 vi.mock("../../api/files", () => ({ uploadAttachment: vi.fn() }));
 vi.mock("../../api/servers", () => ({ sessionToken: vi.fn(async () => "t1") }));
@@ -165,5 +173,96 @@ describe("a failed page of replies", () => {
     await vi.advanceTimersByTimeAsync(COOLDOWN_MS);
     await engine.olderReplies(ROOT);
     expect(beforeId()).toBe(3);
+  });
+});
+
+describe("a page refused for good", () => {
+  const refused = (code: Code) => new ConnectError("refused", code);
+
+  it("shows the sign-in ended, with no retry to offer", async () => {
+    const engine = await openEngine();
+    vi.mocked(loadOlder).mockRejectedValue(refused(Code.Unauthenticated));
+    await engine.older();
+    expect(engine.current().outcome).toBe("ended");
+    expect(engine.current().loadingOlder).toBe(false);
+  });
+
+  it("shows the channel gone for a NotFound on either edge", async () => {
+    const older = await openEngine();
+    vi.mocked(loadOlder).mockRejectedValue(refused(Code.NotFound));
+    await older.older();
+    expect(older.current().outcome).toBe("gone");
+    releases.splice(0).forEach((release) => release());
+
+    const newer = await openEngine();
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    await newer.jumpTo(id(35));
+    newer.landed();
+    vi.mocked(loadNewer).mockRejectedValue(refused(Code.NotFound));
+    await newer.newer();
+    expect(newer.current().outcome).toBe("gone");
+    expect(newer.current().loadingNewer).toBe(false);
+  });
+
+  it("shows the sign-in ended for the newer edge", async () => {
+    const engine = await openEngine();
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    await engine.jumpTo(id(35));
+    engine.landed();
+    vi.mocked(loadNewer).mockRejectedValue(refused(Code.Unauthenticated));
+    await engine.newer();
+    expect(engine.current().outcome).toBe("ended");
+  });
+
+  it("keeps the retry row for a PermissionDenied, on either edge", async () => {
+    const engine = await openEngine();
+    vi.mocked(loadOlder).mockRejectedValue(refused(Code.PermissionDenied));
+    await engine.older();
+    expect(engine.current().outcome).toBeNull();
+    expect(engine.current().olderFailedAt).toBe(Date.now());
+
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    await engine.jumpTo(id(35));
+    engine.landed();
+    vi.mocked(loadNewer).mockRejectedValue(refused(Code.PermissionDenied));
+    await engine.newer();
+    expect(engine.current().outcome).toBeNull();
+    expect(engine.current().newerFailedAt).toBe(Date.now());
+  });
+
+  describe("in a thread", () => {
+    async function openThread(error: Error) {
+      vi.mocked(loadReplies).mockImplementation((async (...args: unknown[]) => {
+        if (args[4]) throw error;
+        return page([message("r5", { seq: 25n, threadRootId: ROOT, inChannel: false })], {
+          hasOlder: true,
+          channelSeq: 25,
+        });
+      }) as never);
+      vi.mocked(loadRoot).mockResolvedValue(message(ROOT, { seq: 5n }) as never);
+      const engine = await openEngine(ROOT);
+      await engine.olderReplies(ROOT);
+      return engine.current();
+    }
+
+    it("shows the sign-in ended", async () => {
+      const state = await openThread(refused(Code.Unauthenticated));
+      expect(state.outcome).toBe("ended");
+      expect(state.threads[ROOT].loadingOlder).toBe(false);
+    });
+
+    it("takes a NotFound as the thread gone, leaving the channel", async () => {
+      const state = await openThread(refused(Code.NotFound));
+      expect(state.threads[ROOT].outcome).toBe("gone");
+      expect(state.threads[ROOT].loadingOlder).toBe(false);
+      expect(state.outcome).toBeNull();
+    });
+
+    it("keeps the retry row for a PermissionDenied", async () => {
+      const state = await openThread(refused(Code.PermissionDenied));
+      expect(state.outcome).toBeNull();
+      expect(state.threads[ROOT].outcome).toBeNull();
+      expect(state.threads[ROOT].olderFailedAt).toBe(Date.now());
+    });
   });
 });
