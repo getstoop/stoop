@@ -23,8 +23,11 @@ import SignOutButton from "./SignOutButton";
 // phone, what is set on it, and signing out. Loaded on opening, on a pull,
 // on coming back to it or the app, and a moment after the socket says this
 // account's username or avatar changed (a server sends no event for its
-// name or pronouns). What is set on this phone needs no server, so it
-// stays when the server can't say who you are, and so does the way out.
+// name or pronouns). It stays mounted under the other tabs and anything
+// pushed over it; off screen, the app and the socket set off no loads,
+// since coming back to it loads anyway. What is set on this phone needs no
+// server, so it stays when the server can't say who you are, and so does
+// the way out.
 
 const RELOAD_DELAY_MS = 300;
 
@@ -73,22 +76,23 @@ export default function You({ server }: { server: SavedServer }) {
   }, [load]);
 
   // Coming back into view: from another tab, or from Edit with what was
-  // just saved, which no event says (a name, pronouns).
+  // just saved, which no event says (a name, pronouns). This is also what
+  // catches up on everything skipped while it was off screen.
   const focused = useIsFocused();
-  const wasFocused = useRef(focused);
+  const onScreen = useRef(focused);
   useEffect(() => {
-    if (focused && !wasFocused.current) {
+    if (focused && !onScreen.current) {
       refresh();
       refreshWaiting();
     }
-    wasFocused.current = focused;
+    onScreen.current = focused;
   }, [focused, refresh, refreshWaiting]);
 
   const reload = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     refresh();
     const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active") return;
+      if (state !== "active" || !onScreen.current) return;
       refresh();
       refreshWaiting();
     });
@@ -103,6 +107,7 @@ export default function You({ server }: { server: SavedServer }) {
   // moment's quiet goes before one reload. Ready follows a reconnect.
   const meId = view.state === "ready" ? view.user.id : "";
   useServerEvents(server.id, (event) => {
+    if (!onScreen.current) return;
     const { payload } = event;
     if (payload.case !== "ready" && !(payload.case === "memberUpdated" && payload.value.userId === meId)) return;
     clearTimeout(reload.current);
