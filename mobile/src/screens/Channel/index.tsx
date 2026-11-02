@@ -35,6 +35,7 @@ import PostingClosed from "./PostingClosed";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
 import type { ChannelEngine } from "./channelEngine";
+import { readArrived, readShown } from "./readPass";
 import { threadRoute } from "./routes";
 import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
@@ -189,29 +190,31 @@ export default function Channel({
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web; not while the range stops
   // short of the newest message, whose newest row is not the channel's.
-  // Its mentions are read with it, and on each coming on screen (one
-  // left unread with the marker already moved), through the server's
-  // activity feed (src/activity), so the tab's badge follows; the
-  // marker's channelRead event, sent after them, is what reloads the
+  // Moving it reads the activity it passes, on the server. What that
+  // can't reach (one left unread with the marker already moved) is read
+  // through the server's activity feed (src/activity), so the tab's badge
+  // follows, once per coming on screen; readPass says when that is again.
+  // The marker's channelRead event, sent after them, is what reloads the
   // space's badges.
   const newestId = messages.at(-1)?.id ?? "";
+  const owing = log.needsCatchUp;
   useEffect(() => {
-    if (!focused || !active) looked.current = false;
-    if (!newestId || !token || !focused || !active || !header || hasNewer) return;
-    const readTo = header.channel.lastReadMessageId;
-    const behind = newestId > readTo && newestId > marked.current;
-    if (!behind && looked.current) return;
-    looked.current = true;
-    if (behind) marked.current = newestId;
-    readChannel(channelId)
-      .catch(() => 0)
-      .then((read) => {
-        if (behind || read > 0) return markRead(server.origin, token, channelId, newestId);
-      })
-      .catch(() => {
-        if (marked.current === newestId) marked.current = "";
-      });
-  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, readChannel]);
+    void readShown(
+      { looked, marked },
+      {
+        loaded: !!newestId && !!token && !!header,
+        newestId,
+        readTo: header?.channel.lastReadMessageId ?? "",
+        onScreen: focused && active,
+        hasNewer,
+        owing,
+      },
+      {
+        readActivity: () => readChannel(channelId),
+        moveMarker: () => markRead(server.origin, token, channelId, newestId),
+      },
+    );
+  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, owing, readChannel]);
   // A mention arriving here while it is read is recorded after its
   // message goes out, so the pass above can miss it: its own event reads
   // it, then the marker again for the space's badges.
@@ -220,15 +223,20 @@ export default function Channel({
     const item = event.payload.value.item;
     if (!item || item.channelId !== channelId || item.threadRootId || item.readAt) return;
     if (!token || !focused || !active || hasNewer) return;
-    readActivity([item.id])
-      .then(() => markRead(server.origin, token, channelId, item.messageId))
-      .catch(() => {});
+    void readArrived(looked, () =>
+      readActivity([item.id]).then(() => markRead(server.origin, token, channelId, item.messageId)),
+    );
   });
 
-  // Newest first, for a list drawn from the bottom up.
+  // Newest first, for a list drawn from the bottom up. Of the header only
+  // who is reading matters here, so a member joining doesn't regroup. The
+  // day lines ("Today") read the clock, so a new day does: on the first
+  // render after midnight, which coming back to the app always brings.
+  const readerId = header?.myUserId;
+  const today = new Date().toDateString();
   const items = useMemo(
-    () => (header ? groupedRows(messages, newAfter, header.myUserId).reverse() : []),
-    [messages, newAfter, header],
+    () => (readerId !== undefined ? groupedRows(messages, newAfter, readerId).reverse() : []),
+    [messages, newAfter, readerId, today],
   );
   // The latest rows, for a scroll retried after they may have shifted.
   const itemsRef = useRef(items);
