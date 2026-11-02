@@ -41,6 +41,7 @@ import MuteButton from "./MuteButton";
 import { muteItem } from "./muteItem";
 import ThreadHead from "./ThreadHead";
 import ThreadTitle from "./ThreadTitle";
+import { threadReadDue } from "./threadReadDue";
 
 // A thread, pushed over its channel: the root at the top, ruled off, how
 // many replies it has, and the replies under it, newest at the bottom,
@@ -52,7 +53,7 @@ import ThreadTitle from "./ThreadTitle";
 // line above the replies the reader hadn't read (the root's unread
 // count, as the server gave it when the thread opened) and marks the
 // thread read while it is on screen with the app open, again for each
-// new reply; opened on a reply (`focusId`: one also sent to the channel,
+// new reply not the reader's own; opened on a reply (`focusId`: one also sent to the channel,
 // or one the channel was opened at), it lands on that reply instead,
 // ringed for a moment (useFlash), when it is among the replies loaded.
 // The composer replies in the thread, and to the channel as well when
@@ -127,15 +128,19 @@ export default function Thread({
   // Read while on screen, again for each new reply, and again whenever
   // the count comes back above nothing (a page read on the server before
   // the read landed after it), so the read wins. A read that fails is
-  // asked for again after a moment, or on the next change.
+  // asked for again after a moment, or on the next change. A new reply of
+  // the reader's own needs none (threadReadDue).
   const replyCount = root?.thread?.replyCount ?? 0;
   const unread = root?.thread?.unreadCount ?? 0;
+  const newestIsMine = !!header && replies.at(-1)?.author?.id === header.myUserId;
   const readAt = useRef(-1);
   const [retries, setRetries] = useState(0);
   useEffect(() => {
     if (!decided || replyCount === 0 || !focused || !active) return;
-    if (readAt.current === replyCount && unread === 0) return;
+    const due = threadReadDue(readAt.current, replyCount, unread, newestIsMine);
+    if (due === "done") return;
     readAt.current = replyCount;
+    if (due === "covered") return;
     let left = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     engine.readThread(rootId).catch(() => {
@@ -146,7 +151,7 @@ export default function Thread({
       left = true;
       clearTimeout(timer);
     };
-  }, [decided, replyCount, unread, focused, active, engine, rootId, retries]);
+  }, [decided, replyCount, unread, newestIsMine, focused, active, engine, rootId, retries]);
 
   // Newest first, for a list drawn from the bottom up.
   const rows = useMemo(
