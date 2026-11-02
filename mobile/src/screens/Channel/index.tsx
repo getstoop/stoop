@@ -1,7 +1,7 @@
 import { headerBeginning, headerPlace } from "@stoop/core/channelHeader";
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
-import { canDeleteAnyMessage, canManageChannels, canStartThreads } from "@stoop/core/permissions";
+import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -32,6 +32,7 @@ import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
+import PostingClosed from "./PostingClosed";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
 import type { ChannelEngine } from "./channelEngine";
@@ -82,7 +83,11 @@ import { useMessageActions } from "./useMessageActions";
 // shared with the thread; the layout is ComposerDock's. What is held and
 // what each answer and event does to it is the channel log's
 // (core/channelLog, under core/channelScreen, through useChannelLog);
-// this screen marks read and draws.
+// this screen marks read and draws. In an announcement channel, for
+// someone who can't post there (core/permissions canPost), a line says
+// so in the composer's place, as on web, and the menu has no Quote in
+// reply or Edit message; a quote or an edit begun goes as that starts,
+// and so does an unsent draft, for good, as on web.
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with
@@ -229,6 +234,9 @@ export default function Channel({
   // The latest rows, for a scroll retried after they may have shifted.
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // Whether the reader may post here: otherwise there is no composer, and
+  // nothing to quote or edit into.
+  const posting = canPost(header?.space, header?.channel);
   const actions = useMessageActions({
     scope: channelId,
     shown: messages,
@@ -237,6 +245,7 @@ export default function Channel({
     engine,
     keyboard,
     focused,
+    composing: posting,
     list,
     items,
   });
@@ -473,23 +482,27 @@ export default function Channel({
           />
         }
         composer={
-          <Composer
-            ref={actions.composer}
-            key={channelId}
-            place={headerPlace(header)}
-            mentionNames={mentionNames}
-            origin={server.origin}
-            token={token}
-            send={sendHere}
-            upload={engine.upload}
-            maxUploadBytes={status.maxUploadBytes}
-            edit={edit}
-            replyTo={actions.replyTo}
-            onCancelReply={actions.cancelReply}
-            onReply={actions.reply}
-            editing={actions.editing}
-            onEditDone={actions.endEdit}
-          />
+          posting ? (
+            <Composer
+              ref={actions.composer}
+              key={channelId}
+              place={headerPlace(header)}
+              mentionNames={mentionNames}
+              origin={server.origin}
+              token={token}
+              send={sendHere}
+              upload={engine.upload}
+              maxUploadBytes={status.maxUploadBytes}
+              edit={edit}
+              replyTo={actions.replyTo}
+              onCancelReply={actions.cancelReply}
+              onReply={actions.reply}
+              editing={actions.editing}
+              onEditDone={actions.endEdit}
+            />
+          ) : (
+            <PostingClosed place={headerPlace(header)} />
+          )
         }
       />
       <MessageContexts links={links} previews={previews}>
@@ -519,8 +532,8 @@ export default function Channel({
                 ? () => actions.togglePin(menuMessage)
                 : undefined
             }
-            onQuote={() => actions.quote(menuMessage)}
-            onEdit={() => actions.startEdit(menuMessage)}
+            onQuote={posting ? () => actions.quote(menuMessage) : undefined}
+            onEdit={posting ? () => actions.startEdit(menuMessage) : undefined}
             onDelete={() => actions.deleteMessage(menuMessage)}
             onClose={actions.closeMenu}
           />

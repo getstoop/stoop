@@ -90,6 +90,10 @@ const final = (err: unknown) => err instanceof ConnectError && err.code === Code
 // or its quote's, not the channel's.
 const notFound = (err: unknown) => err instanceof ConnectError && err.code === Code.NotFound;
 
+// A refusal of what the reader asked to do. For a write that says nothing
+// about the channel, which stays on screen.
+const denied = (err: unknown) => err instanceof ConnectError && err.code === Code.PermissionDenied;
+
 // A refusal that means the sign-in has ended. For a request about one
 // message that is the only answer that says anything about the screen:
 // NotFound is the message's, not the channel's, and PermissionDenied says
@@ -99,9 +103,11 @@ const ended = (err: unknown) => err instanceof ConnectError && err.code === Code
 // What a failed page says beyond its own failure, when a retry can't help:
 // the sign-in has ended, or what was being paged is gone (the cursors in a
 // page's request aren't looked up, so NotFound is never about those). Not
-// outcomeOf, which takes PermissionDenied as gone: permission errors must
-// not fail destructively, and how background reads treat them is still
-// undecided (STOOPMOBIL-18), so a page refused that way keeps the retry row.
+// outcomeOf, which takes PermissionDenied as gone. A send leaves that to its
+// caller because it is about the write (denied); on a read it may be about
+// the channel, but permission errors must not fail destructively, and how
+// background reads treat them is still undecided (STOOPMOBIL-18), so a page
+// refused that way keeps the retry row.
 const pageOutcome = (err: unknown): "ended" | "gone" | null => (ended(err) ? "ended" : notFound(err) ? "gone" : null);
 
 // Whether another older page of replies fits in a thread's view. A view
@@ -764,8 +770,10 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     // shown before the server answers. A refusal that means the channel
     // is gone or the sign-in has ended shows as such, like any other
     // request's, but a NotFound with a root or a quote named is checked
-    // first (confirmGone); every other failure is the caller's to show,
-    // and the composer puts the draft and the quote back.
+    // first (confirmGone). PermissionDenied (a block, an announcement
+    // channel) is what the reader may do, not the channel: it and every
+    // other failure are the caller's to show, and the composer puts the
+    // draft, the files and the quote back.
     async send(content: string, to: SendTo = {}) {
       const mine = life;
       let message: Message;
@@ -774,7 +782,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       } catch (err) {
         if (!mine.ended && notFound(err) && (to.threadRootId || to.replyToMessageId)) {
           void confirmGone(mine, to.threadRootId ?? "");
-        } else {
+        } else if (!denied(err)) {
           const outcome = outcomeOf(err);
           if (!mine.ended && outcome !== "failed") dispatch({ type: "failed", outcome });
         }

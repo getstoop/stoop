@@ -1,25 +1,27 @@
+import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { id, message, page, rows } from "@stoop/core/channelLog/testing";
+import type { ChannelHeader } from "@stoop/core/channelHeader";
+import { channelItems } from "@stoop/core/channelLog";
+import { CHANNEL, id, ids, message, page, rows } from "@stoop/core/channelLog/testing";
+import { NO_CHANNELS } from "@stoop/core/mentions";
+import { ChannelSchema } from "@stoop/gen/stoop/chat/v1/channel_pb";
+import { SpaceSchema } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadAround, loadChannel, loadNewer, loadOlder, loadReplies, loadRoot } from "../../api/messages";
+import {
+  loadAround,
+  loadChannel,
+  loadNewer,
+  loadOlder,
+  loadReplies,
+  loadRoot,
+  sendMessage,
+} from "../../api/messages";
+import type { SavedServer } from "../../servers";
 import { channelEngine, holdEngine } from "./channelEngine";
 
-// None of these needs the app's native code or its packages, which the Web
-// job that runs this file doesn't install.
 vi.mock("react-native", () => ({ AppState: { currentState: "active" } }));
-vi.mock("@connectrpc/connect", () => ({
-  Code: { Unauthenticated: 16, NotFound: 5, PermissionDenied: 7, InvalidArgument: 3 },
-  ConnectError: class extends Error {
-    constructor(
-      message: string,
-      readonly code: number,
-    ) {
-      super(message);
-    }
-  },
-}));
 vi.mock("../../api/files", () => ({ uploadAttachment: vi.fn() }));
-vi.mock("../../api/servers", () => ({ sessionToken: vi.fn(async () => "t1") }));
+vi.mock("../../api/servers", () => ({ sessionToken: async () => "t1" }));
 vi.mock("../../api/messages", () => ({
   ChannelGone: class extends Error {},
   PAGE: 50,
@@ -30,35 +32,48 @@ vi.mock("../../api/messages", () => ({
   loadPage: vi.fn(),
   loadReplies: vi.fn(),
   loadRoot: vi.fn(),
+  sendMessage: vi.fn(),
 }));
 
-const SERVER = { id: "server", origin: "https://stoop.test", name: "Stoop" };
+const SERVER = { id: "server", origin: "https://stoop.example" } as SavedServer;
 const ROOT = "root";
 const COOLDOWN_MS = 10_000;
+
+const header: ChannelHeader = {
+  space: create(SpaceSchema, { id: "s1", name: "The Porch" }),
+  channel: create(ChannelSchema, { id: CHANNEL, name: "general" }),
+  memberCount: 2,
+  members: [],
+  groups: [],
+  myUserId: "me",
+  channels: NO_CHANNELS,
+};
 
 const flush = () => vi.advanceTimersByTimeAsync(0);
 const asked = (load: unknown) => vi.mocked(load as () => unknown).mock.calls.length;
 
-// A held engine on an open channel, older pages to go, with every page after
-// the first failing.
+const releases: (() => void)[] = [];
+
+// An engine holding an open channel of ten rows with older pages to go, every
+// page after the first failing, and the rows it shows; let go after the test
+// if the test hasn't.
 async function openEngine(rootId?: string) {
   vi.mocked(loadChannel).mockResolvedValue({
-    header: { channel: { id: "c1", lastReadMessageId: "" }, myUserId: "me", members: [], groups: [] },
+    header,
     page: page(rows(10, 20), { hasOlder: true, channelSeq: 20 }),
-    found: true,
-  } as never);
+    found: false,
+  });
   vi.mocked(loadOlder).mockRejectedValue(new Error("offline"));
   vi.mocked(loadNewer).mockRejectedValue(new Error("offline"));
-  const held = holdEngine(
-    channelEngine(SERVER, "s1", "c1", () => () => {}),
+  const { engine, release } = holdEngine(
+    channelEngine(SERVER, "s1", CHANNEL, () => () => {}),
     rootId,
   );
-  releases.push(held.release);
+  releases.push(release);
+  await vi.waitFor(() => expect(engine.current().header).not.toBeNull());
   await flush();
-  return held.engine;
+  return { engine, release, shown: ids(channelItems(engine.current().log)) };
 }
-
-const releases: (() => void)[] = [];
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -70,9 +85,42 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const refuse = (message: string, code: Code) => vi.mocked(sendMessage).mockRejectedValue(new ConnectError(message, code));
+
+describe("a refused send", () => {
+  it.each([
+    ["in the channel", {}],
+    ["with a quote", { replyToMessageId: "quoted" }],
+    ["in a thread", { threadRootId: "root", alsoSendToChannel: true }],
+  ])("leaves the screen as it is when permission is denied, %s", async (_where, to) => {
+    const { engine, release, shown } = await openEngine();
+    refuse("you can't message this person", Code.PermissionDenied);
+    await expect(engine.send("hello", to)).rejects.toThrow("you can't message this person");
+    expect(engine.current().outcome).toBeNull();
+    expect(ids(channelItems(engine.current().log))).toEqual(shown);
+    release();
+  });
+
+  it("ends the session when the sign-in has ended", async () => {
+    const { engine, release } = await openEngine();
+    refuse("expired", Code.Unauthenticated);
+    await expect(engine.send("hello")).rejects.toThrow("expired");
+    expect(engine.current().outcome).toBe("ended");
+    release();
+  });
+
+  it("calls the channel gone when it isn't found, with no root or quote named", async () => {
+    const { engine, release } = await openEngine();
+    refuse("channel not found", Code.NotFound);
+    await expect(engine.send("hello")).rejects.toThrow("channel not found");
+    expect(engine.current().outcome).toBe("gone");
+    release();
+  });
+});
+
 describe("a failed older page", () => {
   it("sends nothing however often the list asks until the cooldown passes", async () => {
-    const engine = await openEngine();
+    const { engine } = await openEngine();
     await engine.older();
     expect(asked(loadOlder)).toBe(1);
     expect(engine.current().olderFailedAt).toBe(Date.now());
@@ -93,7 +141,7 @@ describe("a failed older page", () => {
   });
 
   it("sends nothing by itself when the cooldown passes", async () => {
-    const engine = await openEngine();
+    const { engine } = await openEngine();
     await engine.older();
     await vi.advanceTimersByTimeAsync(COOLDOWN_MS * 5);
     expect(asked(loadOlder)).toBe(1);
@@ -101,9 +149,9 @@ describe("a failed older page", () => {
   });
 
   it("is asked for again at once by the reader's tap, which clears the failure on success", async () => {
-    const engine = await openEngine();
+    const { engine } = await openEngine();
     await engine.older();
-    vi.mocked(loadOlder).mockResolvedValue(page(rows(0, 10), { hasOlder: false, channelSeq: 20 }) as never);
+    vi.mocked(loadOlder).mockResolvedValue(page(rows(0, 10), { hasOlder: false, channelSeq: 20 }));
     const retry = engine.retryOlder();
     expect(engine.current().olderFailedAt).toBeNull();
     expect(engine.current().loadingOlder).toBe(true);
@@ -114,8 +162,8 @@ describe("a failed older page", () => {
   });
 
   it("holds nothing back after a success", async () => {
-    const engine = await openEngine();
-    vi.mocked(loadOlder).mockResolvedValue(page(rows(5, 10), { hasOlder: true, channelSeq: 20 }) as never);
+    const { engine } = await openEngine();
+    vi.mocked(loadOlder).mockResolvedValue(page(rows(5, 10), { hasOlder: true, channelSeq: 20 }));
     await engine.older();
     await engine.older();
     expect(asked(loadOlder)).toBe(2);
@@ -124,8 +172,8 @@ describe("a failed older page", () => {
 
 describe("a failed newer page", () => {
   it("waits on its own, without holding back the older edge", async () => {
-    const engine = await openEngine();
-    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    const { engine } = await openEngine();
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }));
     await engine.jumpTo(id(35));
     engine.landed();
     await engine.newer();
@@ -156,7 +204,7 @@ describe("a failed page of replies", () => {
       });
     }) as never);
     vi.mocked(loadRoot).mockResolvedValue(message(ROOT, { seq: 5n }) as never);
-    const engine = await openEngine(ROOT);
+    const { engine } = await openEngine(ROOT);
     const beforeId = () => vi.mocked(loadReplies).mock.calls.filter((call) => call[4]).length;
 
     await engine.olderReplies(ROOT);
@@ -180,7 +228,7 @@ describe("a page refused for good", () => {
   const refused = (code: Code) => new ConnectError("refused", code);
 
   it("shows the sign-in ended, with no retry to offer", async () => {
-    const engine = await openEngine();
+    const { engine } = await openEngine();
     vi.mocked(loadOlder).mockRejectedValue(refused(Code.Unauthenticated));
     await engine.older();
     expect(engine.current().outcome).toBe("ended");
@@ -188,14 +236,14 @@ describe("a page refused for good", () => {
   });
 
   it("shows the channel gone for a NotFound on either edge", async () => {
-    const older = await openEngine();
+    const { engine: older, release } = await openEngine();
     vi.mocked(loadOlder).mockRejectedValue(refused(Code.NotFound));
     await older.older();
     expect(older.current().outcome).toBe("gone");
-    releases.splice(0).forEach((release) => release());
+    release();
 
-    const newer = await openEngine();
-    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    const { engine: newer } = await openEngine();
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }));
     await newer.jumpTo(id(35));
     newer.landed();
     vi.mocked(loadNewer).mockRejectedValue(refused(Code.NotFound));
@@ -205,8 +253,8 @@ describe("a page refused for good", () => {
   });
 
   it("shows the sign-in ended for the newer edge", async () => {
-    const engine = await openEngine();
-    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    const { engine } = await openEngine();
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }));
     await engine.jumpTo(id(35));
     engine.landed();
     vi.mocked(loadNewer).mockRejectedValue(refused(Code.Unauthenticated));
@@ -215,13 +263,13 @@ describe("a page refused for good", () => {
   });
 
   it("keeps the retry row for a PermissionDenied, on either edge", async () => {
-    const engine = await openEngine();
+    const { engine } = await openEngine();
     vi.mocked(loadOlder).mockRejectedValue(refused(Code.PermissionDenied));
     await engine.older();
     expect(engine.current().outcome).toBeNull();
     expect(engine.current().olderFailedAt).toBe(Date.now());
 
-    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }) as never);
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }));
     await engine.jumpTo(id(35));
     engine.landed();
     vi.mocked(loadNewer).mockRejectedValue(refused(Code.PermissionDenied));
@@ -240,7 +288,7 @@ describe("a page refused for good", () => {
         });
       }) as never);
       vi.mocked(loadRoot).mockResolvedValue(message(ROOT, { seq: 5n }) as never);
-      const engine = await openEngine(ROOT);
+      const { engine } = await openEngine(ROOT);
       await engine.olderReplies(ROOT);
       return engine.current();
     }

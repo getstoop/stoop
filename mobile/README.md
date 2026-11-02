@@ -116,8 +116,8 @@ import a screen; the screens themselves live in `src/screens`, so
   `PAGE_COOLDOWN_MS`), since the list asks again each time its content
   length changes, which a spinner going does. A refusal a retry can't
   help (the sign-in ended, the channel or the thread gone) shows as such
-  instead. Any
-  thread screen sharing the log keeps its own range. A result in the
+  instead; a permission refusal keeps the row. Any thread screen sharing
+  the log keeps its own range. A result in the
   channel under the search dismisses to that screen with the new
   `focus`, which it jumps to once per value, without mounting again.
   Scrolling the list leaves
@@ -400,6 +400,13 @@ import a screen; the screens themselves live in `src/screens`, so
   does, in a channel and in a thread alike; a screen reader hears it
   before the name. There is no list of a channel's pins on the phone
   yet, and no pin in the header: those are follow-ups.
+- In an announcement channel, someone who can't post there
+  (`core/permissions` `canPost`) has a card in the composer's place
+  saying so in web's words (`src/screens/Channel/PostingClosed.tsx`),
+  and a menu with no Quote in reply or Edit message, both of which act
+  through the composer; a quote or an edit begun goes as that starts,
+  and so does an unsent draft, for good, as on web. They can still react, copy, and delete their own. Admins have the
+  composer as in any channel.
 - A root with replies has a line under it, as the server summarises the
   thread (`message.thread`; nothing is counted on the phone): the two
   who replied last, "N replies" in the accent, an "N new" badge while
@@ -581,7 +588,8 @@ dispatched as `sent` and merged by seq like an event's (the socket's
 copy usually lands first; either order leaves one row). There are no
 pending rows in the model. A refusal puts the draft back ahead of
 anything typed since, with the server's words under the field, and
-pressing Send again is the retry.
+pressing Send again is the retry. A permission refusal (a block, an
+announcement channel) is one of these: it leaves the screen as it is.
 
 ## Themes
 
