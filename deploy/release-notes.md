@@ -1,5 +1,84 @@
 Stoop 0.20.0
 
+Stoop 0.20.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.19.0, and `stoop upgrade rollback`
+takes it back: there is no migration, so 0.19.0 starts against the same
+schema.
+
+**What's in it.**
+
+- **Activity: deleted messages leave the inbox.** When a message with an
+  activity item is deleted, the item used to stay in the feed and in the
+  badge until the page was reopened. The inbox now refreshes itself when
+  a delete could have taken something it holds, whether the message was
+  deleted outright, became a tombstone because its thread still has
+  replies, or went with Delete thread.
+- **Activity: Mark all read reaches every loaded page.** It used to
+  stamp only the first page, so rows loaded by scrolling stayed in New.
+- **The rail's unread marker is a tab on the pill's edge**, toward the
+  channel sidebar, instead of a dark square on the icon's corner. On the
+  open space it stretches into a short line. A space shows the tab for
+  anything unread and the red count on top of it when there are
+  mentions; before, it drew one or the other. Direct messages keep the
+  count badge alone.
+- **Skeleton rows at a channel's loading edges.** While an older or newer
+  page is on its way, the edge draws three placeholder rows the shape of
+  a message instead of a line of muted text that was easy to miss.
+  Landing from the "New messages" line no longer nudges the viewed row
+  by the height of the head.
+- **Profile: a name stored with a stray space is not an edit.** A login
+  provider can store a display name with a trailing space, which made an
+  untouched profile form count as changed and lit Save. Save now stays
+  off until something is edited, and an edit to another field sends the
+  name trimmed.
+
+**For operators.**
+
+- **No migration.** The schema stays at 73 and the floor at 70.
+  `stoop upgrade rollback` returns to 0.19.0 with nothing to undo.
+- **Security fix in a dependency.** `go-jose` moves from 4.1.4 to 4.1.6
+  for GHSA-mgcc-cww5-fp2q: JWK parsing now caps the RSA modulus it
+  accepts at 4096 bits. Stoop uses the library indirectly, through
+  Tailscale, and sets no larger limit.
+- **Other dependency moves.** Tailscale 1.102.5 → 1.104.4, Connect
+  1.21.0 → 1.21.1, goose 3.28.0 → 3.29.0, `golang.org/x/net` 0.59.0 →
+  0.61.0, and the web app's React 19.3.1, Connect 2.3.0 and
+  livekit-client 2.23.0. None changes behaviour an operator configures.
+- **The desktop app** is not told to update by this release. The bridge
+  level the server publishes is unchanged.
+
+**API changes.**
+
+- `DirectMessage` carries `last_message`, a new `DirectMessageLast`: the
+  newest message's id, author, a one-line plain-text preview, whether it
+  was deleted, and when it was sent. Every RPC that returns a
+  `DirectMessage` fills it. It is unset for an empty conversation and
+  for a credential without `dms.read`. The field is additive; the web
+  app ignores it, and the phone app's Messages tab reads it.
+
+**Schema.** Unchanged at 73; the floor stays at 70.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.19.0.
+
+**Known issues.** As 0.19.0's: deleting a message above the part of a
+channel you are reading shifts the view by its height; an audio
+attachment starts over if its row is scrolled far enough away to be
+removed from the page and then comes back; two quick jumps land on
+whichever the server answers first; a display name change reaches other
+people's open tabs on reload; with everything in a channel unread, the
+"New messages" line can move as older messages load; older pages of the
+Activity page do not refresh when items are read elsewhere, and in a
+narrow race an activity item coalesced just as it is read can come back
+unread; the welcome editor cannot stop typing at the 4,000-character
+limit, so its counter turns red past it and Save is refused. New: an
+Activity row on an older page whose message is deleted while the inbox
+is open stays until the inbox is reopened.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
 Changes since 0.19.0:
 
 - Bump docker/login-action from 4.6.0 to 4.7.0 in the actions group (18f7371d)
