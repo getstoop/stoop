@@ -232,10 +232,15 @@ export default function Channel({
       });
   });
 
-  // Newest first, for a list drawn from the bottom up.
+  // Newest first, for a list drawn from the bottom up. Of the header only
+  // who is reading matters here, so a member joining doesn't regroup. The
+  // day lines ("Today") read the clock, so a new day does: on the first
+  // render after midnight, which coming back to the app always brings.
+  const readerId = header?.myUserId;
+  const today = new Date().toDateString();
   const items = useMemo(
-    () => (header ? groupedRows(messages, newAfter, header.myUserId).reverse() : []),
-    [messages, newAfter, header],
+    () => (readerId !== undefined ? groupedRows(messages, newAfter, readerId).reverse() : []),
+    [messages, newAfter, readerId, today],
   );
   // The latest rows, for a scroll retried after they may have shifted.
   const itemsRef = useRef(items);
