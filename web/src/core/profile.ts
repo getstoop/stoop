@@ -23,7 +23,8 @@ export type ProfileEdits = {
 
 // The UpdateProfile request for a form's fields, or null when they all say
 // what the server has. The display name always goes, as the request
-// requires it; the rest go only when changed.
+// requires it; the rest go only when changed. The stored display name is
+// trimmed too: a login provider's may carry stray spaces, which aren't an edit.
 export function profileEdits(
   me: Pick<User, "displayName" | "username" | "pronouns" | "bio">,
   draft: ProfileDraft,
@@ -34,7 +35,7 @@ export function profileEdits(
   const pronounsChanged = draft.pronouns !== me.pronouns;
   const bioChanged = draft.bio !== me.bio;
   if (
-    displayName === me.displayName &&
+    displayName === me.displayName.trim() &&
     !usernameChanged &&
     !pronounsChanged &&
     !bioChanged

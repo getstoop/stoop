@@ -15,6 +15,11 @@ describe("profileEdits", () => {
     ).toBeNull();
   });
 
+  it("is null for a stored display name with stray spaces, left as it is", () => {
+    const stored = { ...me, displayName: "Ada " };
+    expect(profileEdits(stored, stored)).toBeNull();
+  });
+
   it("counts spaces in the pronouns and bio, which go as typed", () => {
     expect(profileEdits(me, { ...me, bio: " " })?.bio).toBe(" ");
     expect(profileEdits(me, { ...me, pronouns: "she/her " })?.pronouns).toBe(
