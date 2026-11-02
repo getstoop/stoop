@@ -7,7 +7,7 @@ import {
   UserPresenceSchema,
 } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { describe, expect, it } from "vitest";
-import { applyPresenceEvent } from "./presence";
+import { applyPresenceEvent, OFFLINE, presenceOf } from "./presence";
 
 const ready = (...people: { userId: string; dnd?: boolean; mobile?: boolean }[]): ServerEvent =>
   create(ServerEventSchema, {
@@ -52,5 +52,26 @@ describe("applyPresenceEvent", () => {
   // placed into a list that doesn't exist yet.
   it("stays unknown until Ready", () => {
     expect(applyPresenceEvent(undefined, changed("sam", true))).toBeUndefined();
+  });
+});
+
+describe("presenceOf", () => {
+  it("says what the roster holds, and offline for someone not in it", () => {
+    const roster = { sam: { dnd: true, mobile: false } };
+    expect(presenceOf(roster, "sam")).toEqual({ online: true, dnd: true, mobile: false });
+    expect(presenceOf(roster, "june")).toBe(OFFLINE);
+  });
+
+  it("is unknown without a roster or without someone to ask about", () => {
+    expect(presenceOf(undefined, "sam")).toBeUndefined();
+    expect(presenceOf({}, undefined)).toBeUndefined();
+  });
+
+  // A reconnect's Ready makes a new roster of new objects: someone in the
+  // same state is still the same answer, so nothing re-renders for them.
+  it("gives the same object for the same state, across rosters", () => {
+    const before = { sam: { dnd: false, mobile: true } };
+    const after = { sam: { dnd: false, mobile: true } };
+    expect(presenceOf(after, "sam")).toBe(presenceOf(before, "sam"));
   });
 });
