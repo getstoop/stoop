@@ -14,7 +14,76 @@ function rpc(proc, token, body) {
   return JSON.parse(res.body);
 }
 
+function adaSessions() {
+  var res = http.post(SERVER + "/stoop.auth.v1.AuthService/ListSessions", {
+    headers: { "content-type": "application/json", authorization: "Bearer " + OWNER_TOKEN },
+    body: "{}",
+  });
+  if (res.status !== 200) throw new Error("ListSessions: " + res.status + " " + res.body);
+  return (JSON.parse(res.body).sessions || []).length;
+}
+
+function authRpc(proc, token, body) {
+  var res = http.post(SERVER + "/stoop.auth.v1.AuthService/" + proc, {
+    headers: { "content-type": "application/json", authorization: "Bearer " + token },
+    body: JSON.stringify(body),
+  });
+  if (res.status !== 200) throw new Error(proc + ": " + res.status + " " + res.body);
+  return JSON.parse(res.body);
+}
+
 var steps = {
+  // Hal's avatar as the server holds it (edit-avatar.yaml).
+  picturedAvatar: function () {
+    output.avatarFileId = authRpc("GetMe", PICTURED_TOKEN, {}).user.avatarFileId || "";
+  },
+  // Gil's profile as the server holds it (edit-profile.yaml).
+  editorProfile: function () {
+    var user = authRpc("GetMe", EDITOR_TOKEN, {}).user;
+    output.editorName = user.displayName;
+    output.editorUsername = user.username;
+    output.editorPronouns = user.pronouns || "";
+    output.editorBio = user.bio || "";
+  },
+  // Gil's username changed to TEXT, as from his laptop.
+  renameEditor: function () {
+    var user = authRpc("GetMe", EDITOR_TOKEN, {}).user;
+    authRpc("UpdateProfile", EDITOR_TOKEN, { displayName: user.displayName, username: TEXT });
+  },
+  // Gil's username locked, as a server admin would. Ada, the first
+  // account, is one.
+  freezeEditor: function () {
+    var res = http.post(SERVER + "/stoop.instance.v1.InstanceService/SetUsernameFrozen", {
+      headers: { "content-type": "application/json", authorization: "Bearer " + OWNER_TOKEN },
+      body: JSON.stringify({ userId: EDITOR_ID, frozen: true }),
+    });
+    if (res.status !== 200) throw new Error("SetUsernameFrozen: " + res.status + " " + res.body);
+  },
+  // Every session fay has ended, as from her laptop (you-servers.yaml).
+  endLeaverSessions: function () {
+    var res = http.post(SERVER + "/stoop.auth.v1.AuthService/SignOutEverywhere", {
+      headers: { "content-type": "application/json", authorization: "Bearer " + LEAVER_TOKEN },
+      body: "{}",
+    });
+    if (res.status !== 200) throw new Error("SignOutEverywhere: " + res.status + " " + res.body);
+  },
+  // How many sessions ada has (you-servers.yaml): held before leaving a
+  // server, then read again, to see it ended on the server.
+  sessionsBefore: function () {
+    output.sessionsBefore = adaSessions();
+    output.sessionsNow = output.sessionsBefore;
+  },
+  sessionsNow: function () {
+    output.sessionsNow = adaSessions();
+  },
+  // Ada's pronouns, set as from her laptop (you.yaml). Empty clears them.
+  setPronouns: function () {
+    var res = http.post(SERVER + "/stoop.auth.v1.AuthService/UpdateProfile", {
+      headers: { "content-type": "application/json", authorization: "Bearer " + OWNER_TOKEN },
+      body: JSON.stringify({ displayName: MEMBER, pronouns: TEXT || "" }),
+    });
+    if (res.status !== 200) throw new Error("UpdateProfile: " + res.status + " " + res.body);
+  },
   // In Book club (space-channels.yaml): ada, its owner, makes CHANNEL_NAME;
   // dee writes in it, then mentions ada there; ada deletes it.
   create: function () {

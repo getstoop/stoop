@@ -2,6 +2,7 @@ import { type Client, createClient, type Interceptor } from "@connectrpc/connect
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AuthService } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { ChatService } from "@stoop/gen/stoop/chat/v1/chat_pb";
+import { FileService } from "@stoop/gen/stoop/files/v1/files_pb";
 import { InstanceService } from "@stoop/gen/stoop/instance/v1/instance_pb";
 import { fetchWithoutCookies } from "./fetch";
 
@@ -37,4 +38,8 @@ export function authClient(origin: string, token?: string): Client<typeof AuthSe
 
 export function chatClient(origin: string, token?: string): Client<typeof ChatService> {
   return createClient(ChatService, transport(origin, token));
+}
+
+export function filesClient(origin: string, token: string): Client<typeof FileService> {
+  return createClient(FileService, transport(origin, token));
 }

@@ -1,0 +1,115 @@
+appId: ${APP_ID}
+name: Edit your profile, see a username refused, see it on You, renamed elsewhere live, and locked by an admin
+---
+- clearKeychain
+- launchApp:
+    clearState: true
+- runFlow:
+    file: scripts/add-server.yaml
+    env:
+      ADDRESS: ${SERVER}
+      USER: ${EDITOR}
+- extendedWaitUntil:
+    visible: "You're not in any spaces here yet."
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: "@${EDITOR} · on .*"
+    timeout: 15000
+- tapOn:
+    id: "edit-profile"
+- extendedWaitUntil:
+    visible: "How people mention you. 3 to 32 letters, numbers or underscores."
+    timeout: 15000
+# Nothing to save yet, and a tap on it stays here.
+- tapOn:
+    text: "Save"
+    enabled: false
+- assertVisible: "How people mention you. 3 to 32 letters, numbers or underscores."
+- assertVisible: "0 / 40"
+- assertVisible: "0 / 300"
+# Someone else's username: refused, under the field, and still here.
+- tapOn:
+    id: "profile-username"
+- eraseText
+- inputText: ${POSTER}
+- tapOn:
+    text: "Save"
+    enabled: true
+- extendedWaitUntil:
+    visible: "username is taken"
+    timeout: 15000
+- assertNotVisible: "How people mention you. 3 to 32 letters, numbers or underscores."
+# Putting it right takes the refusal away.
+- tapOn:
+    id: "profile-username"
+- eraseText
+- inputText: ${EDITOR}b
+- assertNotVisible: "username is taken"
+- tapOn:
+    id: "profile-name"
+- eraseText
+- inputText: Gil Prime
+- tapOn:
+    id: "profile-pronouns"
+- inputText: they/them
+- assertVisible: "9 / 40"
+# The keyboard is over the bio: scrolled up from under it, as a thumb would.
+- swipe:
+    start: "50%, 45%"
+    end: "50%, 20%"
+- tapOn:
+    id: "profile-bio"
+- inputText: Keeps the tool library
+- assertVisible: "22 / 300"
+- tapOn:
+    text: "Save"
+    enabled: true
+# Back on You with all of it, and the server holds the same.
+- extendedWaitUntil:
+    visible: "@${EDITOR}b · they/them · on .*"
+    timeout: 15000
+- assertVisible: "Gil Prime"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: editorProfile
+- assertTrue: ${output.editorName == "Gil Prime"}
+- assertTrue: ${output.editorUsername == EDITOR + "b"}
+- assertTrue: ${output.editorPronouns == "they/them"}
+- assertTrue: ${output.editorBio == "Keeps the tool library"}
+# A rename from elsewhere arrives on its own, with no pull.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: renameEditor
+      TEXT: ${EDITOR}c
+- extendedWaitUntil:
+    visible: "@${EDITOR}c · they/them · on .*"
+    timeout: 15000
+# Locked by an admin: it says so and can't be changed, and the rest still saves.
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: freezeEditor
+- tapOn:
+    id: "edit-profile"
+- extendedWaitUntil:
+    visible: "How people mention you. Locked by a server admin."
+    timeout: 15000
+- tapOn:
+    id: "profile-username"
+- inputText: x
+- assertVisible:
+    text: "Save"
+    enabled: false
+- tapOn:
+    id: "profile-pronouns"
+- eraseText
+- tapOn:
+    text: "Save"
+    enabled: true
+- extendedWaitUntil:
+    visible: "@${EDITOR}c · on .*"
+    timeout: 15000

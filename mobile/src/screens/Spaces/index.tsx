@@ -28,7 +28,7 @@ import SpaceRow from "./SpaceRow";
 type State =
   | { state: "loading" }
   | { state: "ready"; token: string; spaces: SpaceListing[] }
-  // As the signed-in stand-in: only the server saying the session is over
+  // As the You tab: only the server saying the session is over
   // counts as signed out.
   | { state: "ended" }
   | { state: "failed" };

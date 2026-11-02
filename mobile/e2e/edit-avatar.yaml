@@ -1,0 +1,69 @@
+appId: ${APP_ID}
+name: Pick an avatar from the library, crop it, and see it on Edit and You
+---
+# A photo of our own in the library, dated 2100 in its EXIF so the picker
+# lists it first and names it apart from attach.yaml's. Over 1024 px on every
+# side after the crop, so it is shrunk, and stored turned with EXIF orientation
+# 6: upright, its top half is red and its bottom half blue.
+- addMedia:
+    - media/tall-avatar.jpg
+- clearKeychain
+- launchApp:
+    clearState: true
+- runFlow:
+    file: scripts/add-server.yaml
+    env:
+      ADDRESS: ${SERVER}
+      USER: ${PICTURED}
+- extendedWaitUntil:
+    visible: "You're not in any spaces here yet."
+    timeout: 15000
+- tapOn:
+    id: "tab-you"
+- extendedWaitUntil:
+    visible: "No avatar yet"
+    timeout: 15000
+- tapOn:
+    id: "edit-profile"
+- extendedWaitUntil:
+    visible: "Change avatar"
+    timeout: 15000
+- assertVisible: "No avatar yet"
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: picturedAvatar
+- assertTrue: ${output.avatarFileId == ""}
+# Backing out of the picker changes nothing.
+- tapOn: "Change avatar"
+- runFlow:
+    file: scripts/pick-avatar.yaml
+    env:
+      CHOICE: cancel
+- assertVisible: "No avatar yet"
+# Picked and cropped: the picture arrives on this screen with no pull, once
+# the server has finished it and said so, and it is the server's.
+- tapOn: "Change avatar"
+- runFlow:
+    file: scripts/pick-avatar.yaml
+    env:
+      CHOICE: choose
+- extendedWaitUntil:
+    visible: "Your avatar"
+    timeout: 20000
+- runScript:
+    file: scripts/rpc.js
+    env:
+      STEP: picturedAvatar
+- assertTrue: ${output.avatarFileId != ""}
+- assertVisible: "Change avatar"
+# Save had nothing to do with it.
+- assertVisible:
+    text: "Save"
+    enabled: false
+# And on You: its own line first, as Edit has the same label on its way out.
+- tapOn: "Back|Navigate up"
+- extendedWaitUntil:
+    visible: "@${PICTURED} · on .*"
+    timeout: 15000
+- assertVisible: "Your avatar"

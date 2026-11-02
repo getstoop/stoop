@@ -6,7 +6,8 @@ import { type Theme, useTheme } from "../theme";
 
 // A person's avatar, fetched with the session as a bearer token
 // (expo-image, whose cache sign-out clears), or their initials when they
-// have none or it won't load. Decorative: the name beside it says who.
+// have none or it won't load. Decorative, the name beside it saying who,
+// unless given a label to be read out.
 export default function Avatar({
   name,
   fileId,
@@ -14,6 +15,7 @@ export default function Avatar({
   token,
   size,
   style,
+  label,
 }: {
   name: string;
   fileId: string;
@@ -21,18 +23,23 @@ export default function Avatar({
   token: string;
   size: number;
   style?: StyleProp<ViewStyle>;
+  label?: string;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme, size);
-  const [failed, setFailed] = useState(false);
+  // The picture that wouldn't load, so a new one gets its own chance.
+  const [failed, setFailed] = useState("");
+  const read = label
+    ? ({ accessible: true, accessibilityRole: "image", accessibilityLabel: label } as const)
+    : ({ accessibilityElementsHidden: true, importantForAccessibility: "no" } as const);
 
   return (
-    <View style={[styles.avatar, style]} accessibilityElementsHidden importantForAccessibility="no">
-      {fileId && !failed ? (
+    <View style={[styles.avatar, style]} {...read}>
+      {fileId && failed !== fileId ? (
         <Image
           source={fileSource(origin, token, fileId)}
           style={styles.image}
-          onError={() => setFailed(true)}
+          onError={() => setFailed(fileId)}
         />
       ) : (
         <Text style={styles.initials}>{initials(name)}</Text>

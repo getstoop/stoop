@@ -1,0 +1,22 @@
+# Adding a server and signing in, from where "Add a server" shows. Takes
+# ADDRESS and USER.
+appId: ${APP_ID}
+---
+- tapOn: "Add a server"
+- tapOn:
+    id: "server-address"
+- inputText: ${ADDRESS}
+- extendedWaitUntil:
+    visible: "Found"
+    timeout: 15000
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible: "Sign in to .*"
+    timeout: 15000
+- tapOn:
+    id: "username"
+- inputText: ${USER}
+- tapOn:
+    id: "password"
+- inputText: ${PASSWORD}
+- tapOn: "Sign in"

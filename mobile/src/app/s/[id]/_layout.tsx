@@ -56,6 +56,7 @@ export default function ServerLayout() {
           {/* New message is a sheet over the tabs, with its own Cancel and
               Start row. */}
           <Stack.Screen name="new-message" options={{ headerShown: false, presentation: "modal" }} />
+          <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
         </Stack>
       </ActivityProvider>
     </CurrentServer>

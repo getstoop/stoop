@@ -32,20 +32,21 @@ name: Add a server, sign in, see Spaces, change the theme, sign out
 - tapOn:
     id: "tab-you"
 - extendedWaitUntil:
-    visible: "Signed in as ${MEMBER}.*"
+    visible: "@${MEMBER} · on .*"
     timeout: 15000
 # The theme: picked on its own screen, shown on You, kept across a launch.
 - tapOn:
     id: "theme-row"
 - tapOn:
     id: "theme-daylight"
-- tapOn: "Back"
+- tapOn: "Back|Navigate up"
 - assertVisible: "Theme, Daylight"
 - stopApp
 - launchApp
 - tapOn:
     id: "tab-you"
 - assertVisible: "Theme, Daylight"
+- tapOn: "Sign out of .*"
 - tapOn: "Sign out"
 - extendedWaitUntil:
     visible: "I have an invite link"
