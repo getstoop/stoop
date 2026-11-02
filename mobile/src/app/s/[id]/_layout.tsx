@@ -1,6 +1,7 @@
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import ActivityProvider from "../../../activity/ActivityProvider";
 import { CurrentServer, useServer } from "../../../servers";
+import { sessionKey } from "../../../servers/sessionKey";
 import { useTheme } from "../../../theme";
 
 // Everything under /s/<id> is one saved server; an ID this phone doesn't
@@ -35,7 +36,7 @@ export default function ServerLayout() {
 
   return (
     <CurrentServer server={server}>
-      <ActivityProvider key={`${server.id}/${server.session ?? 0}`} server={server}>
+      <ActivityProvider key={sessionKey(server)} server={server}>
         <Stack
           screenOptions={{
             title: "",

@@ -45,17 +45,31 @@ export function sessionToken(id: string): Promise<string | null> {
 
 // Keeps a new session for origin, under the ID the server already has
 // here or a new one, and moves it to the front. Returns the new list.
+// `previous` is the token this one replaces, if any. The socket follows the
+// list but reads the token, so a list that won't save must not leave the new
+// token behind: the sign-in has failed, and the next reconnect would quietly
+// become that account under screens still on the old one. So the previous
+// token goes back, as far as the keychain allows, before the failure is passed on.
 export async function saveSignIn(
   servers: SavedServer[],
   origin: string,
   name: string,
   token: string,
+  previous: string | null,
 ): Promise<SavedServer[]> {
   const known = servers.find((s) => s.origin === origin);
   const server = { id: known?.id ?? newId(servers), origin, name, session: (known?.session ?? 0) + 1 };
   await SecureStore.setItemAsync(tokenKey(server.id), token, OPTIONS);
   const list = [server, ...servers.filter((s) => s.id !== server.id)];
-  await SecureStore.setItemAsync(LIST_KEY, JSON.stringify(list), OPTIONS);
+  try {
+    await SecureStore.setItemAsync(LIST_KEY, JSON.stringify(list), OPTIONS);
+  } catch (err) {
+    const putBack = previous
+      ? SecureStore.setItemAsync(tokenKey(server.id), previous, OPTIONS)
+      : SecureStore.deleteItemAsync(tokenKey(server.id), OPTIONS);
+    await putBack.catch(() => {});
+    throw err;
+  }
   return list;
 }
 
