@@ -574,7 +574,8 @@ dispatched as `sent` and merged by seq like an event's (the socket's
 copy usually lands first; either order leaves one row). There are no
 pending rows in the model. A refusal puts the draft back ahead of
 anything typed since, with the server's words under the field, and
-pressing Send again is the retry.
+pressing Send again is the retry. A permission refusal (a block, an
+announcement channel) is one of these: it leaves the screen as it is.
 
 ## Themes
 
