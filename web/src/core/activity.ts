@@ -149,7 +149,8 @@ export function unreadCounts(data: ActivityData | undefined) {
 }
 
 // The same items as one number, for the desktop shell's dock and tray
-// badge and the phone's Activity tab. Zero when nothing is loaded.
+// badge, mobile's Activity tab, and a server's badge in the switcher and
+// You. Zero when nothing is loaded.
 export function alertingCount(data: ActivityData | undefined): number {
   let n = 0;
   for (const count of unreadCounts(data).bySpace.values()) n += count;

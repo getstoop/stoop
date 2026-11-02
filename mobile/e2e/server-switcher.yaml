@@ -59,9 +59,9 @@ name: Add a second server from the switcher, see the first one's badge, switch b
     visible: ".*, 127\\.0\\.0\\.1:\\d+, current server"
     timeout: 5000
 - extendedWaitUntil:
-    visible: ".*, localhost:\\d+, 1 mention"
+    visible: ".*, localhost:\\d+, 1 new"
     timeout: 15000
-- tapOn: ".*, localhost:\\d+, 1 mention"
+- tapOn: ".*, localhost:\\d+, 1 new"
 - extendedWaitUntil:
     visible: "${SPACE}, 1 mention, Reading The Overstory"
     timeout: 15000

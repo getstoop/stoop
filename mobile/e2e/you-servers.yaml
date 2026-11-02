@@ -32,7 +32,7 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
     visible: ".*, 127\\.0\\.0\\.1:\\d+, current server"
     timeout: 15000
 - extendedWaitUntil:
-    visible: ".*, localhost:\\d+, 1 mention"
+    visible: ".*, localhost:\\d+, 1 new"
     timeout: 15000
 # The current server's row goes to its Spaces tab, another's switches.
 - tapOn: ".*, 127\\.0\\.0\\.1:\\d+, current server"
@@ -41,7 +41,7 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
     timeout: 5000
 - tapOn:
     id: "tab-you"
-- tapOn: ".*, localhost:\\d+, 1 mention"
+- tapOn: ".*, localhost:\\d+, 1 new"
 - extendedWaitUntil:
     visible: "${SPACE}, .*"
     timeout: 15000
@@ -51,10 +51,10 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
     visible: ".*, localhost:\\d+, current server"
     timeout: 15000
 - extendedWaitUntil:
-    visible: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, 1 new"
     timeout: 15000
 # A long press offers Remove; Cancel leaves the server and the menu.
-- longPressOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+- longPressOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 new"
 - tapOn: "Remove from this phone"
 - extendedWaitUntil:
     visible: "Remove .* from this phone\\?"
@@ -113,7 +113,7 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
 - tapOn:
     id: "tab-you"
 - extendedWaitUntil:
-    visible: ".*, localhost:\\d+, 1 mention"
+    visible: ".*, localhost:\\d+, 1 new"
     timeout: 15000
 - runScript:
     file: scripts/rpc.js
@@ -121,7 +121,7 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
       STEP: sessionsBefore
 - swipe:
     from:
-      text: ".*, localhost:\\d+, 1 mention"
+      text: ".*, localhost:\\d+, 1 new"
     direction: LEFT
 - tapOn: "Remove .*"
 - extendedWaitUntil:
@@ -157,9 +157,9 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
 - tapOn:
     id: "tab-you"
 - extendedWaitUntil:
-    visible: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+    visible: ".*, 127\\.0\\.0\\.1:\\d+, 1 new"
     timeout: 15000
-- tapOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 mention"
+- tapOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 new"
 - extendedWaitUntil:
     visible: "${SPACE}, .*"
     timeout: 15000
