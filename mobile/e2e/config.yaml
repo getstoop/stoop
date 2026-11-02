@@ -44,4 +44,5 @@ executionOrder:
     - "Long-press a conversation in Messages, mute and unmute it, copy its link, and close it until it is written in"
     - "Swipe a conversation in Messages to Close and tap it, then swipe one all the way to close it"
     - "Start a conversation from New message, and land in the one that exists"
+    - "Reply in a thread from further up and land on the reply"
     - "Pick an avatar from the library, crop it, and see it on Edit and You"

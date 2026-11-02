@@ -39,6 +39,7 @@ import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
 import { useFlash } from "./useFlash";
+import { useFollowSend } from "./useFollowSend";
 import { useMentionNames } from "./useMentionNames";
 import { useMessageActions } from "./useMessageActions";
 
@@ -119,6 +120,7 @@ export default function Channel({
   // Whether the reader has scrolled up from the newest message, for the
   // jump back to it.
   const [away, setAway] = useState(false);
+  const followSend = useFollowSend(list);
   // What this screen remembers about the channel shown: the marker it
   // moved, whether it has landed, and the message it jumped to on which
   // log. Another channel starts afresh.
@@ -292,10 +294,11 @@ export default function Channel({
       await send(content, { replyToMessageId, attachmentIds });
       // Sent from a range short of the newest message, the reader's own
       // message would only be held for the pill: back to the latest to
-      // see it, as web's composer goes.
+      // see it, as web's composer goes. Otherwise followSend takes them there.
       if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
+      else followSend();
     },
-    [send, engine],
+    [send, engine, followSend],
   );
 
   // Opening lands on the "New" line, once; opened at a message, the jump
@@ -410,8 +413,10 @@ export default function Channel({
               }}
               // Away from the newest message once scrolled further from the
               // bottom edge than the list follows new rows from.
+              // Every frame: Android drops a throttled event for good, and the
+              // last one, back at the edge after a row arrives, must get here.
               onScroll={(event) => setAway(event.nativeEvent.contentOffset.y > AT_LATEST)}
-              scrollEventThrottle={50}
+              scrollEventThrottle={16}
               // Scrolling leaves the keyboard, and so the composer's card, in
               // place. On iOS a drag down into the keyboard puts it away; the
               // card follows the keyboard's hide event, which iOS posts only
