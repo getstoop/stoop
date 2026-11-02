@@ -11,9 +11,10 @@ const MAX_BACKOFF_MS = 15_000;
 
 // The gateway's close code when the session the socket was opened with
 // has ended: signed out, revoked or expired. That session will never work
-// again, so the socket waits, still reading the keychain on the backoff,
-// until a new sign-in leaves another there, which also replaces this
-// socket (RealtimeProvider).
+// again, so this socket stops. A new sign-in replaces it (RealtimeProvider),
+// and so does the app next coming back to the foreground: that socket opens
+// on the same token, is refused at the upgrade (HTTP 401, not this code),
+// and retries on the backoff for as long as the app stays open.
 const CLOSE_SESSION_ENDED = 4001;
 
 // React Native's WebSocket takes headers as a third argument, which the
@@ -28,7 +29,7 @@ export type Realtime = { close: () => void };
 
 export function openRealtime(
   origin: string,
-  // Read again on every attempt, so a new sign-in's session is the one used.
+  // Read on every attempt rather than held in memory.
   token: () => Promise<string | null>,
   onEvent: (event: ServerEvent) => void,
   // Each time the socket closes while still wanted: what it said may be
@@ -41,22 +42,10 @@ export function openRealtime(
   let closed = false;
   let attempts = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  // The session the server said has ended, never tried again.
-  let ended: string | null = null;
-
-  const retry = () => {
-    const backoff = Math.min(1000 * 2 ** attempts, MAX_BACKOFF_MS);
-    attempts += 1;
-    timer = setTimeout(connect, backoff);
-  };
 
   const connect = async () => {
     const session = await token().catch(() => null);
     if (closed || !session) return;
-    if (session === ended) {
-      retry();
-      return;
-    }
     const url = `${origin.replace(/^http/, "ws")}/ws?client=mobile`;
     socket = new NativeWebSocket(url, null, { headers: { Authorization: `Bearer ${session}` } });
     socket.binaryType = "arraybuffer";
@@ -70,8 +59,10 @@ export function openRealtime(
       socket = null;
       if (closed) return;
       onClose();
-      if (e.code === CLOSE_SESSION_ENDED) ended = session;
-      retry();
+      if (e.code === CLOSE_SESSION_ENDED) return;
+      const backoff = Math.min(1000 * 2 ** attempts, MAX_BACKOFF_MS);
+      attempts += 1;
+      timer = setTimeout(connect, backoff);
     };
   };
 

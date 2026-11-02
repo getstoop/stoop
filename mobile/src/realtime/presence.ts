@@ -8,12 +8,27 @@ export type Online = { dnd: boolean; mobile: boolean };
 // online, on do not disturb or not and online only in a mobile app or not.
 export type Presence = { online: boolean } & Online;
 export const OFFLINE: Presence = { online: false, dnd: false, mobile: false };
+const ONLINE: Record<`${boolean} ${boolean}`, Presence> = {
+  "false false": { online: true, dnd: false, mobile: false },
+  "false true": { online: true, dnd: false, mobile: true },
+  "true false": { online: true, dnd: true, mobile: false },
+  "true true": { online: true, dnd: true, mobile: true },
+};
 
 // Who is online on one server, by user ID: the people who share a space
 // with this account. Someone not in it is offline. Seeded by Ready and
 // kept current by PresenceChanged, as web's connection store is
 // (web/src/stores/connection.ts).
 export type PresenceRoster = Record<string, Online>;
+
+// One person's presence in a roster, or undefined while that isn't known.
+// Each state is one object, so the same answer is the same object, whichever
+// roster it was read from: what lets usePresence tell nothing has changed.
+export function presenceOf(roster: PresenceRoster | undefined, userId: string | undefined): Presence | undefined {
+  if (!roster || !userId) return undefined;
+  const online = roster[userId];
+  return online ? ONLINE[`${online.dnd} ${online.mobile}`] : OFFLINE;
+}
 
 // The roster after one event; the same object when the event changes
 // nothing in it.

@@ -1,19 +1,27 @@
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AppState } from "react-native";
 import { sessionToken } from "../api/servers";
-import { useServers } from "../servers";
-import { applyPresenceEvent, OFFLINE, type Presence, type PresenceRoster } from "./presence";
-import { openRealtime, type Realtime } from "./socket";
-import { socketKey } from "./socketKey";
+import { type SavedServer, useServers } from "../servers";
+import { sessionKey } from "../servers/sessionKey";
+import { applyPresenceEvent, type Presence, presenceOf, type PresenceRoster } from "./presence";
+import { type RosterStore, rosterStore } from "./rosterStore";
+import { openRealtime } from "./socket";
 import { applyVoiceEvent, type VoiceRoster } from "./voice";
 
-// By server ID: who is in voice there, or undefined while its socket is
-// not connected and nobody can say.
-const VoiceContext = createContext<Record<string, VoiceRoster | undefined>>({});
-// By server ID: who is online there, or undefined while its socket is not
-// connected and nobody can say.
-const PresenceContext = createContext<Record<string, PresenceRoster | undefined>>({});
+// Who is in voice on each server.
+const VoiceContext = createContext<RosterStore<VoiceRoster>>(rosterStore());
+// Who is online on each server.
+const PresenceContext = createContext<RosterStore<PresenceRoster>>(rosterStore());
 
 type Listener = (event: ServerEvent) => void;
 export type Subscribe = (serverId: string, listener: Listener) => () => void;
@@ -30,21 +38,9 @@ const ListenersContext = createContext<Listeners>(new Map());
 // that needs other events listens for them with useServerEvents.
 export default function RealtimeProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
-  const key = socketKey(servers);
-  const targets = useMemo(
-    () =>
-      key
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => {
-          const [id, origin] = line.split(" ");
-          return { id, origin };
-        }),
-    [key],
-  );
   const [active, setActive] = useState(AppState.currentState === "active");
-  const [voice, setVoice] = useState<Record<string, VoiceRoster | undefined>>({});
-  const [presence, setPresence] = useState<Record<string, PresenceRoster | undefined>>({});
+  const [voice] = useState(() => rosterStore<VoiceRoster>());
+  const [presence] = useState(() => rosterStore<PresenceRoster>());
   const listeners = useRef<Listeners>(new Map()).current;
 
   // "inactive" is a moment between (the app switcher, a system sheet):
@@ -57,44 +53,68 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
     return () => sub.remove();
   }, []);
 
-  useEffect(() => {
-    if (!active) return;
-    const sockets: Realtime[] = targets.map((server) =>
-      openRealtime(
-        server.origin,
-        () => sessionToken(server.id),
-        (event) => {
-          setVoice((all) => {
-            const roster = applyVoiceEvent(all[server.id], event);
-            return roster === all[server.id] ? all : { ...all, [server.id]: roster };
-          });
-          setPresence((all) => {
-            const roster = applyPresenceEvent(all[server.id], event);
-            return roster === all[server.id] ? all : { ...all, [server.id]: roster };
-          });
-          for (const listener of listeners.get(server.id) ?? []) listener(event);
-        },
-        () => {
-          setVoice((all) => (all[server.id] ? { ...all, [server.id]: undefined } : all));
-          setPresence((all) => (all[server.id] ? { ...all, [server.id]: undefined } : all));
-        },
-      ),
-    );
-    return () => {
-      for (const socket of sockets) socket.close();
-      // Closed sockets say nothing more, so their rosters are cleared here.
-      setVoice({});
-      setPresence({});
-    };
-  }, [targets, active, listeners]);
-
   return (
     <ListenersContext.Provider value={listeners}>
       <VoiceContext.Provider value={voice}>
-        <PresenceContext.Provider value={presence}>{children}</PresenceContext.Provider>
+        <PresenceContext.Provider value={presence}>
+          {active &&
+            servers.map((server) => (
+              <ServerSocket
+                key={sessionKey(server)}
+                server={server}
+                listeners={listeners}
+                voice={voice}
+                presence={presence}
+              />
+            ))}
+          {children}
+        </PresenceContext.Provider>
       </VoiceContext.Provider>
     </ListenersContext.Provider>
   );
+}
+
+// One server's socket, for as long as this is mounted. Keyed by session, so
+// a server added or forgotten touches no other server's socket, and a new
+// sign-in replaces this one, which may be another account's. React runs every
+// effect's cleanup in a commit before any new effect, so the old socket is
+// closed and its rosters cleared before the new session's stack subscribes,
+// and nothing it sent can reach them. Switching servers reorders the list,
+// which moves this and changes nothing.
+function ServerSocket({
+  server,
+  listeners,
+  voice,
+  presence,
+}: {
+  server: SavedServer;
+  listeners: Listeners;
+  voice: RosterStore<VoiceRoster>;
+  presence: RosterStore<PresenceRoster>;
+}) {
+  const { id, origin } = server;
+  useEffect(() => {
+    const clear = () => {
+      voice.set(id, undefined);
+      presence.set(id, undefined);
+    };
+    const socket = openRealtime(
+      origin,
+      () => sessionToken(id),
+      (event) => {
+        voice.set(id, applyVoiceEvent(voice.get(id), event));
+        presence.set(id, applyPresenceEvent(presence.get(id), event));
+        for (const listener of listeners.get(id) ?? []) listener(event);
+      },
+      clear,
+    );
+    return () => {
+      socket.close();
+      // A closed socket says nothing more, so its rosters are cleared here.
+      clear();
+    };
+  }, [id, origin, listeners, voice, presence]);
+  return null;
 }
 
 // Hands onEvent every event from a server's socket while the calling
@@ -127,16 +147,16 @@ export function useEventSubscription(): Subscribe {
 
 // Who is in voice on a server, or undefined while that isn't known.
 export function useVoiceRoster(serverId: string): VoiceRoster | undefined {
-  return useContext(VoiceContext)[serverId];
+  const store = useContext(VoiceContext);
+  return useSyncExternalStore(store.subscribe, () => store.get(serverId));
 }
 
 // Whether someone on a server is online, on do not disturb, or online only
 // in a mobile app, or undefined while that isn't known: the socket is not
 // connected, or has not said yet. Anyone who shares a space with this
-// account can be asked about; anyone else reads as offline.
+// account can be asked about; anyone else reads as offline. Re-renders the
+// caller only when this answer changes, not for anyone else or any other server.
 export function usePresence(serverId: string, userId: string | undefined): Presence | undefined {
-  const roster = useContext(PresenceContext)[serverId];
-  if (!roster || !userId) return undefined;
-  const online = roster[userId];
-  return online ? { online: true, ...online } : OFFLINE;
+  const store = useContext(PresenceContext);
+  return useSyncExternalStore(store.subscribe, () => presenceOf(store.get(serverId), userId));
 }
