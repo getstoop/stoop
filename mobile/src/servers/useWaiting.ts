@@ -11,12 +11,13 @@ export type Waiting =
   | { state: "ended" }
   | { state: "failed" };
 
-// As the Spaces tab: only the server saying the session is over counts as
-// signed out. One that can't be reached just shows no badge.
+// Only no session kept here, or the server saying it is over, counts as
+// signed out. A server that can't be reached, or a keychain that won't
+// give up the token, just shows no badge.
 async function waitingOn(server: SavedServer): Promise<Waiting> {
-  const token = await sessionToken(server.id).catch(() => null);
-  if (!token) return { state: "ended" };
   try {
+    const token = await sessionToken(server.id);
+    if (!token) return { state: "ended" };
     return { state: "ready", mentions: await mentionTotal(server.origin, token) };
   } catch (err) {
     return err instanceof ConnectError && err.code === Code.Unauthenticated

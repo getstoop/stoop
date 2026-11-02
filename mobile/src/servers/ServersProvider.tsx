@@ -1,6 +1,9 @@
-import { createContext, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { AppState } from "react-native";
 import { clearFileCaches } from "../api/downloads";
 import { forgetServer, loadServers, moveToFront, type SavedServer, saveSignIn } from "../api/servers";
+import ServerListUnread from "./ServerListUnread";
+import { serverList, type ServerListView } from "./serverList";
 
 type ServersState = {
   servers: SavedServer[];
@@ -13,36 +16,22 @@ type ServersState = {
 
 export const ServersContext = createContext<ServersState | null>(null);
 
-// Holds the saved servers for the whole app, read from the keychain once
-// at launch. Nothing under it renders until that read is done, so a
-// route's guard never mistakes "not loaded yet" for "no such server".
+// Holds the saved servers for the whole app, read from the keychain at
+// launch. Nothing under it renders until that read has succeeded, so a
+// route's guard never mistakes "not loaded yet" for "no such server", a
+// link never lands on Welcome, and nothing can start a sign-in that would
+// save over a list it hasn't seen. A read that fails is tried again each
+// time the app becomes active, as when the device is unlocked after the
+// app launched in the background.
 export default function ServersProvider({ children }: { children: ReactNode }) {
-  const [servers, setServers] = useState<SavedServer[] | null>(null);
-  // Changes run one at a time, each on the list the one before it left,
-  // so two that overlap (a slow sign-in finishing after another) can't
-  // each save a list missing the other's server.
-  const latest = useRef<SavedServer[]>([]);
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const [view, setView] = useState<ServerListView>({ state: "reading" });
+  const [{ read, change }] = useState(() => serverList(loadServers, setView));
 
   useEffect(() => {
-    loadServers()
-      .catch(() => [])
-      .then((list) => {
-        latest.current = list;
-        setServers(list);
-      });
-  }, []);
-
-  const change = useCallback((apply: (list: SavedServer[]) => Promise<SavedServer[]>) => {
-    const next = queue.current.then(async () => {
-      const list = await apply(latest.current);
-      latest.current = list;
-      setServers(list);
-      return list;
-    });
-    queue.current = next.catch(() => {});
-    return next;
-  }, []);
+    read();
+    const sub = AppState.addEventListener("change", (state) => state === "active" && read());
+    return () => sub.remove();
+  }, [read]);
 
   const signedIn = useCallback(
     async (origin: string, name: string, token: string) => {
@@ -70,11 +59,13 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
     [change],
   );
 
+  const servers = view.state === "known" ? view.servers : null;
   const state = useMemo(
     () => (servers ? { servers, signedIn, switchTo, forget } : null),
     [servers, signedIn, switchTo, forget],
   );
 
+  if (view.state === "unread") return <ServerListUnread onRetry={read} />;
   if (!state) return null;
   return <ServersContext.Provider value={state}>{children}</ServersContext.Provider>;
 }
