@@ -6,8 +6,7 @@ import { threadRepliesClosed } from "@stoop/core/threadReplies";
 import { Stack, useIsFocused, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, Platform, StyleSheet, Text, View } from "react-native";
-import { hostOf } from "../../api/probe";
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { errorText } from "../../api/errors";
 import { useServerStatus } from "../../api/instance";
 import { threadMessageLink } from "../../api/shareLinks";
@@ -17,12 +16,14 @@ import MessageContexts from "../../components/MessageContexts";
 import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
+import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
+import ChannelOutcome from "../Channel/ChannelOutcome";
 import PageRetry from "../Channel/PageRetry";
 import Composer from "../Channel/Composer";
 import ComposerDock from "../Channel/ComposerDock";
@@ -38,11 +39,13 @@ import { useFlash } from "../Channel/useFlash";
 import { useFollowSend } from "../Channel/useFollowSend";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
+import { useScrollRetry } from "../Channel/useScrollRetry";
 import { itemInThread } from "./itemInThread";
 import MuteButton from "./MuteButton";
 import { muteItem } from "./muteItem";
 import ThreadHead from "./ThreadHead";
 import ThreadTitle from "./ThreadTitle";
+import { threadReadDue } from "./threadReadDue";
 
 // A thread, pushed over its channel: the root at the top, ruled off, how
 // many replies it has, and the replies under it, newest at the bottom,
@@ -54,7 +57,7 @@ import ThreadTitle from "./ThreadTitle";
 // line above the replies the reader hadn't read (the root's unread
 // count, as the server gave it when the thread opened) and marks the
 // thread read while it is on screen with the app open, again for each
-// new reply; opened on a reply (`focusId`: one also sent to the channel,
+// new reply not the reader's own; opened on a reply (`focusId`: one also sent to the channel,
 // or one the channel was opened at), it lands on that reply instead,
 // ringed for a moment (useFlash), when it is among the replies loaded.
 // The composer replies in the thread, and to the channel as well when
@@ -101,16 +104,11 @@ export default function Thread({
   const { log, header, outcome, token, threads } = state;
   const thread = threads[rootId];
   const view = log.threads[rootId];
-  const [active, setActive] = useState(AppState.currentState === "active");
+  const active = useAppActive();
   const list = useRef<FlatList<GroupedRow>>(null);
   const followSend = useFollowSend(list);
   const landed = useRef(false);
   const { flashId, flash } = useFlash();
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (appState) => setActive(appState === "active"));
-    return () => sub.remove();
-  }, []);
 
   const held = log.rows.get(rootId);
   const root = held && isShown(held) ? held : undefined;
@@ -129,15 +127,19 @@ export default function Thread({
   // Read while on screen, again for each new reply, and again whenever
   // the count comes back above nothing (a page read on the server before
   // the read landed after it), so the read wins. A read that fails is
-  // asked for again after a moment, or on the next change.
+  // asked for again after a moment, or on the next change. A new reply of
+  // the reader's own needs none (threadReadDue).
   const replyCount = root?.thread?.replyCount ?? 0;
   const unread = root?.thread?.unreadCount ?? 0;
+  const newestIsMine = !!header && replies.at(-1)?.author?.id === header.myUserId;
   const readAt = useRef(-1);
   const [retries, setRetries] = useState(0);
   useEffect(() => {
     if (!decided || replyCount === 0 || !focused || !active) return;
-    if (readAt.current === replyCount && unread === 0) return;
+    const due = threadReadDue(readAt.current, replyCount, unread, newestIsMine);
+    if (due === "done") return;
     readAt.current = replyCount;
+    if (due === "covered") return;
     let left = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     engine.readThread(rootId).catch(() => {
@@ -148,7 +150,7 @@ export default function Thread({
       left = true;
       clearTimeout(timer);
     };
-  }, [decided, replyCount, unread, focused, active, engine, rootId, retries]);
+  }, [decided, replyCount, unread, newestIsMine, focused, active, engine, rootId, retries]);
   // A reply's activity is written after the reply goes out, so the read
   // above can land first and leave its item unread, with nothing changed
   // here to read again. The item's own event asks again, now or when the
@@ -165,9 +167,7 @@ export default function Thread({
     () => (decided ? threadRows(replies, firstNew ?? undefined).reverse() : []),
     [decided, replies, firstNew],
   );
-  // The latest rows, for a scroll retried after they may have shifted.
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  const retryScroll = useScrollRetry(list, rows);
 
   // Opening lands on the reply it was opened on, ringed for a moment, or
   // else the "New" line, once.
@@ -236,10 +236,6 @@ export default function Thread({
   // the space is, and the bell once the thread is on screen (with the
   // dock, where a refusal is said) with a summary to mute.
   const summary = !outcome && !thread?.outcome && decided ? root?.thread : undefined;
-  const mute =
-    header && summary
-      ? { muted: summary.muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
-      : undefined;
   const pushOnce = usePushOnce();
   const openSearch = useCallback(
     () =>
@@ -248,50 +244,49 @@ export default function Thread({
       ),
     [pushOnce, router, server.id, spaceId, channelId],
   );
-  // A direct message has no space to search, as on web.
-  const search = header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined;
-  const conversation = header?.dm ? headerPlace(header) : undefined;
-  const title = (
-    <Stack.Screen
-      options={{
-        headerTitle: () => (
-          <ThreadTitle channel={header?.channel} spaceName={header?.space?.name ?? ""} conversation={conversation} />
-        ),
-        ...(Platform.OS === "ios"
-          ? {
-              unstable_headerRightItems: () => [
-                ...(search ? [searchItem(search)] : []),
-                ...(mute ? [muteItem(mute)] : []),
-              ],
-            }
-          : {
-              headerRight: () => (
-                <View style={styles.headerItems}>
-                  {search && <SearchButton {...search} />}
-                  {mute && <MuteButton {...mute} />}
-                </View>
-              ),
-            }),
-      }}
-    />
-  );
-  if (outcome === "ended") {
+  // Muted says a summary is there, so a change to either is a change here.
+  const muted = summary?.muted;
+  // The same options while nothing they read changed: new ones are a
+  // setOptions, and this renders on every event in the channel and every
+  // step of the keyboard. All the header draws comes from what is listed.
+  const options = useMemo(() => {
+    const mute =
+      header && muted !== undefined
+        ? { muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
+        : undefined;
+    // A direct message has no space to search, as on web.
+    const search = header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined;
+    const conversation = header?.dm ? headerPlace(header) : undefined;
+    return {
+      headerTitle: () => (
+        <ThreadTitle channel={header?.channel} spaceName={header?.space?.name ?? ""} conversation={conversation} />
+      ),
+      ...(Platform.OS === "ios"
+        ? {
+            unstable_headerRightItems: () => [
+              ...(search ? [searchItem(search)] : []),
+              ...(mute ? [muteItem(mute)] : []),
+            ],
+          }
+        : {
+            headerRight: () => (
+              <View style={headerStyles.items}>
+                {search && <SearchButton {...search} />}
+                {mute && <MuteButton {...mute} />}
+              </View>
+            ),
+          }),
+    };
+  }, [header, muted, muting, toggleMute, openSearch]);
+  const title = <Stack.Screen options={options} />;
+  const retryOpen = () => {
+    if (outcome === "failed") engine.retry();
+    engine.retryThread(rootId);
+  };
+  if (outcome === "ended" || outcome === "gone") {
     return (
       <Screen title={title}>
-        <Unavailable
-          message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
-          action={{
-            label: "Sign in again",
-            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
-          }}
-        />
-      </Screen>
-    );
-  }
-  if (outcome === "gone") {
-    return (
-      <Screen title={title}>
-        <Unavailable message={`This ${spaceId ? "channel" : "conversation"} isn't available any more.`} />
+        <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
@@ -302,20 +297,10 @@ export default function Thread({
       </Screen>
     );
   }
-  const failed = outcome === "failed" || thread?.outcome === "failed";
-  if (failed) {
+  if (outcome === "failed" || thread?.outcome === "failed") {
     return (
       <Screen title={title}>
-        <Unavailable
-          message={`Couldn't reach ${hostOf(server.origin)}.`}
-          action={{
-            label: "Try again",
-            onPress: () => {
-              if (outcome === "failed") engine.retry();
-              engine.retryThread(rootId);
-            },
-          }}
-        />
+        <ChannelOutcome outcome="failed" server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
@@ -365,17 +350,7 @@ export default function Thread({
               }
               onEndReached={() => engine.olderReplies(rootId)}
               onEndReachedThreshold={0.5}
-              onScrollToIndexFailed={({ index }) => {
-                // Rows not measured yet: get near, then try again once drawn,
-                // for the same row, since a reply arriving may have moved it
-                // meanwhile (as the channel's does).
-                const key = rowsRef.current[index]?.key;
-                list.current?.scrollToOffset({ offset: index * 60, animated: false });
-                setTimeout(() => {
-                  const again = rowsRef.current.findIndex((row) => row.key === key);
-                  if (again >= 0) list.current?.scrollToIndex({ index: again, viewPosition: 0.5, animated: false });
-                }, 100);
-              }}
+              onScrollToIndexFailed={retryScroll}
               // As the channel's: scrolling leaves the keyboard in place.
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
               // Drawn upside down, so the top padding is the bottom edge, and
@@ -470,6 +445,15 @@ function Screen({ title, children }: { title: ReactNode; children: ReactNode }) 
   );
 }
 
+// Apart from the theme's: the header's options keep it.
+const headerStyles = StyleSheet.create({
+  items: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+});
+
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
     screen: {
@@ -481,11 +465,6 @@ function makeStyles(theme: Theme) {
     },
     edge: {
       marginVertical: 16,
-    },
-    headerItems: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
     },
     closed: {
       marginHorizontal: 16,

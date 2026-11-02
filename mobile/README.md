@@ -428,7 +428,8 @@ import a screen; the screens themselves live in `src/screens`, so
   worked out once from the root's unread count as the thread opens
   (`core/grouping` `firstUnreadReplyId`), and marks the thread read
   (`MarkThreadRead`) while on screen with the app open, again for each
-  new reply; the count clears there and on the channel's line, and on
+  new reply not the reader's own, whose send moved the marker already;
+  the count clears there and on the channel's line, and on
   a ThreadRead from another device. A new reply's event carries only the
   shared half of the summary, so the reader's count moves on by web's
   rule (`core/threadUnread`, which web runs too): a reply by someone
