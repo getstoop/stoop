@@ -1,8 +1,8 @@
 import { BIO_MAX, DISPLAY_NAME_MAX, PRONOUNS_MAX, profileEdits } from "@stoop/core/profile";
 import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
-import { Stack, useRouter } from "expo-router";
-import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Keyboard, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, BackHandler, Keyboard, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { authClient } from "../../api/clients";
 import { errorText, fieldOf, unreached } from "../../api/errors";
@@ -12,13 +12,16 @@ import { type Theme, tokens, useTheme } from "../../theme";
 import AvatarPicker from "./AvatarPicker";
 import Field from "./Field";
 import SaveButton from "./SaveButton";
+import { backOptions } from "./backOptions";
+import { confirmDiscard } from "./confirmDiscard";
 import { saveItem } from "./saveItem";
 
 // The form: one Save for all four fields, which wakes when any differs from
 // what the server has, and returns to You once the server has taken them. A
 // refusal goes under the field the server named; anything else, under the
 // fields, each brought into view; if the screen has been left by then, in an
-// alert. On iOS the scroll view makes room for the keyboard itself.
+// alert. Leaving with unsaved edits asks first. On iOS the scroll view makes
+// room for the keyboard itself.
 
 const SAVE_TIMEOUT_MS = 10000;
 
@@ -47,8 +50,8 @@ export default function ProfileForm({ server, token, me }: { server: SavedServer
 
   // Whether a save is out (a ref, so a second tap before the redraw sends
   // nothing), and whether the screen is still up. Leaving isn't blocked
-  // meanwhile: Android's stack doesn't hold up a blocked back (it crashed
-  // redrawing the header after one).
+  // meanwhile, and nothing is ever blocked natively: Android's stack doesn't
+  // hold up a blocked back (it crashed redrawing the header after one).
   const savingNow = useRef(false);
   const open = useRef(true);
   useEffect(
@@ -108,6 +111,24 @@ export default function ProfileForm({ server, token, me }: { server: SavedServer
     return () => cancelAnimationFrame(frame);
   }, [errors, formError]);
 
+  // Leaving asks while there are edits no save has taken; once one is out, or
+  // has worked, it just goes. Asking happens on the screen's own back button
+  // and Android's back, and iOS's swipe, which can't ask, is off meanwhile.
+  const unsaved = edits !== null && !saving;
+  const askToLeave = () => {
+    if (!unsaved) return false;
+    confirmDiscard(() => router.back());
+    return true;
+  };
+  const latestAsk = useRef(askToLeave);
+  latestAsk.current = askToLeave;
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => latestAsk.current());
+      return () => sub.remove();
+    }, []),
+  );
+
   // A field's refusal goes as soon as it is being put right.
   const editing = (field: FieldName, set: (value: string) => void) => (value: string) => {
     set(value);
@@ -121,10 +142,13 @@ export default function ProfileForm({ server, token, me }: { server: SavedServer
   const label = saving ? "Saving" : "Save";
   const options = useMemo(() => {
     const props = { label, disabled: !canSave, onPress: () => latestSave.current() };
+    const back = backOptions(() => {
+      if (!latestAsk.current()) router.back();
+    }, theme.text);
     return Platform.OS === "ios"
-      ? { unstable_headerRightItems: () => [saveItem(props, theme.accent)] }
-      : { headerRight: () => <SaveButton {...props} /> };
-  }, [label, canSave, theme.accent]);
+      ? { ...back, gestureEnabled: !unsaved, unstable_headerRightItems: () => [saveItem(props, theme.accent)] }
+      : { ...back, headerRight: () => <SaveButton {...props} /> };
+  }, [label, canSave, unsaved, router, theme.accent, theme.text]);
   return (
     <View style={[styles.screen, { paddingBottom: Platform.OS === "android" ? keyboard : 0 }]}>
       <Stack.Screen options={options} />
