@@ -35,7 +35,7 @@ import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed
 // could have read something held (core readMayClearActivity), a message
 // that may have an item was deleted (the server deletes its items and
 // says nothing of them), or a mute or a deleted channel made what is
-// held stale. Reading through markRead or readChannel stamps the items
+// held stale. CredentialRevoked says the session has ended. Reading through markRead or readChannel stamps the items
 // here as the server answers, since MarkActivityRead sends no event.
 
 export type Feed =
@@ -285,6 +285,9 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
   useServerEvents(server.id, (event: ServerEvent) => {
     const payload = event.payload;
     switch (payload.case) {
+      case "credentialRevoked":
+        end();
+        break;
       case "ready":
         if (readyDue.current) {
           clearTimeout(readyDue.current);

@@ -96,6 +96,12 @@ export default function Messages({ server }: { server: SavedServer }) {
     };
   }, [refresh]);
   useServerEvents(server.id, (event) => {
+    if (event.payload.case === "credentialRevoked") {
+      latest.current++;
+      clearTimeout(reload.current);
+      setView({ state: "ended" });
+      return;
+    }
     if (!touchesConversations(event)) return;
     clearTimeout(reload.current);
     reload.current = setTimeout(refresh, RELOAD_DELAY_MS);

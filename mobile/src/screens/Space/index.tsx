@@ -79,6 +79,12 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     };
   }, [refresh]);
   useServerEvents(server.id, (event) => {
+    if (event.payload.case === "credentialRevoked") {
+      latest.current++;
+      clearTimeout(reload.current);
+      setView({ state: "ended" });
+      return;
+    }
     if (!touchesSpace(event, spaceId)) return;
     clearTimeout(reload.current);
     reload.current = setTimeout(refresh, RELOAD_DELAY_MS);

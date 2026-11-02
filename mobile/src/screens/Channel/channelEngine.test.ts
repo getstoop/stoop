@@ -6,6 +6,7 @@ import { CHANNEL, id, ids, message, page, rows } from "@stoop/core/channelLog/te
 import { NO_CHANNELS } from "@stoop/core/mentions";
 import { ChannelSchema } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { SpaceSchema } from "@stoop/gen/stoop/chat/v1/space_pb";
+import { CredentialRevokedSchema, type ServerEvent, ServerEventSchema } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   loadAround,
@@ -86,6 +87,27 @@ afterEach(() => {
 });
 
 const refuse = (message: string, code: Code) => vi.mocked(sendMessage).mockRejectedValue(new ConnectError(message, code));
+
+describe("the socket saying the session has ended", () => {
+  it("ends the session as a refused request does", async () => {
+    vi.mocked(loadChannel).mockResolvedValue({
+      header,
+      page: page(rows(10, 20), { hasOlder: true, channelSeq: 20 }),
+      found: false,
+    });
+    let say: (event: ServerEvent) => void = () => {};
+    const { engine, release } = holdEngine(
+      channelEngine(SERVER, "s1", CHANNEL, (_serverId, listener) => {
+        say = listener;
+        return () => {};
+      }),
+    );
+    await vi.waitFor(() => expect(engine.current().header).not.toBeNull());
+    say(create(ServerEventSchema, { payload: { case: "credentialRevoked", value: create(CredentialRevokedSchema) } }));
+    expect(engine.current().outcome).toBe("ended");
+    release();
+  });
+});
 
 describe("a refused send", () => {
   it.each([

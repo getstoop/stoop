@@ -58,6 +58,21 @@ class FakeSocket {
   }
 }
 vi.stubGlobal("WebSocket", FakeSocket);
+// What the socket asks after a dial that never opened: the keychain's token
+// that is over on this server, by bearer, and everything else out of reach.
+const over = new Set<string>();
+// What the answer waits on, for a test that needs it still out.
+let answerWhen = Promise.resolve();
+vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+  await answerWhen;
+  if (!over.has(new Headers(init?.headers).get("Authorization") ?? "")) {
+    throw new TypeError("Network request failed");
+  }
+  return new Response(JSON.stringify({ code: "unauthenticated", message: "authentication required" }), {
+    status: 401,
+    headers: { "Content-Type": "application/json" },
+  });
+});
 // react-dom looks for a window as it loads, and for this much of an element
 // to render into. The tree draws nothing, so nothing else is asked of them.
 vi.stubGlobal("window", {});
@@ -149,6 +164,7 @@ describe("RealtimeProvider", () => {
   beforeEach(() => {
     log.length = 0;
     heard.length = 0;
+    over.clear();
     keychain.clear();
     FakeSocket.opened = [];
     root = createRoot(container);
@@ -198,6 +214,77 @@ describe("RealtimeProvider", () => {
       expect(voices[ALPHA.id]).toBeUndefined();
       expect(dots[BETA.id]).toMatchObject({ online: true });
       expect(voices[BETA.id]).toBeDefined();
+    });
+  });
+
+  describe("when a session ends", () => {
+    const refuse = (bearer: string) => act(async () => on(bearer)?.onclose?.({ code: 1006 }));
+
+    it("tells that server's screens on a 4001, and no other server's", async () => {
+      await draw(ALPHA, BETA);
+      await speak("two", ready("sam"));
+      await act(async () => on("one")?.onclose?.({ code: 4001 }));
+      expect(heard).toEqual(["aaaaaa/1 credentialRevoked"]);
+      expect(dots[BETA.id]).toMatchObject({ online: true });
+    });
+
+    it("tells them when the server refuses the dial and then says Unauthenticated", async () => {
+      await draw(ALPHA, BETA);
+      over.add("Bearer one");
+      await refuse("one");
+      expect(heard).toEqual(["aaaaaa/1 credentialRevoked"]);
+      expect(dots[ALPHA.id]).toBeUndefined();
+      expect(voices[ALPHA.id]).toBeUndefined();
+    });
+
+    it("tells them nothing when the server can't be reached", async () => {
+      await draw(ALPHA, BETA);
+      await refuse("one");
+      expect(heard).toEqual([]);
+    });
+
+    it("dials once and stops on coming back to the app", async () => {
+      await draw(ALPHA, BETA);
+      await appGoes("background");
+      over.add("Bearer one");
+      heard.length = 0;
+      log.length = 0;
+      await appGoes("active");
+      await refuse("one");
+      expect(heard).toEqual(["aaaaaa/1 credentialRevoked"]);
+      expect(log.filter((line) => line === "dial Bearer one")).toHaveLength(1);
+    });
+
+    it("leaves a new sign-in's stack alone, and opens a socket for it", async () => {
+      await draw(ALPHA, BETA);
+      over.add("Bearer one");
+      await refuse("one");
+      heard.length = 0;
+      log.length = 0;
+      keep(ALPHA, "three");
+      await draw({ ...ALPHA, session: 2 }, BETA);
+      expect(log).toEqual(["subscribe aaaaaa/2", "dial Bearer three"]);
+      await speak("three", ready("sam"));
+      expect(heard).toEqual(["aaaaaa/2 ready"]);
+    });
+
+    it("says nothing to a new sign-in about the session it replaced", async () => {
+      await draw(ALPHA, BETA);
+      const old = on("one");
+      over.add("Bearer one");
+      let answer = () => {};
+      answerWhen = new Promise((resolve) => {
+        answer = resolve;
+      });
+      await act(async () => old?.onclose?.({ code: 1006 }));
+      keep(ALPHA, "three");
+      await draw({ ...ALPHA, session: 2 }, BETA);
+      await act(async () => {
+        answer();
+        old?.onclose?.({ code: 4001 });
+      });
+      answerWhen = Promise.resolve();
+      expect(heard).toEqual([]);
     });
   });
 
