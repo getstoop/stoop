@@ -34,7 +34,7 @@ import MessageRow from "./MessageRow";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
 import type { ChannelEngine } from "./channelEngine";
-import { readPass } from "./readPass";
+import { readArrived, readShown } from "./readPass";
 import { threadRoute } from "./routes";
 import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
@@ -197,25 +197,21 @@ export default function Channel({
   const newestId = messages.at(-1)?.id ?? "";
   const owing = log.needsCatchUp;
   useEffect(() => {
-    if (!focused || !active || hasNewer || owing) looked.current = false;
-    if (!newestId || !token || !focused || !active || !header || hasNewer) return;
-    const pass = readPass(newestId, header.channel.lastReadMessageId, marked.current, looked.current, owing);
-    if (!pass) return;
-    if (!owing) looked.current = true;
-    if (pass.moveMarker) marked.current = newestId;
-    const read = pass.readActivity
-      ? readChannel(channelId).catch(() => {
-          looked.current = false;
-          return 0;
-        })
-      : Promise.resolve(0);
-    read
-      .then((count) => {
-        if (pass.moveMarker || count > 0) return markRead(server.origin, token, channelId, newestId);
-      })
-      .catch(() => {
-        if (marked.current === newestId) marked.current = "";
-      });
+    void readShown(
+      { looked, marked },
+      {
+        loaded: !!newestId && !!token && !!header,
+        newestId,
+        readTo: header?.channel.lastReadMessageId ?? "",
+        onScreen: focused && active,
+        hasNewer,
+        owing,
+      },
+      {
+        readActivity: () => readChannel(channelId),
+        moveMarker: () => markRead(server.origin, token, channelId, newestId),
+      },
+    );
   }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, owing, readChannel]);
   // A mention arriving here while it is read is recorded after its
   // message goes out, so the pass above can miss it: its own event reads
@@ -225,11 +221,9 @@ export default function Channel({
     const item = event.payload.value.item;
     if (!item || item.channelId !== channelId || item.threadRootId || item.readAt) return;
     if (!token || !focused || !active || hasNewer) return;
-    readActivity([item.id])
-      .then(() => markRead(server.origin, token, channelId, item.messageId))
-      .catch(() => {
-        looked.current = false;
-      });
+    void readArrived(looked, () =>
+      readActivity([item.id]).then(() => markRead(server.origin, token, channelId, item.messageId)),
+    );
   });
 
   // Newest first, for a list drawn from the bottom up. Of the header only

@@ -1,5 +1,8 @@
-// What a pass of the channel screen's reading does, once the screen is
-// showing the channel's newest row with the app open.
+// How the channel screen reads what it shows: this holds every rule, and
+// the screen hands it the facts and the requests.
+
+// What a pass does, once the screen is showing the channel's newest row
+// with the app open.
 //
 // moveMarker: the newest row is past the reader's marker. Moving it also
 // reads, on the server, the activity about every message it passes
@@ -27,4 +30,72 @@ export function readPass(
   const moveMarker = newestId > readTo && newestId > marked;
   if (!moveMarker && (looked || owing)) return null;
   return { moveMarker, readActivity: !looked };
+}
+
+// What the screen remembers between passes: whether the channel's activity
+// has been read since it came on screen, and the marker it moved. Refs, so
+// the screen can start them afresh for another channel.
+export type ReadMemory = {
+  looked: { current: boolean };
+  marked: { current: string };
+};
+
+export type Shown = {
+  // The newest row, the marker and the session are all there.
+  loaded: boolean;
+  newestId: string;
+  readTo: string;
+  // The screen is on top with the app open.
+  onScreen: boolean;
+  // The range stops short of the newest message, whose newest row is not
+  // the channel's. An item arriving then is not read by its event.
+  hasNewer: boolean;
+  // A catch-up is owed, after a reconnect or a gap in the events.
+  owing: boolean;
+};
+
+export type ReadRequests = {
+  readActivity: () => Promise<number>;
+  moveMarker: () => Promise<unknown>;
+};
+
+// Whether what arrived has still been read: not while the screen could
+// not read it.
+export const stillLooked = (looked: boolean, { onScreen, hasNewer, owing }: Shown) =>
+  looked && onScreen && !hasNewer && !owing;
+
+// One pass over what the screen shows. A feed read that fails lets the
+// next pass go again; a marker that fails can be moved again.
+export function readShown(memory: ReadMemory, shown: Shown, requests: ReadRequests): Promise<void> | undefined {
+  const { looked, marked } = memory;
+  looked.current = stillLooked(looked.current, shown);
+  if (!shown.loaded || !shown.onScreen || shown.hasNewer) return;
+  const pass = readPass(shown.newestId, shown.readTo, marked.current, looked.current, shown.owing);
+  if (!pass) return;
+  if (!shown.owing) looked.current = true;
+  if (pass.moveMarker) marked.current = shown.newestId;
+  const read = pass.readActivity
+    ? requests.readActivity().catch(() => {
+        looked.current = false;
+        return 0;
+      })
+    : Promise.resolve(0);
+  return read
+    .then(async (count) => {
+      if (pass.moveMarker || count > 0) await requests.moveMarker();
+    })
+    .catch(() => {
+      if (marked.current === shown.newestId) marked.current = "";
+    });
+}
+
+// An item its own event reads, the same way: a failure lets the next pass
+// go again.
+export function readArrived(looked: ReadMemory["looked"], read: () => Promise<unknown>): Promise<void> {
+  return read().then(
+    () => {},
+    () => {
+      looked.current = false;
+    },
+  );
 }
