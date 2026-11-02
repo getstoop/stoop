@@ -32,6 +32,7 @@ export default function SwipeToRemove({
       friction={1}
       rightThreshold={ACTION_WIDTH / 2}
       containerStyle={styles.behind}
+      childrenContainerStyle={styles.front}
       renderRightActions={(_progress, translation) => (
         <RemoveAction name={name} translation={translation} onPress={onRemove} />
       )}
@@ -47,6 +48,10 @@ function makeStyles(theme: Theme) {
   return StyleSheet.create({
     behind: {
       backgroundColor: theme.raised,
+    },
+    // Solid under the row, whose pressed colour can let Remove show through.
+    front: {
+      backgroundColor: theme.panel,
     },
   });
 }
