@@ -149,8 +149,72 @@ describe("older pages", () => {
     expect(
       screenReducer(screenReducer(ready, { type: "pagingOlder" }), {
         type: "pageFailed",
+        generation: ready.log.channel.generation,
+        at: 1000,
       }).loadingOlder,
     ).toBe(false);
+  });
+
+  it("remembers a failure until a page is next asked for, or lands", () => {
+    const generation = ready.log.channel.generation;
+    const failed = run(
+      [{ type: "pagingOlder" }, { type: "pageFailed", generation, at: 1000 }],
+      ready,
+    );
+    expect(failed.olderFailedAt).toBe(1000);
+    expect(failed.newerFailedAt).toBeNull();
+    const again = screenReducer(failed, { type: "pagingOlder" });
+    expect(again.olderFailedAt).toBeNull();
+    expect(again.loadingOlder).toBe(true);
+    expect(
+      screenReducer(again, { type: "pageFailed", generation, at: 2000 })
+        .olderFailedAt,
+    ).toBe(2000);
+    expect(
+      screenReducer(again, {
+        type: "paged",
+        generation,
+        res: page(rows(0, 0), { hasOlder: false }),
+      }).olderFailedAt,
+    ).toBeNull();
+  });
+
+  it("says nothing of the range now shown for a failure under one replaced", () => {
+    const failed = run(
+      [
+        { type: "pagingOlder" },
+        {
+          type: "pageFailed",
+          generation: ready.log.channel.generation - 1,
+          at: 1000,
+        },
+      ],
+      ready,
+    );
+    expect(failed.loadingOlder).toBe(false);
+    expect(failed.olderFailedAt).toBeNull();
+  });
+
+  it("forgets a failure when the range is replaced", () => {
+    const generation = ready.log.channel.generation;
+    const failed = run(
+      [
+        { type: "pageFailed", generation, at: 1000 },
+        { type: "newerFailed", generation, at: 1000 },
+      ],
+      ready,
+    );
+    const jumped = screenReducer(failed, {
+      type: "jumped",
+      generation,
+      res: page(rows(20, 30), { hasOlder: true, hasNewer: true }),
+      landOn: { id: id(25) },
+    });
+    expect(jumped.olderFailedAt).toBeNull();
+    expect(jumped.newerFailedAt).toBeNull();
+    const reopened = screenReducer(failed, opened(generation));
+    expect(reopened.olderFailedAt).toBeNull();
+    expect(reopened.newerFailedAt).toBeNull();
   });
 });
 
@@ -239,9 +303,34 @@ describe("newer pages", () => {
     expect(stale.log.channel.hasNewer).toBe(true);
     const failed = screenReducer(screenReducer(away, { type: "pagingNewer" }), {
       type: "newerFailed",
+      generation: away.log.channel.generation,
+      at: 1000,
     });
     expect(failed.loadingNewer).toBe(false);
+    expect(failed.newerFailedAt).toBe(1000);
     expect(shown(failed)).toEqual(shown(away));
+    const replaced = run(
+      [
+        { type: "pagingNewer" },
+        {
+          type: "newerFailed",
+          generation: away.log.channel.generation - 1,
+          at: 1000,
+        },
+      ],
+      away,
+    );
+    expect(replaced.loadingNewer).toBe(false);
+    expect(replaced.newerFailedAt).toBeNull();
+    const again = screenReducer(failed, { type: "pagingNewer" });
+    expect(again.newerFailedAt).toBeNull();
+    expect(
+      screenReducer(again, {
+        type: "pagedNewer",
+        generation: away.log.channel.generation,
+        res: page(rows(70, 80), { hasNewer: true }),
+      }).newerFailedAt,
+    ).toBeNull();
   });
 });
 
@@ -798,6 +887,7 @@ describe("a thread over the channel", () => {
     expect(state.threads[root]).toEqual({
       outcome: null,
       loadingOlder: false,
+      olderFailedAt: null,
       epoch: 1,
     });
   });
@@ -876,6 +966,46 @@ describe("a thread over the channel", () => {
     expect(ids(threadItems(grown.log, root))).toEqual([root, "r1", "r2"]);
     expect(grown.threads[root].loadingOlder).toBe(false);
     expect(grown.log.threads[root].hasOlder).toBe(false);
+  });
+
+  it("remembers a failed page of replies until one is next asked for, for this opening only", () => {
+    const paging = run(
+      [
+        { type: "threadOpening", rootId: root },
+        {
+          type: "threadOpened",
+          epoch: 1,
+          rootId: root,
+          generation: 0,
+          res: page([reply(2, 12)], { hasOlder: true, channelSeq: 12 }),
+        },
+        { type: "threadPagingOlder", rootId: root },
+      ],
+      ready,
+    );
+    const generation = paging.log.threads[root].generation;
+    const failed = screenReducer(paging, {
+      type: "threadPageFailed",
+      rootId: root,
+      epoch: 1,
+      generation,
+      at: 1000,
+    });
+    expect(failed.threads[root].loadingOlder).toBe(false);
+    expect(failed.threads[root].olderFailedAt).toBe(1000);
+    expect(
+      screenReducer(failed, { type: "threadPagingOlder", rootId: root })
+        .threads[root].olderFailedAt,
+    ).toBeNull();
+    const earlier = screenReducer(paging, {
+      type: "threadPageFailed",
+      rootId: root,
+      epoch: 0,
+      generation,
+      at: 1000,
+    });
+    expect(earlier.threads[root].loadingOlder).toBe(false);
+    expect(earlier.threads[root].olderFailedAt).toBeNull();
   });
 
   it("keeps what it shows when the server can't be reached, and says when its root is gone", () => {

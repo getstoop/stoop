@@ -64,6 +64,17 @@ import type { SavedServer } from "../../servers";
 const RETRY_BASE_MS = 1000;
 const RETRY_CAP_MS = 15_000;
 
+// How long after a failed page the list's own asking at that edge gets no
+// request. The list asks once per content length, and the spinner going
+// and the retry row coming each change that, so without this every failure
+// asks again at once. Once this has passed nothing asks until the list
+// next moves or grows: the row stays drawn, so its length holds still. The
+// reader's tap on the row needs no wait (retryOlder, retryNewer,
+// retryOlderReplies).
+const PAGE_COOLDOWN_MS = 10_000;
+
+const cooledDown = (failedAt: number | null) => failedAt === null || Date.now() - failedAt >= PAGE_COOLDOWN_MS;
+
 // Why a load failed, as the screen shows it.
 function outcomeOf(err: unknown): Outcome {
   if (err instanceof ChannelGone) return "gone";
@@ -88,6 +99,16 @@ const denied = (err: unknown) => err instanceof ConnectError && err.code === Cod
 // NotFound is the message's, not the channel's, and PermissionDenied says
 // what the reader may do to it.
 const ended = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
+
+// What a failed page says beyond its own failure, when a retry can't help:
+// the sign-in has ended, or what was being paged is gone (the cursors in a
+// page's request aren't looked up, so NotFound is never about those). Not
+// outcomeOf, which takes PermissionDenied as gone. A send leaves that to its
+// caller because it is about the write (denied); on a read it may be about
+// the channel, but permission errors must not fail destructively, and how
+// background reads treat them is still undecided (STOOPMOBIL-18), so a page
+// refused that way keeps the retry row.
+const pageOutcome = (err: unknown): "ended" | "gone" | null => (ended(err) ? "ended" : notFound(err) ? "gone" : null);
 
 // Whether another older page of replies fits in a thread's view. A view
 // holds at most LOG_CAP rows and a page past that prunes the newest, the
@@ -580,10 +601,16 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       };
     },
 
+    // The list reached its oldest edge: the page above it, unless the last
+    // one failed too recently.
+    async older(): Promise<void> {
+      if (cooledDown(state.olderFailedAt)) await self.retryOlder();
+    },
+
     // The page above the oldest message held, once at a time. Past the
     // view's cap the newest end goes and the range stops short of the
     // newest row; the pill brings the reader back (jumpToLatest).
-    async older() {
+    async retryOlder() {
       const mine = life;
       const { log, token, loadingOlder } = state;
       const view = log.channel;
@@ -592,16 +619,24 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       try {
         const res = await loadOlder(server.origin, token, channelId, view.oldestId);
         if (!mine.ended) dispatch({ type: "paged", res, generation: view.generation });
-      } catch {
-        if (!mine.ended) dispatch({ type: "pageFailed" });
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch({ type: "pageFailed", generation: view.generation, at: Date.now() });
+        const outcome = pageOutcome(err);
+        if (outcome) dispatch({ type: "failed", outcome });
       }
+    },
+
+    // The list reached its newest edge, the same way.
+    async newer(): Promise<void> {
+      if (cooledDown(state.newerFailedAt)) await self.retryNewer();
     },
 
     // The page below the newest message held, while the range stops short
     // of the newest row, the same way; past the cap the oldest end goes.
     // Not while a landing is owed: the list reports its newest edge
     // reached as a replaced range lays out, before the landing scroll.
-    async newer() {
+    async retryNewer() {
       const mine = life;
       const { log, token, loadingNewer, landOn } = state;
       const view = log.channel;
@@ -610,8 +645,11 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       try {
         const res = await loadNewer(server.origin, token, channelId, view.newestId);
         if (!mine.ended) dispatch({ type: "pagedNewer", res, generation: view.generation });
-      } catch {
-        if (!mine.ended) dispatch({ type: "newerFailed" });
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch({ type: "newerFailed", generation: view.generation, at: Date.now() });
+        const outcome = pageOutcome(err);
+        if (outcome) dispatch({ type: "failed", outcome });
       }
     },
 
@@ -660,8 +698,13 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       dispatch({ type: "landed" });
     },
 
+    // The thread's list reached its oldest edge, the same way.
+    async olderReplies(rootId: string): Promise<void> {
+      if (cooledDown(state.threads[rootId]?.olderFailedAt ?? null)) await self.retryOlderReplies(rootId);
+    },
+
     // The thread's replies above the oldest held, the same way.
-    async olderReplies(rootId: string) {
+    async retryOlderReplies(rootId: string) {
       const mine = life;
       const { log, threads } = state;
       const view = log.threads[rootId];
@@ -673,8 +716,14 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         if (!mine.ended) {
           dispatch({ type: "threadPaged", rootId, epoch: thread.epoch, res, generation: view.generation });
         }
-      } catch {
-        if (!mine.ended) dispatch({ type: "threadPageFailed", rootId });
+      } catch (err) {
+        if (mine.ended) return;
+        dispatch({ type: "threadPageFailed", rootId, epoch: thread.epoch, generation: view.generation, at: Date.now() });
+        // As openThread: a NotFound here may be the root's, so it is the
+        // thread that is gone, not the channel.
+        const outcome = pageOutcome(err);
+        if (outcome === "ended") dispatch({ type: "failed", outcome });
+        else if (outcome) dispatch({ type: "threadFailed", rootId, outcome });
       }
     },
 

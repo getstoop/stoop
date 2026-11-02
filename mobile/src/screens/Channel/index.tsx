@@ -31,6 +31,7 @@ import Divider from "./Divider";
 import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
+import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
 import SearchButton from "./SearchButton";
 import Unavailable from "./Unavailable";
@@ -456,7 +457,11 @@ export default function Channel({
                 autoscrollToTopThreshold: hasNewer ? undefined : AT_LATEST,
               }}
               ListHeaderComponent={
-                state.loadingNewer ? <ActivityIndicator style={styles.edge} color={theme.textMuted} /> : undefined
+                state.loadingNewer ? (
+                  <ActivityIndicator style={styles.edge} color={theme.textMuted} />
+                ) : hasNewer && state.newerFailedAt !== null ? (
+                  <PageRetry onPress={engine.retryNewer} />
+                ) : undefined
               }
               ListFooterComponent={
                 loadingOlder ? (
@@ -466,6 +471,8 @@ export default function Channel({
                     {messages.length === 0 ? "No messages yet. " : ""}
                     {headerBeginning(header)}
                   </Text>
+                ) : state.olderFailedAt !== null ? (
+                  <PageRetry onPress={engine.retryOlder} />
                 ) : undefined
               }
             />
