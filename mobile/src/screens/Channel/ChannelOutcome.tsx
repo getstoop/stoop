@@ -1,6 +1,6 @@
 import type { Outcome } from "@stoop/core/channelScreen";
-import { useRouter } from "expo-router";
 import { hostOf } from "../../api/probe";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import Unavailable from "./Unavailable";
 
@@ -18,14 +18,14 @@ export default function ChannelOutcome({
   spaceId: string;
   onRetry: () => void;
 }) {
-  const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   if (outcome === "ended") {
     return (
       <Unavailable
         message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
         action={{
           label: "Sign in again",
-          onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+          onPress: signInAgain,
         }}
       />
     );

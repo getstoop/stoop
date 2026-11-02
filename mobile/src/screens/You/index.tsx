@@ -6,6 +6,7 @@ import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import { type SavedServer, useServers } from "../../servers";
 import { useWaiting } from "../../servers/useWaiting";
@@ -36,6 +37,7 @@ export default function You({ server }: { server: SavedServer }) {
   const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   const pushOnce = usePushOnce();
   const [view, setView] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
@@ -127,7 +129,7 @@ export default function You({ server }: { server: SavedServer }) {
             message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
             action={{
               label: "Sign in again",
-              onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+              onPress: signInAgain,
             }}
           />
         )}

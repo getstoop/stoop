@@ -1,9 +1,9 @@
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
 import TabNotice from "../../components/TabNotice";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { type Theme, useTheme } from "../../theme";
 import ProfileForm from "./ProfileForm";
@@ -16,7 +16,7 @@ type State = { state: "loading" } | SignedInMe;
 export default function EditProfile({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   const [view, setView] = useState<State>({ state: "loading" });
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function EditProfile({ server }: { server: SavedServer }) {
           message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
           action={{
             label: "Sign in again",
-            onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+            onPress: signInAgain,
           }}
         />
       )}

@@ -18,6 +18,7 @@ import { hostOf } from "../../api/probe";
 import { loadSearchScope, type SearchScope } from "../../api/search";
 import { sessionToken } from "../../api/servers";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import EdgeFade from "../Channel/EdgeFade";
@@ -77,6 +78,7 @@ export default function Search({
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
+  const signInAgain = useSignInAgain(server.origin);
   const insets = useSafeAreaInsets();
   const pushOnce = usePushOnce();
   const [view, setView] = useState<ScopeState>({ state: "loading" });
@@ -176,7 +178,7 @@ export default function Search({
         message={`Your sign-in to ${server.name} has ended. Sign in again to carry on.`}
         action={{
           label: "Sign in again",
-          onPress: () => router.replace({ pathname: "/sign-in", params: { server: server.origin } }),
+          onPress: signInAgain,
         }}
       />
     );
