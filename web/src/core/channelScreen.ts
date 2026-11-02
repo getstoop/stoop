@@ -52,6 +52,8 @@ export type Landing = { id: string } | "bottom";
 export type ThreadScreen = {
   outcome: "gone" | "failed" | null;
   loadingOlder: boolean;
+  // As the channel's olderFailedAt.
+  olderFailedAt: number | null;
   // Which opening of the thread this is: a page asked for under an
   // earlier one (the thread closed and opened again since, its view's
   // generation counting afresh) is dropped.
@@ -72,6 +74,12 @@ export type ChannelScreen = {
   // A page beyond the newest edge is out: only while the channel's range
   // stops short of the newest row (hasNewer).
   loadingNewer: boolean;
+  // When the page last asked for at each edge failed, until a page is
+  // next asked for there or the range is replaced: the screen offers a
+  // retry for as long as it is set, and the engine holds off the list's
+  // own asking for a while after it.
+  olderFailedAt: number | null;
+  newerFailedAt: number | null;
   landOn: Landing | null;
   threads: Record<string, ThreadScreen>;
   // The last thread opening's epoch.
@@ -104,13 +112,15 @@ export type ScreenAction =
   // Under the view's generation when the page was asked for; the log drops
   // one for a range since replaced.
   | { type: "paged"; res: ListMessagesResponse; generation: number }
-  | { type: "pageFailed" }
+  // A failure under a generation since replaced says nothing of the
+  // range now shown, so it only ends the loading.
+  | { type: "pageFailed"; generation: number; at: number }
   // The page beyond the newest edge of a range that stops short of the
   // newest row, the same way: it grows the range and, at the newest row,
   // the channel is live again.
   | { type: "pagingNewer" }
   | { type: "pagedNewer"; res: ListMessagesResponse; generation: number }
-  | { type: "newerFailed" }
+  | { type: "newerFailed"; generation: number; at: number }
   // A page that replaces the channel's range once open (channelLog
   // jumped): the page around a message jumped to, or the newest page
   // again from a range that stopped short of it. Under the view's
@@ -186,7 +196,13 @@ export type ScreenAction =
       res: ListMessagesResponse;
       generation: number;
     }
-  | { type: "threadPageFailed"; rootId: string }
+  | {
+      type: "threadPageFailed";
+      rootId: string;
+      epoch: number;
+      generation: number;
+      at: number;
+    }
   // The thread screen has gone: the view goes with the rows only it kept.
   | { type: "threadClosed"; rootId: string }
   // The reader's own MarkThreadRead, answered: nothing in it is new.
@@ -203,6 +219,8 @@ export const emptyScreen = (channelId: string): ChannelScreen => ({
   newAfter: null,
   loadingOlder: false,
   loadingNewer: false,
+  olderFailedAt: null,
+  newerFailedAt: null,
   landOn: null,
   threads: {},
   threadEpoch: 0,
@@ -231,6 +249,8 @@ export function screenReducer(
         newAfter: state.header
           ? state.newAfter
           : action.header.channel.lastReadMessageId,
+        olderFailedAt: null,
+        newerFailedAt: null,
         landOn: action.landOn ?? state.landOn,
       };
     case "header":
@@ -242,7 +262,7 @@ export function screenReducer(
     case "retried":
       return state.outcome === "failed" ? { ...state, outcome: null } : state;
     case "pagingOlder":
-      return { ...state, loadingOlder: true };
+      return { ...state, loadingOlder: true, olderFailedAt: null };
     case "paged":
       return {
         ...state,
@@ -251,11 +271,19 @@ export function screenReducer(
           res: action.res,
         }),
         loadingOlder: false,
+        olderFailedAt: null,
       };
     case "pageFailed":
-      return { ...state, loadingOlder: false };
+      return {
+        ...state,
+        loadingOlder: false,
+        olderFailedAt:
+          action.generation === state.log.channel.generation
+            ? action.at
+            : state.olderFailedAt,
+      };
     case "pagingNewer":
-      return { ...state, loadingNewer: true };
+      return { ...state, loadingNewer: true, newerFailedAt: null };
     case "pagedNewer":
       return {
         ...state,
@@ -264,9 +292,17 @@ export function screenReducer(
           res: action.res,
         }),
         loadingNewer: false,
+        newerFailedAt: null,
       };
     case "newerFailed":
-      return { ...state, loadingNewer: false };
+      return {
+        ...state,
+        loadingNewer: false,
+        newerFailedAt:
+          action.generation === state.log.channel.generation
+            ? action.at
+            : state.newerFailedAt,
+      };
     case "jumped":
       if (state.outcome === "gone" || state.outcome === "ended") return state;
       if (action.generation !== state.log.channel.generation) return state;
@@ -276,6 +312,8 @@ export function screenReducer(
           generation: action.generation,
           res: action.res,
         }),
+        olderFailedAt: null,
+        newerFailedAt: null,
         landOn: action.landOn,
       };
     case "land":
@@ -363,6 +401,7 @@ export function screenReducer(
       return withThread({ ...state, threadEpoch: epoch }, action.rootId, {
         outcome: null,
         loadingOlder: false,
+        olderFailedAt: null,
         epoch,
       });
     }
@@ -385,6 +424,7 @@ export function screenReducer(
       return withThread({ ...state, log }, action.rootId, {
         ...thread,
         outcome: null,
+        olderFailedAt: null,
       });
     }
     case "threadFailed": {
@@ -403,7 +443,11 @@ export function screenReducer(
     case "threadPagingOlder": {
       const thread = state.threads[action.rootId];
       return thread
-        ? withThread(state, action.rootId, { ...thread, loadingOlder: true })
+        ? withThread(state, action.rootId, {
+            ...thread,
+            loadingOlder: true,
+            olderFailedAt: null,
+          })
         : state;
     }
     case "threadPaged": {
@@ -417,13 +461,20 @@ export function screenReducer(
       return withThread({ ...state, log }, action.rootId, {
         ...thread,
         loadingOlder: false,
+        olderFailedAt: null,
       });
     }
     case "threadPageFailed": {
       const thread = state.threads[action.rootId];
-      return thread
-        ? withThread(state, action.rootId, { ...thread, loadingOlder: false })
-        : state;
+      if (!thread) return state;
+      const same =
+        thread.epoch === action.epoch &&
+        viewOf(state.log, action.rootId)?.generation === action.generation;
+      return withThread(state, action.rootId, {
+        ...thread,
+        loadingOlder: false,
+        olderFailedAt: same ? action.at : thread.olderFailedAt,
+      });
     }
     case "threadClosed": {
       if (!(action.rootId in state.threads)) return state;
@@ -464,6 +515,7 @@ function withThread(
     held &&
     held.outcome === thread.outcome &&
     held.loadingOlder === thread.loadingOlder &&
+    held.olderFailedAt === thread.olderFailedAt &&
     held.epoch === thread.epoch
   )
     return state;

@@ -22,6 +22,7 @@ import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
+import PageRetry from "../Channel/PageRetry";
 import Composer from "../Channel/Composer";
 import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
@@ -382,6 +383,8 @@ export default function Thread({
                     onReact={actions.reactTo}
                     target={actions.targetOf(root)}
                   />
+                ) : thread && thread.olderFailedAt !== null ? (
+                  <PageRetry onPress={() => engine.retryOlderReplies(rootId)} />
                 ) : undefined
               }
             />
