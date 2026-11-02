@@ -1,12 +1,9 @@
-import { Code, ConnectError } from "@connectrpc/connect";
-import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loadMe } from "../../api/me";
+import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
-import { sessionToken } from "../../api/servers";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
@@ -31,14 +28,8 @@ import SignOutButton from "./SignOutButton";
 
 const RELOAD_DELAY_MS = 300;
 
-type State =
-  | { state: "loading" }
-  | { state: "ready"; token: string; user: User }
-  // As the Spaces tab: only the server saying the session is over counts
-  // as signed out.
-  | { state: "ended" }
-  // Never loaded; a later load that fails keeps what was shown.
-  | { state: "failed" };
+// Failed: never loaded; a later load that fails keeps what was shown.
+type State = { state: "loading" } | SignedInMe;
 
 export default function You({ server }: { server: SavedServer }) {
   const theme = useTheme();
@@ -51,17 +42,6 @@ export default function You({ server }: { server: SavedServer }) {
   const [themeName] = useThemeName();
   const themeLabel = themeList.find((t) => t.name === themeName)?.label ?? themeName;
 
-  const load = useCallback(async (): Promise<State> => {
-    const token = await sessionToken(server.id).catch(() => null);
-    if (!token) return { state: "ended" };
-    try {
-      const user = await loadMe(server.origin, token);
-      return user ? { state: "ready", token, user } : { state: "ended" };
-    } catch (err) {
-      return err instanceof ConnectError && err.code === Code.Unauthenticated ? { state: "ended" } : { state: "failed" };
-    }
-  }, [server]);
-
   const { servers } = useServers();
   const { waiting, refresh: refreshWaiting } = useWaiting(servers, server.id);
 
@@ -70,10 +50,10 @@ export default function You({ server }: { server: SavedServer }) {
   const latest = useRef(0);
   const refresh = useCallback(async () => {
     const mine = ++latest.current;
-    const next = await load();
+    const next = await loadSignedInMe(server);
     if (mine !== latest.current) return;
     setView((held) => (next.state === "failed" && held.state === "ready" ? held : next));
-  }, [load]);
+  }, [server]);
 
   // Coming back into view: from another tab, or from Edit with what was
   // just saved, which no event says (a name, pronouns). This is also what
