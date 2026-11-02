@@ -389,7 +389,10 @@ export default forwardRef<
   const raised = glass ? styles.glassRaised : styles.raised;
   const waiting = attachments.uploading && !editing;
   const openAttach = () => attachments.openSheet(writing);
-  const sheet = attachments.attaching && <AttachSheet onClose={attachments.sheetClosed} />;
+  // Keyed, so it stays the same sheet when the field's blur swaps the card
+  // for the pill, which hold it at different positions. Remounted, the iOS
+  // modal being dismissed reports its dismissal to the new sheet.
+  const sheet = attachments.attaching && <AttachSheet key="attach-sheet" onClose={attachments.sheetClosed} />;
 
   if (!writing) {
     const words = plainText(draft);
