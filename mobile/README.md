@@ -22,7 +22,7 @@ pasted or handed over by the web's open-in-app page. A signed-in server opens
 on four tabs: Spaces, listing the server's spaces with their mention
 badges, unread dots and mutes, each opening its channels (text channels
 with what is waiting in each, voice rooms with who is in them), under a
-header that opens the server switcher, a sheet listing every server on the phone with its mention
+header that opens the server switcher, a sheet listing every server on the phone with its Activity
 count or a sign-in that has ended, and Add a server; Activity, what
 has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the count of what is new and addressed

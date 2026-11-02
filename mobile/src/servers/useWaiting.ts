@@ -1,24 +1,28 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { alertingCount } from "@stoop/core/activity";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { loadActivity } from "../api/activity";
 import { sessionToken } from "../api/servers";
-import { mentionTotal } from "../api/spaces";
 import type { SavedServer } from "./index";
 
 // What is waiting on the servers other than the current one, for the
-// switcher and the You tab: a badge's count, or a sign-in that has ended.
+// switcher and the You tab: a badge's count, the same one that server's
+// Activity tab shows (mentions, replies and direct messages, less what the
+// server stamped muted, which takes in a muted space), or a sign-in that
+// has ended.
 export type Waiting =
-  | { state: "ready"; mentions: number }
+  | { state: "ready"; count: number }
   | { state: "ended" }
   | { state: "failed" };
 
 // Only no session kept here, or the server saying it is over, counts as
 // signed out. A server that can't be reached, or a keychain that won't
 // give up the token, just shows no badge.
-async function waitingOn(server: SavedServer): Promise<Waiting> {
+export async function waitingOn(server: SavedServer): Promise<Waiting> {
   try {
     const token = await sessionToken(server.id);
     if (!token) return { state: "ended" };
-    return { state: "ready", mentions: await mentionTotal(server.origin, token) };
+    return { state: "ready", count: alertingCount(await loadActivity(server.origin, token)) };
   } catch (err) {
     return err instanceof ConnectError && err.code === Code.Unauthenticated
       ? { state: "ended" }
