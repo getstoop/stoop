@@ -23,7 +23,8 @@ export default function Identity({
 
   return (
     <View style={styles.identity}>
-      <Avatar name={name} fileId={user.avatarFileId} origin={server.origin} token={token} size={60} />
+      <Avatar name={name} fileId={user.avatarFileId} origin={server.origin} token={token} size={60}
+        label={user.avatarFileId ? "Your avatar" : "No avatar yet"} />
       <View style={styles.text}>
         <Text style={styles.name} accessibilityRole="header" numberOfLines={2}>
           {name}

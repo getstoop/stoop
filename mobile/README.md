@@ -27,8 +27,9 @@ count or a sign-in that has ended, and Add a server; Activity, what
 has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the count of what is new and addressed
 to you on its tab, each opening its channel or thread at the message;
-Messages, still empty; and You, which says who you are, picks the
-theme and signs out.
+Messages, still empty; and You, which says who you are, opens Edit
+profile (your names, pronouns, bio and avatar), picks the theme and signs
+out.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -746,7 +747,8 @@ server from the switcher and switch back (the same server by
 switch, remove one from a swipe and a long press and see its session end,
 sign in again to one signed out, and sign out onto the next, edit a profile and see a taken
 username refused, a rename from elsewhere arrive live and a locked username
-held, create an account from a
+held, pick and crop an avatar from the library and see it arrive on Edit
+profile and You, create an account from a
 pasted invite link,
 open an invite the way the web's open-in-app page does, then sign in and
 join, and see a mention arrive in Activity with the tab's badge, open
@@ -770,7 +772,9 @@ throwaway server: a fresh `stoop_mobile_e2e` database, `bin/stoop` on
 :8093, and `e2e/seed.mjs` making the accounts, space and invite over RPC
 with the browser suite's seed. What it made is handed to each flow as
 `${MEMBER}`, `${INVITE_LINK}` and the rest. `make mobile-e2e
-flows=mobile/e2e/sign-in.yaml` runs one.
+flows=mobile/e2e/sign-in.yaml` runs one. Name a flow that adds media
+(attach, edit-avatar) on its own: Maestro can't find a flow's `addMedia` file
+when several flow files are named. The whole directory is fine.
 
 Before the flows, `e2e/setup/autofill-off.yaml` turns off the
 simulator's password AutoFill in Settings. Left on, iOS takes Maestro's

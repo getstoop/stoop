@@ -33,6 +33,10 @@ function authRpc(proc, token, body) {
 }
 
 var steps = {
+  // Hal's avatar as the server holds it (edit-avatar.yaml).
+  picturedAvatar: function () {
+    output.avatarFileId = authRpc("GetMe", PICTURED_TOKEN, {}).user.avatarFileId || "";
+  },
   // Gil's profile as the server holds it (edit-profile.yaml).
   editorProfile: function () {
     var user = authRpc("GetMe", EDITOR_TOKEN, {}).user;

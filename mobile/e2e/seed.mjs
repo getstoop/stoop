@@ -8,8 +8,8 @@
 // ada read it. ada is also in Climbing crew, unread, and Garden swap,
 // muted. In chapter-nine ada started a thread that dee has replied to
 // four times, the last two since ada read it, and dee's question after it
-// has no thread yet; ada has read the channel. bea, fay and gil have accounts but
-// no space; cleo has neither and arrives through the invite. formatting
+// has no thread yet; ada has read the channel. bea, fay, gil and hal have accounts
+// but no space; cleo has neither and arrives through the invite. formatting
 // holds ada's messages in Markdown, read, and links her messages with
 // link previews, read. In photos dee has sent files, read by ada. Book
 // club's group readers is ada and dee.
@@ -20,7 +20,7 @@ import { BASE, seed } from "../../web/e2e/seed.mjs";
 
 const space = "Book club";
 const s = await seed({
-  users: ["ada", "bea", "dee", "fay", "gil"],
+  users: ["ada", "bea", "dee", "fay", "gil", "hal"],
   members: ["ada", "dee"],
   space,
   invite: true,
@@ -257,6 +257,9 @@ const env = {
   EDITOR: `gil${s.suffix}`,
   EDITOR_ID: s.ids.gil,
   EDITOR_TOKEN: s.tokens.gil,
+  // In no space, and in no flow but edit-avatar.yaml, which gives it one.
+  PICTURED: `hal${s.suffix}`,
+  PICTURED_TOKEN: s.tokens.hal,
   NEWCOMER: `cleo${s.suffix}`,
   SPACE: space,
   // For flows that change the space mid-way, as another device would:
