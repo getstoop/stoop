@@ -1,6 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -16,6 +16,7 @@ import { sessionToken } from "../../api/servers";
 import { loadSpaces, type SpaceListing } from "../../api/spaces";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
+import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import SpaceRow from "./SpaceRow";
@@ -53,26 +54,38 @@ export default function Spaces({ server }: { server: SavedServer }) {
     }
   }, [server]);
 
+  // As the Messages tab: only the latest load started is shown, and
+  // leaving the screen makes none the latest.
+  const latest = useRef(0);
+  const refresh = useCallback(async () => {
+    const mine = ++latest.current;
+    const next = await load();
+    if (mine === latest.current) setList(next);
+  }, [load]);
+
   useEffect(() => {
-    let live = true;
-    const refresh = () => load().then((next) => live && setList(next));
     refresh();
     const sub = AppState.addEventListener("change", (s) => s === "active" && refresh());
     return () => {
-      live = false;
+      latest.current++;
       sub.remove();
     };
-  }, [load]);
+  }, [refresh]);
+  useServerEvents(server.id, (event) => {
+    if (event.payload.case !== "credentialRevoked") return;
+    latest.current++;
+    setList({ state: "ended" });
+  });
 
   const pull = async () => {
     setRefreshing(true);
-    setList(await load());
+    await refresh();
     setRefreshing(false);
   };
 
   const retry = async () => {
     setList({ state: "loading" });
-    setList(await load());
+    await refresh();
   };
 
   return (

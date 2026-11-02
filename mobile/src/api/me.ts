@@ -12,6 +12,18 @@ export async function loadMe(origin: string, token: string): Promise<User | unde
   return user;
 }
 
+// Whether the server says this session is over. Unauthenticated is the one
+// answer that does: an unreachable server, a 5xx or a timeout says nothing
+// about the session.
+export async function isSessionOver(origin: string, token: string): Promise<boolean> {
+  try {
+    await loadMe(origin, token);
+    return false;
+  } catch (err) {
+    return err instanceof ConnectError && err.code === Code.Unauthenticated;
+  }
+}
+
 export type SignedInMe =
   | { state: "ready"; token: string; user: User }
   // As the Spaces tab: only the server saying the session is over counts

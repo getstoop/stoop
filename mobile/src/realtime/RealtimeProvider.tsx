@@ -119,7 +119,8 @@ function ServerSocket({
 
 // Hands onEvent every event from a server's socket while the calling
 // screen is mounted. Ready counts too: it follows a reconnect, after
-// which anything loaded before may have missed something.
+// which anything loaded before may have missed something. So does
+// CredentialRevoked: the session has ended and the socket has stopped.
 export function useServerEvents(serverId: string, onEvent: Listener) {
   const subscribe = useEventSubscription();
   const latest = useRef(onEvent);

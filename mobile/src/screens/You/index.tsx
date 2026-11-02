@@ -87,6 +87,13 @@ export default function You({ server }: { server: SavedServer }) {
   // moment's quiet goes before one reload. Ready follows a reconnect.
   const meId = view.state === "ready" ? view.user.id : "";
   useServerEvents(server.id, (event) => {
+    // Costs no load, so it doesn't wait to be on screen.
+    if (event.payload.case === "credentialRevoked") {
+      latest.current++;
+      clearTimeout(reload.current);
+      setView({ state: "ended" });
+      return;
+    }
     if (!onScreen.current) return;
     const { payload } = event;
     if (payload.case !== "ready" && !(payload.case === "memberUpdated" && payload.value.userId === meId)) return;

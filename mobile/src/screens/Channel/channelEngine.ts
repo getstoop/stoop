@@ -462,6 +462,10 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   }
 
   function onEvent(event: ServerEvent) {
+    if (event.payload.case === "credentialRevoked") {
+      dispatch({ type: "failed", outcome: "ended" });
+      return;
+    }
     if (event.payload.case !== "ready") {
       const before = state.header;
       dispatch({ type: "event", event });
