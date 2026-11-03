@@ -314,16 +314,37 @@ are testable and reusable:
 - `ws.ts` — the realtime client and the event → store mapping. An event
   about a message goes to its channel's log (`applyEvent`); every other
   event is applied to the query cache.
-- `unreads.ts` — the unread/badge derivations, which route an empty space
-  id to the DM list instead of a space's channels.
+- `unreads.ts` — the unread derivations (the bold name, the space dot)
+  and the read marker's move, which route an empty space id to the DM
+  list instead of a space's channels. A message landing in the channel
+  being read is shown read at once by `ws.ts` and noted here; the server
+  hears of it from `useMarkChannelRead` alone, the hook of the channel
+  on screen, so a message judged "being read" in the moment between a
+  navigation and its render is never read by a channel nobody is looking
+  at.
+- `alerts.ts` — the badges' bookkeeping between answers. A badge shows
+  the server's `Channel.alertCount` or `Space.alertCount`
+  ([messaging.md](messaging.md#alert-counts)), never a number the client
+  worked out: a message addressed to the reader that lands where they
+  are not reading adds one to its channel and space (`noteAlert`, which
+  adds nothing for a room `isMuted` says is muted, and asks for the
+  spaces list when the cache cannot say); anything that can only lower a
+  count (a read, the reader's own send, a deletion, a mute) fetches the
+  channel list and the spaces again while the held count is above zero
+  (`refetchAlertsIfAny`), and an unmute always does (`refetchAlerts`). A
+  `channel_read` never zeroes a count: a mention in a reply the channel
+  doesn't show is counted against the thread's marker and stays until
+  that is read. A conversation's `alertCount` is always 0;
+  `core/alerts.ts` counts it once while it has unread messages.
 - `mutes.ts` — the one place the effective mute is derived for the
   room-shaped surfaces. The wire carries raw per-space and per-channel
   flags; `isMuted` combines them, and the dimmed rows, the bolding in
-  `unreads.ts` and the pill dots ask here. `undefined` means the cache is
-  cold and callers treat it as unmuted. The surfaces about a single event
-  do not ask: the badge counts in `activity.ts` and the desktop banner in
-  `ws.ts` read the server's `item.muted` stamp, which is right even on a
-  cache that has never loaded the space.
+  `unreads.ts`, the pill dots and `alerts.ts` ask here. `undefined` means
+  the cache is cold and callers treat it as unmuted. The surfaces about a
+  single event do not ask: the desktop banner in `ws.ts` reads the
+  server's `item.muted` stamp, which is right even on a cache that has
+  never loaded the space, and the badges show counts the server has
+  already applied every mute to.
 - `theme.ts`, `presence.ts`, `emoji.ts`, `shortcodes.ts`, `formatting.ts`,
   `errors.ts`, `loginErrors.ts`, `mentionClasses.ts`.
 
@@ -380,6 +401,11 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   `messageLinkPath`, which of the two a message's Copy link takes,
   `messagePath`, `threadPath`); what makes them links, and what a
   browser does on one, stays in `api/shareLinks.ts`.
+- `alerts.ts` — `alertingTotal`, what one server's badge adds up to
+  (the spaces' `alertCount` plus one per conversation with unread
+  messages), for the desktop shell's dock and tray and the mobile app's
+  switcher; and `addressesMe`, whether a message counts as an alert for
+  the reader the way the server counts them.
 - `unreads.ts` (`badgeCount`, `isUnread`), `reactions.ts`
   (`toggledReactions`), `dates.ts`, `emojiText.ts`, `identity.ts`.
 
@@ -726,8 +752,10 @@ a first reply works that out from the held root. `MessageUpdated` and
 the `EditMessage` answer carry only the shared half too, so the log keeps
 the held half when it merges an edited root (`withViewerHalf`,
 `core/channelLog/rows.ts`). The open thread marks itself read once the
-window has attention (`useMarkThreadRead`), and reads its own activity
-items; the channel reads only items outside threads.
+window has attention (`useMarkThreadRead`), as the channel does
+(`useMarkChannelRead`); the server reads the activity each marker
+passes and recounts the alerts against it, so neither reads feed items
+itself.
 
 A reply also sent to the channel is one message in both timelines: one
 row in the log, listed by the channel's view and the thread's
@@ -802,8 +830,9 @@ published by `GET /version`; it moves together with
 What goes through it today: the desktop-notification permission (the
 shell grants it itself, and may be reaching a LAN server over plain HTTP,
 so the HTTPS rule does not apply), the unread badge (`routes/Root.tsx`
-reads `alertingCount` off the activity cache and calls `setBadge`, a
-no-op in a browser), and global shortcuts the shell captured while the
+adds up `alertingTotal` over the spaces and conversations in the cache
+and calls `setBadge`, a no-op in a browser), and global shortcuts the
+shell captured while the
 window was not focused. The full contract is in
 [desktop.md](desktop.md).
 

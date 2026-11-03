@@ -59,3 +59,9 @@ export function seed<
 >(options?: SeedOptions<U, C, I>): Promise<Seeded<U, C, I>>;
 
 export function joinSpace(token: string, code: string): Promise<unknown>;
+
+export function sendMessage(
+  token: string,
+  channelId: string,
+  content: string,
+): Promise<unknown>;

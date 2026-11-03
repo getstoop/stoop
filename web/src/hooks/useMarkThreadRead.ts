@@ -4,9 +4,11 @@ import { markThreadRead } from "../api/threads";
 import type { ThreadSummary } from "../gen/stoop/chat/v1/message_pb";
 
 // An open thread is read once the window has the user's attention, as
-// useAutoReadActivity reads a channel's activity: again for each new
-// reply, and muted or not, so unmuting later doesn't bring back replies
-// already seen. summary is undefined until the replies are on screen.
+// useMarkChannelRead reads a channel: again for each new reply, and
+// muted or not, so unmuting later doesn't bring back replies already
+// seen. The ThreadRead that answers is what reads the thread's activity
+// and clears the alerts counted against its marker. summary is undefined
+// until the replies are on screen.
 export function useMarkThreadRead(
   channelId: string,
   rootId: string,

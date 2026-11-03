@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { refetchAlertsIfAny } from "../../api/alerts";
 import {
   removeChannelPerson,
   useAllChannels,
@@ -94,6 +95,8 @@ export function ChannelPeople({ params }: { params: Record<string, string> }) {
     try {
       await chatClient.leaveChannel({ channelId });
       await queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
+      // The space's count still held the channel's alerts.
+      refetchAlertsIfAny(queryClient, spaceId);
       close();
     } catch (err) {
       notice({ title: "Couldn't leave the channel", body: errorText(err) });

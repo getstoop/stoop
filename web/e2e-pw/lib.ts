@@ -9,9 +9,15 @@ import pg from "pg";
 // Seeding lives in .mjs with a .d.mts beside it: it was shared with the
 // puppeteer suite, and there is no reason to churn it now that suite is
 // gone.
-import { BASE, joinSpace, SESSION_COOKIE, seed } from "../e2e/seed.mjs";
+import {
+  BASE,
+  joinSpace,
+  SESSION_COOKIE,
+  seed,
+  sendMessage,
+} from "../e2e/seed.mjs";
 
-export { expect, joinSpace, seed };
+export { expect, joinSpace, seed, sendMessage };
 
 const DB =
   process.env.STOOP_E2E_DATABASE_URL ??
@@ -129,13 +135,14 @@ export async function focus(page: Page) {
       message: "the page has focus, which read-marking gates on",
     })
     .toBe(true);
-  // And tell the app focus came back. useMarkChannelRead and useAutoRead
-  // re-check on the window's focus event, which a real window manager
-  // fires when you click a window — but bringToFront() between two
-  // headless contexts does not always deliver one, so the page can hold
-  // focus while nothing has re-run. Dispatching it is emulating the
-  // window manager, not faking the assertion: hasFocus() above is already
-  // true, so the handler makes the same decision it would have made.
+  // And tell the app focus came back. useMarkChannelRead and
+  // useMarkThreadRead re-check on the window's focus event, which a real
+  // window manager fires when you click a window — but bringToFront()
+  // between two headless contexts does not always deliver one, so the
+  // page can hold focus while nothing has re-run. Dispatching it is
+  // emulating the window manager, not faking the assertion: hasFocus()
+  // above is already true, so the handler makes the same decision it
+  // would have made.
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 }
 

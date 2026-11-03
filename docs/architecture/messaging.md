@@ -513,7 +513,9 @@ published before its activity is recorded, so a client with the channel
 or thread on screen can move the marker in between.
 
 **On the web the feed is an inbox** (`routes/Activity/`): a New section
-of unread items, newest first, with Mark all read on its heading, and a
+of unread items, newest first, with Mark activity read on its heading
+(it reads the feed alone; the badges clear when the channel or thread
+is read), and a
 Read section of read ones with a rule between each, the first row of a
 day carrying the day, loading older pages as the list reaches its end. A row is the actor with the kind as a glyph on
 the avatar's corner (@, a reply arrow, a thread bubble, an envelope), a

@@ -123,3 +123,10 @@ export async function seed({
 export async function joinSpace(token, code) {
   return rpc("chat.v1.ChatService/JoinSpace", { code }, token);
 }
+
+// Posts a message as the token's account, the way the composer would: a
+// mention is a token in the content (`<@u:ID:handle>`, core/mentions.ts).
+// For a spec whose subject is how many arrive, not the typing of them.
+export async function sendMessage(token, channelId, content) {
+  return rpc("chat.v1.ChatService/SendMessage", { channelId, content }, token);
+}

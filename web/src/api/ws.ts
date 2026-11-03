@@ -1,7 +1,9 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
+import { addressesMe } from "../core/alerts";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import type { Message, MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ClientEvent,
@@ -16,6 +18,7 @@ import {
   refetchActivityAfterDelete,
   refetchActivityAfterRead,
 } from "./activity";
+import { noteAlert, refetchAlerts, refetchAlertsIfAny } from "./alerts";
 import { applyEvent as applyToLog, forget, reconnected } from "./channelLog";
 import { channelPeopleKey } from "./channelPeople";
 import { byPosition, withPositions } from "./channels";
@@ -36,7 +39,12 @@ import {
   noteMentionInThread,
   openThreadRootId,
 } from "./threads";
-import { patchChannel, recomputeSpaceUnread, setSpaceUnread } from "./unreads";
+import {
+  noteReadOnArrival,
+  patchChannel,
+  recomputeSpaceUnread,
+  setSpaceUnread,
+} from "./unreads";
 import { leaveVoice, reportVoiceState } from "./voice";
 
 // The realtime client: one WebSocket carrying binary ServerEvent frames.
@@ -217,11 +225,28 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       const m = payload.value;
       applyToLog(event);
       noteMentionInThread(queryClient, m);
-      // A reply that stays in its thread is not in the channel's timeline
-      // and does not make the channel unread.
-      if (m.threadRootId && !m.inChannel) break;
       const { userId, activeChannelId } = useConnectionStore.getState();
       const mine = m.author?.id === userId;
+      // A reply that stays in its thread is not in the channel's timeline
+      // and does not make the channel unread. Addressed to us, it is an
+      // alert against the thread's marker, unless the thread is the one
+      // open and being looked at; our own reply moves that marker.
+      if (m.threadRootId && !m.inChannel) {
+        const readingThread =
+          m.threadRootId === openThreadRootId() && hasAttention();
+        if (mine) {
+          // Only ahead of the ThreadRead the server sends for our own
+          // reply, which refetches the same lists.
+          refetchAlertsIfAny(queryClient, m.spaceId, m.channelId);
+        } else if (
+          addressesMe(m, userId) &&
+          !readingThread &&
+          !fromBlocked(queryClient, m)
+        ) {
+          noteAlert(queryClient, m.spaceId, m.channelId, m.threadRootId);
+        }
+        break;
+      }
       const reading = m.channelId === activeChannelId && hasAttention();
       // The channel's newest message moved; if it's ours (or we're looking
       // right at it) the read marker follows, otherwise it goes bold.
@@ -231,10 +256,16 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
           ? { lastReadMessageId: m.id, unreadCount: 0 }
           : { unreadCount: c.unreadCount + 1 }),
       }));
-      // Sending moved our read marker without a ChannelRead.
-      if (mine)
+      if (mine) {
+        // Sending moved our read marker without a ChannelRead.
         refetchActivityAfterRead(queryClient, { channelId: m.channelId });
-      if (!mine && !reading) {
+        refetchAlertsIfAny(queryClient, m.spaceId, m.channelId);
+      } else if (reading) {
+        // Seen as it landed; the hook for the channel on screen tells the
+        // server (useMarkChannelRead), and the ChannelRead that answers is
+        // what reads the activity and the alert the message may be.
+        noteReadOnArrival(m.channelId, m.id);
+      } else {
         const muted = isMuted(queryClient, m.spaceId, m.channelId);
         if (muted === undefined) {
           // The channel list isn't loaded, so we can't tell whether the
@@ -242,6 +273,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
           queryClient.invalidateQueries({ queryKey: ["spaces"] });
         } else if (!muted) {
           setSpaceUnread(queryClient, m.spaceId, true);
+        }
+        if (addressesMe(m, userId) && !fromBlocked(queryClient, m)) {
+          noteAlert(queryClient, m.spaceId, m.channelId);
         }
       }
       break;
@@ -252,6 +286,10 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       recomputeSpaceUnread(queryClient, c.spaceId);
       // The mute stamps on items already in the feed are now stale.
       queryClient.invalidateQueries({ queryKey: ["activity"] });
+      // The alert counts apply the mute: a mute can only lower them, an
+      // unmute brings back what it silenced.
+      if (c.muted) refetchAlertsIfAny(queryClient, c.spaceId, c.channelId);
+      else refetchAlerts(queryClient, c.spaceId);
       break;
     }
     case "spaceMuted": {
@@ -262,6 +300,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       );
       // The mute stamps on items already in the feed are now stale.
       queryClient.invalidateQueries({ queryKey: ["activity"] });
+      if (s.muted) refetchAlertsIfAny(queryClient, s.spaceId);
+      else refetchAlerts(queryClient, s.spaceId);
       break;
     }
     case "channelRead":
@@ -279,6 +319,13 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       refetchActivityAfterRead(queryClient, {
         channelId: payload.value.channelId,
       });
+      // The alerts the marker passed are gone, but not one in a thread
+      // the channel doesn't show, so the count is asked for, never zeroed.
+      refetchAlertsIfAny(
+        queryClient,
+        payload.value.spaceId,
+        payload.value.channelId,
+      );
       break;
     case "messageUpdated": {
       // A root deleted while its thread has replies arrives as an update.
@@ -286,6 +333,11 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       refetchCopy(queryClient, payload.value.channelId, payload.value.id);
       if (payload.value.deleted) {
         refetchActivityAfterDelete(queryClient, payload.value.id);
+        refetchAlertsIfAny(
+          queryClient,
+          payload.value.spaceId,
+          payload.value.channelId,
+        );
       }
       break;
     }
@@ -297,12 +349,15 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "threadMuted": {
       const t = payload.value;
       applyThreadMuted(queryClient, t.channelId, t.rootMessageId, t.muted);
+      if (t.muted) refetchAlertsIfAny(queryClient, t.spaceId, t.channelId);
+      else refetchAlerts(queryClient, t.spaceId);
       break;
     }
     case "threadRead": {
       const t = payload.value;
       applyThreadRead(t.channelId, t.rootMessageId);
       refetchActivityAfterRead(queryClient, { threadRootId: t.rootMessageId });
+      refetchAlertsIfAny(queryClient, t.spaceId, t.channelId);
       break;
     }
     case "messagePinned": {
@@ -339,6 +394,8 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         queryKey: d.spaceId ? ["channels", d.spaceId] : ["dms"],
       });
       refetchActivityAfterDelete(queryClient, d.messageId);
+      // An alert deleted with it lowers the space's count too.
+      refetchAlertsIfAny(queryClient, d.spaceId, d.channelId);
       break;
     }
     case "channelUpdated": {
@@ -374,9 +431,11 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       queryClient.removeQueries({
         queryKey: ["messages", payload.value.channelId],
       });
-      // Its alerts went with it, and so did its share of the space's dot.
+      // Its alerts went with it, and so did its share of the space's dot
+      // and count.
       queryClient.invalidateQueries({ queryKey: ["activity"] });
       recomputeSpaceUnread(queryClient, payload.value.spaceId);
+      refetchAlertsIfAny(queryClient, payload.value.spaceId);
       useVoiceStore.getState().dropChannel(payload.value.channelId);
       if (
         useVoiceStore.getState().connection?.channelId ===
@@ -533,6 +592,15 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     default:
       break;
   }
+}
+
+// Whether a message is from someone the reader has blocked, as far as
+// the cache knows: MessageCreated is broadcast regardless, but the
+// server counts no alert from them. A cold cache says no, and the next
+// refetch of the counts puts it right.
+function fromBlocked(queryClient: QueryClient, message: Message): boolean {
+  const blocked = queryClient.getQueryData<MessageAuthor[]>(["blocked"]);
+  return !!blocked?.some((user) => user.id === message.author?.id);
 }
 
 // Where an activity item points: a space channel, or a direct message.

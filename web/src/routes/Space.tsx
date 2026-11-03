@@ -11,12 +11,7 @@ import { landingChannel } from "../api/channels";
 import { chatClient } from "../api/clients";
 import { errorText } from "../api/errors";
 import { isMuted, mutedByCaller, sidebarTextChannels } from "../api/mutes";
-import {
-  useActivity,
-  useChannels,
-  useSpaces,
-  useSpaceVoice,
-} from "../api/queries";
+import { useChannels, useSpaces, useSpaceVoice } from "../api/queries";
 import {
   copyShareLink,
   shareOrigin,
@@ -41,7 +36,6 @@ import { SpaceWelcome } from "../components/SpaceWelcome";
 import { Tooltip } from "../components/Tooltip";
 import { VoiceBar } from "../components/VoiceBar";
 import { VoiceChannel } from "../components/VoiceChannel";
-import { unreadCounts } from "../core/activity";
 import { canCreateInvites, canManageChannels } from "../core/permissions";
 import { badgeCount } from "../core/unreads";
 import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
@@ -58,9 +52,7 @@ export function SpaceLayout() {
   }) as { spaceId: string; channelId?: string };
   const { data: spaces } = useSpaces();
   const { data: channels } = useChannels(spaceId);
-  const { data: activity } = useActivity();
   const queryClient = useQueryClient();
-  const { byChannel: unreadByChannel } = unreadCounts(activity);
   const navigate = useNavigate();
   const [aboutOpen, setAboutOpen] = useState(false);
   const [creating, setCreating] = useState<"text" | "voice" | null>(null);
@@ -277,9 +269,11 @@ export function SpaceLayout() {
                   <ChannelGlyph channel={channel} />
                   <span className="channel-name">{channel.name}</span>
                   {mutedByCaller(channel) && <MutedMark />}
-                  {(unreadByChannel.get(channel.id) ?? 0) > 0 && (
+                  {/* The server's count of what is addressed to you past
+                      your marker, mutes applied (core/alerts.ts). */}
+                  {channel.alertCount > 0 && (
                     <span className="channel-badge" title="Unread mentions">
-                      {badgeCount(unreadByChannel.get(channel.id) ?? 0)}
+                      {badgeCount(channel.alertCount)}
                     </span>
                   )}
                 </Link>

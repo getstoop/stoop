@@ -119,8 +119,9 @@ sections, in this order:
   `web/e2e-pw/lib.ts`, never `page.reload()`: a channel URL meets the
   desktop-app gate on reload and a plain reload walks into it.
 
-- **Reading only counts while a page has attention.** Both
-  `useMarkChannelRead` and `useAutoReadActivity` gate on `hasAttention()`
+- **Reading only counts while a page has attention.** `useMarkChannelRead`,
+  `useMarkThreadRead` and the realtime client's handling of a message
+  landing in the open channel all gate on `hasAttention()`
   — `document.visibilityState === "visible" && document.hasFocus()` — so
   that an unfocused tab still raises a desktop alert. That is deliberate
   product behaviour, and it makes every "…clears the badge", "…is read

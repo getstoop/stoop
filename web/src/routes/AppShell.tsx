@@ -38,7 +38,6 @@ import { NavBackdrop } from "../components/NavBackdrop";
 import { SidePanel } from "../components/SidePanel";
 import { SpaceIcon } from "../components/SpaceIcon";
 import { Tooltip } from "../components/Tooltip";
-import { unreadCounts } from "../core/activity";
 import { dmUnreadTotal } from "../core/dms";
 import { presenceClass, presenceLabel } from "../core/presence";
 import { badgeCount } from "../core/unreads";
@@ -130,8 +129,9 @@ function SpaceRail() {
   const { data: update } = useUpdate(
     permissions?.includes(Permission.INSTANCE_READ) ?? false,
   );
+  // The activity pill's dot is the feed's; the space pills' badges below
+  // are the server's alert counts.
   const { data: activity } = useActivity();
-  const { bySpace: unreadBySpace } = unreadCounts(activity);
   // Direct messages: a badge counting the messages the rows count
   // (api/dms.ts → dmUnreadTotal). No unread tab: every unread message
   // counts, so the badge is always there when the tab would be.
@@ -218,15 +218,17 @@ function SpaceRail() {
               >
                 <SpaceIcon name={space.name} fileId={space.iconFileId} />
                 {/* A muted space draws nothing: no badge, no dot, dimmed
-                    like a muted channel row. Otherwise the dot and the
-                    badge are independent: unread anywhere draws the dot,
-                    mentions and alerts draw the count on top. */}
+                    like a muted channel row (the server's count already
+                    applies the mute; the guard covers one made a moment
+                    ago). Otherwise the dot and the badge are independent:
+                    unread anywhere draws the dot, messages addressed to
+                    you draw the count on top. */}
                 {!space.muted && space.hasUnread && (
                   <span className="pill-dot" title="Unread messages" />
                 )}
-                {!space.muted && (unreadBySpace.get(space.id) ?? 0) > 0 && (
+                {!space.muted && space.alertCount > 0 && (
                   <span className="pill-badge">
-                    {badgeCount(unreadBySpace.get(space.id) ?? 0)}
+                    {badgeCount(space.alertCount)}
                   </span>
                 )}
               </Link>

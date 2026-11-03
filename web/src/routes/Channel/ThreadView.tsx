@@ -38,7 +38,6 @@ import { dmIsGroup, dmTitle } from "../../core/dms";
 import { canDeleteAnyMessage } from "../../core/permissions";
 import { threadRepliesClosed } from "../../core/threadReplies";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
-import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkThreadRead } from "../../hooks/useMarkThreadRead";
 import { confirm, notice } from "../../stores/dialogs";
 import { Composer } from "./Composer";
@@ -105,7 +104,6 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   // Nothing is read until the replies are on screen.
   const shown = hasOpened(view);
   useMarkThreadRead(channelId, rootId, shown ? summary : undefined);
-  useAutoReadActivity(channelId, rootId, shown);
   // A space that has gone leaves its queries as they were: the spaces
   // list is what says so.
   const spaceGone = !isDM && !!spaces && !space;
