@@ -142,7 +142,7 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     );
   }
 
-  const { space, text, voice, mentions, members, memberCount } = view.channels;
+  const { space, text, voice, members, memberCount } = view.channels;
   const about = [memberCount === 1 ? "1 member" : `${memberCount} members`, space.description]
     .filter(Boolean)
     .join(" · ");
@@ -174,7 +174,6 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
           key={channel.id}
           channel={channel}
           spaceMuted={space.muted}
-          mentions={mentions[channel.id] ?? 0}
           onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
         />
       ))}
