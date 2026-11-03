@@ -10,33 +10,27 @@ import {
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AppState } from "react-native";
-import {
-  loadActivity,
-  loadOlderActivity,
-  loadReader,
-  type Reader,
-  readActivity,
-  readChannelActivity,
-} from "../api/activity";
+import { loadActivity, loadOlderActivity, loadReader, type Reader, readActivity } from "../api/activity";
 import { sessionToken } from "../api/servers";
+import { useLoadOnReturn } from "../hooks/useLoadOnReturn";
 import { useServerEvents } from "../realtime/RealtimeProvider";
 import type { SavedServer } from "../servers";
 import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed";
 
 // One server's activity feed, as web keeps it in its query cache
 // (web/src/api/activity.ts): the first page of ListActivity and the
-// server's unread count, held for the Activity tab, its badge, and the
-// channel screen that reads what it shows, with the older pages the tab
-// has scrolled to beside it, so a read stamps them too. Loaded on
-// mounting and on the socket's Ready (a reconnect, which coming back to
-// the app brings; a few seconds without one load anyway); kept current
-// by ActivityItemCreated; loaded again when a read marker moved where it
+// server's unread count, held for the Activity tab, with the older pages
+// the tab has scrolled to beside it, so a read stamps them too. The
+// tab's badge is not counted from it (src/alerts). Loaded on mounting
+// and on the socket's Ready (a reconnect, which coming back to the app
+// brings; a few seconds without one load anyway); kept current by
+// ActivityItemCreated; loaded again when a read marker moved where it
 // could have read something held (core readMayClearActivity), a message
 // that may have an item was deleted (the server deletes its items and
 // says nothing of them), or a mute or a deleted channel made what is
-// held stale. CredentialRevoked says the session has ended. Reading through markRead or readChannel stamps the items
-// here as the server answers, since MarkActivityRead sends no event.
+// held stale. CredentialRevoked says the session has ended. Reading
+// through markRead stamps the items here as the server answers, since
+// MarkActivityRead sends no event.
 
 export type Feed =
   | { state: "loading" }
@@ -66,16 +60,9 @@ type Store = {
   loadMore: () => Promise<void>;
   // Reads items, or everything. Throws when the server refuses.
   markRead: (ids: string[] | "all") => Promise<void>;
-  // Reads what is unread in a channel itself (not its threads), for the
-  // channel on screen. Says how many it read.
-  readChannel: (channelId: string) => Promise<number>;
 };
 
 const ActivityContext = createContext<Store | null>(null);
-
-// How long after coming back to the app the socket's Ready may take
-// before the feed is loaded without it.
-const READY_GRACE_MS = 3000;
 
 const unauthenticated = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
 
@@ -231,45 +218,9 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
     [server.origin, token, stampRead, end],
   );
 
-  const readChannel = useCallback(
-    async (channelId: string) => {
-      const session = await token();
-      if (!session) return 0;
-      try {
-        const { ids, unreadCount } = await readChannelActivity(server.origin, session, channelId);
-        if (ids.length > 0) stampRead(ids, unreadCount);
-        return ids.length;
-      } catch (err) {
-        if (unauthenticated(err)) end();
-        throw err;
-      }
-    },
-    [server.origin, token, stampRead, end],
-  );
-
-  // Loaded on mounting. Coming back from the background reopens the
-  // socket, whose Ready loads it; should none come soon, it loads anyway.
-  // "inactive" is a moment between (the app switcher, a system sheet),
-  // after which nothing was missed.
-  const readyDue = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    refresh();
-    let last = AppState.currentState;
-    const sub = AppState.addEventListener("change", (next) => {
-      if (last === "background" && next === "active") {
-        if (readyDue.current) clearTimeout(readyDue.current);
-        readyDue.current = setTimeout(() => {
-          readyDue.current = null;
-          refresh();
-        }, READY_GRACE_MS);
-      }
-      last = next;
-    });
-    return () => {
-      sub.remove();
-      if (readyDue.current) clearTimeout(readyDue.current);
-    };
-  }, [refresh]);
+  // Loaded on mounting and on coming back from the background, unless
+  // the socket's Ready loads it first.
+  const readyCame = useLoadOnReturn(refresh);
 
   // A read marker that moved, on this phone or another device, read the
   // activity it passed on the server; fetched again when that could be
@@ -289,10 +240,7 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
         end();
         break;
       case "ready":
-        if (readyDue.current) {
-          clearTimeout(readyDue.current);
-          readyDue.current = null;
-        }
+        readyCame();
         refresh();
         break;
       case "activityItemCreated": {
@@ -338,8 +286,8 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
   });
 
   const store = useMemo(
-    () => ({ feed, refresh, reload, loadMore, markRead, readChannel }),
-    [feed, refresh, reload, loadMore, markRead, readChannel],
+    () => ({ feed, refresh, reload, loadMore, markRead }),
+    [feed, refresh, reload, loadMore, markRead],
   );
   return <ActivityContext.Provider value={store}>{children}</ActivityContext.Provider>;
 }
