@@ -1,28 +1,32 @@
 import { badgeCount } from "@stoop/core/unreads";
+import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { mentionLabel, type SpaceListing } from "../../api/spaces";
+import { mentionLabel } from "../../api/spaces";
 import { MutedIcon } from "../../components/Icons";
 import SpaceIcon from "../../components/SpaceIcon";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // One space on the Spaces tab: its icon, its name (bold while something
-// in it is unread) over its one-line description, and a mention count or
-// an unread dot. A muted space is dimmed and shows neither, as on web's
-// rail. Pressed, it opens the space's channels.
+// in it is unread) over its one-line description, and a mention count
+// (the space's `alertCount`, docs/architecture/messaging.md → Alert
+// counts) or an unread dot. A muted space is dimmed and shows neither,
+// as on web's rail; the server already counts a muted space as 0, so
+// the check here only keeps the row honest. Pressed, it opens the
+// space's channels.
 export default function SpaceRow({
-  listing,
+  space,
   origin,
   token,
   onPress,
 }: {
-  listing: SpaceListing;
+  space: Space;
   origin: string;
   token: string;
   onPress: () => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const { space, mentions } = listing;
+  const mentions = space.alertCount;
   const unread = !space.muted && space.hasUnread;
   const badge = !space.muted && mentions > 0;
 

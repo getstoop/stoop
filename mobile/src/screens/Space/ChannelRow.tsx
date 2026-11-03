@@ -7,22 +7,24 @@ import { type Theme, tokens, useTheme } from "../../theme";
 
 // One text channel: its mark (# or, as on web, a lock for a private
 // channel and a megaphone for an announcement channel), its name, bold
-// while it has unread messages, and a mention count or an unread dot. A
-// muted channel is dimmed and shows neither, and nothing is waiting
-// anywhere in a muted space. Pressing it opens the channel.
+// while it has unread messages, and a mention count (the channel's
+// `alertCount`, docs/architecture/messaging.md → Alert counts) or an
+// unread dot. A muted channel is dimmed and shows neither, and nothing
+// is waiting anywhere in a muted space; the server already counts a
+// muted channel as 0, so the check here only keeps the row honest.
+// Pressing it opens the channel.
 export default function ChannelRow({
   channel,
   spaceMuted,
-  mentions,
   onPress,
 }: {
   channel: Channel;
   spaceMuted: boolean;
-  mentions: number;
   onPress: () => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const mentions = channel.alertCount;
   const quiet = spaceMuted || channel.muted;
   const unread = !quiet && channel.unreadCount > 0;
   const badge = !quiet && mentions > 0;

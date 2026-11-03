@@ -1,4 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -13,7 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
-import { loadSpaces, type SpaceListing } from "../../api/spaces";
+import { loadSpaces } from "../../api/spaces";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
@@ -29,7 +30,7 @@ import SpaceRow from "./SpaceRow";
 
 type State =
   | { state: "loading" }
-  | { state: "ready"; token: string; spaces: SpaceListing[] }
+  | { state: "ready"; token: string; spaces: Space[] }
   // As the You tab: only the server saying the session is over
   // counts as signed out.
   | { state: "ended" }
@@ -115,13 +116,13 @@ export default function Spaces({ server }: { server: SavedServer }) {
       {list.state === "ready" && (
         <FlatList
           data={list.spaces}
-          keyExtractor={(l) => l.space.id}
+          keyExtractor={(space) => space.id}
           renderItem={({ item }) => (
             <SpaceRow
-              listing={item}
+              space={item}
               origin={server.origin}
               token={list.token}
-              onPress={() => router.push(`/s/${server.id}/space/${item.space.id}`)}
+              onPress={() => router.push(`/s/${server.id}/space/${item.id}`)}
             />
           )}
           contentContainerStyle={styles.list}
