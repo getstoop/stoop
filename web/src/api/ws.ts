@@ -275,7 +275,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
           setSpaceUnread(queryClient, m.spaceId, true);
         }
         if (addressesMe(m, userId) && !fromBlocked(queryClient, m)) {
-          noteAlert(queryClient, m.spaceId, m.channelId);
+          // A reply also sent to the channel is still under its thread's
+          // mute, which the server applies whatever in_channel says.
+          noteAlert(queryClient, m.spaceId, m.channelId, m.threadRootId);
         }
       }
       break;

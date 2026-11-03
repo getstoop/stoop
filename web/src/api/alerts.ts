@@ -35,8 +35,10 @@ function heldSpace(
 
 // A message addressed to the reader has landed where they are not
 // reading. Nothing is added for a muted channel, space or thread, which
-// the server would not count; with the channel list cold the mute is
-// unknown, so the spaces list is asked for instead, as has_unread is.
+// the server would not count. With the channel list cold the mute is
+// unknown, so the spaces list is asked for instead, as has_unread is;
+// with the thread's root not held (its log dropped, or never opened)
+// the thread's mute is unknown, so both lists are.
 export function noteAlert(
   queryClient: QueryClient,
   spaceId: string,
@@ -46,11 +48,18 @@ export function noteAlert(
   if (spaceId === "") return;
   const muted = isMuted(queryClient, spaceId, channelId);
   if (muted === undefined) {
-    queryClient.invalidateQueries({ queryKey: ["spaces"] });
+    refetchKey(queryClient, ["spaces"]);
     return;
   }
   if (muted) return;
-  if (threadRootId && readRow(channelId, threadRootId)?.thread?.muted) return;
+  if (threadRootId) {
+    const root = readRow(channelId, threadRootId);
+    if (!root) {
+      refetchAlerts(queryClient, spaceId);
+      return;
+    }
+    if (root.thread?.muted) return;
+  }
   patchChannel(queryClient, spaceId, channelId, (c) => ({
     alertCount: c.alertCount + 1,
   }));
@@ -70,6 +79,15 @@ export function noteAlert(
 function refetchIfInFlight(queryClient: QueryClient, queryKey: string[]) {
   const query = queryClient.getQueryCache().find({ queryKey, exact: true });
   if (query?.state.fetchStatus === "fetching") refetch(queryClient, query);
+}
+
+// Asks for a list again whether or not it is held: a first load still
+// out, which may have read the server before the message, is left to
+// land and then asked again rather than deduped onto (api/stale.ts).
+function refetchKey(queryClient: QueryClient, queryKey: string[]) {
+  const query = queryClient.getQueryCache().find({ queryKey, exact: true });
+  if (query) refetch(queryClient, query);
+  else queryClient.invalidateQueries({ queryKey, exact: true });
 }
 
 // A change that can only lower a count: the channel's (a read, a
