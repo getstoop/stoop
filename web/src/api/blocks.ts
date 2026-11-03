@@ -3,12 +3,15 @@ import { chatClient } from "./clients";
 
 // The people the signed-in user has blocked: no direct messages either
 // way, and no mention/reply/DM alerts from them. Small and rarely
-// changing, so one query shared by the card and the profile page.
-export function useBlocked() {
+// changing, so one query shared by the card, the profile page and the
+// app shell, which holds it from sign-in so the realtime client can tell
+// a blocked author's message apart before any card has opened.
+export function useBlocked(enabled = true) {
   return useQuery({
     queryKey: ["blocked"],
     queryFn: async () => (await chatClient.listBlockedUsers({})).users,
     staleTime: 60_000,
+    enabled,
   });
 }
 

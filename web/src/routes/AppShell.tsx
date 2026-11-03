@@ -7,6 +7,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { useBlocked } from "../api/blocks";
 import { chatClient } from "../api/clients";
 import { useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
@@ -101,6 +102,10 @@ export function AppShell() {
     if (!userId) return;
     return startDndBridge(queryClient);
   }, [userId, queryClient]);
+
+  // Held for the session: the realtime client reads it off the cache to
+  // leave a blocked author's mention out of the badges (api/ws.ts).
+  useBlocked(!!userId);
 
   if (isLoading || signedOut || !me) {
     return (
