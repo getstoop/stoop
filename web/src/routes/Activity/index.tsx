@@ -1,11 +1,15 @@
 import { timestampDate, timestampNow } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { markActivityRead } from "../../api/activity";
 import { chatClient } from "../../api/clients";
 import { useActivity } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
-import { startsDay, withOlderPages } from "../../core/activity";
+import {
+  needsOlderPageForNew,
+  startsDay,
+  withOlderPages,
+} from "../../core/activity";
 import { dayLabel } from "../../core/dates";
 import type { ActivityItem } from "../../gen/stoop/chat/v1/activity_pb";
 import { ActivityRow } from "./ActivityRow";
@@ -16,33 +20,64 @@ import { ActivityRow } from "./ActivityRow";
 // badges on channels and spaces clear when those are read); Read is the
 // read history, the first row of each day carrying the day. The first
 // page comes from the shared cache (the one the activity pill's dot
-// reads), and older pages load as the list is scrolled to its end. A
-// row that is read moves from one section to the other because the
-// cache stamps it, not because the page moves it.
+// reads), and older pages load as the list is scrolled to its end, and
+// on their own while the server counts more unread than New holds, up
+// to a bound (core needsOlderPageForNew). A row that is read moves from
+// one section to the other because the cache stamps it, not because
+// the page moves it.
 export function ActivityPage() {
-  const { data } = useActivity();
+  const { data, isFetching } = useActivity();
   const [older, setOlder] = useState<ActivityItem[]>([]);
   const [exhausted, setExhausted] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // One page in flight, whichever asked for it; the state above is for
+  // drawing and lags a render behind.
+  const inFlight = useRef(false);
+  // Pages fetched for New's sake on this visit, against the bound.
+  const autoPages = useRef(0);
   const queryClient = useQueryClient();
 
-  const recent = data?.items ?? [];
-  const all = withOlderPages(recent, older);
+  const recent = data?.items;
+  const all = useMemo(
+    () => withOlderPages(recent ?? [], older),
+    [recent, older],
+  );
   const fresh = all.filter((item) => !item.readAt);
   const earlier = all.filter((item) => item.readAt);
 
-  const loadMore = async () => {
-    const last = all[all.length - 1];
-    if (!last || loadingMore || exhausted) return;
-    setLoadingMore(true);
-    try {
-      const res = await chatClient.listActivity({ beforeId: last.id });
-      setOlder((o) => [...o, ...res.items]);
-      if (res.items.length === 0) setExhausted(true);
-    } finally {
-      setLoadingMore(false);
+  const loadOlderPage = useCallback(
+    async (forNew: boolean) => {
+      const last = all[all.length - 1];
+      if (!last || inFlight.current || exhausted) return;
+      inFlight.current = true;
+      if (forNew) autoPages.current++;
+      setLoadingMore(true);
+      try {
+        const res = await chatClient.listActivity({ beforeId: last.id });
+        setOlder((o) => [...o, ...res.items]);
+        if (res.items.length === 0) setExhausted(true);
+      } finally {
+        inFlight.current = false;
+        setLoadingMore(false);
+      }
+    },
+    [all, exhausted],
+  );
+  const loadMore = useCallback(() => loadOlderPage(false), [loadOlderPage]);
+
+  // New holds everything the server counts: once the first page is the
+  // server's (not a cached copy about to be replaced), and after each
+  // older page lands, the next is asked for while the rule says so. A
+  // page that fails is left to the sentinel, which asks again on the
+  // next scroll.
+  useEffect(() => {
+    if (!data || isFetching) return;
+    if (
+      needsOlderPageForNew(data.unreadCount, all, exhausted, autoPages.current)
+    ) {
+      loadOlderPage(true).catch(() => {});
     }
-  };
+  }, [data, isFetching, all, exhausted, loadOlderPage]);
 
   // The server reads everything, older pages included, but only the
   // first page is in the cache it stamps, so the page stamps the rest.

@@ -146,3 +146,36 @@ export function activityTime(
   if (dated) return shortDateTime(d, now);
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
+
+// ---------------------------------------------------------------------
+// Filling New. The inbox loads the newest page of the feed whatever the
+// state of its items, so an unread item older than that page is not on
+// it until the person scrolls that far, while the header counts it.
+// While the server counts more unread than the items held show, the
+// next older page is asked for without a scroll, up to NEW_AUTO_PAGES
+// of them (500 items at the default page size); past that the person
+// scrolls as before, so a feed with thousands of read items between
+// unread ones cannot page forever. The count can also exceed what is
+// held when an item held was read on another device and the feed has
+// not been fetched again; the bound, or the oldest page coming back
+// empty, ends that too, and the next fetch of the first page puts the
+// count right.
+
+export const NEW_AUTO_PAGES = 10;
+
+// Whether the inbox should fetch the next older page on its own for
+// New's sake: the server counts more unread than the items held (first
+// page and older pages) show, the oldest page did not come back empty,
+// and fewer than NEW_AUTO_PAGES have been fetched this way. Nothing held
+// means no page to ask before.
+export function needsOlderPageForNew(
+  unreadCount: number,
+  held: ActivityItem[],
+  exhausted: boolean,
+  autoPages: number,
+): boolean {
+  if (exhausted || autoPages >= NEW_AUTO_PAGES || held.length === 0) {
+    return false;
+  }
+  return unreadCount > held.filter((item) => !item.readAt).length;
+}
