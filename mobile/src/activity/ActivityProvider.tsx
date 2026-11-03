@@ -80,6 +80,9 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
   // the items delivered meanwhile, laid over what it brings back so an
   // item created after the server answered isn't lost.
   const loading = useRef<Promise<void> | null>(null);
+  // The same, as state, for the fill below: it must run once more after
+  // the load lands, whatever order React renders the landing in.
+  const [loadingFirst, setLoadingFirst] = useState(false);
   const again = useRef(false);
   const arrived = useRef<ActivityItem[] | null>(null);
   // Counts reads stamped: a load answered from before one is dropped (and
@@ -157,7 +160,9 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
         await loadOnce();
       } while (again.current && alive.current);
       loading.current = null;
+      if (alive.current) setLoadingFirst(false);
     };
+    setLoadingFirst(true);
     loading.current = run();
     return loading.current;
   }, [loadOnce]);
@@ -203,12 +208,13 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
   // New holds everything the server counts: after a load lands (the
   // first page, or an older one) the next older page is asked for while
   // the rule says so. Not while the first page is being loaded again,
-  // which could replace what the page would be asked before.
+  // which could replace what the page would be asked before; that gate
+  // is state, so its lifting runs this once more over what landed.
   useEffect(() => {
-    if (feed.state !== "ready" || loading.current) return;
+    if (feed.state !== "ready" || loadingFirst) return;
     const held = withOlderPages(feed.data.items, feed.older);
     if (needsOlderPageForNew(feed.data.unreadCount, held, feed.exhausted, autoPages.current)) loadOlder(true);
-  }, [feed, loadOlder]);
+  }, [feed, loadingFirst, loadOlder]);
 
   // What the server answered for a read, stamped on the items held, the
   // older pages too.

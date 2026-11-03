@@ -67,13 +67,15 @@ export function ActivityPage() {
 
   // New holds everything the server counts: once the first page is the
   // server's (not a cached copy about to be replaced), and after each
-  // older page lands, the next is asked for while the rule says so.
+  // older page lands, the next is asked for while the rule says so. A
+  // page that fails is left to the sentinel, which asks again on the
+  // next scroll.
   useEffect(() => {
     if (!data || isFetching) return;
     if (
       needsOlderPageForNew(data.unreadCount, all, exhausted, autoPages.current)
     ) {
-      loadOlderPage(true);
+      loadOlderPage(true).catch(() => {});
     }
   }, [data, isFetching, all, exhausted, loadOlderPage]);
 
