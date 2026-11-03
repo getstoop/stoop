@@ -26,21 +26,36 @@ func (q *Queries) CountUnreadActivity(ctx context.Context, userID string) (int64
 
 const createActivityItems = `-- name: CreateActivityItems :many
 
-INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
-SELECT unnest($1::uuid[]), unnest($2::uuid[]), $3::text,
-    $4::uuid, $5::uuid, $6::uuid, $7::uuid
-WHERE EXISTS (SELECT 1 FROM messages m WHERE m.id = $6::uuid AND m.deleted_at IS NULL)
+WITH live AS (
+    SELECT m.id, m.channel_id, m.in_channel, m.thread_root_id FROM messages m
+    WHERE m.id = $5::uuid AND m.deleted_at IS NULL
+), recipient AS (
+    SELECT unnest($6::uuid[]) AS id, unnest($7::uuid[]) AS user_id
+)
+INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id, read_at)
+SELECT r.id, r.user_id, $1::text,
+    $2::uuid, $3::uuid, m.id, $4::uuid,
+    CASE WHEN ($1::text <> 'thread_reply' AND m.in_channel
+               AND EXISTS (SELECT 1 FROM channel_reads cr
+                           WHERE cr.user_id = r.user_id AND cr.channel_id = m.channel_id
+                             AND cr.last_read_message_id >= m.id))
+           OR (m.thread_root_id IS NOT NULL
+               AND EXISTS (SELECT 1 FROM thread_reads tr
+                           WHERE tr.user_id = r.user_id AND tr.root_message_id = m.thread_root_id
+                             AND tr.last_read_message_id >= m.id))
+         THEN now() END
+FROM recipient r, live m
 RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
 `
 
 type CreateActivityItemsParams struct {
-	Ids       []string
-	UserIds   []string
 	Kind      string
 	SpaceID   *string
 	ChannelID string
-	MessageID string
 	ActorID   string
+	MessageID string
+	Ids       []string
+	UserIds   []string
 }
 
 // Activity items. Owned by the chat module.
@@ -48,16 +63,21 @@ type CreateActivityItemsParams struct {
 // CreateActivityItems writes one item of a kind for each recipient of
 // a message, in one statement (see chat.notify). Nothing is written for
 // a message deleted since it was sent: activity is recorded after the
-// send commits, and a tombstone's items go with it.
+// send commits, and a tombstone's items go with it. An item whose
+// message the recipient's marker has already passed is born read: the
+// message is published before its activity is recorded, and a client
+// with the channel or thread on screen may have marked it read in
+// between. The rule is the one MarkChannelActivityRead and
+// MarkThreadActivityRead apply later.
 func (q *Queries) CreateActivityItems(ctx context.Context, arg CreateActivityItemsParams) ([]ActivityItem, error) {
 	rows, err := q.db.Query(ctx, createActivityItems,
-		arg.Ids,
-		arg.UserIds,
 		arg.Kind,
 		arg.SpaceID,
 		arg.ChannelID,
-		arg.MessageID,
 		arg.ActorID,
+		arg.MessageID,
+		arg.Ids,
+		arg.UserIds,
 	)
 	if err != nil {
 		return nil, err
@@ -310,7 +330,8 @@ func (q *Queries) MarkThreadActivityRead(ctx context.Context, arg MarkThreadActi
 
 const upsertUnreadActivityItems = `-- name: UpsertUnreadActivityItems :many
 WITH live AS (
-    SELECT 1 FROM messages m WHERE m.id = $1::uuid AND m.deleted_at IS NULL
+    SELECT m.id, m.channel_id, m.in_channel, m.thread_root_id FROM messages m
+    WHERE m.id = $1::uuid AND m.deleted_at IS NULL
 ), recipient AS (
     SELECT unnest($2::uuid[]) AS id, unnest($3::uuid[]) AS user_id
 ), unread AS (
@@ -331,11 +352,20 @@ WITH live AS (
     WHERE a.id = u.id AND EXISTS (SELECT 1 FROM live)
     RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
 ), created AS (
-    INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id)
+    INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id, read_at)
     SELECT r.id, r.user_id, $5::text, $8::uuid,
-        $4::uuid, $1::uuid, $7::uuid
-    FROM recipient r
-    WHERE EXISTS (SELECT 1 FROM live) AND NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
+        $4::uuid, m.id, $7::uuid,
+        CASE WHEN ($5::text <> 'thread_reply' AND m.in_channel
+                   AND EXISTS (SELECT 1 FROM channel_reads cr
+                               WHERE cr.user_id = r.user_id AND cr.channel_id = m.channel_id
+                                 AND cr.last_read_message_id >= m.id))
+               OR (m.thread_root_id IS NOT NULL
+                   AND EXISTS (SELECT 1 FROM thread_reads tr
+                               WHERE tr.user_id = r.user_id AND tr.root_message_id = m.thread_root_id
+                                 AND tr.last_read_message_id >= m.id))
+             THEN now() END
+    FROM recipient r, live m
+    WHERE NOT EXISTS (SELECT 1 FROM unread u WHERE u.user_id = r.user_id)
     RETURNING id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at
 )
 SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM refreshed
@@ -370,9 +400,11 @@ type UpsertUnreadActivityItemsRow struct {
 // coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
 // thread when thread_root_id is set: a recipient's newest unread item of
 // the kind there is pointed at the new message and stamped now; a
-// recipient without one gets a new item. Nothing is refreshed or written
-// for a message deleted since it was sent, as CreateActivityItems writes
-// nothing.
+// recipient without one gets a new item, born read when their marker has
+// already passed the message, as CreateActivityItems writes it (a
+// refreshed item is unread by definition). Nothing is refreshed or
+// written for a message deleted since it was sent, as CreateActivityItems
+// writes nothing.
 func (q *Queries) UpsertUnreadActivityItems(ctx context.Context, arg UpsertUnreadActivityItemsParams) ([]UpsertUnreadActivityItemsRow, error) {
 	rows, err := q.db.Query(ctx, upsertUnreadActivityItems,
 		arg.MessageID,

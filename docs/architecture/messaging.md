@@ -506,7 +506,11 @@ actor and a 140-character preview. An item goes read when the feed marks
 it read, or when the read marker of the timeline its message is in passes
 it: the channel's for a message the channel shows, the thread's for a
 reply, and only the thread's for a `thread_reply`
-([Reads and unreads](#reads-and-unreads)).
+([Reads and unreads](#reads-and-unreads)). An item for a message the
+reader's marker has already passed is born read, `read_at` set as it is
+written and carried on its `ActivityItemCreated`: the message is
+published before its activity is recorded, so a client with the channel
+or thread on screen can move the marker in between.
 
 **On the web the feed is an inbox** (`routes/Activity/`): a New section
 of unread items, newest first, with Mark all read on its heading, and a
@@ -591,8 +595,10 @@ earlier reply in a thread clears with the channel's marker, though that
 reply was never seen.
 
 The stored marker is the bound, not the request's target: the marker
-only moves forward, and an item written just after the read clears on
-the next one. Only a credential that covers `activity.read` clears
+only moves forward, and an item written after the read is born read by
+the same rule (`CreateActivityItems`, `UpsertUnreadActivityItems`), since
+`MessageCreated` goes out before the activity is written and a live
+client may have read the message by then. Only a credential that covers `activity.read` clears
 anything: a token that posts or reads as the person leaves their feed as
 it was. So a mention clears when its message is read, however far down
 the feed it sits; `MarkActivityRead` remains for the feed itself. Clients
