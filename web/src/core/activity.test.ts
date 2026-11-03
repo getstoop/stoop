@@ -8,10 +8,8 @@ import {
   type ActivityData,
   activityTime,
   activityVerb,
-  alertingCount,
   readMayClearActivity,
   startsDay,
-  unreadCounts,
   withActivityItem,
   withActivityRead,
   withOlderPages,
@@ -54,90 +52,6 @@ describe("activityVerb", () => {
   it("falls back to a mention", () => {
     expect(activityVerb(ActivityKind.UNSPECIFIED)).toBe("mentioned you");
     expect(activityVerb(99 as ActivityKind)).toBe("mentioned you");
-  });
-});
-
-describe("unreadCounts", () => {
-  it("is empty when nothing is loaded", () => {
-    const { bySpace, byChannel } = unreadCounts(undefined);
-    expect(bySpace.size).toBe(0);
-    expect(byChannel.size).toBe(0);
-  });
-
-  it("groups unread items by space and by channel", () => {
-    const { bySpace, byChannel } = unreadCounts(
-      data([
-        item("1"),
-        item("2", { channelId: "random" }),
-        item("3", { spaceId: "s2", channelId: "welcome" }),
-      ]),
-    );
-    expect([...bySpace]).toEqual([
-      ["s1", 2],
-      ["s2", 1],
-    ]);
-    expect([...byChannel]).toEqual([
-      ["general", 1],
-      ["random", 1],
-      ["welcome", 1],
-    ]);
-  });
-
-  it("leaves out thread replies but counts a mention in a thread", () => {
-    const { byChannel } = unreadCounts(
-      data([
-        item("1", { kind: ActivityKind.THREAD_REPLY, threadRootId: "r" }),
-        item("2", { threadRootId: "r" }),
-      ]),
-    );
-    expect(byChannel.get("general")).toBe(1);
-  });
-
-  it("skips items already read", () => {
-    const { bySpace } = unreadCounts(
-      data([item("1", { readAt: stamp(10) }), item("2")]),
-    );
-    expect(bySpace.get("s1")).toBe(1);
-  });
-
-  it("skips items the server stamped muted", () => {
-    const { bySpace, byChannel } = unreadCounts(
-      data([item("1", { muted: true })]),
-    );
-    expect(bySpace.size).toBe(0);
-    expect(byChannel.size).toBe(0);
-  });
-
-  // A direct message carries no space, so its count lands under the empty
-  // key rather than a real space's.
-  it("keys direct messages under the empty space", () => {
-    const { bySpace, byChannel } = unreadCounts(
-      data([
-        item("1", { kind: ActivityKind.DM, spaceId: "", channelId: "ada" }),
-      ]),
-    );
-    expect(bySpace.get("")).toBe(1);
-    expect(byChannel.get("ada")).toBe(1);
-  });
-});
-
-describe("alertingCount", () => {
-  it("is zero when nothing is loaded", () => {
-    expect(alertingCount(undefined)).toBe(0);
-  });
-
-  it("totals the unread, unmuted items across spaces and direct messages", () => {
-    expect(
-      alertingCount(
-        data([
-          item("1"),
-          item("2", { spaceId: "s2" }),
-          item("3", { kind: ActivityKind.DM, spaceId: "", channelId: "bea" }),
-          item("4", { muted: true }),
-          item("5", { readAt: stamp(10) }),
-        ]),
-      ),
-    ).toBe(3);
   });
 });
 

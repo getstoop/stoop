@@ -9,6 +9,8 @@ import { sameDay, shortDateTime } from "./dates";
 // ListActivity, kept current from ActivityItemCreated, and the server's
 // count of everything unread (which can reach past the page). Web keeps
 // it in its query cache (api/activity.ts); the phone in its own store.
+// No badge is counted from it: those read the server's alert counts
+// (core/alerts.ts).
 export interface ActivityData {
   items: ActivityItem[];
   unreadCount: number;
@@ -127,36 +129,6 @@ export function activityVerb(kind: ActivityKind): string {
     default:
       return "mentioned you";
   }
-}
-
-// Unread counts grouped by space and by channel, derived from the feed's
-// first page. The mobile app's badges still read these; web's read the
-// server's Channel.alertCount and Space.alertCount instead (core/alerts.ts),
-// which count past the first page, and these go once mobile does too.
-// Items the server stamped muted are left out, and so are thread_reply
-// items: a thread's news shows on its summary line, and the red count is
-// for what is addressed to you, a mention in a thread included. The feed's
-// own total (`ActivityData.unreadCount`) counts everything.
-export function unreadCounts(data: ActivityData | undefined) {
-  const bySpace = new Map<string, number>();
-  const byChannel = new Map<string, number>();
-  for (const item of data?.items ?? []) {
-    if (item.readAt) continue;
-    if (item.muted) continue;
-    if (item.kind === ActivityKind.THREAD_REPLY) continue;
-    bySpace.set(item.spaceId, (bySpace.get(item.spaceId) ?? 0) + 1);
-    byChannel.set(item.channelId, (byChannel.get(item.channelId) ?? 0) + 1);
-  }
-  return { bySpace, byChannel };
-}
-
-// The same items as one number, for mobile's Activity tab and a server's
-// badge in the switcher and You. Zero when nothing is loaded. The desktop
-// shell's dock and tray read `alertingTotal` (core/alerts.ts) instead.
-export function alertingCount(data: ActivityData | undefined): number {
-  let n = 0;
-  for (const count of unreadCounts(data).bySpace.values()) n += count;
-  return n;
 }
 
 // A row's time. A recent row says how long ago. Past a day, a dated row
