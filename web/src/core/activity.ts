@@ -129,9 +129,11 @@ export function activityVerb(kind: ActivityKind): string {
   }
 }
 
-// Unread counts grouped by space and by channel, derived from the feed so
-// every badge shares one source of truth. These are notification surfaces,
-// so items the server stamped muted are left out, and so are thread_reply
+// Unread counts grouped by space and by channel, derived from the feed's
+// first page. The mobile app's badges still read these; web's read the
+// server's Channel.alertCount and Space.alertCount instead (core/alerts.ts),
+// which count past the first page, and these go once mobile does too.
+// Items the server stamped muted are left out, and so are thread_reply
 // items: a thread's news shows on its summary line, and the red count is
 // for what is addressed to you, a mention in a thread included. The feed's
 // own total (`ActivityData.unreadCount`) counts everything.
@@ -148,9 +150,9 @@ export function unreadCounts(data: ActivityData | undefined) {
   return { bySpace, byChannel };
 }
 
-// The same items as one number, for the desktop shell's dock and tray
-// badge, mobile's Activity tab, and a server's badge in the switcher and
-// You. Zero when nothing is loaded.
+// The same items as one number, for mobile's Activity tab and a server's
+// badge in the switcher and You. Zero when nothing is loaded. The desktop
+// shell's dock and tray read `alertingTotal` (core/alerts.ts) instead.
 export function alertingCount(data: ActivityData | undefined): number {
   let n = 0;
   for (const count of unreadCounts(data).bySpace.values()) n += count;

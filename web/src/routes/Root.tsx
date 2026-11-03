@@ -9,7 +9,9 @@ import { toggleDeafen, toggleMute } from "../api/voice";
 import { stepVolume, useVoiceVolumeStore } from "../api/voiceVolume";
 import { DialogHost } from "../components/DialogHost";
 import { LinkGate } from "../components/LinkGate";
-import { type ActivityData, alertingCount } from "../core/activity";
+import { alertingTotal } from "../core/alerts";
+import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
+import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import type { GetInstanceStatusResponse } from "../gen/stoop/instance/v1/instance_pb";
 import { usePushToTalk } from "../hooks/usePushToTalk";
 import { useShortcut, useShortcutListener } from "../hooks/useShortcut";
@@ -67,16 +69,21 @@ export function Root() {
       unwatchCache();
     };
   }, [queryClient]);
-  // The unread badge the desktop shell shows on the dock and tray, read
-  // off the activity cache the same way, and a no-op in a browser.
+  // The badge the desktop shell shows on the dock and tray, read off the
+  // spaces' alert counts and the conversations the same way, and a no-op
+  // in a browser.
   useEffect(() => {
     const apply = () =>
       setBadge(
-        alertingCount(queryClient.getQueryData<ActivityData>(["activity"])),
+        alertingTotal(
+          queryClient.getQueryData<Space[]>(["spaces"]),
+          queryClient.getQueryData<DirectMessage[]>(["dms"]),
+        ),
       );
     apply();
     return queryClient.getQueryCache().subscribe((event) => {
-      if (event.query.queryKey[0] === "activity") apply();
+      const key = event.query.queryKey[0];
+      if (key === "spaces" || key === "dms") apply();
     });
   }, [queryClient]);
   return (

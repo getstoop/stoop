@@ -17,7 +17,6 @@ import { dmIsGroup, dmTitle } from "../../core/dms";
 import { canPost, canStartThreads } from "../../core/permissions";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
-import { useAutoReadActivity } from "../../hooks/useAutoRead";
 import { useMarkChannelRead } from "../../hooks/useMarkChannelRead";
 import { useConnectionStore } from "../../stores/connection";
 import { useVoiceStore } from "../../stores/voice";
@@ -130,7 +129,6 @@ export function ChannelView() {
   if (channel && divider?.channelId !== channelId) {
     setDivider({ channelId, afterId: channel.lastReadMessageId });
   }
-  useAutoReadActivity(channelId);
   useMarkChannelRead(spaceId, channelId);
   // In this voice channel: its stage sits above the chat from the moment
   // the join starts and stays for as long as we're in it, whatever the

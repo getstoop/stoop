@@ -57,7 +57,8 @@ export function refetchActivityAfterDelete(
 }
 
 // Marks activity read on the server and mirrors the result into the
-// cache. Shared by the activity page and the auto-read-on-view hook.
+// cache: the activity page's "Mark activity read". It reads the feed
+// alone; the badges clear when the channel or thread is read.
 export async function markActivityRead(
   queryClient: QueryClient,
   ids: string[] | "all",

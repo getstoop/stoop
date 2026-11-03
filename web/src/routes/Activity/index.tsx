@@ -11,13 +11,14 @@ import type { ActivityItem } from "../../gen/stoop/chat/v1/activity_pb";
 import { ActivityRow } from "./ActivityRow";
 
 // The activity inbox: everything that has happened to you, in two
-// sections. New holds what is unread, newest first, with "Mark all read"
-// on its heading; Read is the read history, the first row of each day
-// carrying the day. The
-// first page comes from the shared cache (so it is the same list the
-// badges are derived from), and older pages load as the list is
-// scrolled to its end. A row that is read moves from one section to the
-// other because the cache stamps it, not because the page moves it.
+// sections. New holds what is unread, newest first, with "Mark activity
+// read" on its heading, which reads the feed and nothing else (the
+// badges on channels and spaces clear when those are read); Read is the
+// read history, the first row of each day carrying the day. The first
+// page comes from the shared cache (the one the activity pill's dot
+// reads), and older pages load as the list is scrolled to its end. A
+// row that is read moves from one section to the other because the
+// cache stamps it, not because the page moves it.
 export function ActivityPage() {
   const { data } = useActivity();
   const [older, setOlder] = useState<ActivityItem[]>([]);
@@ -83,7 +84,7 @@ export function ActivityPage() {
                 className="chip activity-mark-all"
                 onClick={markAllRead}
               >
-                Mark all read
+                Mark activity read
               </button>
             </h2>
             <ul className="activity-list">
