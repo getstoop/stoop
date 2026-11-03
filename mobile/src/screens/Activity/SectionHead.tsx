@@ -25,13 +25,13 @@ export default function SectionHead({
         // height, so the target is 44pt tall.
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Mark all read"
+          accessibilityLabel="Mark activity read"
           onPress={onMarkAll}
           style={styles.chipTarget}
         >
           {({ pressed }) => (
             <View style={[styles.chip, pressed && styles.chipPressed]}>
-              <Text style={styles.chipLabel}>Mark all read</Text>
+              <Text style={styles.chipLabel}>Mark activity read</Text>
             </View>
           )}
         </Pressable>

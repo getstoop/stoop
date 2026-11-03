@@ -1,7 +1,7 @@
 appId: ${APP_ID}
 name: See a mention in Activity with the tab's badge, open it, and see it read
 ---
-# As ada (seed.mjs). Mark all read first clears what the seed and the
+# As ada (seed.mjs). Mark activity read first clears what the seed and the
 # flows before left unread (dee's mention in general among it, which
 # space-channels.yaml needs unread, so this flow goes after it), so the
 # badge is this flow's own. Then dee mentions ada in a channel made for
@@ -33,13 +33,13 @@ name: See a mention in Activity with the tab's badge, open it, and see it read
 - tapOn:
     id: "tab-activity"
 - extendedWaitUntil:
-    visible: "Mark all read"
+    visible: "Mark activity read"
     timeout: 15000
-- tapOn: "Mark all read"
+- tapOn: "Mark activity read"
 - extendedWaitUntil:
     visible: "You're all caught up."
     timeout: 10000
-- assertNotVisible: "Mark all read"
+- assertNotVisible: "Mark activity read"
 - assertNotVisible:
     id: "tab-activity"
     text: ".*items?|Activity, \\d+ new"
