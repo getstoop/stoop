@@ -569,6 +569,11 @@ opening, on coming back to the app and on Ready, with
 ActivityItemCreated laid on it, and loaded again when a read marker
 moves where it could have read something held (`core/activity`
 `readMayClearActivity`) or a mute or a deletion makes it stale. The
+older pages the tab scrolls to are held beside it, and while the server
+counts more unread than the pages held show, the next older page is
+loaded without a scroll until New holds everything counted, up to ten
+pages (`core/activity` `needsOlderPageForNew`); past that the person
+scrolls. The
 badges are not counted from it. The Activity tab's badge is the
 server's alert counts (`docs/architecture/messaging.md` → Alert
 counts) added up by `core/alerts` `alertingTotal`: the spaces' counts,

@@ -517,7 +517,12 @@ of unread items, newest first, with Mark activity read on its heading
 (it reads the feed alone; the badges clear when the channel or thread
 is read), and a
 Read section of read ones with a rule between each, the first row of a
-day carrying the day, loading older pages as the list reaches its end. A row is the actor with the kind as a glyph on
+day carrying the day, loading older pages as the list reaches its end.
+The first page is the newest items whatever their state, so while the
+server counts more unread than the page holds, it loads older pages on
+its own until New holds everything counted, up to ten pages
+(`core/activity` `needsOlderPageForNew`); past that the person scrolls.
+A row is the actor with the kind as a glyph on
 the avatar's corner (@, a reply arrow, a thread bubble, an envelope), a
 verb line ("mentioned you", "replied to you", "replied in a thread",
 "sent you a direct message") with the channel beside it, the space

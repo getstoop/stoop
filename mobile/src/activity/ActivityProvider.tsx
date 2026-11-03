@@ -2,10 +2,12 @@ import { timestampNow } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import {
   type ActivityData,
+  needsOlderPageForNew,
   type ReadPlace,
   readMayClearActivity,
   withActivityItem,
   withActivityRead,
+  withOlderPages,
 } from "@stoop/core/activity";
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
@@ -20,7 +22,10 @@ import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed
 // One server's activity feed, as web keeps it in its query cache
 // (web/src/api/activity.ts): the first page of ListActivity and the
 // server's unread count, held for the Activity tab, with the older pages
-// the tab has scrolled to beside it, so a read stamps them too. The
+// the tab has scrolled to beside it, so a read stamps them too; while
+// the server counts more unread than those pages show, the next older
+// page is loaded without a scroll, up to a bound (core
+// needsOlderPageForNew), so New holds everything counted. The
 // tab's badge is not counted from it (src/alerts). Loaded on mounting
 // and on the socket's Ready (a reconnect, which coming back to the app
 // brings; a few seconds without one load anyway); kept current by
@@ -83,6 +88,8 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
   // Counts pulls: an older page asked for before one lands nowhere.
   const pulls = useRef(0);
   const paging = useRef(false);
+  // Pages loaded for New's sake since the last pull, against the bound.
+  const autoPages = useRef(0);
   const alive = useRef(true);
   useEffect(
     () => () => {
@@ -158,32 +165,50 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
   const reload = useCallback(() => {
     pulls.current++;
     paging.current = false;
+    autoPages.current = 0;
     set((held) => (held.state === "ready" ? { ...held, older: [], exhausted: false } : held));
     return refresh();
   }, [refresh, set]);
 
-  const loadMore = useCallback(async () => {
-    const held = feedRef.current;
-    if (held.state !== "ready" || held.exhausted || paging.current) return;
-    const last = held.older.at(-1) ?? held.data.items.at(-1);
-    if (!last) return;
-    const pull = pulls.current;
-    paging.current = true;
-    try {
-      const page = await loadOlderActivity(server.origin, held.token, last.id);
-      if (pull !== pulls.current) return;
-      set((now) =>
-        now.state === "ready"
-          ? { ...now, older: [...now.older, ...page], exhausted: now.exhausted || page.length === 0 }
-          : now,
-      );
-    } catch (err) {
-      // Otherwise reaching the end again asks again.
-      if (unauthenticated(err)) end();
-    } finally {
-      if (pull === pulls.current) paging.current = false;
-    }
-  }, [server.origin, set, end]);
+  // The page older than everything held, asked for by the list's end or,
+  // forNew, by the rule below.
+  const loadOlder = useCallback(
+    async (forNew: boolean) => {
+      const held = feedRef.current;
+      if (held.state !== "ready" || held.exhausted || paging.current) return;
+      const last = held.older.at(-1) ?? held.data.items.at(-1);
+      if (!last) return;
+      const pull = pulls.current;
+      paging.current = true;
+      if (forNew) autoPages.current++;
+      try {
+        const page = await loadOlderActivity(server.origin, held.token, last.id);
+        if (pull !== pulls.current) return;
+        set((now) =>
+          now.state === "ready"
+            ? { ...now, older: [...now.older, ...page], exhausted: now.exhausted || page.length === 0 }
+            : now,
+        );
+      } catch (err) {
+        // Otherwise reaching the end again asks again.
+        if (unauthenticated(err)) end();
+      } finally {
+        if (pull === pulls.current) paging.current = false;
+      }
+    },
+    [server.origin, set, end],
+  );
+  const loadMore = useCallback(() => loadOlder(false), [loadOlder]);
+
+  // New holds everything the server counts: after a load lands (the
+  // first page, or an older one) the next older page is asked for while
+  // the rule says so. Not while the first page is being loaded again,
+  // which could replace what the page would be asked before.
+  useEffect(() => {
+    if (feed.state !== "ready" || loading.current) return;
+    const held = withOlderPages(feed.data.items, feed.older);
+    if (needsOlderPageForNew(feed.data.unreadCount, held, feed.exhausted, autoPages.current)) loadOlder(true);
+  }, [feed, loadOlder]);
 
   // What the server answered for a read, stamped on the items held, the
   // older pages too.

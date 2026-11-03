@@ -8,6 +8,8 @@ import {
   type ActivityData,
   activityTime,
   activityVerb,
+  NEW_AUTO_PAGES,
+  needsOlderPageForNew,
   readMayClearActivity,
   startsDay,
   withActivityItem,
@@ -235,5 +237,39 @@ describe("startsDay", () => {
     expect(
       startsDay(item("a"), item("b", { createdAt: at("2026-10-30T09:00:00") })),
     ).toBe(true);
+  });
+});
+
+describe("needsOlderPageForNew", () => {
+  const read = { readAt: stamp(1) };
+
+  it("asks for a page while the server counts more unread than is held", () => {
+    const held = [item("c"), item("b", read)];
+    expect(needsOlderPageForNew(2, held, false, 0)).toBe(true);
+  });
+
+  it("stops once New holds everything counted", () => {
+    const held = [item("c"), item("b", read), item("a")];
+    expect(needsOlderPageForNew(2, held, false, 3)).toBe(false);
+  });
+
+  it("stops when the count is short of what is held", () => {
+    // An item read elsewhere, counted out by the server but still
+    // drawn unread here.
+    expect(needsOlderPageForNew(0, [item("a")], false, 0)).toBe(false);
+  });
+
+  it("stops when the oldest page came back empty", () => {
+    expect(needsOlderPageForNew(2, [item("a")], true, 0)).toBe(false);
+  });
+
+  it("stops at the bound", () => {
+    const held = [item("a", read)];
+    expect(needsOlderPageForNew(1, held, false, NEW_AUTO_PAGES - 1)).toBe(true);
+    expect(needsOlderPageForNew(1, held, false, NEW_AUTO_PAGES)).toBe(false);
+  });
+
+  it("asks for nothing with nothing held to ask before", () => {
+    expect(needsOlderPageForNew(1, [], false, 0)).toBe(false);
   });
 });

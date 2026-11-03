@@ -315,9 +315,10 @@ test("mentions notify, badge and read", async ({ browser }) => {
     "the server counts the same sixty",
   ).toHaveText("60");
 
-  // A mention older than the feed's first page still badges: one unread
-  // in #general, then fifty read as they land in #random, where A is,
-  // push it past the page the feed holds.
+  // A mention older than the feed's first page still badges, and the
+  // inbox still shows it: one unread in #general, then fifty-five read
+  // as they land in #random, where A is, push it past the page the feed
+  // holds.
   await focus(A);
   await channelLink(A, "general").click();
   await expect(
@@ -331,26 +332,43 @@ test("mentions notify, badge and read", async ({ browser }) => {
     channelLink(A, "general").locator(".channel-badge"),
     "the one in #general badges",
   ).toHaveText("1");
-  for (let i = 1; i <= 50; i++) {
+  for (let i = 1; i <= 55; i++) {
     await sendMessage(tokens.bea, channels.random, `${mentionA} seen ${i}`);
   }
-  await A.locator(".message-content", { hasText: "seen 50" }).waitFor();
+  await A.locator(".message-content", { hasText: "seen 55" }).waitFor();
   await expect(
     channelLink(A, "random").locator(".channel-badge"),
-    "the fifty read as they landed badge nothing",
+    "the fifty-five read as they landed badge nothing",
   ).toHaveCount(0);
   // The server read them too, which the feed shows while nothing on
   // screen could read #random again: only the one in #general is unread.
   await A.locator(".space-pill.activity").click();
   await expect(
     A.locator(".activity-page-header"),
-    "the server read the fifty that landed in the open channel",
+    "the server read the fifty-five that landed in the open channel",
   ).toContainText("1 unread");
+  // Opened fresh, the inbox's first page is the fifty-five read items,
+  // and the one unread sits past it; the page loads older pages on its
+  // own until New holds everything the server counts, so the mention is
+  // in New without a scroll.
   await reload(A);
+  await A.locator(".space-pill.activity").click();
+  await expect(
+    A.locator(".activity-section.new .activity-row.unread"),
+    "New shows the mention past the first page",
+  ).toContainText("buried");
+  await expect(
+    A.locator(".activity-page-header"),
+    "and the header counts it",
+  ).toContainText("1 unread");
+  expect(
+    await A.locator(".activity-scroll").evaluate((list) => list.scrollTop),
+    "without the list having scrolled",
+  ).toBe(0);
   await gotoShared(A, `/s/${space.id}/c/${channels.random}`);
   await expect(
     channelLink(A, "general").locator(".channel-badge"),
-    "the mention older than fifty newer read items still badges",
+    "the mention older than fifty-five newer read items still badges",
   ).toHaveText("1");
   await expect(
     channelLink(A, "random").locator(".channel-badge"),
