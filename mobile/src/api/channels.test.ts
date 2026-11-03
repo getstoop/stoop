@@ -18,11 +18,13 @@ const event = (payload: MessageInitShape<typeof ServerEventSchema>["payload"]) =
   create(ServerEventSchema, { payload });
 
 // The events that move a channel's alert count: a message addressed to
-// the reader arriving, a marker passing it, a mute hiding it, a deletion
-// taking it away. Each names its space.
+// the reader arriving, an edit adding or removing a mention, a marker
+// passing it, a mute hiding it, a deletion taking it away. Each names its
+// space.
 describe("touchesSpace", () => {
   it.each([
     ["a message created", { case: "messageCreated", value: create(MessageSchema, { spaceId: "s1" }) }],
+    ["a message edited", { case: "messageUpdated", value: create(MessageSchema, { spaceId: "s1" }) }],
     ["a message deleted", { case: "messageDeleted", value: create(MessageDeletedSchema, { spaceId: "s1" }) }],
     ["a channel read", { case: "channelRead", value: create(ChannelReadSchema, { spaceId: "s1" }) }],
     ["a thread read", { case: "threadRead", value: create(ThreadReadSchema, { spaceId: "s1" }) }],

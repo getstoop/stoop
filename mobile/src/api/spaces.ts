@@ -4,8 +4,8 @@ import { chatClient } from "./clients";
 // The Spaces tab's list: the spaces the signed-in account is in, in the
 // order it joined them (as web's rail), each carrying what is waiting in
 // it (`hasUnread`, `alertCount`, `muted`, the caller's own). A snapshot,
-// fetched again on pull and on coming back to the app; live updates
-// arrive with the realtime gateway.
+// fetched on opening, on pull and on coming back to the app; the tab
+// listens to the socket only for its sign-in ending.
 
 const TIMEOUT_MS = 10000;
 
