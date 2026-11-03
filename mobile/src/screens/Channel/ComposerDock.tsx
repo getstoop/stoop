@@ -70,7 +70,7 @@ export default function ComposerDock({
             list(composerHeight + composerBottom)
           )}
           <EdgeFade edge="top" height={insets.top + FADE_IN} />
-          <EdgeFade edge="bottom" height={composerBottom + FADE_IN} />
+          <EdgeFade edge="bottom" height={composerBottom + PILL + FADE_IN} />
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
@@ -109,8 +109,10 @@ export default function ComposerDock({
 
 const noFade = { top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
 
-// How far past the status bar, and past the composer's foot, a fade
-// reaches before it is gone.
+// How far past the status bar, and past the composer's head, a fade
+// reaches before it is gone. The bottom one runs the composer's whole
+// height and on, so the rows behind the pill dim by degrees instead of
+// meeting a line across it.
 const FADE_IN = 20;
 
 function makeStyles(theme: Theme) {
