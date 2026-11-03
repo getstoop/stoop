@@ -73,7 +73,8 @@
   margin: 0;
 }
 
-/* Message fills the row; the ⋮ beside it holds the rest. */
+/* Message (Edit profile, on your own card) fills the row; the ⋮ beside
+   it holds the rest. */
 .user-card-actions {
   display: flex;
   align-items: stretch;
@@ -100,8 +101,8 @@
 }
 
 /* The kit's icon button, dressed as the Message button's quiet twin and
-   as tall as it. Alone (your own card, a bot, a direct message) it keeps
-   to the right, where a menu button lives. */
+   as tall as it. Alone (a bot, a direct message) it keeps to the right,
+   where a menu button lives. */
 .user-card-actions .dots-menu-anchor {
   align-items: stretch;
 }

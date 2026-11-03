@@ -18,15 +18,16 @@ import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
 import { DeletedMark } from "./DeletedMark";
 import { DotsMenu, type MenuItem } from "./DotsMenu";
-import { ChatBubbleIcon } from "./Icons";
+import { ChatBubbleIcon, PencilIcon } from "./Icons";
 
 // A small profile card, anchored below the element that opened it. Who
 // they are comes from GetUserProfile, so it is the same in a space and in
 // a direct message and always fresh — a renamed user shows their current
 // name even on an old message. What they are *here* (role, badges, join
 // date) comes from the membership, which a DM (spaceId "") has none of.
-// Message is the one most people came for, so it is the button; the
-// rest (copy a mention, manage, block) wait in a ⋮ menu beside it.
+// Message is the one most people came for, so it is the button (on your
+// own card, Edit profile); the rest (copy a mention, manage, block) wait
+// in a ⋮ menu beside it.
 export function UserCard({
   spaceId,
   userId,
@@ -212,6 +213,19 @@ export function UserCard({
               >
                 <ChatBubbleIcon />
                 Message
+              </button>
+            )}
+            {isSelf && (
+              <button
+                type="button"
+                className="primary message-button edit-profile-button"
+                onClick={() => {
+                  onClose();
+                  navigate({ to: "/profile" });
+                }}
+              >
+                <PencilIcon />
+                Edit profile
               </button>
             )}
             <DotsMenu label={`More actions for ${name}`} items={items} />
