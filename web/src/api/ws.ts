@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { addressesMe } from "../core/alerts";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import type { Message, MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import {
   type ClientEvent,
@@ -234,8 +235,14 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         const readingThread =
           m.threadRootId === openThreadRootId() && hasAttention();
         if (mine) {
+          // Only ahead of the ThreadRead the server sends for our own
+          // reply, which refetches the same lists.
           refetchAlertsIfAny(queryClient, m.spaceId, m.channelId);
-        } else if (addressesMe(m, userId) && !readingThread) {
+        } else if (
+          addressesMe(m, userId) &&
+          !readingThread &&
+          !fromBlocked(queryClient, m)
+        ) {
           noteAlert(queryClient, m.spaceId, m.channelId, m.threadRootId);
         }
         break;
@@ -267,7 +274,7 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
         } else if (!muted) {
           setSpaceUnread(queryClient, m.spaceId, true);
         }
-        if (addressesMe(m, userId)) {
+        if (addressesMe(m, userId) && !fromBlocked(queryClient, m)) {
           noteAlert(queryClient, m.spaceId, m.channelId);
         }
       }
@@ -585,6 +592,15 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     default:
       break;
   }
+}
+
+// Whether a message is from someone the reader has blocked, as far as
+// the cache knows: MessageCreated is broadcast regardless, but the
+// server counts no alert from them. A cold cache says no, and the next
+// refetch of the counts puts it right.
+function fromBlocked(queryClient: QueryClient, message: Message): boolean {
+  const blocked = queryClient.getQueryData<MessageAuthor[]>(["blocked"]);
+  return !!blocked?.some((user) => user.id === message.author?.id);
 }
 
 // Where an activity item points: a space channel, or a direct message.

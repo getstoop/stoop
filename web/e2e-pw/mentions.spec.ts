@@ -3,6 +3,7 @@ import {
   channelLink,
   expect,
   focus,
+  gotoShared,
   reload,
   seed,
   sendMessage,
@@ -23,7 +24,7 @@ declare global {
 // past the feed's first page.
 // Ported from web/e2e/mentions.mjs (STOOP-238).
 test("mentions notify, badge and read", async ({ browser }) => {
-  const { suffix, tokens, ids, channels } = await seed();
+  const { suffix, tokens, ids, space, channels } = await seed();
 
   const composer = (p: Page) => p.locator(".composer .rich-editor-content");
   const activityDot = (p: Page) => p.locator(".space-pill.activity .pill-dot");
@@ -338,9 +339,21 @@ test("mentions notify, badge and read", async ({ browser }) => {
     channelLink(A, "random").locator(".channel-badge"),
     "the fifty read as they landed badge nothing",
   ).toHaveCount(0);
+  // The server read them too, which the feed shows while nothing on
+  // screen could read #random again: only the one in #general is unread.
+  await A.locator(".space-pill.activity").click();
+  await expect(
+    A.locator(".activity-page-header"),
+    "the server read the fifty that landed in the open channel",
+  ).toContainText("1 unread");
   await reload(A);
+  await gotoShared(A, `/s/${space.id}/c/${channels.random}`);
   await expect(
     channelLink(A, "general").locator(".channel-badge"),
     "the mention older than fifty newer read items still badges",
   ).toHaveText("1");
+  await expect(
+    channelLink(A, "random").locator(".channel-badge"),
+    "and #random has none",
+  ).toHaveCount(0);
 });
