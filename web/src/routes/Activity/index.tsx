@@ -6,9 +6,11 @@ import { chatClient } from "../../api/clients";
 import { useActivity } from "../../api/queries";
 import { MenuButton } from "../../components/MenuButton";
 import {
+  type ActivityData,
   needsOlderPageForNew,
   startsDay,
   withOlderPages,
+  withoutRefreshed,
 } from "../../core/activity";
 import { dayLabel } from "../../core/dates";
 import type { ActivityItem } from "../../gen/stoop/chat/v1/activity_pb";
@@ -80,12 +82,20 @@ export function ActivityPage() {
   }, [data, isFetching, all, exhausted, loadOlderPage]);
 
   // The server reads everything, older pages included, but only the
-  // first page is in the cache it stamps, so the page stamps the rest.
+  // first page is in the cache it stamps, so the page stamps the rest,
+  // less an entry the first page refreshed: that row is gone on the
+  // server, and stamped it would show its conversation twice in Read.
+  // The first page is read from the cache once the server has answered,
+  // since an entry can be refreshed while the request is in flight.
   const markAllRead = async () => {
     await markActivityRead(queryClient, "all");
     const readAt = timestampNow();
+    const first =
+      queryClient.getQueryData<ActivityData>(["activity"])?.items ?? [];
     setOlder((o) =>
-      o.map((item) => (item.readAt ? item : { ...item, readAt })),
+      withoutRefreshed(first, o).map((item) =>
+        item.readAt ? item : { ...item, readAt },
+      ),
     );
   };
 

@@ -552,9 +552,29 @@ any size of space.
 ### The DM feed collapses
 
 The activity feed holds **one entry per conversation, not per
-message**. While an entry is unread, further messages refresh its preview
-and timestamp in place (`UpsertUnreadActivityItems`); once it has been
-read, the next message starts a new entry.
+message**. While an entry is unread, further messages refresh it
+(`UpsertUnreadActivityItems`): the newest preview and time, and a new id,
+so that it reads as new and sorts to the top of a feed ordered by id
+rather than staying where the first unread message put it. Once it has
+been read, the next message starts a new entry. Because the id changes,
+a channel's coalescing writes run one after the other, under an advisory
+lock per channel (`LockActivityPlace`), with the new ids minted once the
+lock is held: two at once would otherwise leave the second re-checking
+an id the first had already changed, and its refresh lost, or moving the
+entry to an id older than the one just published. The old id is gone with
+the refresh (`ActivityItemCreated` carries the new one), so a client
+coalesces by conversation, or by thread for a `thread_reply`, never by
+id: the arriving item replaces the unread entry it holds for the same
+place, and an older page still carrying the old row drops it
+(`withActivityItem`, `withoutRefreshed` in `core/activity.ts`). Events
+are published once the lock is released, so they can cross: an unread
+arrival older than the held entry is the row that refresh took away,
+and is dropped; a read arrival is a row the server keeps (a refresh
+only ever takes an unread one), and is kept in its place by id.
+`MarkActivityRead` with an id that no longer exists reads nothing and
+loses nothing: the entry is read on the next tap or by the marker. A
+refreshed entry is born read by the same rule as a new one, when the
+recipient's marker has already passed the new message.
 
 The event still goes out for every message, so a desktop banner fires per
 message unless that DM is on screen and focused. That split is intentional:
@@ -1012,7 +1032,9 @@ in the root's thread and not in the channel's timeline
   mentions and quote-replies (one item per person). It is a
   `thread_reply` item, one per thread while unread, refreshed by later
   replies as the DM feed collapses (`UpsertUnreadActivityItems` with a
-  thread root). A `thread_reply` item is a thread's unread signal, not
+  thread root), under a new id each time so the thread sorts to the top;
+  a client coalesces them by thread root, not by id. A `thread_reply`
+  item is a thread's unread signal, not
   something addressed to you, so a thread mute stops it; a mention or a
   quote-reply in a muted thread is still written, marked muted, as in a
   muted channel. It lights the activity pill and the summary's "new"

@@ -6,6 +6,7 @@ import {
   reload,
   say,
   seed,
+  sendMessage,
   signIn,
   test,
 } from "./lib";
@@ -160,4 +161,67 @@ test("direct messages", async ({ browser }) => {
   await say(C, "still there?");
   await expect(list, "a new message brings it back").toHaveCount(2);
   await expect(list.first(), "…at the top").toHaveText(cName);
+});
+
+// A conversation has one entry in the activity feed while unread, and a
+// further message refreshes it under a new id (messaging.md → The DM feed
+// collapses), so the entry sorts to the top of New past whatever arrived
+// in between, live and after a reload, with the newest preview.
+test("a direct message lifts its one feed entry to the top", async ({
+  browser,
+}) => {
+  const { suffix, tokens, ids, channels } = await seed({
+    users: ["ada", "bea", "cal"],
+    channels: ["general"],
+  });
+  const aName = `ada${suffix}`;
+
+  // A keeps the activity page open, where nothing is read until tapped.
+  const A = await (await browser.newContext()).newPage();
+  await signIn(A, tokens.ada, "/activity");
+  const B = await (await browser.newContext()).newPage();
+  await signIn(B, tokens.bea);
+  await B.locator(".composer .rich-editor-content").waitFor();
+
+  await B.locator(".member-row", { hasText: aName }).click();
+  await B.locator(".user-card .message-button").click();
+  await expect(B, "Message opens the conversation").toHaveURL(/\/dm\//);
+  await say(B, "hello ada");
+
+  const fresh = A.locator(".activity-section.new .activity-row");
+  const conversation = fresh.filter({ hasText: "sent you a direct message" });
+  await expect(conversation, "the first message makes the entry").toHaveCount(
+    1,
+  );
+
+  // Three mentions from C put the conversation's entry below them.
+  for (const word of ["one", "two", "three"]) {
+    await sendMessage(
+      tokens.cal,
+      channels.general,
+      `<@u:${ids.ada}:${aName}> ${word}`,
+    );
+  }
+  await expect(fresh, "three mentions join the DM in New").toHaveCount(4);
+  await expect(fresh.first(), "the newest mention is on top").toContainText(
+    "mentioned you",
+  );
+
+  // B writes again: the entry climbs, once, with the newest preview.
+  await say(B, "you there?");
+  await expect(
+    fresh.first(),
+    "the conversation's entry is back on top",
+  ).toContainText("you there?");
+  await expect(conversation, "the conversation is listed once").toHaveCount(1);
+  await expect(fresh, "and nothing else moved").toHaveCount(4);
+
+  // The feed as the server lists it says the same.
+  await reload(A);
+  await expect(
+    fresh.first(),
+    "after a reload the entry is still on top",
+  ).toContainText("you there?");
+  await expect(conversation, "and still listed once").toHaveCount(1);
+  await expect(fresh, "with the mentions below it").toHaveCount(4);
 });

@@ -18,15 +18,32 @@ const item = (id: string, read = false): ActivityItem =>
     readAt: read ? stamp(1) : undefined,
   }) as ActivityItem;
 
+// A direct message's entry for one conversation: the server keeps one
+// while unread, refreshed under a new id.
+const dm = (id: string, read = false): ActivityItem =>
+  ({ ...item(id, read), kind: ActivityKind.DM, spaceId: "", channelId: "ada" }) as ActivityItem;
+
 const unread = (items: ActivityItem[]) => items.filter((x) => !x.readAt).map((x) => x.id);
+const ids = (items: ActivityItem[]) => items.map((x) => x.id);
 
 describe("olderAfterRead", () => {
+  const first = { items: [item("c")], unreadCount: 3 };
+
   it("stamps the given older items", () => {
-    expect(unread(olderAfterRead([item("b"), item("a")], ["a"], stamp(9)))).toEqual(["b"]);
+    expect(unread(olderAfterRead([item("b"), item("a")], first, ["a"], stamp(9)))).toEqual(["b"]);
   });
 
   it("stamps all of them for Mark activity read", () => {
-    expect(unread(olderAfterRead([item("b"), item("a")], "all", stamp(9)))).toEqual([]);
+    expect(unread(olderAfterRead([item("b"), item("a")], first, "all", stamp(9)))).toEqual([]);
+  });
+
+  // The old entry is gone on the server; stamped read it would sit in
+  // Read as a second row for the conversation.
+  it("drops an older entry the first page refreshed rather than stamping it", () => {
+    const refreshed = { items: [dm("dm-2"), item("c")], unreadCount: 3 };
+    const after = olderAfterRead([item("b"), dm("dm-1"), dm("dm-0", true)], refreshed, "all", stamp(9));
+    expect(ids(after)).toEqual(["b", "dm-0"]);
+    expect(unread(after)).toEqual([]);
   });
 });
 
@@ -44,6 +61,13 @@ describe("olderAfterLoad", () => {
   it("hands back the same pages when nothing older is unread", () => {
     const older = [item("a", true)];
     expect(olderAfterLoad(older, { items: [], unreadCount: 0 }, stamp(9))).toBe(older);
+  });
+
+  it("drops an older entry the first page now holds refreshed", () => {
+    const first = { items: [dm("dm-2")], unreadCount: 3 };
+    const after = olderAfterLoad([item("b"), dm("dm-1"), dm("dm-0", true)], first, stamp(9));
+    expect(ids(after)).toEqual(["b", "dm-0"]);
+    expect(unread(after)).toEqual(["b"]);
   });
 });
 

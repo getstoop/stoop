@@ -252,6 +252,29 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]L
 	return items, nil
 }
 
+const lockActivityPlace = `-- name: LockActivityPlace :exec
+SELECT pg_advisory_xact_lock(4207030, hashtext($1::text))
+`
+
+// LockActivityPlace serialises a channel's coalescing writes
+// (UpsertUnreadActivityItems, in chat.writeActivityItems) until the
+// transaction ends. Two at once would each read a recipient's unread
+// entry from their own snapshot; the second's UPDATE, waiting on the
+// row, re-checks the id the first changed, matches nothing, and writes
+// nothing (its snapshot says the entry exists, so none is created
+// either): a lost refresh. Taken first, the second's statement starts
+// after the first commits and sees the entry under its new id. The ids
+// are minted once the lock is held, so a refresh always moves an entry
+// to a greater id (clients ignore an arrival older than the entry they
+// hold). The transaction holds only this lock and the entry rows, never the
+// channel row, so there is no cycle with MarkChannelRead (ShareChannel,
+// then channel_reads and activity_items). 4207030 is this lock's
+// namespace; the others are in files.sql and jobs.sql.
+func (q *Queries) LockActivityPlace(ctx context.Context, channelID string) error {
+	_, err := q.db.Exec(ctx, lockActivityPlace, channelID)
+	return err
+}
+
 const markActivityRead = `-- name: MarkActivityRead :exec
 UPDATE activity_items SET read_at = now()
 WHERE user_id = $1 AND read_at IS NULL AND id = ANY($2::uuid[])
@@ -262,6 +285,10 @@ type MarkActivityReadParams struct {
 	Ids    []string
 }
 
+// MarkActivityRead reads the named items. An id that no longer exists is
+// skipped: a refreshed entry takes a new id (UpsertUnreadActivityItems),
+// and a client still holding the old one loses nothing, since the entry
+// is read on the next tap or by the marker.
 func (q *Queries) MarkActivityRead(ctx context.Context, arg MarkActivityReadParams) error {
 	_, err := q.db.Exec(ctx, markActivityRead, arg.UserID, arg.Ids)
 	return err
@@ -347,9 +374,18 @@ WITH live AS (
     ORDER BY a.user_id, a.id DESC
 ), refreshed AS (
     UPDATE activity_items a
-    SET message_id = $1::uuid, actor_id = $7::uuid, created_at = now()
-    FROM unread u
-    WHERE a.id = u.id AND EXISTS (SELECT 1 FROM live)
+    SET id = r.id, message_id = m.id, actor_id = $7::uuid, created_at = now(),
+        read_at = CASE WHEN ($5::text <> 'thread_reply' AND m.in_channel
+                             AND EXISTS (SELECT 1 FROM channel_reads cr
+                                         WHERE cr.user_id = r.user_id AND cr.channel_id = m.channel_id
+                                           AND cr.last_read_message_id >= m.id))
+                         OR (m.thread_root_id IS NOT NULL
+                             AND EXISTS (SELECT 1 FROM thread_reads tr
+                                         WHERE tr.user_id = r.user_id AND tr.root_message_id = m.thread_root_id
+                                           AND tr.last_read_message_id >= m.id))
+                       THEN now() END
+    FROM unread u, recipient r, live m
+    WHERE a.id = u.id AND r.user_id = u.user_id
     RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
 ), created AS (
     INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id, read_at)
@@ -399,12 +435,13 @@ type UpsertUnreadActivityItemsRow struct {
 // UpsertUnreadActivityItems is CreateActivityItems for a kind that
 // coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
 // thread when thread_root_id is set: a recipient's newest unread item of
-// the kind there is pointed at the new message and stamped now; a
-// recipient without one gets a new item, born read when their marker has
-// already passed the message, as CreateActivityItems writes it (a
-// refreshed item is unread by definition). Nothing is refreshed or
-// written for a message deleted since it was sent, as CreateActivityItems
-// writes nothing.
+// the kind there is pointed at the new message and stamped now, under the
+// fresh id the caller generated for them, so it sorts as new (the feed is
+// ordered by id; nothing references the old one); a recipient without one
+// gets a new item. Either is born read when the recipient's marker has
+// already passed the new message, by the rule CreateActivityItems
+// applies. Nothing is refreshed or written for a message deleted since it
+// was sent, as CreateActivityItems writes nothing.
 func (q *Queries) UpsertUnreadActivityItems(ctx context.Context, arg UpsertUnreadActivityItemsParams) ([]UpsertUnreadActivityItemsRow, error) {
 	rows, err := q.db.Query(ctx, upsertUnreadActivityItems,
 		arg.MessageID,

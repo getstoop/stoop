@@ -66,32 +66,38 @@ describe("receiveActivityItem", () => {
     expect(next?.unreadCount).toBe(2);
   });
 
-  const dmItem = (over: Partial<ActivityItem> = {}) =>
-    item("dm-ada", {
+  const dmItem = (id: string, over: Partial<ActivityItem> = {}) =>
+    item(id, {
       kind: ActivityKind.DM,
       spaceId: "",
       channelId: "ada",
       ...over,
     });
 
-  it("refreshes an unread direct message in place without double counting", () => {
+  // The server refreshed the conversation's entry under a new id
+  // (core withActivityItem has the rule; this is the cache applying it).
+  it("replaces an unread direct message entry without double counting", () => {
     const qc = new QueryClient();
     qc.setQueryData(
       ["activity"],
-      data([item("1"), dmItem({ preview: "hi" })], 2),
+      data([item("1"), dmItem("dm-1", { preview: "hi" })], 2),
     );
-    receiveActivityItem(qc, dmItem({ preview: "you there?" }));
+    receiveActivityItem(qc, dmItem("dm-2", { preview: "you there?" }));
     const next = qc.getQueryData<ActivityData>(["activity"]);
-    expect(next?.items.map((x) => x.id)).toEqual(["dm-ada", "1"]);
+    expect(next?.items.map((x) => x.id)).toEqual(["dm-2", "1"]);
     expect(next?.items[0].preview).toBe("you there?");
     expect(next?.unreadCount).toBe(2);
   });
 
-  it("counts a direct message that goes unread again after being read", () => {
+  it("counts a new entry for a conversation whose last one was read", () => {
     const qc = new QueryClient();
-    qc.setQueryData(["activity"], data([dmItem({ readAt: stamp(10) })], 0));
-    receiveActivityItem(qc, dmItem({ preview: "back" }));
+    qc.setQueryData(
+      ["activity"],
+      data([dmItem("dm-1", { readAt: stamp(10) })], 0),
+    );
+    receiveActivityItem(qc, dmItem("dm-2", { preview: "back" }));
     const next = qc.getQueryData<ActivityData>(["activity"]);
+    expect(next?.items.map((x) => x.id)).toEqual(["dm-2", "dm-1"]);
     expect(next?.items[0].readAt).toBeUndefined();
     expect(next?.unreadCount).toBe(1);
   });

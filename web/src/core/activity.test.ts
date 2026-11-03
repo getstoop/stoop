@@ -6,6 +6,7 @@ import {
 } from "../gen/stoop/chat/v1/activity_pb";
 import {
   type ActivityData,
+  activityEntryKey,
   activityTime,
   activityVerb,
   NEW_AUTO_PAGES,
@@ -15,6 +16,7 @@ import {
   withActivityItem,
   withActivityRead,
   withOlderPages,
+  withoutRefreshed,
 } from "./activity";
 
 const stamp = (seconds: number): Timestamp =>
@@ -115,31 +117,132 @@ describe("withActivityItem", () => {
     expect(withActivityItem(feed, item("1", { preview: "edited" }))).toBe(feed);
   });
 
-  const dmItem = (over: Partial<ActivityItem> = {}) =>
-    item("dm-ada", {
+  const dm = (id: string, over: Partial<ActivityItem> = {}) =>
+    item(id, {
       kind: ActivityKind.DM,
       spaceId: "",
       channelId: "ada",
       ...over,
     });
+  const inThread = (id: string, over: Partial<ActivityItem> = {}) =>
+    item(id, {
+      kind: ActivityKind.THREAD_REPLY,
+      threadRootId: "root1",
+      ...over,
+    });
 
-  it("refreshes an unread direct message in place without double counting", () => {
+  // The server refreshed the conversation's entry under a new id: the
+  // held one is gone there, and the count has not moved.
+  it("replaces the unread entry for a conversation without double counting", () => {
     const next = withActivityItem(
-      data([item("1"), dmItem({ preview: "hi" })], 2),
-      dmItem({ preview: "you there?" }),
+      data([item("1"), dm("dm-1", { preview: "hi" })], 2),
+      dm("dm-2", { preview: "you there?" }),
     );
-    expect(next.items.map((x) => x.id)).toEqual(["dm-ada", "1"]);
+    expect(next.items.map((x) => x.id)).toEqual(["dm-2", "1"]);
     expect(next.items[0].preview).toBe("you there?");
     expect(next.unreadCount).toBe(2);
   });
 
-  it("counts a direct message that goes unread again after being read", () => {
+  it("keeps a read entry for the conversation beside the new one", () => {
     const next = withActivityItem(
-      data([dmItem({ readAt: stamp(10) })], 0),
-      dmItem({ preview: "back" }),
+      data([dm("dm-1", { readAt: stamp(10) })], 0),
+      dm("dm-2", { preview: "back" }),
     );
-    expect(next.items[0].readAt).toBeUndefined();
+    expect(next.items.map((x) => x.id)).toEqual(["dm-2", "dm-1"]);
     expect(next.unreadCount).toBe(1);
+  });
+
+  it("leaves an entry for another conversation alone", () => {
+    const next = withActivityItem(
+      data([dm("dm-1")], 1),
+      dm("dm-bea", { channelId: "bea" }),
+    );
+    expect(next.items.map((x) => x.id)).toEqual(["dm-bea", "dm-1"]);
+    expect(next.unreadCount).toBe(2);
+  });
+
+  it("replaces the unread entry for a thread, and only that", () => {
+    const held = data(
+      [
+        item("m", { threadRootId: "root1" }),
+        inThread("t-1"),
+        inThread("other", { threadRootId: "root2" }),
+      ],
+      3,
+    );
+    const next = withActivityItem(held, inThread("t-2"));
+    expect(next.items.map((x) => x.id)).toEqual(["t-2", "m", "other"]);
+    expect(next.unreadCount).toBe(3);
+  });
+
+  // Refreshed behind the reader's marker, the entry comes back read; the
+  // unread one it replaced leaves the count.
+  it("takes a replaced entry off the count when the new one arrives read", () => {
+    const next = withActivityItem(
+      data([dm("dm-1")], 1),
+      dm("dm-2", { readAt: stamp(10) }),
+    );
+    expect(next.items.map((x) => x.id)).toEqual(["dm-2"]);
+    expect(next.unreadCount).toBe(0);
+  });
+
+  it("hands back the same feed for a replay of a known direct message", () => {
+    const feed = data([dm("dm-1")], 1);
+    expect(withActivityItem(feed, dm("dm-1", { preview: "again" }))).toBe(feed);
+  });
+
+  // Ids are time-ordered: an unread arrival older than the entry held
+  // for its conversation is an event delivered late for a row the held
+  // entry's refresh took away, whatever the entry's state.
+  it("ignores an unread arrival older than the entry held for its conversation", () => {
+    const feed = data([dm("dm-2")], 1);
+    expect(withActivityItem(feed, dm("dm-1", { preview: "late" }))).toBe(feed);
+    const read = data([dm("dm-2", { readAt: stamp(10) })], 0);
+    expect(withActivityItem(read, dm("dm-1"))).toBe(read);
+  });
+
+  // A read row stays on the server whatever comes after it, so its
+  // event delivered late is still history: kept, placed by id, and the
+  // newer entry it did not refresh left alone.
+  it("keeps a read arrival older than the entry held for its conversation", () => {
+    const next = withActivityItem(
+      data([item("4"), dm("3"), item("0")], 3),
+      dm("1", { readAt: stamp(10) }),
+    );
+    expect(next.items.map((x) => x.id)).toEqual(["4", "3", "1", "0"]);
+    expect(next.unreadCount).toBe(3);
+  });
+
+  it("keeps a read arrival older than the read entry held for its thread", () => {
+    const next = withActivityItem(
+      data([inThread("2", { readAt: stamp(10) })], 0),
+      inThread("1", { readAt: stamp(9) }),
+    );
+    expect(next.items.map((x) => x.id)).toEqual(["2", "1"]);
+    expect(next.unreadCount).toBe(0);
+  });
+});
+
+describe("activityEntryKey", () => {
+  it("is the conversation for a direct message", () => {
+    expect(
+      activityEntryKey(
+        item("x", { kind: ActivityKind.DM, spaceId: "", channelId: "ada" }),
+      ),
+    ).toBe("ada");
+  });
+
+  it("is the thread for a thread reply", () => {
+    expect(
+      activityEntryKey(
+        item("x", { kind: ActivityKind.THREAD_REPLY, threadRootId: "root1" }),
+      ),
+    ).toBe("root1");
+  });
+
+  it("is the item itself for a mention or a reply", () => {
+    expect(activityEntryKey(item("x"))).toBe("x");
+    expect(activityEntryKey(item("y", { kind: ActivityKind.REPLY }))).toBe("y");
   });
 });
 
@@ -209,6 +312,52 @@ describe("withOlderPages", () => {
 
   it("is the first page alone with nothing older", () => {
     expect(withOlderPages([item("a")], []).map((x) => x.id)).toEqual(["a"]);
+  });
+
+  // The conversation's entry was refreshed under a new id after the
+  // older page was fetched: the old row is gone on the server.
+  it("leaves out an unread older entry the first page refreshed", () => {
+    const dm = (id: string, over: Partial<ActivityItem> = {}) =>
+      item(id, {
+        kind: ActivityKind.DM,
+        spaceId: "",
+        channelId: "ada",
+        ...over,
+      });
+    const recent = [dm("dm-2"), item("c")];
+    const older = [item("b"), dm("dm-1"), dm("dm-0", { readAt: stamp(5) })];
+    expect(withOlderPages(recent, older).map((x) => x.id)).toEqual([
+      "dm-2",
+      "c",
+      "b",
+      "dm-0",
+    ]);
+  });
+
+  it("leaves out an unread older entry for a thread the first page holds", () => {
+    const inThread = (id: string, root: string) =>
+      item(id, { kind: ActivityKind.THREAD_REPLY, threadRootId: root });
+    const recent = [inThread("t-2", "root1")];
+    const older = [inThread("t-1", "root1"), inThread("s-1", "root2")];
+    expect(withOlderPages(recent, older).map((x) => x.id)).toEqual([
+      "t-2",
+      "s-1",
+    ]);
+  });
+});
+
+describe("withoutRefreshed", () => {
+  it("hands back the same pages when nothing was refreshed", () => {
+    const older = [
+      item("dm-1", { kind: ActivityKind.DM, spaceId: "", channelId: "ada" }),
+    ];
+    expect(withoutRefreshed([item("b")], older)).toBe(older);
+  });
+
+  // A mention is never coalesced, whatever it shares with a held item.
+  it("drops nothing for a mention in the same channel", () => {
+    const older = [item("a")];
+    expect(withoutRefreshed([item("b")], older)).toBe(older);
   });
 });
 

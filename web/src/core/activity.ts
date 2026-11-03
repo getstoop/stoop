@@ -16,20 +16,67 @@ export interface ActivityData {
   unreadCount: number;
 }
 
-// The feed with a freshly delivered item on top. A DM's entry is
-// refreshed in place while unread (newest preview and time); anything
-// else with a known id is a replay, and the feed comes back unchanged.
+// What an item is an entry for: a direct message's its conversation, a
+// thread's its thread, anything else itself. The server keeps one
+// unread entry per conversation and per thread, refreshed under a new
+// id as messages arrive (messaging.md → The DM feed collapses), so a
+// client coalesces by this key, never by id; it is also the desktop
+// banner's tag, so a conversation holds one banner in the tray.
+export function activityEntryKey(item: ActivityItem): string {
+  switch (item.kind) {
+    case ActivityKind.DM:
+      return item.channelId;
+    case ActivityKind.THREAD_REPLY:
+      return item.threadRootId;
+    default:
+      return item.id;
+  }
+}
+
+// Whether two items stand for the same entry.
+function coalesces(held: ActivityItem, item: ActivityItem): boolean {
+  return (
+    held.kind === item.kind && activityEntryKey(held) === activityEntryKey(item)
+  );
+}
+
+// The feed with a freshly delivered item in it. A known id is a replay,
+// and the feed comes back unchanged; so is an unread arrival older (ids
+// are time-ordered) than an entry held for the same conversation or
+// thread: its row was refreshed away before its event arrived late. A
+// direct message's or a thread's item replaces the unread entry held
+// for the same conversation or thread from before it: the server
+// refreshed that entry under the new id, so the old row is gone there.
+// An arrival that is already read is history the server keeps, however
+// late its event, and it takes its place by id, since events are not
+// delivered in order (notify publishes after the write's lock is
+// released). The count goes up by one for an unread arrival and down
+// by one for each unread entry it replaced.
 export function withActivityItem(
   data: ActivityData,
   item: ActivityItem,
 ): ActivityData {
-  const known = data.items.find((x) => x.id === item.id);
-  if (known && item.kind !== ActivityKind.DM) return data;
-  const rest = data.items.filter((x) => x.id !== item.id);
+  if (
+    data.items.some(
+      (held) =>
+        held.id === item.id ||
+        (!item.readAt && coalesces(held, item) && held.id > item.id),
+    )
+  ) {
+    return data;
+  }
+  const rest = data.items.filter(
+    (held) => held.readAt || held.id > item.id || !coalesces(held, item),
+  );
+  const replaced = data.items.length - rest.length;
+  const at = rest.findIndex((held) => held.id < item.id);
+  const items =
+    at === -1
+      ? [...rest, item]
+      : [...rest.slice(0, at), item, ...rest.slice(at)];
   return {
-    items: [item, ...rest],
-    unreadCount:
-      data.unreadCount + (item.readAt || (known && !known.readAt) ? 0 : 1),
+    items,
+    unreadCount: data.unreadCount + (item.readAt ? 0 : 1) - replaced,
   };
 }
 
@@ -93,15 +140,38 @@ export function deletionMayClearActivity(
   return data.unreadCount > data.items.filter((item) => !item.readAt).length;
 }
 
+// The older pages less what the first page has refreshed: an unread
+// older entry for a conversation or thread the first page holds a newer
+// entry for was refreshed under a new id, the old row gone with it, so
+// the inbox never shows the conversation twice. A read older entry is
+// history and stays, as does an unread one newer than what the first
+// page holds (a read row's event, come late, sits past it). The same
+// pages come back when nothing is dropped.
+export function withoutRefreshed(
+  recent: ActivityItem[],
+  older: ActivityItem[],
+): ActivityItem[] {
+  const kept = older.filter(
+    (item) =>
+      item.readAt ||
+      !recent.some((held) => coalesces(held, item) && held.id > item.id),
+  );
+  return kept.length === older.length ? older : kept;
+}
+
 // The whole inbox as shown: the held first page, then the older pages
 // loaded as the list was scrolled, less what the first page holds too
-// (it moves on as items arrive, so an older page can overlap it).
+// (it moves on as items arrive, so an older page can overlap it) and
+// what it has refreshed.
 export function withOlderPages(
   recent: ActivityItem[],
   older: ActivityItem[],
 ): ActivityItem[] {
   const held = new Set(recent.map((item) => item.id));
-  return [...recent, ...older.filter((item) => !held.has(item.id))];
+  return [
+    ...recent,
+    ...withoutRefreshed(recent, older).filter((item) => !held.has(item.id)),
+  ];
 }
 
 // Whether an item in the Read section opens a day, the one above it
