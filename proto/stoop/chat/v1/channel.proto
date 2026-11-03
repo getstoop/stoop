@@ -51,4 +51,13 @@ message Channel {
   // Only the people in it can see or read the channel. Set when it is
   // created and never changed. Always false for a direct message.
   bool private = 13;
+  // Messages newer than the caller's read marker that are addressed to
+  // them: a mention of them, or a reply to one of their messages, by
+  // someone they have not blocked, in a channel, space and thread they
+  // have not muted. A thread-only reply counts against the thread's
+  // marker. What the badge shows; see docs/architecture/messaging.md →
+  // Alert counts. Always 0 for a direct message, where every message is
+  // addressed to them and unread_count is the number that matters.
+  // Their own, like unread_count; never set on broadcast events.
+  int32 alert_count = 14;
 }
