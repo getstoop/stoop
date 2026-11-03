@@ -1,10 +1,12 @@
 import { type ComponentRef, type ReactElement, type ReactNode, useRef, useState } from "react";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
 import { ComposerAbove, ComposerOverlay } from "./composerAbove";
+import EdgeBlur from "./EdgeBlur";
 import EdgeFade from "./EdgeFade";
 import type { Notice } from "./useMessageActions";
 
@@ -16,8 +18,10 @@ import type { Notice } from "./useMessageActions";
 // the list's head the same way (the server's layout); on iOS 26 the
 // system would fade a list under a bar, which on this upside-down list
 // dims it whole, so the list is marked to have no such fade, and gets
-// its own at both ends (EdgeFade): under the status bar, and under the
-// home indicator up to the composer's foot.
+// its own at both ends: under the status bar, and under the home
+// indicator up past the composer. Where iOS has Liquid Glass the ends
+// blur (EdgeBlur), as the system's own bars do; elsewhere they fade
+// (EdgeFade).
 export default function ComposerDock({
   keyboard,
   list,
@@ -36,6 +40,7 @@ export default function ComposerDock({
 }) {
   const styles = makeStyles(useTheme());
   const insets = useSafeAreaInsets();
+  const Edge = Platform.OS === "ios" && isLiquidGlassAvailable() ? EdgeBlur : EdgeFade;
   // The composer's height as drawn, for the list to clear.
   const [composerHeight, setComposerHeight] = useState(PILL);
   const [above, setAbove] = useState<ReactNode>(null);
@@ -45,9 +50,15 @@ export default function ComposerDock({
   // offset to know how much of it the keyboard covers.
   const [top, setTop] = useState(0);
   const dock = useRef<ComponentRef<typeof View>>(null);
-  // The composer sits GAP above the home indicator, or above the keyboard
-  // while that is up (the avoiding view's padding ends at its top edge).
-  const composerBottom = keyboard > 0 ? GAP : insets.bottom + GAP;
+  // The composer sits FOOT above the home indicator (GAP above the edge
+  // of a screen without one), or GAP above the keyboard while that is up
+  // (the avoiding view's padding ends at its top edge).
+  const composerBottom = keyboard > 0 ? GAP : Math.max(insets.bottom + FOOT, GAP);
+  // The foot's edge is for the home indicator, which the keyboard covers:
+  // over the keyboard its solid end met the keys as a line, so it goes
+  // while they are up. It is never resized (the glass does not survive
+  // that), only shown or not.
+  const footEdge = Math.max(insets.bottom + FOOT, GAP) + PILL + FADE_IN;
 
   return (
     <View
@@ -69,8 +80,8 @@ export default function ComposerDock({
           ) : (
             list(composerHeight + composerBottom)
           )}
-          <EdgeFade edge="top" height={insets.top + FADE_IN} />
-          <EdgeFade edge="bottom" height={composerBottom + FADE_IN} />
+          <Edge edge="top" height={insets.top + FADE_IN} />
+          {keyboard === 0 && <Edge edge="bottom" height={footEdge} />}
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
@@ -109,8 +120,14 @@ export default function ComposerDock({
 
 const noFade = { top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
 
-// How far past the status bar, and past the composer's foot, a fade
-// reaches before it is gone.
+// The composer's clearance over the home indicator: less than GAP, since
+// the indicator already keeps its distance from the screen's edge.
+const FOOT = 4;
+
+// How far past the status bar, and past the composer's head, a fade
+// reaches before it is gone. The bottom one runs the composer's whole
+// height and on, so the rows behind the pill dim by degrees instead of
+// meeting a line across it.
 const FADE_IN = 20;
 
 function makeStyles(theme: Theme) {

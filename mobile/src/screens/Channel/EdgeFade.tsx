@@ -5,9 +5,10 @@ import { useTheme } from "../../theme";
 // A fade from the theme's surface over one end of the list: the rows
 // scrolling under the edge all but vanish beneath the status bar's time
 // and battery, or the home indicator, which stay readable, and the fade
-// is gone a little further in, so the header's pill, and the composer's
-// card, float over rows that still show through. Near-solid over the
-// first half and a little more, then out.
+// is gone further in, so the header's pill, and the composer's card,
+// float over rows that still show through. Near-solid over the first
+// third, then eased out, each step smaller than the last, so no band of
+// it reads as a line.
 export default function EdgeFade({ edge, height }: { edge: "top" | "bottom"; height: number }) {
   const theme = useTheme();
   // The gradient runs away from the edge: down from the top, up from the
@@ -19,7 +20,10 @@ export default function EdgeFade({ edge, height }: { edge: "top" | "bottom"; hei
         <Defs>
           <LinearGradient id={`fade-${edge}`} x1="0" y1={y1} x2="0" y2={y2}>
             <Stop offset="0" stopColor={theme.surface} stopOpacity="1" />
-            <Stop offset="0.55" stopColor={theme.surface} stopOpacity="0.92" />
+            <Stop offset="0.3" stopColor={theme.surface} stopOpacity="0.96" />
+            <Stop offset="0.5" stopColor={theme.surface} stopOpacity="0.82" />
+            <Stop offset="0.7" stopColor={theme.surface} stopOpacity="0.55" />
+            <Stop offset="0.85" stopColor={theme.surface} stopOpacity="0.26" />
             <Stop offset="1" stopColor={theme.surface} stopOpacity="0" />
           </LinearGradient>
         </Defs>
