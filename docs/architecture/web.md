@@ -726,6 +726,12 @@ not build its own.
   screen, marked `leaving`, until the frame's exit animation ends (a timer
   stands in if it never reports, and reduced motion skips it). Replacing
   the content does not animate.
+- **Its width is the reader's.** The frame's left edge is a drag handle
+  (`resize.ts`); arrow keys nudge it. The stylesheet's width is the
+  floor, the window width minus room for the page (640px) is the
+  ceiling, held live by the stylesheet as the window changes, and the
+  choice is kept per browser in `localStorage`. Double-click or Home
+  puts it back.
 - **On a phone it is a screen of its own.** `mobile.css` makes it full
   screen and swaps Close for Back, one DOM as everywhere else.
   `narrowHistory.ts` adds one history entry while it is open, so the

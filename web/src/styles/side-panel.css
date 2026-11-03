@@ -3,7 +3,14 @@
    The side panel). Its phone form, a screen of its own, is in mobile.css. ---- */
 
 .side-panel {
-  width: var(--side-panel-w);
+  position: relative;
+  /* The dragged width (set inline by the frame) held live between the
+     floor and a ceiling that leaves the page 640px: a window that
+     shrinks with a wide panel open takes the panel down with it. */
+  width: max(
+    var(--side-panel-min),
+    min(var(--side-panel-w), calc(100vw - 640px))
+  );
   flex: none;
   display: flex;
   flex-direction: column;
@@ -36,6 +43,46 @@
     opacity: 0;
     transform: translateX(16px);
   }
+}
+
+/* The left edge is a handle: a hit area astride the border, with a
+   short pill that shows on hover, while dragging and on focus. The
+   frame sets --side-panel-w inline from it (components/SidePanel/resize.ts). */
+.side-panel-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+}
+
+.side-panel-resizer:focus-visible {
+  outline: none;
+}
+
+.side-panel-resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 4px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  transform: translateY(-50%);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.side-panel-resizer:hover::after,
+.side-panel-resizer:active::after,
+.side-panel-resizer:focus-visible::after {
+  background: var(--accent);
 }
 
 /* The same height and weight as the channel header beside it. */

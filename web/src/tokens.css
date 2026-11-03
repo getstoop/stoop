@@ -43,8 +43,11 @@
      settings nav. */
   --rail-w: 68px;
   --sidebar-w: 244px;
-  /* The right-hand side panel (components/SidePanel). */
+  /* The right-hand side panel (components/SidePanel): its default width,
+     which is also the floor when it is dragged wider (SidePanel/resize.ts
+     keeps the same numbers). */
   --side-panel-w: 380px;
+  --side-panel-min: 380px;
 
   /* Motion. fast: hover washes, colour, opacity. base: anything that
      moves or resizes. base.css turns both off under reduced motion. */
