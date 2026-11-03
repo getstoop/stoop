@@ -10,11 +10,13 @@
 :root {
   /* Shape. sm: inline marks (mentions, code). base: rows, menu items,
      small buttons. md: buttons, fields, popovers. lg: cards, modals, the
-     composer. pill: chips and badges; circles are 50%. */
+     composer. xl: the biggest avatar (an avatar's corner is about a
+     quarter of its side). pill: chips and badges; circles are 50%. */
   --radius-sm: 4px;
   --radius: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 20px;
   --radius-pill: 999px;
 
   /* Type. body is the default; ui is labels, hints, tabs, chips and

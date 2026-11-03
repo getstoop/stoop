@@ -769,6 +769,7 @@ export const tokens = {
   "radius": 6,
   "radiusMd": 8,
   "radiusLg": 12,
+  "radiusXl": 20,
   "radiusPill": 999,
   "textXs": 11,
   "textSm": 12,

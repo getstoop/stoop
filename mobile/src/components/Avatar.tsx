@@ -50,12 +50,14 @@ export default function Avatar({
 
 // The corner of every user avatar, and of anything drawn in one's place
 // (a mention list's # or @ mark): the radius web (#668, controls.css)
-// gives the nearest of its three sizes, 24px → 6, 40px → 8, 64px → 12,
-// about a quarter of the side. The one place the shape is decided.
+// gives the nearest of its sizes, 24px → 6, 40px → 8, 64px → 12, and
+// the edit page's 84px → 20, about a quarter of the side. The one place
+// the shape is decided.
 export function avatarRadius(size: number): number {
   if (size < 32) return tokens.radius;
   if (size < 52) return tokens.radiusMd;
-  return tokens.radiusLg;
+  if (size < 76) return tokens.radiusLg;
+  return tokens.radiusXl;
 }
 
 // "Priya Shah" → "PS", "theo" → "T".
