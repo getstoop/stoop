@@ -227,7 +227,7 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
           ? {
               ...held,
               data: withActivityRead(held.data, ids, unreadCount, readAt),
-              older: olderAfterRead(held.older, ids, readAt),
+              older: olderAfterRead(held.older, held.data, ids, readAt),
             }
           : held,
       );

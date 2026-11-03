@@ -57,6 +57,10 @@ SELECT count(*) FROM activity_items a
 WHERE a.user_id = $1 AND a.read_at IS NULL
   AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = a.channel_id AND cr.user_id = a.user_id);
 
+-- MarkActivityRead reads the named items. An id that no longer exists is
+-- skipped: a refreshed entry takes a new id (UpsertUnreadActivityItems),
+-- and a client still holding the old one loses nothing, since the entry
+-- is read on the next tap or by the marker.
 -- name: MarkActivityRead :exec
 UPDATE activity_items SET read_at = now()
 WHERE user_id = $1 AND read_at IS NULL AND id = ANY(sqlc.arg('ids')::uuid[]);
@@ -96,12 +100,13 @@ WHERE a.user_id = sqlc.arg(user_id) AND a.channel_id = sqlc.arg(channel_id)
 -- UpsertUnreadActivityItems is CreateActivityItems for a kind that
 -- coalesces per channel, as a DM's alerts do (see chat.recordDM), or per
 -- thread when thread_root_id is set: a recipient's newest unread item of
--- the kind there is pointed at the new message and stamped now; a
--- recipient without one gets a new item, born read when their marker has
--- already passed the message, as CreateActivityItems writes it (a
--- refreshed item is unread by definition). Nothing is refreshed or
--- written for a message deleted since it was sent, as CreateActivityItems
--- writes nothing.
+-- the kind there is pointed at the new message and stamped now, under the
+-- fresh id the caller generated for them, so it sorts as new (the feed is
+-- ordered by id; nothing references the old one); a recipient without one
+-- gets a new item. Either is born read when the recipient's marker has
+-- already passed the new message, by the rule CreateActivityItems
+-- applies. Nothing is refreshed or written for a message deleted since it
+-- was sent, as CreateActivityItems writes nothing.
 -- name: UpsertUnreadActivityItems :many
 WITH live AS (
     SELECT m.id, m.channel_id, m.in_channel, m.thread_root_id FROM messages m
@@ -121,9 +126,18 @@ WITH live AS (
     ORDER BY a.user_id, a.id DESC
 ), refreshed AS (
     UPDATE activity_items a
-    SET message_id = sqlc.arg('message_id')::uuid, actor_id = sqlc.arg('actor_id')::uuid, created_at = now()
-    FROM unread u
-    WHERE a.id = u.id AND EXISTS (SELECT 1 FROM live)
+    SET id = r.id, message_id = m.id, actor_id = sqlc.arg('actor_id')::uuid, created_at = now(),
+        read_at = CASE WHEN (sqlc.arg('kind')::text <> 'thread_reply' AND m.in_channel
+                             AND EXISTS (SELECT 1 FROM channel_reads cr
+                                         WHERE cr.user_id = r.user_id AND cr.channel_id = m.channel_id
+                                           AND cr.last_read_message_id >= m.id))
+                         OR (m.thread_root_id IS NOT NULL
+                             AND EXISTS (SELECT 1 FROM thread_reads tr
+                                         WHERE tr.user_id = r.user_id AND tr.root_message_id = m.thread_root_id
+                                           AND tr.last_read_message_id >= m.id))
+                       THEN now() END
+    FROM unread u, recipient r, live m
+    WHERE a.id = u.id AND r.user_id = u.user_id
     RETURNING a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at
 ), created AS (
     INSERT INTO activity_items (id, user_id, kind, space_id, channel_id, message_id, actor_id, read_at)

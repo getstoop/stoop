@@ -39,8 +39,8 @@ func (users poolUsers) GetUsers(ctx context.Context, ids []string) ([]UserRecord
 // A message is published before its activity is recorded, so a client
 // with the channel or thread on screen can move the marker past it before
 // the item exists. The item is then born read, by the rule the markers
-// apply later; the refreshed entry of a coalescing kind is left as it
-// was, unread. SendMessage can't be interposed from a test, so the write
+// apply later; a refreshed entry of a coalescing kind, under its new id,
+// the same way. SendMessage can't be interposed from a test, so the write
 // queries are driven directly.
 func TestActivityItemBornReadBehindTheMarker(t *testing.T) {
 	pool := dbtest.New(t)
@@ -196,15 +196,17 @@ func TestActivityItemBornReadBehindTheMarker(t *testing.T) {
 		t.Error("thread_reply for an also-sent reply, thread marker at it: born unread")
 	}
 
-	// A coalescing kind: a new entry is born read the same way, and a
-	// refreshed one stays unread whatever the marker says.
+	// A coalescing kind: a new entry is born read the same way.
 	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{beaID}}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	dmID := dm.Msg.DirectMessage.Channel.Id
-	if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1`, beaID); err != nil {
-		t.Fatal(err)
+	clearFeed := func() {
+		t.Helper()
+		if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1`, beaID); err != nil {
+			t.Fatal(err)
+		}
 	}
 	upsert := func(message *chatv1.Message) dbgen.UpsertUnreadActivityItemsRow {
 		t.Helper()
@@ -221,9 +223,7 @@ func TestActivityItemBornReadBehindTheMarker(t *testing.T) {
 		return rows[0]
 	}
 	hello := send(&chatv1.SendMessageRequest{ChannelId: dmID, Content: "hello"})
-	if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1`, beaID); err != nil {
-		t.Fatal(err)
-	}
+	clearFeed()
 	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: dmID})); err != nil {
 		t.Fatal(err)
 	}
@@ -231,27 +231,39 @@ func TestActivityItemBornReadBehindTheMarker(t *testing.T) {
 		t.Error("new DM entry at the marker: born unread")
 	}
 	again := send(&chatv1.SendMessageRequest{ChannelId: dmID, Content: "again"})
-	if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1`, beaID); err != nil {
-		t.Fatal(err)
-	}
-	entry := upsert(again)
-	if entry.ReadAt != nil {
+	clearFeed()
+	if entry := upsert(again); entry.ReadAt != nil {
 		t.Fatal("new DM entry past the marker: born read")
 	}
-	// With the marker past the newest message, a refresh of an unread
-	// entry only repoints it.
+
+	// A refresh takes the recipient's fresh id and is born read by the
+	// same rule. An entry standing for a reply only its thread shows,
+	// which the channel's marker can't read, is refreshed read by a
+	// top-level message that marker has passed, and stays unread when
+	// refreshed by one past it.
+	aside := send(&chatv1.SendMessageRequest{ChannelId: dmID, Content: "aside", ThreadRootId: again.Id})
 	more := send(&chatv1.SendMessageRequest{ChannelId: dmID, Content: "more"})
 	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: dmID})); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE activity_items SET read_at = NULL WHERE id = $1`, entry.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1 AND id <> $2`, beaID, entry.ID); err != nil {
-		t.Fatal(err)
+	clearFeed()
+	entry := upsert(aside)
+	if entry.ReadAt != nil {
+		t.Fatal("DM entry at a reply only its thread shows: born read")
 	}
 	refreshed := upsert(more)
-	if refreshed.ID != entry.ID || refreshed.ReadAt != nil || refreshed.MessageID == nil || *refreshed.MessageID != more.Id {
-		t.Errorf("refreshed entry: id %s (want %s), read_at %v, message %v", refreshed.ID, entry.ID, refreshed.ReadAt, refreshed.MessageID)
+	if refreshed.ID <= entry.ID || refreshed.ReadAt == nil || refreshed.MessageID == nil || *refreshed.MessageID != more.Id {
+		t.Errorf("entry refreshed behind the marker: id %s (want one after %s), read_at %v, message %v", refreshed.ID, entry.ID, refreshed.ReadAt, refreshed.MessageID)
+	}
+	var stale int
+	if err = pool.QueryRow(ctx, `SELECT count(*) FROM activity_items WHERE id = $1`, entry.ID).Scan(&stale); err != nil || stale != 0 {
+		t.Errorf("rows under the old id = %d (%v), want none", stale, err)
+	}
+	past := send(&chatv1.SendMessageRequest{ChannelId: dmID, Content: "past the marker"})
+	clearFeed()
+	entry = upsert(aside)
+	refreshed = upsert(past)
+	if refreshed.ID <= entry.ID || refreshed.ReadAt != nil || refreshed.MessageID == nil || *refreshed.MessageID != past.Id {
+		t.Errorf("entry refreshed past the marker: id %s (want one after %s), read_at %v, message %v", refreshed.ID, entry.ID, refreshed.ReadAt, refreshed.MessageID)
 	}
 }

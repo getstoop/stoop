@@ -19,6 +19,7 @@ import (
 type readActivityFixture struct {
 	t         *testing.T
 	pool      *pgxpool.Pool
+	bus       *events.InProcBus
 	svc       *chat.Service
 	spaceID   string
 	channelID string
@@ -28,9 +29,9 @@ type readActivityFixture struct {
 
 func newReadActivityFixture(t *testing.T) *readActivityFixture {
 	t.Helper()
-	pool, _, svc := newTestService(t)
+	pool, bus, svc := newTestService(t)
 	fx := &readActivityFixture{
-		t: t, pool: pool, svc: svc,
+		t: t, pool: pool, bus: bus, svc: svc,
 		ada:   newUser(t, pool, "ada", authctx.RoleMember),
 		bea:   newUser(t, pool, "bea", authctx.RoleMember),
 		casey: newUser(t, pool, "casey", authctx.RoleMember),

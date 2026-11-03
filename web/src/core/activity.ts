@@ -16,20 +16,41 @@ export interface ActivityData {
   unreadCount: number;
 }
 
-// The feed with a freshly delivered item on top. A DM's entry is
-// refreshed in place while unread (newest preview and time); anything
-// else with a known id is a replay, and the feed comes back unchanged.
+// Whether two items stand for the same entry: a direct message's for
+// the same conversation, a thread's for the same thread. The server
+// keeps one unread entry for each, refreshed under a new id as messages
+// arrive (messaging.md → The DM feed collapses), so a client coalesces
+// by conversation or thread, never by id.
+function coalesces(held: ActivityItem, item: ActivityItem): boolean {
+  if (held.kind !== item.kind) return false;
+  switch (item.kind) {
+    case ActivityKind.DM:
+      return held.channelId === item.channelId;
+    case ActivityKind.THREAD_REPLY:
+      return held.threadRootId === item.threadRootId;
+    default:
+      return false;
+  }
+}
+
+// The feed with a freshly delivered item on top. A known id is a replay,
+// and the feed comes back unchanged. A direct message's or a thread's
+// item replaces the unread entry held for the same conversation or
+// thread: the server refreshed that entry under the new id, so the old
+// row is gone there. The count goes up by one for an unread arrival and
+// down by one for each unread entry it replaced.
 export function withActivityItem(
   data: ActivityData,
   item: ActivityItem,
 ): ActivityData {
-  const known = data.items.find((x) => x.id === item.id);
-  if (known && item.kind !== ActivityKind.DM) return data;
-  const rest = data.items.filter((x) => x.id !== item.id);
+  if (data.items.some((held) => held.id === item.id)) return data;
+  const rest = data.items.filter(
+    (held) => held.readAt || !coalesces(held, item),
+  );
+  const replaced = data.items.length - rest.length;
   return {
     items: [item, ...rest],
-    unreadCount:
-      data.unreadCount + (item.readAt || (known && !known.readAt) ? 0 : 1),
+    unreadCount: data.unreadCount + (item.readAt ? 0 : 1) - replaced,
   };
 }
 
@@ -93,15 +114,34 @@ export function deletionMayClearActivity(
   return data.unreadCount > data.items.filter((item) => !item.readAt).length;
 }
 
+// The older pages less what the first page has refreshed: an unread
+// older entry for a conversation or thread the first page holds an
+// entry for was refreshed under a new id, the old row gone with it, so
+// the inbox never shows the conversation twice. A read older entry is
+// history and stays. The same pages come back when nothing is dropped.
+export function withoutRefreshed(
+  recent: ActivityItem[],
+  older: ActivityItem[],
+): ActivityItem[] {
+  const kept = older.filter(
+    (item) => item.readAt || !recent.some((held) => coalesces(held, item)),
+  );
+  return kept.length === older.length ? older : kept;
+}
+
 // The whole inbox as shown: the held first page, then the older pages
 // loaded as the list was scrolled, less what the first page holds too
-// (it moves on as items arrive, so an older page can overlap it).
+// (it moves on as items arrive, so an older page can overlap it) and
+// what it has refreshed.
 export function withOlderPages(
   recent: ActivityItem[],
   older: ActivityItem[],
 ): ActivityItem[] {
   const held = new Set(recent.map((item) => item.id));
-  return [...recent, ...older.filter((item) => !held.has(item.id))];
+  return [
+    ...recent,
+    ...withoutRefreshed(recent, older).filter((item) => !held.has(item.id)),
+  ];
 }
 
 // Whether an item in the Read section opens a day, the one above it

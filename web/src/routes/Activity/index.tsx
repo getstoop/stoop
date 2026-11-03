@@ -9,6 +9,7 @@ import {
   needsOlderPageForNew,
   startsDay,
   withOlderPages,
+  withoutRefreshed,
 } from "../../core/activity";
 import { dayLabel } from "../../core/dates";
 import type { ActivityItem } from "../../gen/stoop/chat/v1/activity_pb";
@@ -80,12 +81,16 @@ export function ActivityPage() {
   }, [data, isFetching, all, exhausted, loadOlderPage]);
 
   // The server reads everything, older pages included, but only the
-  // first page is in the cache it stamps, so the page stamps the rest.
+  // first page is in the cache it stamps, so the page stamps the rest,
+  // less an entry the first page refreshed: that row is gone on the
+  // server, and stamped it would show its conversation twice in Read.
   const markAllRead = async () => {
     await markActivityRead(queryClient, "all");
     const readAt = timestampNow();
     setOlder((o) =>
-      o.map((item) => (item.readAt ? item : { ...item, readAt })),
+      withoutRefreshed(recent ?? [], o).map((item) =>
+        item.readAt ? item : { ...item, readAt },
+      ),
     );
   };
 
