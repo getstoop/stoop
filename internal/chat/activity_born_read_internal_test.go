@@ -147,6 +147,55 @@ func TestActivityItemBornReadBehindTheMarker(t *testing.T) {
 		t.Errorf("CountUnreadActivity = %d (%v), want %d", count, err, unread)
 	}
 
+	// The channel's marker, however far past the replies' ids, says
+	// nothing about a reply only the thread shows.
+	after := send(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "three"})
+	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: after.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1 AND message_id = ANY($2::uuid[])`, beaID, []string{inThread.Id, later.Id}); err != nil {
+		t.Fatal(err)
+	}
+	if !writeMention(inThread) {
+		t.Error("thread mention at the thread marker, channel marker past it: born unread")
+	}
+	if writeMention(later) {
+		t.Error("thread mention past the thread marker, channel marker past it: born read")
+	}
+
+	// A thread_reply item stands for the thread, so only the thread's
+	// marker reads it, though its reply is also shown in the channel.
+	alsoSent := send(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "for everyone", ThreadRootId: root.Id, AlsoSendToChannel: true})
+	if _, err := svc.MarkChannelRead(bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: channelID, MessageId: alsoSent.Id})); err != nil {
+		t.Fatal(err)
+	}
+	threadReply := func() *dbgen.UpsertUnreadActivityItemsRow {
+		t.Helper()
+		if _, err := pool.Exec(ctx, `DELETE FROM activity_items WHERE user_id = $1 AND kind = 'thread_reply'`, beaID); err != nil {
+			t.Fatal(err)
+		}
+		rows, err := queries.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
+			Ids: []string{rowid.New()}, UserIds: []string{beaID}, Kind: activityKindThreadReply, SpaceID: &spaceID,
+			ChannelID: channelID, MessageID: alsoSent.Id, ActorID: authctx.UserID(owner), ThreadRootID: &root.Id,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 1 {
+			t.Fatalf("upserted %d rows, want 1", len(rows))
+		}
+		return &rows[0]
+	}
+	if threadReply().ReadAt != nil {
+		t.Error("thread_reply for an also-sent reply, channel marker at it: born read")
+	}
+	if _, err := svc.MarkThreadRead(bea, connect.NewRequest(&chatv1.MarkThreadReadRequest{MessageId: root.Id, ReplyId: alsoSent.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if threadReply().ReadAt == nil {
+		t.Error("thread_reply for an also-sent reply, thread marker at it: born unread")
+	}
+
 	// A coalescing kind: a new entry is born read the same way, and a
 	// refreshed one stays unread whatever the marker says.
 	dm, err := svc.OpenDirectMessage(owner, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{beaID}}))

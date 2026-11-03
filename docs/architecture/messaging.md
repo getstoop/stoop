@@ -598,10 +598,11 @@ The stored marker is the bound, not the request's target: the marker
 only moves forward, and an item written after the read is born read by
 the same rule (`CreateActivityItems`, `UpsertUnreadActivityItems`), since
 `MessageCreated` goes out before the activity is written and a live
-client may have read the message by then. Only a credential that covers `activity.read` clears
-anything: a token that posts or reads as the person leaves their feed as
-it was. So a mention clears when its message is read, however far down
-the feed it sits; `MarkActivityRead` remains for the feed itself. Clients
+client may have read the message by then. Only a credential that covers
+`activity.read` clears anything: a token that posts or reads as the
+person leaves their feed as it was. So a mention clears when its message
+is read, however far down the feed it sits; `MarkActivityRead` remains
+for the feed itself. Clients
 learn of it from the `ChannelRead` or `ThreadRead` event, or from their
 own `MessageCreated`, and refetch the feed when it holds an unread item
 there or the server counts unread items past the cached page.
