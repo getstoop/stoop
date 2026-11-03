@@ -45,9 +45,10 @@ export default function ComposerDock({
   // offset to know how much of it the keyboard covers.
   const [top, setTop] = useState(0);
   const dock = useRef<ComponentRef<typeof View>>(null);
-  // The composer sits GAP above the home indicator, or above the keyboard
-  // while that is up (the avoiding view's padding ends at its top edge).
-  const composerBottom = keyboard > 0 ? GAP : insets.bottom + GAP;
+  // The composer sits FOOT above the home indicator (GAP above the edge
+  // of a screen without one), or GAP above the keyboard while that is up
+  // (the avoiding view's padding ends at its top edge).
+  const composerBottom = keyboard > 0 ? GAP : Math.max(insets.bottom + FOOT, GAP);
 
   return (
     <View
@@ -108,6 +109,10 @@ export default function ComposerDock({
 }
 
 const noFade = { top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
+
+// The composer's clearance over the home indicator: less than GAP, since
+// the indicator already keeps its distance from the screen's edge.
+const FOOT = 4;
 
 // How far past the status bar, and past the composer's head, a fade
 // reaches before it is gone. The bottom one runs the composer's whole
