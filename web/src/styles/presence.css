@@ -48,12 +48,14 @@
   color: var(--danger);
 }
 
-/* The dot on the rail's own avatar pill. */
+/* The dot on the rail's own avatar pill: bigger, centred just inside
+   the square's corner, with a thicker cut-out in the rail's colour. */
 .space-pill.avatar .online-dot {
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
+  right: -5px;
+  bottom: -5px;
+  width: 17px;
+  height: 17px;
+  border-width: 3px;
   border-color: var(--canvas);
 }
 

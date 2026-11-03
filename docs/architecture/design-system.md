@@ -134,7 +134,8 @@ still declares a border, a fill and a radius, it has not adopted the part.
   features.
 - **`<Avatar>`** renders `.avatar`, with `size` of `small` (24px),
   `medium` (40px) or `large` (64px). A feature places it and may override
-  `--avatar-size`; it never redraws the circle.
+  `--avatar-size`; it never redraws the shape, a rounded square whose
+  corner the size picks.
 
 ### Surfaces
 
@@ -329,7 +330,7 @@ app module imports one. CI's Web job runs `pnpm build-storybook`, so a
 story that stops compiling fails the pull request. Nothing is hosted.
 
 Two rules live in the docs only, because a line-based script cannot check
-them honestly: a feature sheet must not redeclare the avatar's circle, and
+them honestly: a feature sheet must not redeclare the avatar's shape, and
 a conditionally rendered `.error` must carry `role="alert"`. Both are
 review items.
 

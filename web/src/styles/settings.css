@@ -5,9 +5,12 @@
    flat groups. The card, its rows and its fields are the kit's
    (surfaces.css, fields.css); the phone layout is mobile.css. ---- */
 
+/* The reader's own avatar in the rail: the rounded square every avatar
+   is, at rest as well as lit. */
 .space-pill.avatar {
   background: var(--raised);
   border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .space-pill.avatar:hover,
@@ -15,7 +18,6 @@
   border-color: var(--accent);
   background: var(--raised);
   color: var(--text);
-  border-radius: 50%;
 }
 
 .settings-page {
