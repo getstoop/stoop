@@ -5,9 +5,7 @@
 // here or on another device, with nothing unread: that send moved the marker
 // past everything above it and told every device. A later reply by someone
 // else is a new count, and is read. At -1 it is always a read, whoever wrote
-// the newest: the first of an opening, one after a failure, and one asked for
-// because an activity item landed after the marker moved, which only another
-// read clears.
+// the newest: the first of an opening, and one after a failure.
 export function threadReadDue(
   readAt: number,
   replyCount: number,
