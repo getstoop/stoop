@@ -113,7 +113,12 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 	if err := s.requireSpaceMember(ctx, req.Msg.SpaceId); err != nil {
 		return nil, err
 	}
-	rows, err := s.listChannels(ctx, req.Msg.SpaceId, authctx.UserID(ctx))
+	userID := authctx.UserID(ctx)
+	rows, err := s.listChannels(ctx, req.Msg.SpaceId, userID)
+	if err != nil {
+		return nil, err
+	}
+	alerts, err := s.countAlerts(ctx, userID, &req.Msg.SpaceId)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +129,7 @@ func (s *Service) ListChannels(ctx context.Context, req *connect.Request[chatv1.
 			channels[i].LastReadMessageId = *r.LastReadMessageID
 		}
 		channels[i].UnreadCount = int32(r.UnreadCount)
+		channels[i].AlertCount = alerts.byChannel[r.Channel.ID]
 		channels[i].Muted = r.Muted
 	}
 	return connect.NewResponse(&chatv1.ListChannelsResponse{Channels: channels}), nil
