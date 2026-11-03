@@ -312,7 +312,8 @@ func TestAlertCountsLeaveDirectMessagesToUnread(t *testing.T) {
 }
 
 // A space's count is the sum over its channels, and a private channel
-// the person is not in contributes nothing, whoever was named in it.
+// the person is not in contributes nothing: a mention there never names
+// them, since mentions resolve to the channel's readers.
 func TestAlertCountsSumOverTheSpace(t *testing.T) {
 	fixture := newAlertsFixture(t)
 	side, err := fixture.svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: fixture.spaceID, Name: "side"}))
@@ -351,4 +352,56 @@ func TestAlertCountsSumOverTheSpace(t *testing.T) {
 	if got := fixture.spaceAlerts(fixture.bea); got != 1 {
 		t.Errorf("bea's space = %d, want 1", got)
 	}
+}
+
+// Losing a channel takes its alerts with it: a mention written while
+// bea could read a private channel stops counting for the space once she
+// is removed from it, though the row is still there. (After leaving the
+// space itself no list answers for it, so there is nothing to observe.)
+func TestAlertCountsStopWithChannelAccess(t *testing.T) {
+	fixture := newAlertsFixture(t)
+	secret, err := fixture.svc.CreateChannel(fixture.owner, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: fixture.spaceID, Name: "secret", Private: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	secretID := secret.Msg.Channel.Id
+	if _, err := fixture.svc.AddChannelMembers(fixture.owner, connect.NewRequest(&chatv1.AddChannelMembersRequest{ChannelId: secretID, UserIds: []string{authctx.UserID(fixture.bea)}})); err != nil {
+		t.Fatal(err)
+	}
+	beas := fixture.send(fixture.bea, &chatv1.SendMessageRequest{ChannelId: secretID, Content: "is this the secret one?"})
+	fixture.send(fixture.owner, &chatv1.SendMessageRequest{ChannelId: secretID, Content: mentionOf(fixture.bea) + " it is"})
+	fixture.send(fixture.owner, &chatv1.SendMessageRequest{ChannelId: secretID, Content: "yes", ReplyToMessageId: beas.Id})
+	fixture.send(fixture.owner, &chatv1.SendMessageRequest{Content: mentionOf(fixture.bea) + " in general"})
+	if got := fixture.channelAlerts(fixture.bea, secretID); got != 2 {
+		t.Errorf("bea in secret = %d, want 2", got)
+	}
+	fixture.expect(fixture.bea, "while in secret", 1, 3)
+
+	if _, err := fixture.svc.RemoveChannelMember(fixture.owner, connect.NewRequest(&chatv1.RemoveChannelMemberRequest{ChannelId: secretID, UserId: authctx.UserID(fixture.bea)})); err != nil {
+		t.Fatal(err)
+	}
+	fixture.expect(fixture.bea, "removed from secret", 1, 1)
+}
+
+// A deleted root kept as a placeholder for its living thread counts for
+// unread_count but not here, and neither does a deleted reply kept the
+// same way.
+func TestAlertCountsSkipPlaceholders(t *testing.T) {
+	fixture := newAlertsFixture(t)
+	root := fixture.send(fixture.owner, &chatv1.SendMessageRequest{Content: mentionOf(fixture.bea) + " a root with a thread"})
+	fixture.send(fixture.cass, &chatv1.SendMessageRequest{Content: "a reply in it", ThreadRootId: root.Id})
+	fixture.expect(fixture.bea, "mentioned in a root", 1, 1)
+	if _, err := fixture.svc.DeleteMessage(fixture.owner, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: root.Id})); err != nil {
+		t.Fatal(err)
+	}
+	fixture.expect(fixture.bea, "root deleted, thread alive", 0, 0)
+
+	beas := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: "my own message"})
+	reply := fixture.send(fixture.owner, &chatv1.SendMessageRequest{Content: "replying, and starting a thread", ReplyToMessageId: beas.Id})
+	fixture.send(fixture.cass, &chatv1.SendMessageRequest{Content: "in the reply's thread", ThreadRootId: reply.Id})
+	fixture.expect(fixture.bea, "replied to", 1, 1)
+	if _, err := fixture.svc.DeleteMessage(fixture.owner, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: reply.Id})); err != nil {
+		t.Fatal(err)
+	}
+	fixture.expect(fixture.bea, "reply deleted, its thread alive", 0, 0)
 }
