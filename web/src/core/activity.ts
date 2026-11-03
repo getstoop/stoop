@@ -40,13 +40,17 @@ function coalesces(held: ActivityItem, item: ActivityItem): boolean {
   );
 }
 
-// The feed with a freshly delivered item on top. A known id is a replay,
-// and the feed comes back unchanged; so is an item older (ids are
-// time-ordered) than an entry held for the same conversation or thread,
-// an event delivered late. A direct message's or a thread's item
-// replaces the unread entry held for the same conversation or thread:
-// the server refreshed that entry under the new id, so the old row is
-// gone there. The count goes up by one for an unread arrival and down
+// The feed with a freshly delivered item in it. A known id is a replay,
+// and the feed comes back unchanged; so is an unread arrival older (ids
+// are time-ordered) than an entry held for the same conversation or
+// thread: its row was refreshed away before its event arrived late. A
+// direct message's or a thread's item replaces the unread entry held
+// for the same conversation or thread from before it: the server
+// refreshed that entry under the new id, so the old row is gone there.
+// An arrival that is already read is history the server keeps, however
+// late its event, and it takes its place by id, since events are not
+// delivered in order (notify publishes after the write's lock is
+// released). The count goes up by one for an unread arrival and down
 // by one for each unread entry it replaced.
 export function withActivityItem(
   data: ActivityData,
@@ -55,17 +59,23 @@ export function withActivityItem(
   if (
     data.items.some(
       (held) =>
-        held.id === item.id || (coalesces(held, item) && held.id > item.id),
+        held.id === item.id ||
+        (!item.readAt && coalesces(held, item) && held.id > item.id),
     )
   ) {
     return data;
   }
   const rest = data.items.filter(
-    (held) => held.readAt || !coalesces(held, item),
+    (held) => held.readAt || held.id > item.id || !coalesces(held, item),
   );
   const replaced = data.items.length - rest.length;
+  const at = rest.findIndex((held) => held.id < item.id);
+  const items =
+    at === -1
+      ? [...rest, item]
+      : [...rest.slice(0, at), item, ...rest.slice(at)];
   return {
-    items: [item, ...rest],
+    items,
     unreadCount: data.unreadCount + (item.readAt ? 0 : 1) - replaced,
   };
 }
@@ -131,16 +141,20 @@ export function deletionMayClearActivity(
 }
 
 // The older pages less what the first page has refreshed: an unread
-// older entry for a conversation or thread the first page holds an
+// older entry for a conversation or thread the first page holds a newer
 // entry for was refreshed under a new id, the old row gone with it, so
 // the inbox never shows the conversation twice. A read older entry is
-// history and stays. The same pages come back when nothing is dropped.
+// history and stays, as does an unread one newer than what the first
+// page holds (a read row's event, come late, sits past it). The same
+// pages come back when nothing is dropped.
 export function withoutRefreshed(
   recent: ActivityItem[],
   older: ActivityItem[],
 ): ActivityItem[] {
   const kept = older.filter(
-    (item) => item.readAt || !recent.some((held) => coalesces(held, item)),
+    (item) =>
+      item.readAt ||
+      !recent.some((held) => coalesces(held, item) && held.id > item.id),
   );
   return kept.length === older.length ? older : kept;
 }

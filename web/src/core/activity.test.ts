@@ -191,13 +191,35 @@ describe("withActivityItem", () => {
     expect(withActivityItem(feed, dm("dm-1", { preview: "again" }))).toBe(feed);
   });
 
-  // Ids are time-ordered: an arrival older than the entry held for its
-  // conversation is an event delivered late, whatever the entry's state.
-  it("ignores an arrival older than the entry held for its conversation", () => {
+  // Ids are time-ordered: an unread arrival older than the entry held
+  // for its conversation is an event delivered late for a row the held
+  // entry's refresh took away, whatever the entry's state.
+  it("ignores an unread arrival older than the entry held for its conversation", () => {
     const feed = data([dm("dm-2")], 1);
     expect(withActivityItem(feed, dm("dm-1", { preview: "late" }))).toBe(feed);
     const read = data([dm("dm-2", { readAt: stamp(10) })], 0);
     expect(withActivityItem(read, dm("dm-1"))).toBe(read);
+  });
+
+  // A read row stays on the server whatever comes after it, so its
+  // event delivered late is still history: kept, placed by id, and the
+  // newer entry it did not refresh left alone.
+  it("keeps a read arrival older than the entry held for its conversation", () => {
+    const next = withActivityItem(
+      data([item("4"), dm("3"), item("0")], 3),
+      dm("1", { readAt: stamp(10) }),
+    );
+    expect(next.items.map((x) => x.id)).toEqual(["4", "3", "1", "0"]);
+    expect(next.unreadCount).toBe(3);
+  });
+
+  it("keeps a read arrival older than the read entry held for its thread", () => {
+    const next = withActivityItem(
+      data([inThread("2", { readAt: stamp(10) })], 0),
+      inThread("1", { readAt: stamp(9) }),
+    );
+    expect(next.items.map((x) => x.id)).toEqual(["2", "1"]);
+    expect(next.unreadCount).toBe(0);
   });
 });
 

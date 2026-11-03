@@ -566,7 +566,11 @@ the refresh (`ActivityItemCreated` carries the new one), so a client
 coalesces by conversation, or by thread for a `thread_reply`, never by
 id: the arriving item replaces the unread entry it holds for the same
 place, and an older page still carrying the old row drops it
-(`withActivityItem`, `withoutRefreshed` in `core/activity.ts`).
+(`withActivityItem`, `withoutRefreshed` in `core/activity.ts`). Events
+are published once the lock is released, so they can cross: an unread
+arrival older than the held entry is the row that refresh took away,
+and is dropped; a read arrival is a row the server keeps (a refresh
+only ever takes an unread one), and is kept in its place by id.
 `MarkActivityRead` with an id that no longer exists reads nothing and
 loses nothing: the entry is read on the next tap or by the marker. A
 refreshed entry is born read by the same rule as a new one, when the
