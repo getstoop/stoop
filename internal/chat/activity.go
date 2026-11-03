@@ -169,13 +169,16 @@ func (s *Service) notify(ctx context.Context, recipients []string, about alert) 
 }
 
 func (s *Service) writeActivityItems(ctx context.Context, recipients []string, about alert) ([]dbgen.ActivityItem, error) {
-	ids := make([]string, len(recipients))
-	for index := range recipients {
-		ids[index] = rowid.New()
+	mintIDs := func() []string {
+		ids := make([]string, len(recipients))
+		for index := range recipients {
+			ids[index] = rowid.New()
+		}
+		return ids
 	}
 	if !about.coalesce {
 		items, err := s.q.CreateActivityItems(ctx, dbgen.CreateActivityItemsParams{
-			Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
+			Ids: mintIDs(), UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
 			ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
 		})
 		if err != nil {
@@ -188,7 +191,9 @@ func (s *Service) writeActivityItems(ctx context.Context, recipients []string, a
 		threadRootID = about.msg.ThreadRootID
 	}
 	// A refresh gives the entry a new id, so two for one channel at once
-	// must run one after the other (LockActivityPlace says why).
+	// must run one after the other (LockActivityPlace says why), and the
+	// ids are minted once the lock is held, so the later writer's are
+	// the greater ones.
 	var rows []dbgen.UpsertUnreadActivityItemsRow
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		if err := qtx.LockActivityPlace(ctx, about.msg.ChannelID); err != nil {
@@ -196,7 +201,7 @@ func (s *Service) writeActivityItems(ctx context.Context, recipients []string, a
 		}
 		var err error
 		rows, err = qtx.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
-			Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
+			Ids: mintIDs(), UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
 			ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
 			ThreadRootID: threadRootID,
 		})

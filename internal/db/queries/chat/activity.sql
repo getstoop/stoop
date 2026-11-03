@@ -104,8 +104,10 @@ WHERE a.user_id = sqlc.arg(user_id) AND a.channel_id = sqlc.arg(channel_id)
 -- row, re-checks the id the first changed, matches nothing, and writes
 -- nothing (its snapshot says the entry exists, so none is created
 -- either): a lost refresh. Taken first, the second's statement starts
--- after the first commits and sees the entry under its new id. The
--- transaction holds only this lock and the entry rows, never the
+-- after the first commits and sees the entry under its new id. The ids
+-- are minted once the lock is held, so a refresh always moves an entry
+-- to a greater id (clients ignore an arrival older than the entry they
+-- hold). The transaction holds only this lock and the entry rows, never the
 -- channel row, so there is no cycle with MarkChannelRead (ShareChannel,
 -- then channel_reads and activity_items). 4207030 is this lock's
 -- namespace; the others are in files.sql and jobs.sql.

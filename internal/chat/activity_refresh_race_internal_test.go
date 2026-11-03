@@ -19,8 +19,10 @@ import (
 // Two coalescing writes for one recipient and conversation at once: the
 // second must wait for the first (LockActivityPlace), then refresh the
 // entry under the id the first gave it, rather than re-checking the id
-// its snapshot read and writing nothing. The first write is held open
-// by hand, as the real path, and the second goes through notify.
+// its snapshot read and writing nothing; and its id, minted once it
+// holds the lock, must be the greater, though it started first. The
+// first write is held open by hand, as the real path, and the second
+// goes through notify.
 func TestConcurrentRefreshesBothLand(t *testing.T) {
 	pool := dbtest.New(t)
 	ctx := context.Background()
@@ -61,7 +63,7 @@ func TestConcurrentRefreshesBothLand(t *testing.T) {
 	sub := bus.Subscribe("user:" + beaID)
 	defer sub.Close()
 
-	// The first write: the lock, then the refresh to "two", left open.
+	// The first write takes the lock and holds it.
 	first, err := pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -71,18 +73,8 @@ func TestConcurrentRefreshesBothLand(t *testing.T) {
 	if err := firstQ.LockActivityPlace(ctx, dmID); err != nil {
 		t.Fatal(err)
 	}
-	held, err := firstQ.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
-		Ids: []string{rowid.New()}, UserIds: []string{beaID}, Kind: activityKindDM,
-		ChannelID: dmID, MessageID: second.Id, ActorID: authctx.UserID(owner),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(held) != 1 {
-		t.Fatalf("first write refreshed %d rows, want 1", len(held))
-	}
 
-	// The second, as SendMessage records it, must wait for the first.
+	// The second, as SendMessage records it, starts now and must wait.
 	done := make(chan error, 1)
 	go func() {
 		row := messageRow{ID: third.Id, ChannelID: dmID, AuthorID: authctx.UserID(owner), Content: third.Content, InChannel: true}
@@ -93,6 +85,19 @@ func TestConcurrentRefreshesBothLand(t *testing.T) {
 		t.Fatalf("the second write did not wait for the first: %v", err)
 	case <-time.After(500 * time.Millisecond):
 	}
+
+	// Only now does the first mint its id and refresh the entry to "two":
+	// an id minted by the second before it held the lock would be older.
+	held, err := firstQ.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
+		Ids: []string{rowid.New()}, UserIds: []string{beaID}, Kind: activityKindDM,
+		ChannelID: dmID, MessageID: second.Id, ActorID: authctx.UserID(owner),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(held) != 1 {
+		t.Fatalf("first write refreshed %d rows, want 1", len(held))
+	}
 	if err := first.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -101,18 +106,19 @@ func TestConcurrentRefreshesBothLand(t *testing.T) {
 	}
 
 	// The second won: its event names "three" under an id after the
-	// first's, and the feed has the one entry, pointing there.
+	// first's, and the feed has the one entry, under that id, pointing
+	// there.
 	item := nextItemCreated(t, sub).Item
 	if item.MessageId != third.Id || item.Id <= held[0].ID || item.ReadAt != nil {
 		t.Errorf("second write's event = %+v, want an unread entry at %s with an id after %s", item, third.Id, held[0].ID)
 	}
 	var entries int
-	var at string
-	if err := pool.QueryRow(ctx, `SELECT count(*), max(message_id::text) FROM activity_items WHERE user_id = $1 AND kind = 'dm' AND read_at IS NULL`, beaID).Scan(&entries, &at); err != nil {
+	var entryID, at string
+	if err := pool.QueryRow(ctx, `SELECT count(*), max(id::text), max(message_id::text) FROM activity_items WHERE user_id = $1 AND kind = 'dm' AND read_at IS NULL`, beaID).Scan(&entries, &entryID, &at); err != nil {
 		t.Fatal(err)
 	}
-	if entries != 1 || at != third.Id {
-		t.Errorf("bea has %d unread dm entries, newest at %s; want 1 at %s", entries, at, third.Id)
+	if entries != 1 || entryID != item.Id || at != third.Id {
+		t.Errorf("bea has %d unread dm entries, newest %s at %s; want 1, %s at %s", entries, entryID, at, item.Id, third.Id)
 	}
 }
 

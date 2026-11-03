@@ -555,12 +555,13 @@ The activity feed holds **one entry per conversation, not per
 message**. While an entry is unread, further messages refresh it
 (`UpsertUnreadActivityItems`): the newest preview and time, and a new id,
 so that it reads as new and sorts to the top of a feed ordered by id
-rather than staying where the first unread message put it. Because the
-id changes, a channel's coalescing writes run one after the other, under
-an advisory lock per channel (`LockActivityPlace`): two at once would
-leave the second re-checking an id the first had already changed, and
-its refresh lost. Once it has
-been read, the next message starts a new entry. The old id is gone with
+rather than staying where the first unread message put it. Once it has
+been read, the next message starts a new entry. Because the id changes,
+a channel's coalescing writes run one after the other, under an advisory
+lock per channel (`LockActivityPlace`), with the new ids minted once the
+lock is held: two at once would otherwise leave the second re-checking
+an id the first had already changed, and its refresh lost, or moving the
+entry to an id older than the one just published. The old id is gone with
 the refresh (`ActivityItemCreated` carries the new one), so a client
 coalesces by conversation, or by thread for a `thread_reply`, never by
 id: the arriving item replaces the unread entry it holds for the same
