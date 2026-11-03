@@ -252,6 +252,27 @@ func (q *Queries) ListActivity(ctx context.Context, arg ListActivityParams) ([]L
 	return items, nil
 }
 
+const lockActivityPlace = `-- name: LockActivityPlace :exec
+SELECT pg_advisory_xact_lock(4207030, hashtext($1::text))
+`
+
+// LockActivityPlace serialises a channel's coalescing writes
+// (UpsertUnreadActivityItems, in chat.writeActivityItems) until the
+// transaction ends. Two at once would each read a recipient's unread
+// entry from their own snapshot; the second's UPDATE, waiting on the
+// row, re-checks the id the first changed, matches nothing, and writes
+// nothing (its snapshot says the entry exists, so none is created
+// either): a lost refresh. Taken first, the second's statement starts
+// after the first commits and sees the entry under its new id. The
+// transaction holds only this lock and the entry rows, never the
+// channel row, so there is no cycle with MarkChannelRead (ShareChannel,
+// then channel_reads and activity_items). 4207030 is this lock's
+// namespace; the others are in files.sql and jobs.sql.
+func (q *Queries) LockActivityPlace(ctx context.Context, channelID string) error {
+	_, err := q.db.Exec(ctx, lockActivityPlace, channelID)
+	return err
+}
+
 const markActivityRead = `-- name: MarkActivityRead :exec
 UPDATE activity_items SET read_at = now()
 WHERE user_id = $1 AND read_at IS NULL AND id = ANY($2::uuid[])

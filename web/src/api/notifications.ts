@@ -1,4 +1,4 @@
-import { activityVerb } from "../core/activity";
+import { activityEntryKey, activityVerb } from "../core/activity";
 import type { ActivityItem } from "../gen/stoop/chat/v1/activity_pb";
 import { isDesktop, shellNotifications } from "./platform";
 
@@ -53,7 +53,7 @@ export function maybeDesktopNotify(
   showDesktopNotification(
     `${who} ${activityVerb(item.kind)}`,
     item.preview,
-    item.id,
+    activityEntryKey(item),
     path,
   );
 }
@@ -79,8 +79,10 @@ function showDesktopNotification(
   // banners is the app's rather than any one page's. The permission is
   // still granted; the app is choosing not to spend it.
   if (!shellNotifications()) return;
-  // The same tag replaces an earlier banner (a refreshed DM entry keeps
-  // its id); renotify makes the replacement alert again where supported.
+  // The tag is the entry's key (core activityEntryKey): one banner per
+  // conversation or thread in the tray, each message replacing the last,
+  // and renotify makes the replacement alert again where supported, so a
+  // banner still fires per message (messaging.md → The DM feed collapses).
   const options: NotificationOptions & { renotify?: boolean } = {
     body,
     tag,

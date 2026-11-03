@@ -16,34 +16,50 @@ export interface ActivityData {
   unreadCount: number;
 }
 
-// Whether two items stand for the same entry: a direct message's for
-// the same conversation, a thread's for the same thread. The server
-// keeps one unread entry for each, refreshed under a new id as messages
-// arrive (messaging.md → The DM feed collapses), so a client coalesces
-// by conversation or thread, never by id.
-function coalesces(held: ActivityItem, item: ActivityItem): boolean {
-  if (held.kind !== item.kind) return false;
+// What an item is an entry for: a direct message's its conversation, a
+// thread's its thread, anything else itself. The server keeps one
+// unread entry per conversation and per thread, refreshed under a new
+// id as messages arrive (messaging.md → The DM feed collapses), so a
+// client coalesces by this key, never by id; it is also the desktop
+// banner's tag, so a conversation holds one banner in the tray.
+export function activityEntryKey(item: ActivityItem): string {
   switch (item.kind) {
     case ActivityKind.DM:
-      return held.channelId === item.channelId;
+      return item.channelId;
     case ActivityKind.THREAD_REPLY:
-      return held.threadRootId === item.threadRootId;
+      return item.threadRootId;
     default:
-      return false;
+      return item.id;
   }
 }
 
+// Whether two items stand for the same entry.
+function coalesces(held: ActivityItem, item: ActivityItem): boolean {
+  return (
+    held.kind === item.kind && activityEntryKey(held) === activityEntryKey(item)
+  );
+}
+
 // The feed with a freshly delivered item on top. A known id is a replay,
-// and the feed comes back unchanged. A direct message's or a thread's
-// item replaces the unread entry held for the same conversation or
-// thread: the server refreshed that entry under the new id, so the old
-// row is gone there. The count goes up by one for an unread arrival and
-// down by one for each unread entry it replaced.
+// and the feed comes back unchanged; so is an item older (ids are
+// time-ordered) than an entry held for the same conversation or thread,
+// an event delivered late. A direct message's or a thread's item
+// replaces the unread entry held for the same conversation or thread:
+// the server refreshed that entry under the new id, so the old row is
+// gone there. The count goes up by one for an unread arrival and down
+// by one for each unread entry it replaced.
 export function withActivityItem(
   data: ActivityData,
   item: ActivityItem,
 ): ActivityData {
-  if (data.items.some((held) => held.id === item.id)) return data;
+  if (
+    data.items.some(
+      (held) =>
+        held.id === item.id || (coalesces(held, item) && held.id > item.id),
+    )
+  ) {
+    return data;
+  }
   const rest = data.items.filter(
     (held) => held.readAt || !coalesces(held, item),
   );

@@ -6,6 +6,7 @@ import {
 } from "../gen/stoop/chat/v1/activity_pb";
 import {
   type ActivityData,
+  activityEntryKey,
   activityTime,
   activityVerb,
   NEW_AUTO_PAGES,
@@ -188,6 +189,38 @@ describe("withActivityItem", () => {
   it("hands back the same feed for a replay of a known direct message", () => {
     const feed = data([dm("dm-1")], 1);
     expect(withActivityItem(feed, dm("dm-1", { preview: "again" }))).toBe(feed);
+  });
+
+  // Ids are time-ordered: an arrival older than the entry held for its
+  // conversation is an event delivered late, whatever the entry's state.
+  it("ignores an arrival older than the entry held for its conversation", () => {
+    const feed = data([dm("dm-2")], 1);
+    expect(withActivityItem(feed, dm("dm-1", { preview: "late" }))).toBe(feed);
+    const read = data([dm("dm-2", { readAt: stamp(10) })], 0);
+    expect(withActivityItem(read, dm("dm-1"))).toBe(read);
+  });
+});
+
+describe("activityEntryKey", () => {
+  it("is the conversation for a direct message", () => {
+    expect(
+      activityEntryKey(
+        item("x", { kind: ActivityKind.DM, spaceId: "", channelId: "ada" }),
+      ),
+    ).toBe("ada");
+  });
+
+  it("is the thread for a thread reply", () => {
+    expect(
+      activityEntryKey(
+        item("x", { kind: ActivityKind.THREAD_REPLY, threadRootId: "root1" }),
+      ),
+    ).toBe("root1");
+  });
+
+  it("is the item itself for a mention or a reply", () => {
+    expect(activityEntryKey(item("x"))).toBe("x");
+    expect(activityEntryKey(item("y", { kind: ActivityKind.REPLY }))).toBe("y");
   });
 });
 

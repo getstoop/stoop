@@ -187,10 +187,20 @@ func (s *Service) writeActivityItems(ctx context.Context, recipients []string, a
 	if about.kind == activityKindThreadReply {
 		threadRootID = about.msg.ThreadRootID
 	}
-	rows, err := s.q.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
-		Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
-		ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
-		ThreadRootID: threadRootID,
+	// A refresh gives the entry a new id, so two for one channel at once
+	// must run one after the other (LockActivityPlace says why).
+	var rows []dbgen.UpsertUnreadActivityItemsRow
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if err := qtx.LockActivityPlace(ctx, about.msg.ChannelID); err != nil {
+			return fmt.Errorf("lock activity place: %w", err)
+		}
+		var err error
+		rows, err = qtx.UpsertUnreadActivityItems(ctx, dbgen.UpsertUnreadActivityItemsParams{
+			Ids: ids, UserIds: recipients, Kind: about.kind, SpaceID: about.spaceID,
+			ChannelID: about.msg.ChannelID, MessageID: about.msg.ID, ActorID: about.msg.AuthorID,
+			ThreadRootID: threadRootID,
+		})
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("upsert %s activity items: %w", about.kind, err)
