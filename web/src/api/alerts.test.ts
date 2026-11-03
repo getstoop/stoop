@@ -106,8 +106,14 @@ describe("noteAlert", () => {
     const invalidate = vi.spyOn(qc, "invalidateQueries");
     noteAlert(qc, "hq", "general", "root");
     expect(counts(qc)).toEqual({ channel: 2, space: 2, other: 1 });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["channels", "hq"] });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["spaces"] });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["channels", "hq"],
+      exact: true,
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["spaces"],
+      exact: true,
+    });
   });
 });
 

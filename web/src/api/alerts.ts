@@ -113,6 +113,6 @@ export function refetchAlertsIfAny(
 // brings back what the mute silenced): both lists again.
 export function refetchAlerts(queryClient: QueryClient, spaceId: string) {
   if (spaceId === "") return;
-  queryClient.invalidateQueries({ queryKey: ["channels", spaceId] });
-  queryClient.invalidateQueries({ queryKey: ["spaces"] });
+  refetchKey(queryClient, ["channels", spaceId]);
+  refetchKey(queryClient, ["spaces"]);
 }
