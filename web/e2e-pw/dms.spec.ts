@@ -90,7 +90,7 @@ test("direct messages", async ({ browser }) => {
     B.locator(".message-content", { hasText: "hello bea" }),
     "B sees A's message",
   ).toBeVisible();
-  // Reading only counts while the window has attention: useAutoReadActivity
+  // Reading only counts while the window has attention: useMarkChannelRead
   // gates on document.hasFocus() so an unfocused tab still raises a desktop
   // alert. With three pages open only one holds focus, so B has to be at the
   // front for this to mean anything.

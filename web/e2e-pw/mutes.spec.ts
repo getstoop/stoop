@@ -173,8 +173,8 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
     A.locator(".activity-page-header"),
     "and counts on the page header, which mutes never touch",
   ).toContainText("1 unread");
-  // The page lists without reading; clearing it is Mark all read on New —
-  // and read state only counts on the page holding the attention.
+  // The page lists without reading; clearing it is Mark activity read on
+  // New — and read state only counts on the page holding the attention.
   await focus(A);
   await markAllRead(A);
   await expect(

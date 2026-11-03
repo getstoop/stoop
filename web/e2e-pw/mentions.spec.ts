@@ -1,5 +1,14 @@
 import type { Page } from "@playwright/test";
-import { channelLink, expect, focus, seed, signIn, test } from "./lib";
+import {
+  channelLink,
+  expect,
+  focus,
+  reload,
+  seed,
+  sendMessage,
+  signIn,
+  test,
+} from "./lib";
 
 type Note = { title: string; body: string };
 declare global {
@@ -9,11 +18,12 @@ declare global {
 }
 
 // @mentions: the picker, the desktop banner, the badges on the activity
-// pill, the space pill and the channel, the activity timeline, and
-// @channel — which the owner has and a member doesn't.
+// pill, the space pill and the channel, the activity timeline, @channel —
+// which the owner has and a member doesn't — and a badge that counts
+// past the feed's first page.
 // Ported from web/e2e/mentions.mjs (STOOP-238).
 test("mentions notify, badge and read", async ({ browser }) => {
-  const { suffix, tokens } = await seed();
+  const { suffix, tokens, ids, channels } = await seed();
 
   const composer = (p: Page) => p.locator(".composer .rich-editor-content");
   const activityDot = (p: Page) => p.locator(".space-pill.activity .pill-dot");
@@ -247,8 +257,10 @@ test("mentions notify, badge and read", async ({ browser }) => {
     "member's @channel doesn't notify the owner",
   ).toHaveCount(0);
 
-  // Mark all read from the timeline, after a mention arrives while A is
-  // on /profile.
+  // Mark activity read from the timeline, after a mention arrives while
+  // A is on /profile. It reads the feed and nothing else: the badges on
+  // the channel and the space are the server's count of what is past
+  // A's read marker there, and only reading #general clears them.
   await A.locator(".space-rail-list a.space-pill").click();
   await A.locator(".space-pill.avatar").click();
   await send(B, `@ada${suffix} last one`);
@@ -258,9 +270,77 @@ test("mentions notify, badge and read", async ({ browser }) => {
   ).toBeVisible();
   await A.locator(".space-pill.activity").click();
   await A.locator(".activity-mark-all").click();
-  await expect(activityDot(A), "Mark all read clears the badge").toHaveCount(0);
+  await expect(
+    activityDot(A),
+    "Mark activity read clears the activity dot",
+  ).toHaveCount(0);
   await expect(
     A.locator(".activity-row.unread"),
     "no rows remain unread",
   ).toHaveCount(0);
+  await expect(
+    A.locator(".space-rail-list .pill-badge"),
+    "but not the space badge, which counts the unread mention in #general",
+  ).toHaveText("1");
+  await focus(A);
+  await A.locator(".space-rail-list a.space-pill").click();
+  await channelLink(A, "general").click();
+  await expect(
+    A.locator(".space-rail-list .pill-badge"),
+    "reading #general clears it",
+  ).toHaveCount(0);
+
+  // More mentions than the feed's first page holds. The badge is the
+  // server's count of what is addressed to A past her marker, so sixty
+  // show as sixty, not as the fifty items a page holds. Sent over RPC:
+  // the subject is how many arrive, not the typing of them.
+  await channelLink(A, "random").click();
+  await expect(channelLink(A, "random")).toHaveClass(/active/);
+  const mentionA = `<@u:${ids.ada}:ada${suffix}>`;
+  for (let i = 1; i <= 60; i++) {
+    await sendMessage(tokens.bea, channels.general, `${mentionA} ping ${i}`);
+  }
+  await expect(
+    channelLink(A, "general").locator(".channel-badge"),
+    "#general badges all sixty",
+  ).toHaveText("60");
+  await expect(
+    A.locator(".space-rail-list .pill-badge"),
+    "and so does the space pill",
+  ).toHaveText("60");
+  await reload(A);
+  await expect(
+    channelLink(A, "general").locator(".channel-badge"),
+    "the server counts the same sixty",
+  ).toHaveText("60");
+
+  // A mention older than the feed's first page still badges: one unread
+  // in #general, then fifty read as they land in #random, where A is,
+  // push it past the page the feed holds.
+  await focus(A);
+  await channelLink(A, "general").click();
+  await expect(
+    channelLink(A, "general").locator(".channel-badge"),
+    "reading #general clears the sixty",
+  ).toHaveCount(0);
+  await channelLink(A, "random").click();
+  await expect(channelLink(A, "random")).toHaveClass(/active/);
+  await sendMessage(tokens.bea, channels.general, `${mentionA} buried`);
+  await expect(
+    channelLink(A, "general").locator(".channel-badge"),
+    "the one in #general badges",
+  ).toHaveText("1");
+  for (let i = 1; i <= 50; i++) {
+    await sendMessage(tokens.bea, channels.random, `${mentionA} seen ${i}`);
+  }
+  await A.locator(".message-content", { hasText: "seen 50" }).waitFor();
+  await expect(
+    channelLink(A, "random").locator(".channel-badge"),
+    "the fifty read as they landed badge nothing",
+  ).toHaveCount(0);
+  await reload(A);
+  await expect(
+    channelLink(A, "general").locator(".channel-badge"),
+    "the mention older than fifty newer read items still badges",
+  ).toHaveText("1");
 });
