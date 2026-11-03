@@ -157,7 +157,16 @@ type Channel struct {
 	PostPolicy ChannelPostPolicy `protobuf:"varint,12,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
 	// Only the people in it can see or read the channel. Set when it is
 	// created and never changed. Always false for a direct message.
-	Private       bool `protobuf:"varint,13,opt,name=private,proto3" json:"private,omitempty"`
+	Private bool `protobuf:"varint,13,opt,name=private,proto3" json:"private,omitempty"`
+	// Messages newer than the caller's read marker that are addressed to
+	// them: a mention of them, or a reply to one of their messages, by
+	// someone they have not blocked, in a channel, space and thread they
+	// have not muted. A thread-only reply counts against the thread's
+	// marker. What the badge shows; see docs/architecture/messaging.md →
+	// Alert counts. Always 0 for a direct message, where every message is
+	// addressed to them and unread_count is the number that matters.
+	// Their own, like unread_count; never set on broadcast events.
+	AlertCount    int32 `protobuf:"varint,14,opt,name=alert_count,json=alertCount,proto3" json:"alert_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -283,11 +292,18 @@ func (x *Channel) GetPrivate() bool {
 	return false
 }
 
+func (x *Channel) GetAlertCount() int32 {
+	if x != nil {
+		return x.AlertCount
+	}
+	return 0
+}
+
 var File_stoop_chat_v1_channel_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd4\x03\n" +
+	"\x1bstoop/chat/v1/channel.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf5\x03\n" +
 	"\aChannel\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bspace_id\x18\x02 \x01(\tR\aspaceId\x12\x12\n" +
@@ -304,7 +320,9 @@ const file_stoop_chat_v1_channel_proto_rawDesc = "" +
 	"\x05topic\x18\v \x01(\tR\x05topic\x12A\n" +
 	"\vpost_policy\x18\f \x01(\x0e2 .stoop.chat.v1.ChannelPostPolicyR\n" +
 	"postPolicy\x12\x18\n" +
-	"\aprivate\x18\r \x01(\bR\aprivate*o\n" +
+	"\aprivate\x18\r \x01(\bR\aprivate\x12\x1f\n" +
+	"\valert_count\x18\x0e \x01(\x05R\n" +
+	"alertCount*o\n" +
 	"\vChannelKind\x12\x1c\n" +
 	"\x18CHANNEL_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11CHANNEL_KIND_TEXT\x10\x01\x12\x16\n" +

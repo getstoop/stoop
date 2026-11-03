@@ -80,11 +80,16 @@ func (s *Service) ListSpaces(ctx context.Context, req *connect.Request[chatv1.Li
 	if req.Msg.All {
 		return s.listAllSpaces(ctx)
 	}
+	userID := authctx.UserID(ctx)
 	rows, err := s.q.ListSpacesByUser(ctx, dbgen.ListSpacesByUserParams{
-		UserID: authctx.UserID(ctx), WithVoice: s.voiceAvailable(),
+		UserID: userID, WithVoice: s.voiceAvailable(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
+	}
+	alerts, err := s.countAlerts(ctx, userID, nil)
+	if err != nil {
+		return nil, err
 	}
 	cred := callerCredential(ctx)
 	spaces := make([]*chatv1.Space, 0, len(rows))
@@ -95,6 +100,7 @@ func (s *Service) ListSpaces(ctx context.Context, req *connect.Request[chatv1.Li
 		}
 		space := toProtoSpace(r.Space, memberActor(Role(r.MyRole), authctx.IsAdmin(ctx)), cred)
 		space.HasUnread = r.HasUnread
+		space.AlertCount = alerts.bySpace[r.Space.ID]
 		space.Muted = r.Muted
 		spaces = append(spaces, space)
 	}

@@ -204,6 +204,9 @@ in its thread, and a `CHECK` refuses false without a root.
 `messages_channel_timeline_idx` is `(channel_id, id DESC) WHERE
 in_channel` and `messages_thread_idx` is `(thread_root_id, id DESC)`, so
 a channel page and a thread page are each one range scan.
+`messages_author_idx` is `(author_id, id DESC)`: the alert count on a
+channel starts from the reader's own messages to find the replies to
+them ([messaging.md](messaging.md#alert-counts)).
 
 **`threads`** — one row per root with live replies: `reply_count`,
 `last_reply_id`, `last_reply_at` and `recent_author_ids`, the summary

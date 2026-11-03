@@ -57,6 +57,10 @@ message Space {
   // turned it off. Off, or with GetInstanceStatus.voice_available false,
   // its voice channels are not listed and cannot be created or joined.
   bool voice_enabled = 14;
+  // The sum of the caller's Channel.alert_count over the channels here:
+  // what the space's badge shows. Their own; never set on broadcast
+  // events.
+  int32 alert_count = 15;
 }
 
 // SpaceSummary is one row of the server admin's Spaces list: a space the

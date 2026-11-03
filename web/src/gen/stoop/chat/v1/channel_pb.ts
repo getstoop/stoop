@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/channel.proto.
  */
 export const file_stoop_chat_v1_channel: GenFile = /*@__PURE__*/
-  fileDesc("ChtzdG9vcC9jaGF0L3YxL2NoYW5uZWwucHJvdG8SDXN0b29wLmNoYXQudjEi1AIKB0NoYW5uZWwSCgoCaWQYASABKAkSEAoIc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIoCgRraW5kGAQgASgOMhouc3Rvb3AuY2hhdC52MS5DaGFubmVsS2luZBIQCghwb3NpdGlvbhgFIAEoBRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9sYXN0X21lc3NhZ2VfaWQYByABKAkSHAoUbGFzdF9yZWFkX21lc3NhZ2VfaWQYCCABKAkSFAoMdW5yZWFkX2NvdW50GAkgASgFEg0KBW11dGVkGAogASgIEg0KBXRvcGljGAsgASgJEjUKC3Bvc3RfcG9saWN5GAwgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeRIPCgdwcml2YXRlGA0gASgIKm8KC0NoYW5uZWxLaW5kEhwKGENIQU5ORUxfS0lORF9VTlNQRUNJRklFRBAAEhUKEUNIQU5ORUxfS0lORF9URVhUEAESFgoSQ0hBTk5FTF9LSU5EX1ZPSUNFEAISEwoPQ0hBTk5FTF9LSU5EX0RNEAMqegoRQ2hhbm5lbFBvc3RQb2xpY3kSIwofQ0hBTk5FTF9QT1NUX1BPTElDWV9VTlNQRUNJRklFRBAAEiAKHENIQU5ORUxfUE9TVF9QT0xJQ1lfRVZFUllPTkUQARIeChpDSEFOTkVMX1BPU1RfUE9MSUNZX0FETUlOUxACQqsBChFjb20uc3Rvb3AuY2hhdC52MUIMQ2hhbm5lbFByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChtzdG9vcC9jaGF0L3YxL2NoYW5uZWwucHJvdG8SDXN0b29wLmNoYXQudjEi6QIKB0NoYW5uZWwSCgoCaWQYASABKAkSEAoIc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIoCgRraW5kGAQgASgOMhouc3Rvb3AuY2hhdC52MS5DaGFubmVsS2luZBIQCghwb3NpdGlvbhgFIAEoBRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9sYXN0X21lc3NhZ2VfaWQYByABKAkSHAoUbGFzdF9yZWFkX21lc3NhZ2VfaWQYCCABKAkSFAoMdW5yZWFkX2NvdW50GAkgASgFEg0KBW11dGVkGAogASgIEg0KBXRvcGljGAsgASgJEjUKC3Bvc3RfcG9saWN5GAwgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeRIPCgdwcml2YXRlGA0gASgIEhMKC2FsZXJ0X2NvdW50GA4gASgFKm8KC0NoYW5uZWxLaW5kEhwKGENIQU5ORUxfS0lORF9VTlNQRUNJRklFRBAAEhUKEUNIQU5ORUxfS0lORF9URVhUEAESFgoSQ0hBTk5FTF9LSU5EX1ZPSUNFEAISEwoPQ0hBTk5FTF9LSU5EX0RNEAMqegoRQ2hhbm5lbFBvc3RQb2xpY3kSIwofQ0hBTk5FTF9QT1NUX1BPTElDWV9VTlNQRUNJRklFRBAAEiAKHENIQU5ORUxfUE9TVF9QT0xJQ1lfRVZFUllPTkUQARIeChpDSEFOTkVMX1BPU1RfUE9MSUNZX0FETUlOUxACQqsBChFjb20uc3Rvb3AuY2hhdC52MUIMQ2hhbm5lbFByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message stoop.chat.v1.Channel
@@ -106,6 +106,20 @@ export type Channel = Message<"stoop.chat.v1.Channel"> & {
    * @generated from field: bool private = 13;
    */
   private: boolean;
+
+  /**
+   * Messages newer than the caller's read marker that are addressed to
+   * them: a mention of them, or a reply to one of their messages, by
+   * someone they have not blocked, in a channel, space and thread they
+   * have not muted. A thread-only reply counts against the thread's
+   * marker. What the badge shows; see docs/architecture/messaging.md →
+   * Alert counts. Always 0 for a direct message, where every message is
+   * addressed to them and unread_count is the number that matters.
+   * Their own, like unread_count; never set on broadcast events.
+   *
+   * @generated from field: int32 alert_count = 14;
+   */
+  alertCount: number;
 };
 
 /**

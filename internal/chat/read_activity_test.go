@@ -222,15 +222,18 @@ func (bus readsOnThreadChanged) Publish(topic string, ev *realtimev1.ServerEvent
 }
 
 // SendMessage publishes a reply before it writes the reply's activity, so
-// a read answering the event can land first and leave the item unread. A
-// read after that clears the item with no new reply, whatever its kind,
-// so a client need only read again when the item's own event comes.
+// a read answering the event can land first. The item is then born read,
+// whatever its kind, and its event says so: a client with the thread on
+// screen never sees it unread.
 func TestThreadReadBeforeTheItemIsWritten(t *testing.T) {
 	fx := newReadActivityFixture(t)
 	root := fx.send(fx.ada, &chatv1.SendMessageRequest{Content: "ladder"})
-	racing := chat.New(fx.pool, readsOnThreadChanged{events.NewInProcBus(), func() {
+	bus := events.NewInProcBus()
+	racing := chat.New(fx.pool, readsOnThreadChanged{bus, func() {
 		fx.readThread(fx.ada, root.Id, "")
 	}}, dbDirectory{fx.pool})
+	sub := bus.Subscribe("user:" + authctx.UserID(fx.ada))
+	defer sub.Close()
 
 	replies := []struct {
 		name string
@@ -248,12 +251,12 @@ func TestThreadReadBeforeTheItemIsWritten(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got, _ := fx.unread(fx.ada); got[res.Msg.Message.Id] != reply.kind {
-				t.Fatalf("ada after the read landed first = %v, want the item unread", got)
+			item := nextActivityItem(t, sub).Item
+			if item.MessageId != res.Msg.Message.Id || item.Kind != reply.kind || item.ReadAt == nil {
+				t.Errorf("ada's event after the read landed first = %v, want the item born read", item)
 			}
-			fx.readThread(fx.ada, root.Id, "")
-			if got, _ := fx.unread(fx.ada); len(got) != 0 {
-				t.Errorf("ada read again: unread %v, want none", got)
+			if got, count := fx.unread(fx.ada); len(got) != 0 || count != 0 {
+				t.Errorf("ada after the read landed first: unread %v (count %d), want none", got, count)
 			}
 		})
 	}
