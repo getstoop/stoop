@@ -54,6 +54,10 @@ export default function ComposerDock({
   // of a screen without one), or GAP above the keyboard while that is up
   // (the avoiding view's padding ends at its top edge).
   const composerBottom = keyboard > 0 ? GAP : Math.max(insets.bottom + FOOT, GAP);
+  // The foot's edge keeps one height whether the keyboard is up or not:
+  // the glass does not survive being resized, and the few extra points
+  // over the keyboard are under the composer anyway.
+  const footEdge = Math.max(insets.bottom + FOOT, GAP) + PILL + FADE_IN;
 
   return (
     <View
@@ -76,7 +80,7 @@ export default function ComposerDock({
             list(composerHeight + composerBottom)
           )}
           <Edge edge="top" height={insets.top + FADE_IN} />
-          <Edge edge="bottom" height={composerBottom + PILL + FADE_IN} />
+          <Edge edge="bottom" height={footEdge} />
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
