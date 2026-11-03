@@ -784,6 +784,7 @@ export const tokens = {
   "railW": 68,
   "sidebarW": 244,
   "sidePanelW": 380,
+  "sidePanelMin": 380,
   "durFast": 120,
   "dur": 180,
   "focusOffset": 2,
