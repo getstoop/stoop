@@ -14,7 +14,7 @@
   margin: 0;
 }
 
-/* A group's stand-in for an avatar, the size of a small one. */
+/* A group's stand-in for an avatar, the size and shape of a small one. */
 .group-mark {
   flex-shrink: 0;
   display: inline-flex;
@@ -22,7 +22,7 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text-muted);
 }
@@ -30,6 +30,7 @@
 .group-mark.large {
   width: 40px;
   height: 40px;
+  border-radius: var(--radius-md);
 }
 
 /* A group's card, opened from its mention: the member card's frame

@@ -190,20 +190,21 @@ button.link {
   line-height: 1;
 }
 
-/* The bot face as a default avatar, sized to the circle it sits in. */
+/* The bot face as a default avatar, sized to the square it sits in. */
 .avatar > svg {
   width: 60%;
   height: 60%;
 }
 
-/* Every user avatar: the circle, the fill and the initials. A modifier
-   sets the size; with none it is 40px at the inherited font size. The
-   rail pill and the voice tile carry the class name for other reasons. */
+/* Every user avatar: a rounded square, the fill and the initials. A
+   modifier sets the size and, with it, the corner; with none it is 40px
+   at the inherited font size. The rail pill and the voice tile carry the
+   class name for other reasons. */
 .avatar:where(:not(.space-pill, .stage-tile)) {
   position: relative;
   width: var(--avatar-size, 40px);
   height: var(--avatar-size, 40px);
-  border-radius: 50%;
+  border-radius: var(--radius-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -215,6 +216,7 @@ button.link {
 
 .avatar.small {
   --avatar-size: 24px;
+  border-radius: var(--radius);
   font-size: var(--text-xs);
 }
 
@@ -225,5 +227,6 @@ button.link {
 
 .avatar.large {
   --avatar-size: 64px;
+  border-radius: var(--radius-lg);
   font-size: var(--text-xl);
 }

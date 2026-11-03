@@ -139,7 +139,7 @@
 .theme-mock-av {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   flex: 0 0 auto;
 }
