@@ -236,7 +236,13 @@
   white-space: nowrap;
 }
 
+/* In a narrow column (a thread panel) the row gives way without
+   wrapping: the date trims first, then a long name. */
 .message-author {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font: inherit;
   font-weight: 600;
   color: var(--accent);
@@ -250,6 +256,11 @@
 }
 
 .message-time {
+  flex-shrink: 4;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }

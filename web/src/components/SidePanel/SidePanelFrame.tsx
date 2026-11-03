@@ -1,5 +1,6 @@
 import {
   type AnimationEvent,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import { BackIcon, CloseIcon } from "../Icons";
 import { useCloseSidePanel, usePanelMotion } from "./context";
+import { useSidePanelResize } from "./resize";
 
 interface Props {
   title: ReactNode;
@@ -25,7 +27,8 @@ interface Props {
 // header with its title and a Close (Back on a narrow screen, by CSS), a
 // scrolling body and an optional footer. It slides in, and out once
 // closed. Focus moves to the title when it appears, and Escape closes it
-// while focus is inside.
+// while focus is inside. Its left edge is a handle that sets its width
+// (resize.ts); on a phone there is no edge to drag, and mobile.css hides it.
 export function SidePanelFrame({
   title,
   subtitle,
@@ -37,6 +40,13 @@ export function SidePanelFrame({
   const { entering, leaving, left } = usePanelMotion();
   const titleId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const resize = useSidePanelResize(panel);
+  const style = (
+    resize.width === null
+      ? undefined
+      : { "--side-panel-w": `${resize.width}px` }
+  ) as CSSProperties | undefined;
 
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -55,11 +65,22 @@ export function SidePanelFrame({
 
   return (
     <aside
+      ref={panel}
       className={`side-panel${leaving ? " leaving" : entering ? "" : " replaced"}`}
+      style={style}
       aria-labelledby={titleId}
       onKeyDown={onKeyDown}
       onAnimationEnd={onAnimationEnd}
     >
+      <button
+        type="button"
+        className="side-panel-resizer"
+        aria-label="Resize the panel (drag, or arrow keys; Home resets)"
+        title="Drag to resize · double-click to reset"
+        onPointerDown={resize.onPointerDown}
+        onKeyDown={resize.onKeyDown}
+        onDoubleClick={resize.reset}
+      />
       <header className="side-panel-header">
         <button
           type="button"
