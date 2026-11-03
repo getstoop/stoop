@@ -103,7 +103,11 @@ export function ActivityPage() {
     <div className="activity-page">
       <header className="channel-header activity-page-header">
         <MenuButton />
-        <span>Activity</span>
+        <span className="channel-title">Activity</span>
+        <span className="channel-topic-rule" aria-hidden="true" />
+        <span className="activity-blurb">
+          This is your activity feed across this server.
+        </span>
         <span className="muted activity-count">
           {data && data.unreadCount > 0
             ? `${data.unreadCount} unread`

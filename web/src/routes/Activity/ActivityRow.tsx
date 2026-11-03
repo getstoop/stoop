@@ -19,11 +19,12 @@ import {
 } from "../../gen/stoop/chat/v1/activity_pb";
 
 // One thing that happened to you: who did it, with the kind as a glyph
-// on their avatar; what they did and where, on one line; and a two-line
-// preview with your handle lit. A direct message names no place: the
-// verb already does, and a thread's channel is enough beside its verb. Opening it reads it and jumps to the message. `dated`
-// is for a row with no day divider above it (the New section): its time
-// carries the date once it is more than a day old.
+// on their avatar; what they did and where, on the line under their
+// name; and a two-line preview with your handle lit. A direct message
+// names no place: the verb already does, and a thread's channel is
+// enough beside its verb. Opening it reads it and jumps to the message.
+// `dated` is for a row with no day divider above it (the New section):
+// its time carries the date once it is more than a day old.
 export function ActivityRow({
   item,
   dated = false,
@@ -80,16 +81,18 @@ export function ActivityRow({
       </span>
       <span className="activity-title">
         <strong>{who}</strong>
-        <DeletedMark deleted={item.actor?.deleted} />{" "}
-        <span className="activity-verb">{activityVerb(item.kind)}</span>
-        {item.spaceId && (
-          <span className="activity-place">
-            {" · "}
-            {channel ? <ChannelName channel={channel} /> : "…"}
-            {space && (spaces?.length ?? 0) > 1 && ` · ${space.name}`}
-          </span>
-        )}
-        {item.muted && <MutedMark />}
+        <DeletedMark deleted={item.actor?.deleted} />
+        {item.muted && <MutedMark />}{" "}
+        <span className="activity-meta">
+          <span className="activity-verb">{activityVerb(item.kind)}</span>
+          {item.spaceId && (
+            <span className="activity-place">
+              {" · "}
+              {channel ? <ChannelName channel={channel} /> : "…"}
+              {space && (spaces?.length ?? 0) > 1 && ` · ${space.name}`}
+            </span>
+          )}
+        </span>
       </span>
       <span
         className="muted small activity-time"

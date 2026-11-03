@@ -55,7 +55,21 @@
   height: 100%;
 }
 
+/* The header: the title, then what the page is where a channel shows
+   its topic, and the count at the far end. */
+.activity-blurb {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .activity-page-header .activity-count {
+  flex: none;
   font-weight: 400;
 }
 
@@ -165,7 +179,7 @@
 .activity-avatar {
   position: relative;
   grid-row: span 2;
-  /* off-scale: centres the 40px avatar on two lines of text */
+  /* off-scale: brings the avatar's top to the name's cap height */
   margin-top: 1px;
 }
 
@@ -203,6 +217,13 @@
 .activity-title {
   min-width: 0;
   overflow-wrap: anywhere;
+  line-height: var(--leading-ui);
+}
+
+/* What they did and where, the line under the name. */
+.activity-meta {
+  display: block;
+  font-size: var(--text-ui);
   line-height: var(--leading-ui);
 }
 

@@ -137,9 +137,11 @@
   }
 
   /* The name alone can fill a phone's header. The topic stays reachable
-     from the channel's ⋮ → About this channel. */
+     from the channel's ⋮ → About this channel; Activity's blurb is only
+     a note. */
   .channel-topic,
-  .channel-topic-rule {
+  .channel-topic-rule,
+  .activity-blurb {
     display: none;
   }
 
