@@ -8,7 +8,6 @@ import { useHeaderHeight } from "expo-router/react-navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { useServerStatus } from "../../api/instance";
-import { useActivity } from "../../activity/ActivityProvider";
 import { markRead } from "../../api/messages";
 import { messageLink } from "../../api/shareLinks";
 import { useAudioPlayback } from "../../components/Attachments/audio";
@@ -20,7 +19,6 @@ import { useViewer } from "../../components/Viewer/useViewer";
 import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
-import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelOutcome from "./ChannelOutcome";
@@ -36,7 +34,7 @@ import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
 import SearchButton from "./SearchButton";
 import type { ChannelEngine } from "./channelEngine";
-import { readArrived, readShown } from "./readPass";
+import { readShown } from "./readPass";
 import { threadRoute } from "./routes";
 import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
@@ -116,7 +114,6 @@ export default function Channel({
   const focused = useIsFocused();
   const keyboard = useKeyboardHeight();
   const status = useServerStatus(server.origin);
-  const { readChannel, markRead: readActivity } = useActivity();
   const { state, engine } = useChannelLog(server, spaceId, channelId);
   const { older, newer, retry, send, edit } = engine;
   const { log, header, outcome, token, newAfter, loadingOlder, landOn } = state;
@@ -133,15 +130,12 @@ export default function Channel({
   // moved, whether it has landed, and the message it jumped to on which
   // log. Another channel starts afresh.
   const marked = useRef("");
-  // Whether its mentions were read since it last came on screen.
-  const looked = useRef(false);
   const landed = useRef(false);
   const jumped = useRef<{ engine: ChannelEngine; id: string } | null>(null);
   const shownChannel = useRef(channelId);
   if (shownChannel.current !== channelId) {
     shownChannel.current = channelId;
     marked.current = "";
-    looked.current = false;
     landed.current = false;
     jumped.current = null;
     threadAfterMenu.current = null;
@@ -187,43 +181,23 @@ export default function Channel({
   // The reader's marker follows the newest message while the channel is
   // on screen with the app open, as on web; not while the range stops
   // short of the newest message, whose newest row is not the channel's.
-  // Moving it reads the activity it passes, on the server. What that
-  // can't reach (one left unread with the marker already moved) is read
-  // through the server's activity feed (src/activity), so the tab's badge
-  // follows, once per coming on screen; readPass says when that is again.
-  // The marker's channelRead event, sent after them, is what reloads the
-  // space's badges.
+  // Moving it reads the activity it passes, on the server, and its
+  // channelRead event is what reloads the badges (src/alerts, the
+  // space's screen).
   const newestId = messages.at(-1)?.id ?? "";
-  const owing = log.needsCatchUp;
   useEffect(() => {
     void readShown(
-      { looked, marked },
+      { marked },
       {
         loaded: !!newestId && !!token && !!header,
         newestId,
         readTo: header?.channel.lastReadMessageId ?? "",
         onScreen: focused && active,
         hasNewer,
-        owing,
       },
-      {
-        readActivity: () => readChannel(channelId),
-        moveMarker: () => markRead(server.origin, token, channelId, newestId),
-      },
+      () => markRead(server.origin, token, channelId, newestId),
     );
-  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer, owing, readChannel]);
-  // A mention arriving here while it is read is recorded after its
-  // message goes out, so the pass above can miss it: its own event reads
-  // it, then the marker again for the space's badges.
-  useServerEvents(server.id, (event) => {
-    if (event.payload.case !== "activityItemCreated") return;
-    const item = event.payload.value.item;
-    if (!item || item.channelId !== channelId || item.threadRootId || item.readAt) return;
-    if (!token || !focused || !active || hasNewer) return;
-    void readArrived(looked, () =>
-      readActivity([item.id]).then(() => markRead(server.origin, token, channelId, item.messageId)),
-    );
-  });
+  }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer]);
 
   // Newest first, for a list drawn from the bottom up. Of the header only
   // who is reading matters here, so a member joining doesn't regroup. The

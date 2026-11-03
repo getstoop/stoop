@@ -1,15 +1,15 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { alertingCount } from "@stoop/core/activity";
+import { alertingTotal } from "@stoop/core/alerts";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadActivity } from "../api/activity";
+import { loadAlertLists } from "../api/alerts";
 import { sessionToken } from "../api/servers";
 import type { SavedServer } from "./index";
 
 // What is waiting on the servers other than the current one, for the
-// switcher and the You tab: a badge's count, the same one that server's
-// Activity tab shows (mentions, replies and direct messages, less what the
-// server stamped muted, which takes in a muted space), or a sign-in that
-// has ended.
+// switcher and the You tab: a badge's count, the same total that server's
+// Activity tab shows (src/alerts): the server's alert counts over its
+// spaces, less the muted ones, plus one per conversation with unread
+// messages (core/alerts alertingTotal), or a sign-in that has ended.
 export type Waiting =
   | { state: "ready"; count: number }
   | { state: "ended" }
@@ -22,7 +22,8 @@ export async function waitingOn(server: SavedServer): Promise<Waiting> {
   try {
     const token = await sessionToken(server.id);
     if (!token) return { state: "ended" };
-    return { state: "ready", count: alertingCount(await loadActivity(server.origin, token)) };
+    const { spaces, dms } = await loadAlertLists(server.origin, token);
+    return { state: "ready", count: alertingTotal(spaces, dms) };
   } catch (err) {
     return err instanceof ConnectError && err.code === Code.Unauthenticated
       ? { state: "ended" }

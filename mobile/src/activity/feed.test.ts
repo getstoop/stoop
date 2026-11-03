@@ -25,7 +25,7 @@ describe("olderAfterRead", () => {
     expect(unread(olderAfterRead([item("b"), item("a")], ["a"], stamp(9)))).toEqual(["b"]);
   });
 
-  it("stamps all of them for Mark all read", () => {
+  it("stamps all of them for Mark activity read", () => {
     expect(unread(olderAfterRead([item("b"), item("a")], "all", stamp(9)))).toEqual([]);
   });
 });

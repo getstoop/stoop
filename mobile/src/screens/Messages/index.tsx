@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, AppState, Pressable, RefreshControl, StyleShe
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAlerts } from "../../alerts/AlertsProvider";
 import {
   type Conversations,
   closeConversation,
@@ -59,6 +60,7 @@ export default function Messages({ server }: { server: SavedServer }) {
   const styles = makeStyles(theme);
   const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
+  const { refresh: refreshAlerts } = useAlerts();
   const [view, setView] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -201,11 +203,16 @@ export default function Messages({ server }: { server: SavedServer }) {
         return;
       }
       change((dms) => dms.filter((d) => d.channel?.id !== id));
+      // A close is told to nobody, the Activity tab's badge included: a
+      // conversation with unread messages counted there until now.
       closeConversation(server.origin, token.current, id)
         .catch((err) => say("Couldn't close the conversation", errorText(err)))
-        .finally(refresh);
+        .finally(() => {
+          refresh();
+          refreshAlerts();
+        });
     },
-    [change, refresh, say, server.origin],
+    [change, refresh, refreshAlerts, say, server.origin],
   );
 
   return (

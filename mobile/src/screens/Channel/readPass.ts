@@ -1,46 +1,20 @@
-// How the channel screen reads what it shows, given the facts and the
-// requests: what a pass does, when `looked` falls, and what a failed read
-// leaves behind. Which arriving items its event reads, and starting afresh
-// for another channel, are the screen's.
+// How the channel screen keeps the reader's marker at the newest row it
+// shows, given the facts: when a pass moves it, and what a failed move
+// leaves behind. Moving it reads, on the server, the activity about
+// every message it passes, and the alert counts follow the marker
+// (docs/architecture/messaging.md → Reads and unreads, Alert counts), so
+// nothing is read here; an item recorded after the marker passed its
+// message is born read.
 
-// What a pass does, once the screen is showing the channel's newest row
-// with the app open.
-//
-// moveMarker: the newest row is past the reader's marker. Moving it also
-// reads, on the server, the activity about every message it passes
-// (docs/architecture/messaging.md, A read marker reads the activity it
-// passes), so a new row needs nothing more.
-//
-// readActivity: the feed's unread items for the channel are asked for and
-// read. That is a ListActivity, and it is what reads an item the marker
-// has already gone past, so it goes once each time the reader comes to
-// the channel (looked is false), not once a row. While a catch-up is
-// owed looked stays false, so the rows it brings count as coming to the
-// channel, and with nothing newer to mark the pass waits for it to land:
-// an item whose event went with the socket has nothing else to read it.
-//
-// Null when there is nothing to do.
-export type ReadPass = { moveMarker: boolean; readActivity: boolean };
-
-export function readPass(
-  newestId: string,
-  readTo: string,
-  marked: string,
-  looked: boolean,
-  owing: boolean,
-): ReadPass | null {
-  const moveMarker = newestId > readTo && newestId > marked;
-  if (!moveMarker && (looked || owing)) return null;
-  return { moveMarker, readActivity: !looked };
+// Whether the newest row is past the reader's marker and not yet marked
+// by this screen.
+export function markDue(newestId: string, readTo: string, marked: string): boolean {
+  return newestId > readTo && newestId > marked;
 }
 
-// What the screen remembers between passes: whether the channel's activity
-// has been read since it came on screen, and the marker it moved. Refs, so
-// the screen can start them afresh for another channel.
-export type ReadMemory = {
-  looked: { current: boolean };
-  marked: { current: string };
-};
+// What the screen remembers between passes: the marker it moved. A ref,
+// so the screen can start it afresh for another channel.
+export type ReadMemory = { marked: { current: string } };
 
 export type Shown = {
   // The newest row, the marker and the session are all there.
@@ -50,54 +24,22 @@ export type Shown = {
   // The screen is on top with the app open.
   onScreen: boolean;
   // The range stops short of the newest message, whose newest row is not
-  // the channel's. An item arriving then is not read by its event.
+  // the channel's.
   hasNewer: boolean;
-  // A catch-up is owed, after a reconnect or a gap in the events.
-  owing: boolean;
 };
 
-export type ReadRequests = {
-  readActivity: () => Promise<number>;
-  moveMarker: () => Promise<unknown>;
-};
-
-// Whether what arrived has still been read: not while the screen could
-// not read it.
-const stillLooked =(looked: boolean, { onScreen, hasNewer, owing }: Shown) =>
-  looked && onScreen && !hasNewer && !owing;
-
-// One pass over what the screen shows. A feed read that fails lets the
-// next pass go again; a marker that fails can be moved again.
-export function readShown(memory: ReadMemory, shown: Shown, requests: ReadRequests): Promise<void> | undefined {
-  const { looked, marked } = memory;
-  looked.current = stillLooked(looked.current, shown);
+// One pass over what the screen shows. The marker in `readTo` stays put
+// as a header does between events: `marked` is what stops a row being
+// marked twice. A move that fails can be made again.
+export function readShown(memory: ReadMemory, shown: Shown, moveMarker: () => Promise<unknown>): Promise<void> | undefined {
+  const { marked } = memory;
   if (!shown.loaded || !shown.onScreen || shown.hasNewer) return;
-  const pass = readPass(shown.newestId, shown.readTo, marked.current, looked.current, shown.owing);
-  if (!pass) return;
-  if (!shown.owing) looked.current = true;
-  if (pass.moveMarker) marked.current = shown.newestId;
-  const read = pass.readActivity
-    ? requests.readActivity().catch(() => {
-        looked.current = false;
-        return 0;
-      })
-    : Promise.resolve(0);
-  return read
-    .then(async (count) => {
-      if (pass.moveMarker || count > 0) await requests.moveMarker();
-    })
-    .catch(() => {
-      if (marked.current === shown.newestId) marked.current = "";
-    });
-}
-
-// An item its own event reads, the same way: a failure lets the next pass
-// go again.
-export function readArrived(looked: ReadMemory["looked"], read: () => Promise<unknown>): Promise<void> {
-  return read().then(
+  if (!markDue(shown.newestId, shown.readTo, marked.current)) return;
+  marked.current = shown.newestId;
+  return moveMarker().then(
     () => {},
     () => {
-      looked.current = false;
+      if (marked.current === shown.newestId) marked.current = "";
     },
   );
 }

@@ -20,10 +20,11 @@ import { usePlaces } from "./usePlaces";
 
 // The Activity tab: everything that has happened to you on this server,
 // as web's inbox has it (web/src/routes/Activity). New holds what is
-// unread, newest first, as cards, with Mark all read on its heading;
-// Read is the history, flat, the first row of each day carrying the
-// day. The first page is the server's feed (src/activity), the one the
-// tab's badge counts, kept live there with the older pages loaded as
+// unread, newest first, as cards, with Mark activity read on its
+// heading; Read is the history, flat, the first row of each day carrying
+// the day. The first page is the server's feed (src/activity; the tab's
+// badge is not counted from it, src/alerts), kept live there with the
+// older pages loaded as
 // the list reaches its end (held there too, so a read stamps them), and
 // a pull loads the feed again. Opening a row reads it and opens the
 // channel (a direct message's conversation) at the message, or its

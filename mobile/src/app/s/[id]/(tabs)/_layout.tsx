@@ -1,15 +1,14 @@
-import { alertingCount } from "@stoop/core/activity";
 import { badgeCount } from "@stoop/core/unreads";
 import { Tabs } from "expo-router";
-import { useActivity } from "../../../../activity/ActivityProvider";
+import { useAlerts } from "../../../../alerts/AlertsProvider";
 import { BellIcon, MessagesIcon, PersonIcon, SpacesIcon } from "../../../../components/Icons";
 import { useTheme } from "../../../../theme";
 
 // A server's four tabs, at the bottom of its stack (../_layout.tsx). This
 // drawn tab bar is Android's; iOS uses the system's own (_layout.ios.tsx).
 // Each tab's screen puts its own heading in its body, so the tabs carry
-// no header. Activity's badge counts what is unread and addressed to
-// you there (core/activity alertingCount), hidden at none.
+// no header. Activity's badge is the server's count of what is addressed
+// to you past your markers (src/alerts), hidden at none.
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
@@ -17,8 +16,7 @@ export const unstable_settings = { anchor: "(spaces)" };
 
 export default function TabsLayout() {
   const theme = useTheme();
-  const { feed } = useActivity();
-  const alerting = alertingCount(feed.state === "ready" ? feed.data : undefined);
+  const { total: alerting } = useAlerts();
 
   return (
     <Tabs
