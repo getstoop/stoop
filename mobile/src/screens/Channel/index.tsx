@@ -19,7 +19,6 @@ import { useViewer } from "../../components/Viewer/useViewer";
 import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
-import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelOutcome from "./ChannelOutcome";
@@ -199,17 +198,6 @@ export default function Channel({
       () => markRead(server.origin, token, channelId, newestId),
     );
   }, [newestId, token, focused, active, server.origin, channelId, header, hasNewer]);
-  // A mention arriving here while it is read is recorded after its
-  // message goes out, so the marker the pass above moved can land before
-  // it on the server and leave its item unread: its own event moves the
-  // marker again, which reads it, as the thread screen does.
-  useServerEvents(server.id, (event) => {
-    if (event.payload.case !== "activityItemCreated") return;
-    const item = event.payload.value.item;
-    if (!item || item.channelId !== channelId || item.threadRootId || item.readAt) return;
-    if (!token || !focused || !active || hasNewer) return;
-    markRead(server.origin, token, channelId, item.messageId).catch(() => {});
-  });
 
   // Newest first, for a list drawn from the bottom up. Of the header only
   // who is reading matters here, so a member joining doesn't regroup. The

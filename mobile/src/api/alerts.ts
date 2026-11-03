@@ -28,10 +28,11 @@ export async function loadAlertLists(origin: string, token: string): Promise<Ale
 // addressed to the reader raises it, the reader's own moves their marker,
 // one in a conversation makes it unread; an edit adds or takes away a
 // mention, or leaves a placeholder), a marker moving, a mute, a deletion,
-// a space or a conversation coming or going. Someone leaving a space is
-// rare enough to ask on without knowing whether it was the reader. Ready
-// follows a reconnect, when anything may have been missed. An activity
-// item is not here: its message already counts.
+// a space or a conversation coming or going, a private channel's readers
+// changing (what the reader can read is what is counted). Someone
+// leaving a space is rare enough to ask on without knowing whether it
+// was the reader. Ready follows a reconnect, when anything may have been
+// missed. An activity item is not here: its message already counts.
 export function touchesAlerts(event: ServerEvent): boolean {
   const payload = event.payload;
   switch (payload.case) {
@@ -48,6 +49,8 @@ export function touchesAlerts(event: ServerEvent): boolean {
     case "spaceDeleted":
     case "spaceJoined":
     case "memberRemoved":
+    case "channelMemberJoined":
+    case "channelMemberLeft":
       return true;
     // A conversation opened with the reader; a channel made in a space
     // has nothing addressed to anyone yet.

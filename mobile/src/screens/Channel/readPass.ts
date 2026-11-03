@@ -3,8 +3,8 @@
 // leaves behind. Moving it reads, on the server, the activity about
 // every message it passes, and the alert counts follow the marker
 // (docs/architecture/messaging.md → Reads and unreads, Alert counts), so
-// nothing is read here. An item recorded after the marker moved is the
-// screen's own event to move it again for.
+// nothing is read here; an item recorded after the marker passed its
+// message is born read.
 
 // Whether the newest row is past the reader's marker and not yet marked
 // by this screen.

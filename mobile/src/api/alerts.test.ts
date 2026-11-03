@@ -5,6 +5,7 @@ import { MessageSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
 import {
   ActivityItemCreatedSchema,
   ChannelDeletedSchema,
+  ChannelMemberChangedSchema,
   ChannelMutedSchema,
   ChannelReadSchema,
   MemberRemovedSchema,
@@ -43,6 +44,14 @@ describe("touchesAlerts", () => {
     ["a space joined", { case: "spaceJoined", value: create(SpaceJoinedSchema, {}) }],
     ["someone leaving a space", { case: "memberRemoved", value: create(MemberRemovedSchema, { spaceId: "s1" }) }],
     ["a conversation opened", { case: "channelCreated", value: create(ChannelSchema, { spaceId: "" }) }],
+    [
+      "someone joining a private channel",
+      { case: "channelMemberJoined", value: create(ChannelMemberChangedSchema, { spaceId: "s1" }) },
+    ],
+    [
+      "someone leaving a private channel",
+      { case: "channelMemberLeft", value: create(ChannelMemberChangedSchema, { spaceId: "s1" }) },
+    ],
   ] as const)("asks again on %s", (_name, payload) => {
     expect(touchesAlerts(event(payload))).toBe(true);
   });
