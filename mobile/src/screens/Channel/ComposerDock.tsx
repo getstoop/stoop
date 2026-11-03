@@ -1,10 +1,12 @@
 import { type ComponentRef, type ReactElement, type ReactNode, useRef, useState } from "react";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { GAP, PILL } from "./Composer";
 import { ComposerAbove, ComposerOverlay } from "./composerAbove";
+import EdgeBlur from "./EdgeBlur";
 import EdgeFade from "./EdgeFade";
 import type { Notice } from "./useMessageActions";
 
@@ -16,8 +18,10 @@ import type { Notice } from "./useMessageActions";
 // the list's head the same way (the server's layout); on iOS 26 the
 // system would fade a list under a bar, which on this upside-down list
 // dims it whole, so the list is marked to have no such fade, and gets
-// its own at both ends (EdgeFade): under the status bar, and under the
-// home indicator up to the composer's foot.
+// its own at both ends: under the status bar, and under the home
+// indicator up past the composer. Where iOS has Liquid Glass the ends
+// blur (EdgeBlur), as the system's own bars do; elsewhere they fade
+// (EdgeFade).
 export default function ComposerDock({
   keyboard,
   list,
@@ -36,6 +40,7 @@ export default function ComposerDock({
 }) {
   const styles = makeStyles(useTheme());
   const insets = useSafeAreaInsets();
+  const Edge = Platform.OS === "ios" && isLiquidGlassAvailable() ? EdgeBlur : EdgeFade;
   // The composer's height as drawn, for the list to clear.
   const [composerHeight, setComposerHeight] = useState(PILL);
   const [above, setAbove] = useState<ReactNode>(null);
@@ -70,8 +75,8 @@ export default function ComposerDock({
           ) : (
             list(composerHeight + composerBottom)
           )}
-          <EdgeFade edge="top" height={insets.top + FADE_IN} />
-          <EdgeFade edge="bottom" height={composerBottom + PILL + FADE_IN} />
+          <Edge edge="top" height={insets.top + FADE_IN} />
+          <Edge edge="bottom" height={composerBottom + PILL + FADE_IN} />
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
