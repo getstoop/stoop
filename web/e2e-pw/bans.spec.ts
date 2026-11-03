@@ -28,7 +28,13 @@ test("blocking a person, banning them from a space", async ({ browser }) => {
   const B = await open(tokens.bea);
   const C = await open(tokens.cal);
 
-  const blockButton = (p: Page) => p.locator(".user-card .block-button");
+  // Block lives in the card's ⋮ menu.
+  const blockItem = async (p: Page) => {
+    await p.locator(".user-card .dots-menu-button").click();
+    return p.locator(".user-card .dots-menu").getByRole("menuitem", {
+      name: /^(Block|Unblock)$/,
+    });
+  };
   const openCard = async (p: Page, name: string) => {
     await p.locator(".member-row", { hasText: name }).click();
     await p.locator(".user-card").waitFor();
@@ -43,12 +49,13 @@ test("blocking a person, banning them from a space", async ({ browser }) => {
 
   // --- Blocking ---
   await openCard(A, bName);
-  await expect(blockButton(A), "card offers Block").toHaveText("Block");
-  await blockButton(A).click();
+  const block = await blockItem(A);
+  await expect(block, "card offers Block").toHaveText("Block");
+  await block.click();
   await acceptDialog(A);
   await expect(
-    blockButton(A),
-    "after confirming, the chip reads Unblock",
+    await blockItem(A),
+    "after confirming, the item reads Unblock",
   ).toHaveText("Unblock");
   await A.keyboard.press("Escape");
 
