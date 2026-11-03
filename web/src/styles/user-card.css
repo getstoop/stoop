@@ -51,6 +51,15 @@
   overflow-wrap: anywhere;
 }
 
+/* The role badges and the joined date share a line; a long pair of
+   badges pushes the date to the next. */
+.user-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
 .user-card-badges {
   display: flex;
   gap: 6px;
@@ -64,11 +73,51 @@
   margin: 0;
 }
 
+/* Message fills the row; the ⋮ beside it holds the rest. */
 .user-card-actions {
   display: flex;
+  align-items: stretch;
   gap: 6px;
   /* Matches the card's own 8px flex gap, so the hairline sits centred
      between the joined date and the buttons rather than closer to one. */
   padding-top: 8px;
   border-top: 1px solid var(--border);
+}
+
+.user-card-actions .message-button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: var(--text-ui);
+}
+
+.user-card-actions .message-button > svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* The kit's icon button, dressed as the Message button's quiet twin and
+   as tall as it. Alone (your own card, a bot, a direct message) it keeps
+   to the right, where a menu button lives. */
+.user-card-actions .dots-menu-anchor {
+  align-items: stretch;
+}
+
+.user-card-actions .dots-menu-anchor:only-child {
+  margin-left: auto;
+}
+
+.user-card-actions .dots-menu-button {
+  width: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.user-card-actions .dots-menu-button:hover {
+  border-color: var(--accent);
 }

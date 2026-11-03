@@ -1,7 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { ConnectError } from "@connectrpc/connect";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { setBlocked, useBlocked } from "../api/blocks";
 import { openDirectMessage } from "../api/dms";
 import { errorText } from "../api/errors";
@@ -16,14 +16,17 @@ import { useConnectionStore } from "../stores/connection";
 import { confirm, notice } from "../stores/dialogs";
 import { Avatar } from "./Avatar";
 import { BotMark } from "./BotMark";
-import { CopyButton } from "./CopyButton";
 import { DeletedMark } from "./DeletedMark";
+import { DotsMenu, type MenuItem } from "./DotsMenu";
+import { ChatBubbleIcon } from "./Icons";
 
 // A small profile card, anchored below the element that opened it. Who
 // they are comes from GetUserProfile, so it is the same in a space and in
 // a direct message and always fresh — a renamed user shows their current
 // name even on an old message. What they are *here* (role, badges, join
 // date) comes from the membership, which a DM (spaceId "") has none of.
+// Message is the one most people came for, so it is the button; the
+// rest (copy a mention, manage, block) wait in a ⋮ menu beside it.
 export function UserCard({
   spaceId,
   userId,
@@ -86,6 +89,54 @@ export function UserCard({
       notice({ title: "Couldn't block", body: errorText(err) });
     }
   };
+  // On the clipboard, or a notice; false keeps the menu from saying
+  // "Copied!" over a failure.
+  const copyMention = async () => {
+    if (!profile) return false;
+    try {
+      await navigator.clipboard.writeText(
+        mentionToken({
+          kind: "person",
+          id: userId,
+          handle: profile.username.toLowerCase(),
+        }),
+      );
+      return true;
+    } catch {
+      notice({ title: "Couldn't copy to the clipboard" });
+      return false;
+    }
+  };
+
+  const items: MenuItem[] = [
+    { label: "Copy mention", onSelect: copyMention, done: "Copied!" },
+  ];
+  if (bot && instanceAdmin)
+    items.push({
+      label: "Manage this bot in Server admin",
+      onSelect: () => {
+        onClose();
+        navigate({ to: "/admin", search: { tab: "integrations" } });
+      },
+    });
+  if (canManage)
+    items.push({
+      label: "Manage members in space settings",
+      onSelect: () => {
+        onClose();
+        navigate({
+          to: "/s/$spaceId/settings",
+          params: { spaceId },
+          search: { tab: "members" },
+        });
+      },
+    });
+  if (!isSelf)
+    items.push({
+      label: isBlocked ? "Unblock" : "Block",
+      onSelect: toggleBlock,
+      danger: !isBlocked,
+    });
 
   return (
     <div
@@ -135,72 +186,36 @@ export function UserCard({
           </div>
           {profile.bio && <p className="user-card-bio">{profile.bio}</p>}
           {member && (
-            <div className="user-card-badges">
-              <span className="badge">{roleLabel(member.role)}</span>
-              {member.instanceAdmin && (
-                <span className="badge" title="Operates this server">
-                  server admin
-                </span>
+            <div className="user-card-meta">
+              <div className="user-card-badges">
+                <span className="badge">{roleLabel(member.role)}</span>
+                {member.instanceAdmin && (
+                  <span className="badge" title="Operates this server">
+                    server admin
+                  </span>
+                )}
+              </div>
+              {member.joinedAt && (
+                <p className="muted small">
+                  Joined this space{" "}
+                  {timestampDate(member.joinedAt).toLocaleDateString()}
+                </p>
               )}
             </div>
-          )}
-          {member?.joinedAt && (
-            <p className="muted small">
-              Joined this space{" "}
-              {timestampDate(member.joinedAt).toLocaleDateString()}
-            </p>
           )}
           <div className="user-card-actions">
             {!isSelf && spaceId && !bot && (
               <button
                 type="button"
-                className="chip message-button"
+                className="primary message-button"
                 onClick={message}
               >
+                <ChatBubbleIcon />
                 Message
               </button>
             )}
-            {!isSelf && (
-              <button
-                type="button"
-                className="chip block-button"
-                onClick={toggleBlock}
-              >
-                {isBlocked ? "Unblock" : "Block"}
-              </button>
-            )}
-            {profile && (
-              <CopyButton
-                label="Copy mention"
-                text={mentionToken({
-                  kind: "person",
-                  id: userId,
-                  handle: profile.username.toLowerCase(),
-                })}
-              />
-            )}
+            <DotsMenu label={`More actions for ${name}`} items={items} />
           </div>
-          {bot && instanceAdmin && (
-            <Link
-              to="/admin"
-              search={{ tab: "integrations" }}
-              className="muted small card-manage-link"
-              onClick={onClose}
-            >
-              Manage this bot in Server admin
-            </Link>
-          )}
-          {canManage && (
-            <Link
-              to="/s/$spaceId/settings"
-              params={{ spaceId }}
-              search={{ tab: "members" }}
-              className="muted small card-manage-link"
-              onClick={onClose}
-            >
-              Manage members in space settings
-            </Link>
-          )}
         </>
       )}
     </div>
