@@ -1,9 +1,9 @@
 import { isChannelOrHere, type MentionCandidate } from "@stoop/core/mentions";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Avatar from "../../components/Avatar";
+import Avatar, { avatarRadius } from "../../components/Avatar";
 import { PeopleIcon } from "../../components/Icons";
-import { type Theme, tokens, useTheme } from "../../theme";
+import { type Theme, useTheme } from "../../theme";
 import Surface from "./Surface";
 
 // The rows the composer offers while a @handle or #name is typed: web's
@@ -128,17 +128,18 @@ function makeStyles(theme: Theme) {
     pressed: {
       backgroundColor: theme.accentSoft,
     },
+    // The stand-in in the avatar's column, in its shape.
     markShape: {
       width: 32,
       height: 32,
-      borderRadius: tokens.radiusPill,
+      borderRadius: avatarRadius(32),
       alignItems: "center",
       justifyContent: "center",
     },
     mark: {
       backgroundColor: theme.raised,
     },
-    // On glass a solid disc reads as a hole: the composer's translucent one.
+    // On glass a solid mark reads as a hole: the composer's translucent one.
     glassMark: {
       backgroundColor: theme.scheme === "dark" ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.06)",
     },

@@ -2,12 +2,12 @@ import { Image } from "expo-image";
 import { useState } from "react";
 import { type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { fileSource } from "../api/files";
-import { type Theme, useTheme } from "../theme";
+import { type Theme, tokens, useTheme } from "../theme";
 
-// A person's avatar, fetched with the session as a bearer token
-// (expo-image, whose cache sign-out clears), or their initials when they
-// have none or it won't load. Decorative, the name beside it saying who,
-// unless given a label to be read out.
+// A person's avatar, a rounded square: their picture, fetched with the
+// session as a bearer token (expo-image, whose cache sign-out clears),
+// or their initials when they have none or it won't load. Decorative,
+// the name beside it saying who, unless given a label to be read out.
 export default function Avatar({
   name,
   fileId,
@@ -48,6 +48,18 @@ export default function Avatar({
   );
 }
 
+// The corner of every user avatar, and of anything drawn in one's place
+// (a mention list's # or @ mark): the radius web (#668, controls.css)
+// gives the nearest of its sizes, 24px → 6, 40px → 8, 64px → 12, and
+// the edit page's 84px → 20, about a quarter of the side. The one place
+// the shape is decided.
+export function avatarRadius(size: number): number {
+  if (size < 32) return tokens.radius;
+  if (size < 52) return tokens.radiusMd;
+  if (size < 76) return tokens.radiusLg;
+  return tokens.radiusXl;
+}
+
 // "Priya Shah" → "PS", "theo" → "T".
 function initials(name: string): string {
   return name
@@ -63,7 +75,7 @@ function makeStyles(theme: Theme, size: number) {
     avatar: {
       width: size,
       height: size,
-      borderRadius: size / 2,
+      borderRadius: avatarRadius(size),
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.raised,
