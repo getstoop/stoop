@@ -486,7 +486,10 @@ channel or a DM.
 The activity feed is the record of what happened to you: every mention,
 reply and direct message, newest first, with a read state. *Notification*
 means only the ways Stoop asks for attention about it — desktop banners,
-bold channel names, badges — and those are the reader's to turn off.
+bold channel names, badges — and those are the reader's to turn off. The
+feed's own `unread_count` and the activity dot on the rail are the feed's;
+the badges on channels and spaces are not read off it but counted from
+the read markers ([Alert counts](#alert-counts)).
 
 The feed is complete by design. Nothing a person configures filters what
 is addressed to them,
@@ -597,6 +600,46 @@ learn of it from the `ChannelRead` or `ThreadRead` event, or from their
 own `MessageCreated`, and refetch the feed when it holds an unread item
 there or the server counts unread items past the cached page.
 
+### Alert counts
+
+The badge on a channel row, and the one on a space pill, show
+`Channel.alert_count` and `Space.alert_count`: not the feed's unread
+items but **messages past the reader's marker that are addressed to
+them**, counted by `CountAlerts` (`internal/db/queries/chat/alerts.sql`)
+whenever a channel list or a space list is answered. A message counts
+for a person when every one of these holds:
+
+- it is in a text channel of a space they can read (`channel_readers`)
+  and is not deleted — a placeholder root with a living thread counts
+  for `unread_count` but not here;
+- someone else wrote it, and not someone they have blocked;
+- it is addressed to them: a `message_mentions` row (which is how
+  `@channel` and `@here` reach people, and never names the author), or
+  its `reply_to_message_id` is a message of theirs;
+- it is past their marker — the channel's when the channel shows it
+  (`in_channel`: a top-level message, or a reply also sent to the
+  channel, which counts against the channel's marker only), the thread's
+  for a reply only its thread shows;
+- they have not muted the channel, its space, or, for a reply in a
+  thread, the thread.
+
+A direct message's `alert_count` is always 0: every message there is
+addressed to the reader, so `unread_count` is the number, and a client
+counts a conversation as one alert while it has unread messages. A
+space's count is the sum of its channels'. Both are the caller's own,
+like `unread_count` and `muted`, and never set on broadcast events.
+
+The count is driven by rows about the person — their mentions
+(`message_mentions_user_idx`) and their own messages
+(`messages_author_idx`, then `messages_reply_to_idx` for the replies to
+them) — so its cost follows what they have been told and have said, not
+the length of any channel. The rules live in that one query; the
+per-channel `unread_count` in `ListChannelsBySpace` is kept apart from it
+on purpose. Reading clears it the way it clears `unread_count`: the
+channel or thread marker moves, and the next list answers with the
+messages still past it, so a mention older than the feed's first page,
+or sixty of them, is counted as it is rather than as what a page holds.
+
 ### Mutes
 
 `SetChannelMuted` works on any channel the user can read, DMs included.
@@ -614,9 +657,9 @@ thread's `thread_reply` items, which are its unread signal
 | Desktop banner for a mention, reply or DM there | fires | silent |
 | Channel name bold when unread | yes | no |
 | Text channel's row in the sidebar (its own mute) | shown | left out |
-| Mention count badge on the channel row | yes | no |
+| Alert count badge on the channel row (`alert_count`) | yes | no |
 | Space pill unread dot | yes | no |
-| Space pill mention count badge | yes | no |
+| Space pill alert count badge (`alert_count`) | yes | no |
 | DMs pill dot and badge (for a muted DM) | yes | no |
 | Activity item written | yes | yes |
 | `thread_reply` item (thread mute) | yes | no |
@@ -661,12 +704,14 @@ events; the client combines them, including the space-over-channel rule,
 in `web/src/api/mutes.ts` ([web.md](web.md#the-api-layer)) for the
 surfaces that are about a room — the bold name, the row's dot, the space
 pill. `has_unread` is the server's contribution there: it skips muted
-channels and does not know about space mutes.
+channels and does not know about space mutes. The badges are the server's
+alone: `Channel.alert_count` and `Space.alert_count` already apply all
+three mutes ([Alert counts](#alert-counts)).
 
 The surfaces that are about a single event do not derive at all.
 `ActivityItem.muted` is the recipient's effective mute for where the item
-happened, stamped by the server from both tables, and the mention badges
-and the desktop banner read it. That closes a gap the client cannot: a
+happened, stamped by the server from both tables, and the desktop banner
+reads it. That closes a gap the client cannot: a
 space's channel list only loads when the space is opened, so a fresh tab
 cannot see a channel mute in a space it has never visited. It is also the
 derivation push notifications will need once banners leave the browser.
@@ -957,8 +1002,9 @@ in the root's thread and not in the channel's timeline
   something addressed to you, so a thread mute stops it; a mention or a
   quote-reply in a muted thread is still written, marked muted, as in a
   muted channel. It lights the activity pill and the summary's "new"
-  count but no red badge on the channel or space, which counts what is
-  addressed to you; a mention in a thread still does. Activity items and
+  count but no red badge on the channel or space, whose `alert_count`
+  counts what is addressed to you; a mention in a thread, or a reply to
+  your message there, still does until the thread is read. Activity items and
   search results carry `thread_root_id`, so the client can open the
   thread.
 - **Who is in a thread.** Its root's author, everyone who replied, and
@@ -1074,11 +1120,13 @@ whether an arrival is noisy, not whether it appears.
 **The rail's DM pill counts messages, not conversations.** It sums
 `channel.unreadCount` over the list (`dmUnreadTotal`), using the same
 predicate a row uses, so the pill is always the sum of the badges beside
-it. It deliberately does *not* come from the activity feed like the space
-pills do: a conversation holds one unread feed entry however many messages
-arrive — `recordDM` refreshes it rather than adding rows — so the feed
-counts conversations, and two identical-looking pills would disagree in
-plain sight.
+it. A conversation's `alert_count` is always 0 ([Alert
+counts](#alert-counts)): every message there is addressed to the reader,
+so `unread_count` is the number. It deliberately does *not* come from the
+activity feed: a conversation holds one unread feed entry however many
+messages arrive — `recordDM` refreshes it rather than adding rows — so
+the feed counts conversations, and two identical-looking pills would
+disagree in plain sight.
 
 On the web, `spaceId === ""` is the DM signal. `ChannelView` renders a DM
 from `/dm/$channelId` with an empty space; `api/dms.ts` holds the `["dms"]`
