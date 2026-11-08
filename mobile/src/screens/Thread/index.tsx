@@ -177,6 +177,7 @@ export default function Thread({
     shown,
     log,
     gone: !!outcome,
+    opened,
     engine,
     keyboard,
     focused,
@@ -377,6 +378,8 @@ export default function Thread({
               origin={server.origin}
               token={token}
               inThread
+              draftAddress={{ serverId: server.id, accountId: myUserId, channelId, threadRootId: rootId }}
+              onRestoreQuote={actions.restoreQuote}
               send={sendHere}
               upload={engine.upload}
               maxUploadBytes={status.maxUploadBytes}
