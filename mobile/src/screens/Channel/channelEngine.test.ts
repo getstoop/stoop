@@ -284,9 +284,29 @@ describe("a page refused for good", () => {
     expect(engine.current().outcome).toBe("ended");
   });
 
-  it("keeps the retry row for a PermissionDenied, on either edge", async () => {
-    const { engine } = await openEngine();
+  // The draft is kept on the device, so nothing is lost by leaving the
+  // screen the way catch-up, the header refresh and jump to latest do.
+  it("shows the channel gone for a PermissionDenied on either edge", async () => {
+    const { engine: older, release } = await openEngine();
     vi.mocked(loadOlder).mockRejectedValue(refused(Code.PermissionDenied));
+    await older.older();
+    expect(older.current().outcome).toBe("gone");
+    expect(older.current().loadingOlder).toBe(false);
+    release();
+
+    const { engine: newer } = await openEngine();
+    vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }));
+    await newer.jumpTo(id(35));
+    newer.landed();
+    vi.mocked(loadNewer).mockRejectedValue(refused(Code.PermissionDenied));
+    await newer.newer();
+    expect(newer.current().outcome).toBe("gone");
+    expect(newer.current().loadingNewer).toBe(false);
+  });
+
+  it("keeps the retry row for any other failure, on either edge", async () => {
+    const { engine } = await openEngine();
+    vi.mocked(loadOlder).mockRejectedValue(refused(Code.Unavailable));
     await engine.older();
     expect(engine.current().outcome).toBeNull();
     expect(engine.current().olderFailedAt).toBe(Date.now());
@@ -294,7 +314,7 @@ describe("a page refused for good", () => {
     vi.mocked(loadAround).mockResolvedValue(page(rows(30, 40), { hasOlder: true, hasNewer: true }));
     await engine.jumpTo(id(35));
     engine.landed();
-    vi.mocked(loadNewer).mockRejectedValue(refused(Code.PermissionDenied));
+    vi.mocked(loadNewer).mockRejectedValue(refused(Code.Unavailable));
     await engine.newer();
     expect(engine.current().outcome).toBeNull();
     expect(engine.current().newerFailedAt).toBe(Date.now());
@@ -328,8 +348,15 @@ describe("a page refused for good", () => {
       expect(state.outcome).toBeNull();
     });
 
-    it("keeps the retry row for a PermissionDenied", async () => {
+    it("takes a PermissionDenied as the thread gone, leaving the channel", async () => {
       const state = await openThread(refused(Code.PermissionDenied));
+      expect(state.threads[ROOT].outcome).toBe("gone");
+      expect(state.threads[ROOT].loadingOlder).toBe(false);
+      expect(state.outcome).toBeNull();
+    });
+
+    it("keeps the retry row for any other failure", async () => {
+      const state = await openThread(refused(Code.Unavailable));
       expect(state.outcome).toBeNull();
       expect(state.threads[ROOT].outcome).toBeNull();
       expect(state.threads[ROOT].olderFailedAt).toBe(Date.now());
