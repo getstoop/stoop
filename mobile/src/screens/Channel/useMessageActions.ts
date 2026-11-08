@@ -174,7 +174,9 @@ export function useMessageActions({
   // The quote a restored draft had: the words are back already; the reply
   // is set once the log can say its message is held and not deleted, and
   // not over an edit begun meanwhile. Otherwise the words stay without it.
-  const restoreQuote = useCallback((messageId: string) => setRestoring(messageId), []);
+  // None (the words were sent before the log answered) takes back one
+  // still waiting.
+  const restoreQuote = useCallback((messageId: string | undefined) => setRestoring(messageId ?? null), []);
   useEffect(() => {
     if (restoring === null || !opened) return;
     const row = log.rows.get(restoring);

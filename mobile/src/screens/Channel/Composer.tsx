@@ -144,8 +144,8 @@ export default forwardRef<
     // channel and the root (api/drafts).
     draftAddress: DraftAddress;
     // A restored draft's quote, for the screen to set if the message is
-    // loaded.
-    onRestoreQuote: (messageId: string) => void;
+    // loaded; none takes back one still waiting.
+    onRestoreQuote: (messageId: string | undefined) => void;
     send: (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => Promise<void>;
     // A picked file, uploaded for this channel; and the server's cap on one.
     upload: (file: LocalFile, signal: AbortSignal) => Promise<UploadedFile>;

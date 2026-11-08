@@ -59,8 +59,8 @@ export function useSavedDraft({
   // What the field holds as a draft, with the reply set on screen.
   words: Words;
   // The restored draft's quote: the screen sets the reply if the message
-  // is there.
-  onRestoreQuote: (messageId: string) => void;
+  // is there. None takes back one still waiting.
+  onRestoreQuote: (messageId: string | undefined) => void;
 }) {
   // The composer is keyed by channel and root, so the address it mounted
   // with is the one it keeps; the object given may be new each render.
@@ -72,10 +72,10 @@ export function useSavedDraft({
   // What the field showed when it was last saved or restored; the words
   // are unsaved while they differ, and only then does this composer write.
   // At restore the field shows the words and no quote: the reply is the
-  // screen's to set, and when it does the same quote is written once
-  // more; when it never does (the message isn't loaded, or is deleted)
-  // nothing is written and the stored quote waits for the next visit, as
-  // on web.
+  // screen's to set, and when it does the field shows what is stored and
+  // counts as saved (the debounce sees to that); when it never does (the
+  // message isn't loaded, or is deleted) nothing is written and the
+  // stored quote waits for the next visit, as on web.
   const savedRef = useRef<Words>({ text: restored?.text ?? "", quotedMessageId: undefined });
 
   const unsaved = () => !sameWords(wordsRef.current, savedRef.current);
@@ -96,10 +96,21 @@ export function useSavedDraft({
   }, []);
 
   // The debounce: every change restarts it, and it only fires with
-  // something unsaved.
+  // something still unsaved (a save as the app left the front may have
+  // come first). A field that shows what is stored, as it does once the
+  // screen sets a restored quote back, has nothing to write and is saved
+  // as it stands; otherwise a cancelled quote would go unheeded until the
+  // debounce wrote the same words again.
   useEffect(() => {
     if (!unsaved()) return;
-    const timer = setTimeout(save, SAVE_DEBOUNCE_MS);
+    const stored = readDraft(mountAddress)?.draft;
+    if (stored && sameWords(wordsRef.current, stored)) {
+      savedRef.current = { text: stored.text, quotedMessageId: stored.quotedMessageId };
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (unsaved()) save();
+    }, SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [words.text, words.quotedMessageId]);
 
@@ -114,15 +125,21 @@ export function useSavedDraft({
   }, []);
 
   // Send pressed: the words are held apart from the draft, hidden from
-  // the field, until the server answers. Nothing to hold (an
-  // attachments-only send) means nothing to track, and the ticket does
-  // nothing; the field was cleared with the send either way, so nothing
-  // of the draft is left to save.
+  // the field, until the server answers. The field was cleared with the
+  // send: nothing of the draft is left to save, and a restored quote the
+  // screen has yet to set was for words that are gone. A send holding
+  // nothing (attachments only) has no words to hold apart and its ticket
+  // does nothing, but words shown here and erased just before it, not
+  // yet saved as gone, go from the store; a field that showed nothing
+  // leaves a draft saved elsewhere (the same channel open again on top)
+  // alone.
   const startSend = (sent: Words): SendTicket => {
-    savedRef.current = { text: "", quotedMessageId: undefined };
+    onRestoreQuoteRef.current(undefined);
     const sending = beginSend(sent, Date.now());
+    if (sending) writeDraft(mountAddress, sending);
+    else if (unsaved()) writeDraft(mountAddress, withDraft(readDraft(mountAddress), undefined));
+    savedRef.current = { text: "", quotedMessageId: undefined };
     if (!sending) return { finish: () => {}, fail: () => {} };
-    writeDraft(mountAddress, sending);
     return {
       finish: () => writeDraft(mountAddress, finishSend(readDraft(mountAddress))),
       // The words join whatever draft is stored by now, wherever the

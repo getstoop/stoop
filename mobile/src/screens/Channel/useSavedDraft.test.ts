@@ -86,7 +86,7 @@ describe("restoredDraft", () => {
 describe("useSavedDraft", () => {
   let root: Root;
   let startSend: (sent: Words) => SendTicket;
-  const restoredQuotes: string[] = [];
+  const restoredQuotes: (string | undefined)[] = [];
   // The composer, as the hook sees it: what its field holds as a draft.
   function Harness({ restored, words }: { restored: Draft | undefined; words: Words }) {
     const saved = useSavedDraft({
@@ -145,23 +145,48 @@ describe("useSavedDraft", () => {
     expect(store.writes).toBe(1);
   });
 
-  it("writes the restored quote back once the screen sets the reply, and nothing else", async () => {
+  it("counts the restored quote as saved once the screen sets the reply, writing nothing", async () => {
     const restored = { text: "hello", quotedMessageId: QUOTE, writtenAt: NOW - 1000 };
     keep({ draft: restored });
     await show(restored, words("hello"));
     await typingStops();
-    expect(store.writes).toBe(0);
     await show(restored, words("hello", QUOTE));
     await typingStops();
-    expect(store.writes).toBe(1);
-    expect(held()).toEqual({ draft: { text: "hello", quotedMessageId: QUOTE, writtenAt: NOW + 2000 } });
     await appGoes("background");
+    expect(store.writes).toBe(0);
+    expect(held()).toEqual({ draft: restored });
     // A screen beneath, with the same channel open again on top: the
     // newer draft saved there is not overwritten as this one goes.
     keep({ draft: { text: "newer", writtenAt: NOW } });
     await unmount();
+    expect(store.writes).toBe(0);
+    expect(held()).toEqual({ draft: { text: "newer", writtenAt: NOW } });
+  });
+
+  it("saves a restored quote cancelled as soon as the screen set it", async () => {
+    const restored = { text: "hello", quotedMessageId: QUOTE, writtenAt: NOW - 1000 };
+    keep({ draft: restored });
+    await show(restored, words("hello"));
+    await show(restored, words("hello", QUOTE));
+    await show(restored, words("hello"));
+    await typingStops();
+    expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW + 1000 } });
+    await unmount();
+    expect(store.writes).toBe(1);
+  });
+
+  it("lets a save as the app leaves the front stand in for the debounce", async () => {
+    await show(undefined, words(""));
+    await show(undefined, words("hello"));
+    await appGoes("background");
+    expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW } });
+    // Saved elsewhere meanwhile (the same channel open again on top): the
+    // debounce, firing with nothing unsaved here, leaves it be.
+    keep({ draft: { text: "newer", writtenAt: NOW } });
+    await typingStops();
     expect(store.writes).toBe(1);
     expect(held()).toEqual({ draft: { text: "newer", writtenAt: NOW } });
+    await unmount();
   });
 
   it("leaves a stored quote waiting when the screen never sets the reply", async () => {
@@ -213,17 +238,17 @@ describe("useSavedDraft", () => {
     const restored = { text: "hello", quotedMessageId: QUOTE, writtenAt: NOW - 1000 };
     keep({ draft: restored });
     await show(restored, words("hello"));
-    // The screen sets the reply, and the quote is saved again.
+    // The screen sets the reply, and the field shows the stored draft.
     await show(restored, words("hello", QUOTE));
     await typingStops();
-    expect(store.writes).toBe(1);
+    expect(store.writes).toBe(0);
     // The composer hands over the set-aside draft while the field holds
     // the edit; an edit begun drops the quote.
     await show(restored, words("hello"));
     await typingStops();
     expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW + 2000 } });
     await unmount();
-    expect(store.writes).toBe(2);
+    expect(store.writes).toBe(1);
   });
 
   it("holds a send apart from the draft until it finishes", async () => {
@@ -236,6 +261,8 @@ describe("useSavedDraft", () => {
     });
     await show(undefined, words(""));
     expect(held()).toEqual({ sending: { text: "hello", quotedMessageId: QUOTE, writtenAt: NOW + 1000 } });
+    // A quote the screen was still to set is taken back with the send.
+    expect(restoredQuotes).toEqual([undefined]);
     await show(undefined, words("more"));
     await typingStops();
     expect(held()?.draft?.text).toBe("more");
@@ -267,24 +294,43 @@ describe("useSavedDraft", () => {
     await show(undefined, words(""));
     ticket?.fail();
     expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW } });
-    // The composer puts the words back in the field with the reason.
+    // The composer puts the words back in the field with the reason: the
+    // field shows what is stored, and nothing is written again.
     await show(undefined, words("hello"));
     await typingStops();
-    expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW + 1000 } });
+    expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW } });
     await unmount();
-    expect(store.writes).toBe(3);
+    expect(store.writes).toBe(2);
   });
 
-  it("tracks nothing for an attachments-only send, whose ticket does nothing", async () => {
-    await show(undefined, words(""));
+  it("drops the stored draft for an attachments-only send, whose ticket does nothing", async () => {
+    // The words were erased and the photo sent before typing had stopped.
+    const restored = { text: "hello", writtenAt: NOW - 1000 };
+    keep({ draft: restored, sending: { text: "out", writtenAt: NOW - 500 } });
+    await show(restored, words("hello"));
+    await show(restored, words(""));
     let ticket: SendTicket | undefined;
     await act(() => {
       ticket = startSend(words(""));
     });
     ticket?.finish();
     ticket?.fail();
+    expect(store.writes).toBe(1);
+    expect(held()).toEqual({ sending: { text: "out", writtenAt: NOW - 500 } });
+    await typingStops();
+    await unmount();
+    expect(store.writes).toBe(1);
+  });
+
+  it("leaves a draft saved elsewhere alone for an attachments-only send from an empty field", async () => {
+    await show(undefined, words(""));
+    // Typed on the same channel opened again on top, and saved as it went.
+    keep({ draft: { text: "hello", writtenAt: NOW } });
+    await act(() => {
+      startSend(words(""));
+    });
     expect(store.writes).toBe(0);
-    expect(held()).toBeUndefined();
+    expect(held()).toEqual({ draft: { text: "hello", writtenAt: NOW } });
     await unmount();
   });
 });
