@@ -86,8 +86,9 @@ import { useScrollRetry } from "./useScrollRetry";
 // this screen marks read and draws. In an announcement channel, for
 // someone who can't post there (core/permissions canPost), a line says
 // so in the composer's place, as on web, and the menu has no Quote in
-// reply or Edit message; a quote or an edit begun goes as that starts,
-// and so does an unsent draft, for good, as on web.
+// reply or Edit message; a quote or an edit begun goes as that starts.
+// An unsent draft waits on the device (Composer, useSavedDraft) and is
+// back if posting reopens.
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with
@@ -218,6 +219,7 @@ export default function Channel({
     shown: messages,
     log,
     gone: !!outcome,
+    opened: log.channel.generation > 0,
     engine,
     keyboard,
     focused,
@@ -440,6 +442,8 @@ export default function Channel({
               mentionNames={mentionNames}
               origin={server.origin}
               token={token}
+              draftAddress={{ serverId: server.id, accountId: myUserId, channelId }}
+              onRestoreQuote={actions.restoreQuote}
               send={sendHere}
               upload={engine.upload}
               maxUploadBytes={status.maxUploadBytes}

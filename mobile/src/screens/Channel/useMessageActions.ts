@@ -20,8 +20,12 @@ import type { ComposerHandle } from "./Composer";
 // no composer is shown (`composing` false: a thread that takes no
 // replies, a channel the reader can't post in) there is nothing to
 // quote or edit into, and a quote or an edit held goes as that starts
-// (the composer unmounts, and an unsent draft goes with it, for good).
-// A change of `scope` (another channel, another thread) lets it all go.
+// (the composer unmounts; its unsent draft waits on the device, saved by
+// useSavedDraft, and is back when it mounts again). A draft restored
+// with a quote asks for its reply back (`restoreQuote`), which is set
+// once the log has its first page (`opened`) if the message is held
+// there, as web's useRestoredQuote does. A change of `scope` (another
+// channel, another thread) lets it all go.
 // A link preview's × asks first, as web's does, and takes the card off
 // for everyone.
 
@@ -38,6 +42,7 @@ export function useMessageActions({
   shown,
   log,
   gone,
+  opened,
   engine,
   keyboard,
   focused,
@@ -51,6 +56,9 @@ export function useMessageActions({
   log: ChannelLog;
   // The channel has gone, or can't be shown.
   gone: boolean;
+  // The log has its first page for this scope, so a message it doesn't
+  // hold is one it won't.
+  opened: boolean;
   engine: Pick<ChannelEngine, "react" | "remove" | "pin" | "dismissPreview">;
   keyboard: number;
   focused: boolean;
@@ -63,6 +71,9 @@ export function useMessageActions({
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // A restored draft's quote, waiting for the log to say whether its
+  // message is there.
+  const [restoring, setRestoring] = useState<string | null>(null);
   // Whether the composer opens once the menu has gone (a quote or an
   // edit picked), and whether that row is still owed its scroll: once,
   // as the keyboard first comes up for it, never again for a later
@@ -82,6 +93,7 @@ export function useMessageActions({
     if (menuFor) setMenuFor(null);
     if (replyToId) setReplyToId(null);
     if (editingId) setEditingId(null);
+    if (restoring) setRestoring(null);
     openComposer.current = false;
     scrollOnce.current = false;
   }
@@ -159,6 +171,18 @@ export function useMessageActions({
     [log.channelId, editingId],
   );
   const cancelReply = useCallback(() => setReplyToId(null), []);
+  // The quote a restored draft had: the words are back already; the reply
+  // is set once the log can say its message is held and not deleted, and
+  // not over an edit begun meanwhile. Otherwise the words stay without it.
+  // None (the words were sent before the log answered) takes back one
+  // still waiting.
+  const restoreQuote = useCallback((messageId: string | undefined) => setRestoring(messageId ?? null), []);
+  useEffect(() => {
+    if (restoring === null || !opened) return;
+    const row = log.rows.get(restoring);
+    if (row && !row.deleted && !editingId) setReplyToId(restoring);
+    setRestoring(null);
+  }, [restoring, opened, log, editingId]);
 
   const menuMessage = menuFor ? shown.find((message) => message.id === menuFor) : undefined;
   // The menu closes without its own fade, by an abrupt unmount, when the
@@ -233,6 +257,7 @@ export function useMessageActions({
     endEdit,
     reply,
     cancelReply,
+    restoreQuote,
     replyTo,
     editing,
     targetOf,

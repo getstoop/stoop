@@ -20,6 +20,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { authorName } from "../../api/authors";
+import type { DraftAddress } from "../../api/drafts";
 import { errorText } from "../../api/errors";
 import type { LocalFile } from "../../api/files";
 import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
@@ -36,6 +37,7 @@ import Surface from "./Surface";
 import { useAttachments } from "./useAttachments";
 import type { ComposerMentions } from "./useMentionNames";
 import { useMentionQuery } from "./useMentionQuery";
+import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 
 // Where a message is written: one control in two states. At rest it is a
 // pill floating over the list, Attach and "Message #channel"; tapped, it
@@ -45,6 +47,14 @@ import { useMentionQuery } from "./useMentionQuery";
 // text field (RichField), which shows a draft formatted, its markers
 // never; the draft is held here as Markdown, and the pill shows it as
 // plain words. The formats are placed for the step that gives them work.
+//
+// The draft is kept on the device under its account and conversation
+// (`draftAddress`, useSavedDraft): the field opens on what was there,
+// and the words are saved as they change, as the app leaves the front
+// and as the composer goes, so going back, a session ending or the app
+// being killed loses nothing. A stored quote is the screen's to put back
+// (`onRestoreQuote`), once it can see whether the message is loaded.
+// Emptying the field and leaving is how a draft is discarded.
 //
 // Attach, in either state, puts the keyboard away and opens the attach
 // sheet (AttachSheet); the photo library, the camera or files picked
@@ -70,7 +80,10 @@ import { useMentionQuery } from "./useMentionQuery";
 // server answers (or its event lands first; core/channelScreen `sent`).
 // A refusal puts the draft back ahead of anything typed since, with the
 // server's words under it, and the quote back unless another was picked
-// meanwhile (web's rule); pressing Send again is the retry.
+// meanwhile (web's rule); pressing Send again is the retry. The words
+// are held on the device apart from the draft while the send is out, and
+// a refusal after the screen was left joins them to the stored draft, so
+// they are there on return.
 //
 // Typing a @handle or #name in the card lists who or what it may name over
 // the card (useMentionQuery, MentionList), and a pick puts a pill in the
@@ -127,6 +140,12 @@ export default forwardRef<
     token: string;
     // A thread's composer, with Also send to the channel.
     inThread?: boolean;
+    // Whose draft this is, and where: the server, the account, the
+    // channel and the root (api/drafts).
+    draftAddress: DraftAddress;
+    // A restored draft's quote, for the screen to set if the message is
+    // loaded; none takes back one still waiting.
+    onRestoreQuote: (messageId: string | undefined) => void;
     send: (content: string, replyToMessageId: string, alsoSend: boolean, attachmentIds: string[]) => Promise<void>;
     // A picked file, uploaded for this channel; and the server's cap on one.
     upload: (file: LocalFile, signal: AbortSignal) => Promise<UploadedFile>;
@@ -143,12 +162,32 @@ export default forwardRef<
     onEditDone: () => void;
   }
 >(function Composer(
-  { place, mentionNames, origin, token, inThread = false, send, upload, maxUploadBytes, edit, replyTo, onCancelReply, onReply, editing, onEditDone },
+  {
+    place,
+    mentionNames,
+    origin,
+    token,
+    inThread = false,
+    draftAddress,
+    onRestoreQuote,
+    send,
+    upload,
+    maxUploadBytes,
+    edit,
+    replyTo,
+    onCancelReply,
+    onReply,
+    editing,
+    onEditDone,
+  },
   ref,
 ) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const [draft, setDraft] = useState("");
+  // The draft kept on the device for this conversation is the field's
+  // first state.
+  const [restored] = useState(() => restoredDraft(draftAddress));
+  const [draft, setDraft] = useState(restored?.text ?? "");
   // Counts the drafts put in the field from outside, so it loads each
   // (RichField loadKey), even one whose Markdown is what it already holds.
   const [loads, setLoads] = useState(0);
@@ -196,6 +235,15 @@ export default forwardRef<
       heldError.current = null;
     }
   }
+  // Saved as it changes: the field, or while the field holds an edit the
+  // draft set aside for it (an edit begun drops the quote, so a stored
+  // quote goes with it; nothing of the edit is saved).
+  const { startSend } = useSavedDraft({
+    address: draftAddress,
+    restored,
+    words: { text: editingShown.current !== null ? setAside.current : draft, quotedMessageId: replyTo?.id },
+    onRestoreQuote,
+  });
   // The link dialog is up: the field losing the keyboard to it doesn't
   // close the card.
   const linking = useRef(false);
@@ -324,9 +372,15 @@ export default forwardRef<
     setSending(true);
     setAlsoSend(false);
     if (quoted) onCancelReply();
+    // Held on the device apart from the draft while the send is out, and
+    // joined to the stored draft if it fails, whether or not this
+    // composer is still there to show the refusal.
+    const ticket = startSend({ text: typed, quotedMessageId: quoted?.id });
     try {
       await send(isBlankMessage(typed) ? "" : withTypedMentions(typed.trim(), mentionNames), quoted?.id ?? "", also, attachmentIds);
+      ticket.finish();
     } catch (err) {
+      ticket.fail();
       setAlsoSend(also);
       attachments.restore(held);
       if (editingShown.current !== null) {

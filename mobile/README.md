@@ -75,7 +75,18 @@ import a screen; the screens themselves live in `src/screens`, so
   two states: at rest a pill floating over the list, which scrolls under
   it; tapped, a card above the keyboard with the field, Attach, Aa (the
   formatting row) and Send. Losing focus returns it to the pill with the
-  draft kept. On iOS 26 the surface is Liquid Glass
+  draft kept. The draft is also kept on the device
+  (`src/api/drafts.ts`, a file per server and account under the
+  documents folder; `src/screens/Channel/useSavedDraft.ts`), under its
+  account, channel and thread, so going back, a session ending or the
+  app being killed loses nothing: the field opens on what was there,
+  with its quote if that message is loaded, and the words are saved a
+  moment after they stop changing, as the app leaves the front and as
+  the composer goes. Emptying the field and leaving discards it; a draft
+  untouched for seven days expires; signing out of a server, or removing
+  it, deletes every account's drafts for it (`useLeaveServer`). During an
+  edit the draft set aside is what is saved, never the edit. On iOS 26
+  the surface is Liquid Glass
   (`expo-glass-effect`); older iOS and Android draw it with the theme's
   panel and border under a light shadow. The channel's header, and the
   thread's, is the same kind of surface (`src/app/s/[id]/_layout.tsx`):
@@ -411,8 +422,9 @@ import a screen; the screens themselves live in `src/screens`, so
   saying so in web's words (`src/screens/Channel/PostingClosed.tsx`),
   and a menu with no Quote in reply or Edit message, both of which act
   through the composer; a quote or an edit begun goes as that starts,
-  and so does an unsent draft, for good, as on web. They can still react, copy, and delete their own. Admins have the
-  composer as in any channel.
+  and an unsent draft waits on the device, back if posting reopens. They
+  can still react, copy, and delete their own. Admins have the composer
+  as in any channel.
 - A root with replies has a line under it, as the server summarises the
   thread (`message.thread`; nothing is counted on the phone): the two
   who replied last, "N replies" in the accent, an "N new" badge while
@@ -626,6 +638,11 @@ pending rows in the model. A refusal puts the draft back ahead of
 anything typed since, with the server's words under the field, and
 pressing Send again is the retry. A permission refusal (a block, an
 announcement channel) is one of these: it leaves the screen as it is.
+While the send is out its words are held on the device apart from the
+draft (`core/drafts.ts`, the `sending` slot), so a refusal after the
+screen was left joins them to the stored draft, there on return, and a
+send the app died during comes back as a draft once it has had its time
+(`SEND_STALL_MS`, which is also the send's timeout).
 
 ## Themes
 
