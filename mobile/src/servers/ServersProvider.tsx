@@ -1,6 +1,7 @@
-import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { clearFileCaches } from "../api/downloads";
+import { rememberSavedServers, sweepDrafts } from "../api/drafts";
 import { forgetServer, loadServers, moveToFront, type SavedServer } from "../api/servers";
 import { keepSignIn } from "./keepSignIn";
 import ServerListUnread from "./ServerListUnread";
@@ -26,7 +27,16 @@ export const ServersContext = createContext<ServersState | null>(null);
 // app launched in the background.
 export default function ServersProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ServerListView>({ state: "reading" });
-  const [{ read, change }] = useState(() => serverList(loadServers, setView));
+  const [{ read, change }] = useState(() =>
+    serverList(loadServers, (next) => {
+      // The draft store (api/drafts) refuses a write for a server not
+      // saved, so it is told the list as it changes: here, before the
+      // render, so nothing under this provider can read or write a draft
+      // while the store still knows of no server.
+      if (next.state === "known") rememberSavedServers(next.servers.map((server) => server.id));
+      setView(next);
+    }),
+  );
 
   useEffect(() => {
     read();
@@ -57,6 +67,17 @@ export default function ServersProvider({ children }: { children: ReactNode }) {
   );
 
   const servers = view.state === "known" ? view.servers : null;
+
+  // Once, as the list is first known, the draft store drops what has
+  // expired and any forgotten server's folder. After the render, so the
+  // first screen isn't waiting on the disk.
+  const swept = useRef(false);
+  useEffect(() => {
+    if (!servers || swept.current) return;
+    swept.current = true;
+    sweepDrafts();
+  }, [servers]);
+
   const state = useMemo(
     () => (servers ? { servers, signedIn, switchTo, forget } : null),
     [servers, signedIn, switchTo, forget],

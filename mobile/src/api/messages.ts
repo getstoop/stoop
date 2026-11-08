@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { ChannelHeader } from "@stoop/core/channelHeader";
 import { dmMembers } from "@stoop/core/dms";
+import { SEND_STALL_MS } from "@stoop/core/drafts";
 import { linkableChannels, NO_CHANNELS } from "@stoop/core/mentions";
 import type { ListChangesResponse, ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
@@ -17,7 +18,10 @@ import { authClient, chatClient } from "./clients";
 // message menu does to one. A direct message is a channel with no
 // space (an empty spaceId): its header is the conversation's.
 
-const TIMEOUT_MS = 10000;
+// A send is given the stall age from core/drafts, so "the send has had
+// its time" means one thing on every client; every other call here
+// waits the same, there being no reason for two numbers.
+const TIMEOUT_MS = SEND_STALL_MS;
 export const PAGE = 50;
 // The server's largest ListChanges page.
 const CHANGES_PAGE = 200;
@@ -238,7 +242,7 @@ export async function sendMessage(
       alsoSendToChannel: !!threadRootId && alsoSendToChannel,
       attachmentIds,
     },
-    { timeoutMs: TIMEOUT_MS },
+    { timeoutMs: SEND_STALL_MS },
   );
   if (!message) throw new Error("The server answered with nothing.");
   return message;
