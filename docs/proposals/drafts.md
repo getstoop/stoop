@@ -168,8 +168,11 @@ file ID can go stale.
   the cache, which the system may purge. Not SecureStore, which is meant for
   small secrets, not message text of any length.
 - **Timing:** the composer only mounts once the screen's header has loaded,
-  so the account (`header.myUserId`) is known. The read is asynchronous, so
-  someone can type first: it merges, using the same path a refused send does.
+  so the account (`header.myUserId`) is known, and the saved servers list is
+  known before anything renders. The file is read synchronously (it is a few
+  kilobytes) and held in memory after, so the draft is in the field on the
+  first render with nothing to merge, as on web. The merge path still serves
+  a send that fails after leaving.
 - **Saves:** the debounce above, the app state turning inactive or
   background, and the composer going away.
 - **The sweep also deletes any file whose server ID isn't in the saved
@@ -216,9 +219,18 @@ It doesn't fix these:
   sandboxed to the app. The 7-day expiry shortens the window, and signing out
   deletes it. The same rule everywhere is still recommended; the help text
   for shared computers, if there ever is any, should say to sign out.
-- **Device backups.** Files in the documents folder may be included in device
-  backups. The first mobile step should check this on both platforms, and
-  exclude drafts if that's simple.
+- **Device backups.** Checked while building the store: the documents folder
+  is in device backups on both platforms, and `expo-file-system` has no way
+  to exclude one folder (iOS would need a native module for
+  `NSURLIsExcludedFromBackupKey`; Android has only the app-wide
+  `android.allowBackup`, which defaults to on and isn't set in `app.json`).
+  Nothing was changed. The exposure is small: the saved servers list lives in
+  SecureStore bound to the device, so a backup restored to another phone has
+  no servers and the sweep deletes every draft at first start; a restore to
+  the same phone brings drafts back with the keychain, which is the accepted
+  "words left on the device" case. Open for the operator: set
+  `android.allowBackup: false` as a one-line follow-up, since on Android the
+  backup would carry nothing restorable but draft text.
 - **A send killed part way.** If the app or tab dies after the server accepted
   a message but before the answer arrived, the words return though the
   message was sent. The person sees both and can clear it. Recommended:
