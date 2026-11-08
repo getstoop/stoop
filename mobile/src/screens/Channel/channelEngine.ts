@@ -103,13 +103,16 @@ const ended = (err: unknown) => err instanceof ConnectError && err.code === Code
 
 // What a failed page says beyond its own failure, when a retry can't help:
 // the sign-in has ended, or what was being paged is gone (the cursors in a
-// page's request aren't looked up, so NotFound is never about those). Not
-// outcomeOf, which takes PermissionDenied as gone. A send leaves that to its
-// caller because it is about the write (denied); on a read it may be about
-// the channel, but permission errors must not fail destructively, and how
-// background reads treat them is still undecided (STOOPMOBIL-18), so a page
-// refused that way keeps the retry row.
-const pageOutcome = (err: unknown): "ended" | "gone" | null => (ended(err) ? "ended" : notFound(err) ? "gone" : null);
+// page's request aren't looked up, so NotFound is never about those, and
+// a PermissionDenied is about reading what was paged: the channel, as
+// catch-up, the header refresh and jump to latest take it, or the thread
+// for a page of replies). Not outcomeOf, whose "failed" is
+// the retry row's job here. A send leaves PermissionDenied to its caller
+// because there it is about the write (denied). Going to "gone" used to
+// lose the draft, so a denied page kept the retry row (STOOPMOBIL-18);
+// the draft is now kept on the device and comes back if access returns.
+const pageOutcome = (err: unknown): "ended" | "gone" | null =>
+  ended(err) ? "ended" : notFound(err) || denied(err) ? "gone" : null;
 
 // Whether another older page of replies fits in a thread's view. A view
 // holds at most LOG_CAP rows and a page past that prunes the newest, the
@@ -726,7 +729,8 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       } catch (err) {
         if (mine.ended) return;
         dispatch({ type: "threadPageFailed", rootId, epoch: thread.epoch, generation: view.generation, at: Date.now() });
-        // As openThread: a NotFound here may be the root's, so it is the
+        // As openThread: a NotFound here may be the root's, and a
+        // PermissionDenied is about reading the replies, so it is the
         // thread that is gone, not the channel.
         const outcome = pageOutcome(err);
         if (outcome === "ended") dispatch({ type: "failed", outcome });
