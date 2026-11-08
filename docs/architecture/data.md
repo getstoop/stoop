@@ -532,7 +532,7 @@ with a bounded working set is both simpler and fast enough.
 | Voice participation | Gateway memory, client-reported | LiveKit is the source of truth for media; this is a hint for the sidebar. |
 | The chosen theme | `localStorage` | A per-browser preference. Nothing a space or an admin sets should be able to recolour someone's client. |
 | The voice cue switch | `localStorage` | A per-browser preference about this device's speakers; the desktop app keeps one for every server it holds. |
-| Draft messages | Component state | Not worth a round trip. |
+| Draft messages | `localStorage`, per account and conversation | Signing out deletes them; one untouched for seven days expires. |
 
 ## Testing against Postgres
 

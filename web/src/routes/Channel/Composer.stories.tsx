@@ -119,6 +119,7 @@ function ComposerWithSent() {
           onCancelReply={() => {}}
           onReply={() => {}}
           onEditLast={() => {}}
+          onRestoreQuote={() => {}}
         />
       </div>
     </QueryClientProvider>

@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { authClient } from "../../api/clients";
+import { deleteAllDrafts } from "../../api/drafts";
 import { errorText } from "../../api/errors";
 import { useSessions } from "../../api/queries";
 import {
@@ -74,6 +75,9 @@ export function SessionsSection() {
     setError(null);
     try {
       await authClient.signOutEverywhere({});
+      // Pressed here, this is signing out on this device: its drafts go.
+      // The other devices' sessions end and keep theirs until they expire.
+      deleteAllDrafts();
       queryClient.clear();
       await navigate({ to: "/login" });
     } catch (err) {

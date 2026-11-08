@@ -2,11 +2,18 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { FieldViolationSchema } from "../gen/stoop/common/v1/field_violation_pb";
 
 // The message worth showing a person: the server's own words for a
-// Connect error, and whatever the runtime said for anything else.
+// Connect error, and whatever the runtime said for anything else. A
+// timed-out call has no server words, and Connect's own are not for a
+// person.
 export function errorText(err: unknown): string {
-  if (err instanceof ConnectError) return err.rawMessage;
+  if (err instanceof ConnectError) {
+    if (err.code === Code.DeadlineExceeded) return TIMED_OUT;
+    return err.rawMessage;
+  }
   return err instanceof Error ? err.message : String(err);
 }
+
+export const TIMED_OUT = "The server didn't answer in time. Try again.";
 
 // The request field a refusal is about, when the server named one
 // (docs/architecture/contracts.md → Errors), spelled as the generated

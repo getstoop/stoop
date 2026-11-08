@@ -24,6 +24,7 @@ import { DMTitle } from "../DirectMessages/DMTitle";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 import { PostingClosed } from "./PostingClosed";
+import { useRestoredQuote } from "./useRestoredQuote";
 
 const CHAT_HIDDEN_KEY = "stoop.voiceChatHidden";
 
@@ -150,6 +151,8 @@ export function ChannelView() {
     setReplyTo(null);
     setEditingId(null);
   }, [channelId]);
+  // A restored draft's quote becomes the reply once the log holds it.
+  const restoreQuote = useRestoredQuote(channelId, undefined, setReplyTo);
   const editLast = () => {
     const mine = messages.filter((m) => m.author?.id === me?.id);
     const last = mine[mine.length - 1];
@@ -218,6 +221,7 @@ export function ChannelView() {
               onCancelReply={() => setReplyTo(null)}
               onReply={setReplyTo}
               onEditLast={editLast}
+              onRestoreQuote={restoreQuote}
             />
           ) : (
             <PostingClosed channelName={label} />

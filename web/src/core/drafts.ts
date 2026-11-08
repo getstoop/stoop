@@ -6,8 +6,8 @@ import { restoreDraft } from "./unsent";
 // its entry has two slots, the `draft` the field shows and the `sending`
 // it hides while a send is out. Every rule is a pure function taking the
 // time, so each client's store (web: api/drafts.ts over localStorage;
-// mobile: a file per server and account) only reads and writes. The
-// composers adopt these in a later step.
+// mobile: a file per server and account) only reads and writes. Web's
+// composer applies them through routes/Channel/useSavedDraft.ts.
 
 // Untouched this long, a draft is a stale fragment and the sweep drops it.
 export const DRAFT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;

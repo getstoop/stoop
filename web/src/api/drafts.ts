@@ -3,8 +3,8 @@ import { type DraftEntry, isEntryExpired, toDraftEntry } from "../core/drafts";
 // Web's draft store: one localStorage item per key (core/drafts.ts
 // → draftKey), under a prefix nothing else uses, so deleting every draft
 // and the sweep never touch the theme or the voice switches kept beside
-// them. The rules live in core/drafts.ts; this only reads and writes.
-// The composer adopts it in a later step.
+// them. The rules live in core/drafts.ts; this only reads and writes,
+// for the composer (routes/Channel/useSavedDraft.ts) and sign-out.
 //
 // Storage can be missing or refuse (a private window, a full quota): then
 // the store reads as empty and writes do nothing, with no word to the
@@ -12,16 +12,19 @@ import { type DraftEntry, isEntryExpired, toDraftEntry } from "../core/drafts";
 
 export const DRAFTS_KEY_PREFIX = "stoop.draft.";
 
-// Closed by deleteAllDrafts, so a save armed before signing out (the
-// composer's debounce, its unmount save, a send failing late) can't
-// recreate a draft just deleted. Not for the page's life: signing out
-// and signing in again (the login form, the desktop hand-back, and
-// whatever a provider adds) can all happen within one page load, so
-// openDrafts belongs where the session is observed, in AppShell as the
-// account becomes known, not in each page that creates one. One hole
-// stays: a send that times out after a sign-out and the next sign-in's
-// open writes under the old account's key, which needs the sign-out and
-// sign-in within the stall age and shows nothing to the new account.
+// Closed to writes by deleteAllDrafts, so a save armed before signing out
+// (the composer's debounce, its unmount save, a send failing late) can't
+// recreate a draft just deleted; reads stay open, since nothing read after
+// a delete is there to show. Not for the page's life: signing out and
+// signing in again (the login form, the desktop hand-back, and whatever a
+// provider adds) can all happen within one page load, so openDrafts
+// belongs where the session is observed, in AppShell as the account
+// becomes known, not in each page that creates one. The flag is this
+// tab's: signing out in one tab while another has a debounce armed lets
+// that tab's save recreate the draft, accepted for a first version. One
+// more hole: a send that times out after a sign-out and the next
+// sign-in's open writes under the old account's key, which needs both
+// within the stall age and shows nothing to the new account.
 let closed = false;
 
 function storage(): Storage | undefined {
@@ -67,7 +70,6 @@ function removeItem(itemKey: string): void {
 }
 
 export function readDraft(key: string): DraftEntry | undefined {
-  if (closed) return undefined;
   try {
     return parse(storage()?.getItem(DRAFTS_KEY_PREFIX + key));
   } catch {
@@ -131,7 +133,7 @@ export function onDraftChange(
   if (typeof window === "undefined") return () => {};
   const itemKey = DRAFTS_KEY_PREFIX + key;
   const handler = (event: StorageEvent) => {
-    if (closed || event.key !== itemKey) return;
+    if (event.key !== itemKey) return;
     listener(parse(event.newValue));
   };
   window.addEventListener("storage", handler);
