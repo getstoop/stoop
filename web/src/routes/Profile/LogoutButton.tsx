@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { authClient } from "../../api/clients";
+import { deleteAllDrafts } from "../../api/drafts";
 import { confirm } from "../../stores/dialogs";
 
 // The last entry of the account nav, under the sections.
@@ -19,6 +20,9 @@ export function LogoutButton() {
       return;
     }
     await authClient.logout({});
+    // Signed out on this device: its drafts go too, once the server has
+    // agreed, so a refused logout leaves them alone.
+    deleteAllDrafts();
     queryClient.clear();
     navigate({ to: "/login" });
   };

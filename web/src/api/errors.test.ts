@@ -2,7 +2,13 @@ import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { describe, expect, it } from "vitest";
 import { FieldViolationSchema } from "../gen/stoop/common/v1/field_violation_pb";
-import { errorText, fieldError, isSignedOut, localName } from "./errors";
+import {
+  errorText,
+  fieldError,
+  isSignedOut,
+  localName,
+  TIMED_OUT,
+} from "./errors";
 
 const refusal = (field?: string) =>
   new ConnectError(
@@ -55,6 +61,14 @@ describe("errorText", () => {
     expect(errorText(new Error("That isn't an invite code."))).toBe(
       "That isn't an invite code.",
     );
+  });
+
+  it("says a timeout in the app's words", () => {
+    const timedOut = new ConnectError(
+      "the operation timed out",
+      Code.DeadlineExceeded,
+    );
+    expect(errorText(timedOut)).toBe(TIMED_OUT);
   });
 });
 

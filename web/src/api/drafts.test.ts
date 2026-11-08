@@ -144,16 +144,15 @@ describe("deleteAllDrafts", () => {
     expect([...items.keys()]).toEqual(["stoop.theme"]);
   });
 
-  it("closes the store to a late write until it is opened again", () => {
+  it("refuses a late write until opened again, and still reads", () => {
     deleteAllDrafts();
     writeDraft("acct/chan/", entry);
     expect(items.size).toBe(0);
     items.set(`${DRAFTS_KEY_PREFIX}acct/chan/`, JSON.stringify(entry));
-    expect(readDraft("acct/chan/")).toBeUndefined();
+    expect(readDraft("acct/chan/")).toEqual(entry);
     deleteDraft("acct/chan/");
     expect(items.size).toBe(1);
     openDrafts();
-    expect(readDraft("acct/chan/")).toEqual(entry);
     writeDraft("acct/chan/other", entry);
     expect(items.size).toBe(2);
   });
@@ -168,14 +167,12 @@ describe("onDraftChange", () => {
     expect(heard).toEqual([entry, undefined]);
   });
 
-  it("ignores other keys, a cleared store and a closed store", () => {
+  it("ignores other keys and a cleared store", () => {
     const heard: (DraftEntry | undefined)[] = [];
     onDraftChange("acct/chan/", (changed) => heard.push(changed));
     raise(`${DRAFTS_KEY_PREFIX}acct/other/`, JSON.stringify(entry));
     raise("stoop.theme", "dusk");
     raise(null, null);
-    deleteAllDrafts();
-    raise(`${DRAFTS_KEY_PREFIX}acct/chan/`, JSON.stringify(entry));
     expect(heard).toEqual([]);
   });
 

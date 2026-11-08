@@ -251,8 +251,14 @@ document, and Markdown is what it sends and what it loads to edit.
 - **A code span can't hold a backtick**, so a backtick styled as code
   goes out as an escaped backtick beside the code (and in link words, a
   bracket does too).
-- **A draft stays in its conversation.** Switching channel or thread
-  starts an empty box, so unsent text is never sent somewhere else.
+- **A draft stays in its conversation, and is there on return.**
+  Switching channel or thread saves the words under the account and the
+  conversation they were typed in and shows that conversation's own
+  draft, so unsent text is never sent somewhere else, and a switch, a
+  reload or an ended session no longer loses it. Drafts live on the
+  device (`localStorage`; the rules in `web/src/core/drafts.ts`, the
+  store in `web/src/api/drafts.ts`), signing out deletes them, and one
+  untouched for seven days expires.
 
 ### The phone's field
 

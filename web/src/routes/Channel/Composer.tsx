@@ -20,7 +20,7 @@ import {
 } from "../../api/files";
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { useChannelGroups } from "../../api/groups";
-import { useInstanceStatus, useSpaces } from "../../api/queries";
+import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
 import {
   replaceShortcodes,
   type Shortcode,
@@ -41,6 +41,7 @@ import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
 import { restoreFiles } from "../../core/attachments";
+import { draftKey, SEND_STALL_MS } from "../../core/drafts";
 import { isBlankMessage } from "../../core/markdown";
 import {
   candidateMention,
@@ -56,6 +57,7 @@ import { canMentionEntireChannel } from "../../core/permissions";
 import { restoreDraft } from "../../core/unsent";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
+import { useSavedDraft } from "./useSavedDraft";
 
 export function Composer({
   channelId,
@@ -69,6 +71,7 @@ export function Composer({
   onCancelReply,
   onReply,
   onEditLast,
+  onRestoreQuote,
   threadRootId,
 }: {
   channelId: string;
@@ -86,13 +89,29 @@ export function Composer({
   onReply: (message: Message) => void;
   // Up arrow in an empty box: edit the caller's last message here.
   onEditLast: () => void;
+  // A shown draft's quote, or none: the screen sets the reply if the
+  // message is in the log, and clears it for none.
+  onRestoreQuote: (messageId: string | undefined) => void;
   // Reply into this root's thread instead of the channel.
   threadRootId?: string;
 }) {
   const view = { channelId, rootId: threadRootId };
   // A thread reply may also show in the channel; reset after each send.
   const [alsoSend, setAlsoSend] = useState(false);
-  const [draft, setDraft] = useState("");
+  // The words, kept on the device under the account and conversation
+  // (useSavedDraft): back on return, never shown anywhere else.
+  const { data: me } = useMe();
+  const {
+    text: draft,
+    setText: setDraft,
+    startSend,
+  } = useSavedDraft({
+    key: me
+      ? draftKey({ accountId: me.id, channelId, threadRootId })
+      : undefined,
+    quotedMessageId: replyTo?.id,
+    onRestoreQuote,
+  });
   const [formats, setFormats] = useState<Format[]>([]);
   // The @handle or #channel being typed.
   const [mention, setMention] = useState<{
@@ -183,9 +202,10 @@ export function Composer({
     e.preventDefault();
     addFiles(files);
   };
-  // biome-ignore lint/correctness/useExhaustiveDependencies: start empty when switching channels
+  // Switching channels drops the pickers and the files; the words are
+  // saved and restored by useSavedDraft.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: start without pickers or files when switching channels
   useEffect(() => {
-    setDraft("");
     setMention(null);
     setShortcode(null);
     setPending((list) => {
@@ -356,19 +376,26 @@ export function Composer({
         if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
     };
     sendingRef.current = true;
+    // Held apart from the draft while the send is out; a send that stalls
+    // past the timeout has failed, here and for any other tab.
+    const ticket = startSend({ text: typed, quotedMessageId: replyTo?.id });
     let res: Awaited<ReturnType<typeof chatClient.sendMessage>>;
     try {
-      res = await chatClient.sendMessage({
-        channelId,
-        content,
-        replyToMessageId: replyTo?.id ?? "",
-        attachmentIds,
-        threadRootId: threadRootId ?? "",
-        alsoSendToChannel: !!threadRootId && alsoSend,
-      });
+      res = await chatClient.sendMessage(
+        {
+          channelId,
+          content,
+          replyToMessageId: replyTo?.id ?? "",
+          attachmentIds,
+          threadRootId: threadRootId ?? "",
+          alsoSendToChannel: !!threadRootId && alsoSend,
+        },
+        { timeoutMs: SEND_STALL_MS },
+      );
     } catch (err) {
       // Refused: put it all back with the reason, unless the person has
       // moved to another channel or thread meanwhile.
+      ticket.fail();
       if (whereRef.current !== where) {
         releasePreviews();
         return;
@@ -384,6 +411,7 @@ export function Composer({
     } finally {
       sendingRef.current = false;
     }
+    ticket.finish();
     releasePreviews();
     try {
       // The WS event usually lands first; the log merges by seq either

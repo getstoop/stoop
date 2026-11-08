@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { authClient } from "../../api/clients";
+import { deleteAllDrafts } from "../../api/drafts";
 import { useInstanceStatus } from "../../api/queries";
 import { useRecentSignIn } from "../../api/recentSignIn";
 import { useFieldErrors } from "../../hooks/useFieldErrors";
@@ -40,6 +41,8 @@ export function DeleteAccountSection() {
     form.begin();
     try {
       await authClient.deleteAccount({});
+      // The session on this device ends with the account: its drafts go.
+      deleteAllDrafts();
       queryClient.clear();
       navigate({ to: "/login" });
     } catch (err) {

@@ -43,6 +43,7 @@ import { confirm, notice } from "../../stores/dialogs";
 import { Composer } from "./Composer";
 import { MessageList } from "./MessageList";
 import { ThreadChannelLink } from "./ThreadChannelLink";
+import { useRestoredQuote } from "./useRestoredQuote";
 
 // A thread in the side panel: its root, its replies, and a box to reply.
 // Params: spaceId ("" for a DM), channelId, rootId, and focusId to open on
@@ -86,6 +87,8 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
   // for itself that its own is muted.
   const channelMuted = isDM ? !!dm?.channel?.muted : !!channel?.muted;
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  // A restored draft's quote becomes the reply once the thread holds it.
+  const restoreQuote = useRestoredQuote(channelId, rootId, setReplyTo);
   const [editingId, setEditingId] = useState<string | null>(null);
   const { data: instanceStatus } = useInstanceStatus();
   // The tick that stands in for the link icon once the link is copied.
@@ -253,6 +256,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
             onCancelReply={() => setReplyTo(null)}
             onReply={setReplyTo}
             onEditLast={editLast}
+            onRestoreQuote={restoreQuote}
             threadRootId={rootId}
           />
         ) : (

@@ -11,6 +11,7 @@ import { useBlocked } from "../api/blocks";
 import { chatClient } from "../api/clients";
 import { useDirectMessages } from "../api/dms";
 import { startDndBridge } from "../api/dndBridge";
+import { openDrafts } from "../api/drafts";
 import { isSignedOut } from "../api/errors";
 import { parseInviteCode } from "../api/invites";
 import { useDndActive } from "../api/presence";
@@ -102,6 +103,12 @@ export function AppShell() {
     if (!userId) return;
     return startDndBridge(queryClient);
   }, [userId, queryClient]);
+
+  // Signing out closes the draft store (api/drafts.ts); the next sign-in,
+  // which may be within the same page load, opens it again here.
+  useEffect(() => {
+    if (userId) openDrafts();
+  }, [userId]);
 
   // Held for the session: the realtime client reads it off the cache to
   // leave a blocked author's mention out of the badges (api/ws.ts).

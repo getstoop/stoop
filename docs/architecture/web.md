@@ -440,7 +440,8 @@ inline script in `index.html` *before anything paints* (which is why the
 CSP hashes that one inline script rather than allowing inline scripts
 generally), and is managed by `api/theme.ts` afterwards. "Follow system" is
 a preference over a dark/light pair, resolved by `prefers-color-scheme` and
-followed live.
+followed live. The composer's drafts sit beside it, under `stoop.draft.*`
+([messaging.md](messaging.md) → The composer).
 
 Nothing a space or an admin sets can recolour someone's client.
 
