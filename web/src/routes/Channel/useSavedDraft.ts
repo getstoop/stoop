@@ -61,9 +61,7 @@ export function useSavedDraft({
     text: textRef.current,
     quotedMessageId: quoteRef.current,
   });
-  const unsaved = () =>
-    textRef.current !== savedRef.current.text ||
-    quoteRef.current !== savedRef.current.quotedMessageId;
+  const unsaved = () => !sameWords(shown(), savedRef.current);
 
   // Under the key given, not the current one: the channel composer's key
   // has already changed when its save on switching runs.
@@ -80,9 +78,9 @@ export function useSavedDraft({
   // A stored draft going in the field: its quote goes to the screen, which
   // sets the reply once the log holds the message. What is recorded as
   // saved is the field as it is, with no reply yet: once the screen sets
-  // it the field differs and the debounce writes the quote back, and a
-  // message not in the log leaves the stored quote waiting for the next
-  // visit rather than saving over it.
+  // it the field shows what is stored and counts as saved (the debounce
+  // sees to that), and a message not in the log leaves the stored quote
+  // waiting for the next visit rather than saving over it.
   const show = (draft: Draft | undefined) => {
     savedRef.current = { text: draft?.text ?? "" };
     setText(draft?.text ?? "");
@@ -103,11 +101,20 @@ export function useSavedDraft({
   }, [key]);
 
   // The debounce: every change restarts it, and it only fires with
-  // something unsaved.
+  // something still unsaved (a save on hiding may have come first). A
+  // field that shows what is stored, as it does once the screen sets a
+  // restored quote back, has nothing to write and is saved as it stands;
+  // otherwise a cancelled quote, or another tab's send, would go unheeded
+  // until the debounce wrote the same words again.
   // biome-ignore lint/correctness/useExhaustiveDependencies: text and the quote are what is debounced; the field is read through refs
   useEffect(() => {
     if (!key || !unsaved()) return;
-    const timer = setTimeout(() => save(key), SAVE_DEBOUNCE_MS);
+    const stored = readDraft(key)?.draft;
+    if (stored && sameWords(shown(), stored)) {
+      savedRef.current = shown();
+      return;
+    }
+    const timer = setTimeout(() => saveIfUnsaved(key), SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [key, text, quotedMessageId]);
 
@@ -142,14 +149,20 @@ export function useSavedDraft({
   }, [key]);
 
   // Send pressed: the words are held apart from the draft, hidden from the
-  // field, until the server answers.
+  // field, until the server answers. The field was cleared with the send:
+  // nothing of the draft is left to save, and a restored quote the screen
+  // has yet to set was for words that are gone. A send holding nothing
+  // (attachments only) has no words to hold apart, but words shown here
+  // and erased just before it, not yet saved as gone, go from the store;
+  // a field that showed nothing leaves a draft saved elsewhere alone.
   const startSend = (words: Words): SendTicket => {
-    const sending = key ? beginSend(words, Date.now()) : undefined;
-    if (!key || !sending) return NO_SEND;
-    writeDraft(key, sending);
-    // The field was cleared with the send: nothing of the draft is left
-    // to save.
+    if (!key) return NO_SEND;
+    onRestoreQuoteRef.current(undefined);
+    const sending = beginSend(words, Date.now());
+    if (sending) writeDraft(key, sending);
+    else if (unsaved()) writeDraft(key, withDraft(readDraft(key), undefined));
     savedRef.current = { text: "" };
+    if (!sending) return NO_SEND;
     return {
       finish: () => writeDraft(key, finishSend(readDraft(key))),
       // The words join whatever draft is stored by now, wherever the
@@ -159,4 +172,10 @@ export function useSavedDraft({
   };
 
   return { text, setText, startSend };
+}
+
+function sameWords(one: Words, other: Words): boolean {
+  return (
+    one.text === other.text && one.quotedMessageId === other.quotedMessageId
+  );
 }
