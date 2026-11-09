@@ -258,7 +258,23 @@ document, and Markdown is what it sends and what it loads to edit.
   reload or an ended session no longer loses it. Drafts live on the
   device (`localStorage`; the rules in `web/src/core/drafts.ts`, the
   store in `web/src/api/drafts.ts`), signing out deletes them, and one
-  untouched for seven days expires.
+  untouched for seven days expires. The phone keeps its own the same way
+  ([mobile/README.md](../../mobile/README.md)).
+- **What a draft is not.** It is the words and their quote: files picked
+  and an edit in progress still go with the screen. Each device keeps its
+  own, so nothing reaches the server or another device, and no list
+  marks the conversations that hold one. Emptying the field is how one
+  is discarded. An ended session keeps its drafts until they expire, so
+  the words are there after signing in again; the cost, accepted, is
+  that "Log out everywhere" from another device leaves them readable on
+  this one, and an expired draft is only removed when the app next
+  starts, so on a device never opened again it stays. In the desktop
+  app a draft sits in its server's partition
+  ([desktop.md](desktop.md#sessions)); that removing a server there
+  clears it has not been checked. Two smaller ones are accepted too: a send cut off
+  after the server took the message brings the words back beside it, and
+  a draft whose quoted message is outside what is loaded comes back
+  without the quote.
 
 ### The phone's field
 

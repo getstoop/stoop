@@ -1,6 +1,12 @@
 # Upgrading a server: the tool, and the migration rules it needs
 
-Status: decided 2026-09-25 (STOOP-294), not started. Nothing here is built.
+Status: decided 2026-09-25 (STOOP-294); phases 1 and 2 built the same
+week and shipped in 0.3.0, with fixes in 0.4.0. This document
+is the record of what was planned; the Built section at the end says
+where the code differs and what is still open. The reference for the
+result is [self-hosting/install.md → Upgrading](../self-hosting/install.md#upgrading),
+[architecture/data.md → Upgrades and rollback](../architecture/data.md#upgrades-and-rollback)
+and [architecture/runtime.md](../architecture/runtime.md).
 
 ## What exists
 
@@ -208,3 +214,57 @@ Settled 2026-09-25 by the operator:
    minor back promised, the floor decides the rest.
 5. The first script prints the restore commands on a contract failure.
    Running them is phase 3.
+
+## Built
+
+Checked against the code on 2026-11-09.
+
+**Phase 1, as planned.** `stoop migrate status|plan|up` with `--json`
+and plan's exit codes (`cmd/stoop/migrate.go`); `db.Floor` with
+`TestFloorMatchesSchema`; `db.Releases` in `internal/db/releases.go`
+with a row per release that shipped a migration, and `OldestStartable` turning a floor into
+a version. R1, R2, R3 and R5 are in data.md.
+
+**Phase 2, as planned.** `stoop upgrade` with `--plan`, `--to`, `--file`,
+`--yes` and `rollback` (`cmd/stoop/upgrade.go`, `internal/upgrade`,
+behind a runner interface so the sequence is tested with a fake). The
+run is preflight, fetch from the release index, plan through the target
+image's `migrate plan --json`, the `.env` keys the new `env.example` sets
+that `.env` lacks, backup into `backups/<stamp>-<from>-to-<to>/`,
+swap with `.prev`, `up -d --wait`, and a check that the running binary
+reports the target. Rollback asks the running image which releases can
+start, refuses when the previous one cannot and points at Restoring in place. The
+Upgrading section of install.md leads with the tool, Backups has
+Restoring in place, and both update notices in the web app name the
+command.
+
+**Where the build differs from the plan.**
+
+- R4 was dropped. `CONCURRENTLY` waits for every open transaction, and a
+  second instance queued behind the migration lock is one, so the two
+  wait on each other forever. data.md says instead that a long migration
+  must survive being run again from the start, and notes that a plain
+  index build over `messages` is fast enough not to need it.
+- Beyond the plan: the tool also swaps `livekit.yaml` and
+  `livekit-entrypoint.sh` as companion files, honours a
+  `docker-compose.override.yml` in the plan and the start, keeps rolled
+  back files as `.rolledback` where an upgrade never looks, dumps an
+  external Postgres with the Postgres major the compose file pins, and
+  makes the backup directory readable by the operator only.
+- The Postgres-major refusal is built as planned
+  (`checkTarget` in `internal/upgrade/upgrade.go`).
+
+**Still open.**
+
+- Phase 3. On a contract failure the tool prints the restore commands
+  with the backup's paths filled in; it does not run them. There is no
+  CI drill against a scratch stack, and no fixture dumps under
+  `internal/db/testdata`, so R1 holds by review, not by test. The
+  release check in releasing.md (upgrade the previous release, roll
+  back, upgrade again) is done by hand after publishing.
+- Phase 4, but for the update notice, which names the command: the
+  bare-binary path, a Windows build (GoReleaser targets linux and
+  darwin), and migrating from the new image while the old one still
+  serves.
+- STOOP-294 is still in Backlog in Plane and should be closed or
+  retitled to the phase 3 work.

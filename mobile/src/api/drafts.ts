@@ -2,11 +2,11 @@ import { type DraftEntry, draftKey, isEntryExpired, toDraftEntry } from "@stoop/
 import { Directory, File, Paths } from "expo-file-system";
 
 // The phone's draft store: an unsent message kept on the device
-// (docs/proposals/drafts.md), under the documents folder, which the
-// system doesn't purge as it may the cache. The rules live in
-// core/drafts.ts; this only reads and writes. The composer adopts it in
-// a later step, and signing out or removing a server calls
-// deleteServerDrafts in another.
+// (docs/architecture/messaging.md → The composer), under the documents
+// folder, which the system doesn't purge as it may the cache. The rules
+// live in core/drafts.ts; this only reads and writes. The composer
+// adopts it (screens/Channel/useSavedDraft), and signing out or removing
+// a server calls deleteServerDrafts (servers/useLeaveServer).
 //
 // One file per server and account, drafts/<server>/<account>.json, so a
 // removed server's drafts go as one folder and the sweep tells a

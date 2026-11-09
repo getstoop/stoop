@@ -43,7 +43,7 @@ where everyone hangs out.
 
 ## Deliberate non-goals (for now)
 
-Federation, end-to-end encryption, mobile apps, plugins, and multi-node
+Federation, end-to-end encryption, plugins, and multi-node
 scaling are consciously deferred. The architecture reserves seams for them
 (an event-bus interface, strict module boundaries — see
 [architecture/](architecture/README.md)), but the near-term mission is a complete,
@@ -55,9 +55,11 @@ The single-instance experience is built and verified: accounts and
 sessions, spaces and channels, realtime messaging over a protobuf WebSocket
 protocol, roles and permissions, invites, an activity feed with per-space
 and per-channel mutes, presence, message editing, replies, reactions,
-Markdown, link previews, file uploads (avatars, space icons, attachments),
-direct messages and group conversations, message search, pinned messages,
-voice channels on LiveKit, webhooks and bots, twenty-seven client-side
+Markdown, threads, link previews, file uploads (avatars, space icons,
+attachments), direct messages and group conversations, private and
+announcement channels, message search, pinned messages, drafts kept on
+the device, voice channels on LiveKit with video and screen share,
+email for password resets, webhooks and bots, twenty-seven client-side
 themes, a desktop app, and the space and server admin tooling — all from a
 single binary with the web app embedded. Reaching the server is a product
 question, not an ops one: the setup wizard walks an operator through a
@@ -65,5 +67,8 @@ reverse proxy, Cloudflare Tunnel (with Cloudflare TURN so voice works
 through it), or the built-in Tailscale node — which carries LiveKit's
 media ports as well as the web app, so voice rides the tailnet with
 nothing installed on the server — and says plainly which of them can
-carry voice audio. The roadmap from here is tracked in GitHub issues as it
-becomes concrete.
+carry voice audio. A companion app for phones is being built in
+[`mobile/`](../mobile/README.md) and is not released. A larger change
+starts as a proposal in [proposals/](proposals/); once it is built the
+architecture docs describe the result and the proposal is usually
+deleted.

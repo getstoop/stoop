@@ -14,7 +14,7 @@ import { type DraftAddress, readDraft, writeDraft } from "../../api/drafts";
 
 // The composer's words, kept on the device under their address
 // (api/drafts) so they are there when the channel or thread opens again
-// (docs/proposals/drafts.md); web's routes/Channel/useSavedDraft is the
+// (docs/architecture/messaging.md → The composer); web's routes/Channel/useSavedDraft is the
 // same shape. The composer asks `restoredDraft` for its field's first
 // state, tells this hook each render what it holds as a draft (`words`:
 // the field, or the draft set aside while a message is edited), and

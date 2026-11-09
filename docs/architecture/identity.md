@@ -632,6 +632,9 @@ this account's, replaces the session (a new cookie, and the token in
 `{"token": …, "reauthed": "PROVIDER"}`) and spends the code. Failures
 carry `reauth=1` back, and land on `/confirm?error=`.
 
+The phone app offers none of the changes that need a recent sign-in, so
+it has no Confirm it's you screen. It gets one with its account settings.
+
 #### What a stolen attempt id can do
 
 **The attempt's verifier does not prove whose identity came back.** It

@@ -12,12 +12,12 @@ import {
   test,
 } from "./lib";
 
-// Drafts (docs/proposals/drafts.md): the words typed in a channel are
-// there again after switching away and back and after a reload, gone once
-// the field is emptied or the message sent, back with their quote when a
-// reply had been started, kept through a refused send and a thread panel
-// closing, emptied in an idle tab when another tab sends them, and deleted
-// by logging out.
+// Drafts (docs/architecture/messaging.md → The composer): the words
+// typed in a channel are there again after switching away and back and
+// after a reload, gone once the field is emptied or the message sent,
+// back with their quote when a reply had been started, kept through a
+// refused send and a thread panel closing, emptied in an idle tab when
+// another tab sends them, and deleted by logging out.
 test("drafts stay in their conversation", async ({ browser }) => {
   const { suffix, tokens, channels, password } = await seed({
     channels: ["general", "random"],
