@@ -15,8 +15,8 @@ import { useTheme } from "../../../theme";
 // pressing gets none of this layout's route params. The server's
 // activity feed is held here too, for the Activity tab, and the badge
 // total on that tab beside it (src/alerts). All of it starts again on a
-// new sign-in, which may be another account's on the same ID. The first
-// server to show is when the app asks to notify
+// new sign-in, which may be another account's on the same ID. The app
+// asks to notify when the first server shows
 // (src/notifications/permission.ts).
 export const unstable_settings = { anchor: "(tabs)" };
 

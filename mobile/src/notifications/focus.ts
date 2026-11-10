@@ -24,7 +24,7 @@ export function clearFocusedPlace(mine: FocusedPlace) {
 // Says a channel screen, or a thread screen with its root, is the place
 // on screen for as long as onScreen holds (focused, with the app in
 // front).
-export function useFocusedPlace(serverId: string, channelId: string, threadRootId: string | undefined, onScreen: boolean) {
+export function useFocusedPlace({ serverId, channelId, threadRootId }: FocusedPlace, onScreen: boolean) {
   useEffect(() => {
     if (!onScreen) return;
     const mine = { serverId, channelId, threadRootId };

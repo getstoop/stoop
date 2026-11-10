@@ -40,7 +40,7 @@ export function notificationContent(
 ): NotificationContent {
   const who = item.actor?.displayName || item.actor?.username || "Someone";
   const where = [
-    item.spaceId && names.channel ? `#${names.channel}` : undefined,
+    names.channel ? `#${names.channel}` : undefined,
     names.space,
     manyServers ? server.name : undefined,
   ].filter(Boolean);

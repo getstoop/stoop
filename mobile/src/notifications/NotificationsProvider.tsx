@@ -1,5 +1,5 @@
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { loadChannelList, loadSpaceList } from "../api/activity";
 import { sessionToken } from "../api/servers";
 import { useServerEvents } from "../realtime/RealtimeProvider";
@@ -23,7 +23,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
   return (
     <>
       {servers.map((server) => (
-        <ServerRing key={sessionKey(server)} server={server} manyServers={servers.length > 1} />
+        <ServerNotifications key={sessionKey(server)} server={server} manyServers={servers.length > 1} />
       ))}
       {children}
     </>
@@ -32,7 +32,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
 
 // One session's listener, with the names of its places (places.ts)
 // kept for as long as the session is.
-function ServerRing({ server, manyServers }: { server: SavedServer; manyServers: boolean }) {
+function ServerNotifications({ server, manyServers }: { server: SavedServer; manyServers: boolean }) {
   const [places] = useState(() => {
     const token = async () => {
       const session = await sessionToken(server.id);
@@ -44,16 +44,29 @@ function ServerRing({ server, manyServers }: { server: SavedServer; manyServers:
       channels: async (spaceId) => loadChannelList(server.origin, await token(), spaceId),
     });
   });
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useServerEvents(server.id, (event: ServerEvent) => {
     if (event.payload.case !== "activityItemCreated") return;
     const item = event.payload.value.item;
     if (!item) return;
     const { channelId, threadRootId, muted } = item;
-    if (staysQuiet({ serverId: server.id, channelId, threadRootId, muted, read: !!item.readAt }, focusedPlace())) return;
+    const arrival = { serverId: server.id, channelId, threadRootId, muted, read: !!item.readAt };
+    if (staysQuiet(arrival, focusedPlace())) return;
     places
       .names(item)
-      .then((names) => present(notificationContent(item, server, names, manyServers)))
+      .then((names) => {
+        // The wait for the names may have seen the server forgotten or
+        // signed in to again, or the person open where this landed.
+        if (!mounted.current || staysQuiet(arrival, focusedPlace())) return;
+        return present(notificationContent(item, server, names, manyServers));
+      })
       // A notification that can't be shown is dropped.
       .catch(() => {});
   });

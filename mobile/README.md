@@ -708,12 +708,13 @@ nowhere yet, and the app's icon carries no badge.
 - Nothing rings for what the server stamped muted, what is already
   read, or what is being read as it arrives (`quiet.ts`): a channel's
   or a conversation's arrival while that screen is in front, a thread's
-  reply while that thread is. A thread's reply still rings over its
-  channel. The channel and thread screens say when they are the place
+  reply while that thread is, asked again once the names have landed.
+  A thread's reply still rings over its channel. The channel and thread screens say when they are the place
   on screen (`focus.ts`).
 - The app asks to notify the first time a signed-in server shows
   (`permission.ts`, from `src/app/s/[id]/_layout.tsx`), with the
-  system's prompt alone, and only while the person hasn't answered. On
+  system's prompt alone, and only while the person hasn't answered
+  (`shouldAsk.ts`). On
   Android 13 and later, which reports no such state, it asks while the
   system still lets it: on first run, and once more after one refusal.
   Refused, nothing shows and nothing else changes.
@@ -852,7 +853,8 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
-`notifications/content.ts`, `quiet.ts` and `places.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts` and
+`shouldAsk.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,

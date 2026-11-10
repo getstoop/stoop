@@ -5,9 +5,9 @@ import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 // The names a notification's subtitle is made of. An item carries only
 // IDs, so one session's spaces, and each space's channels, are listed
 // the first time an item needs them and kept for as long as the session
-// is. The Activity tab keeps lists of its own (usePlaces), for the
-// items it shows on the server on screen; these serve every saved
-// server.
+// is. The naming rules are the Activity tab's (usePlaces), which keeps
+// lists of its own for the items it shows on the server on screen;
+// these serve every saved server.
 
 export type PlaceNames = {
   channel?: string;
@@ -44,56 +44,77 @@ export const NAMES_WAIT_MS = 2000;
 export type Places = { names: (item: Where) => Promise<PlaceNames> };
 
 // Resolves with what is known once the lists the item needs have
-// landed, or after waitMs. A list is asked for when it isn't held, and
-// once more for an ID it lacks (a channel made since); a failed ask
-// goes again with the next item.
+// landed, or after waitMs.
 export function placesCache(load: Loaders, waitMs = NAMES_WAIT_MS): Places {
   const lists: Lists = { spaces: null, channels: new Map() };
-  // What each list was asked for, by space ("" for the spaces).
-  const asked = new Map<string, Set<string>>();
-  const inFlight = new Map<string, Promise<void>>();
+  // The loads under way: the spaces', and each space's channels'.
+  let spacesLoad: Promise<void> | undefined;
+  const channelLoads = new Map<string, Promise<void>>();
+  // The IDs a held list lacked and was loaded again for (a channel made
+  // since), so each is asked for once.
+  const askedAgain = new Set<string>();
 
-  const ask = (key: string, wanted: string, held: boolean): Promise<void> | undefined => {
-    const going = inFlight.get(key);
-    if (going) return going;
-    const before = asked.get(key);
-    if (held || before?.has(wanted)) return undefined;
-    asked.set(key, new Set([...(before ?? []), wanted]));
-    const loading =
-      key === ""
-        ? load.spaces().then((spaces) => {
-            lists.spaces = spaces;
-          })
-        : load.channels(key).then((channels) => {
-            lists.channels.set(key, channels);
-          });
-    const settled = loading
-      .catch(() => {
-        asked.get(key)?.delete(wanted);
-      })
+  // Whether a list should be loaded for an ID: it isn't held, or it
+  // lacks the ID and hasn't been loaded again for it.
+  const needs = (held: { id: string }[] | null | undefined, id: string) => {
+    if (!held) return true;
+    if (held.some((entry) => entry.id === id) || askedAgain.has(id)) return false;
+    askedAgain.add(id);
+    return true;
+  };
+
+  // Each resolves when its list has landed or failed, and is undefined
+  // when there is nothing to wait for. A failed load keeps what was
+  // held and may be asked for again.
+  const spacesFor = (spaceId: string) => {
+    if (spacesLoad || !needs(lists.spaces, spaceId)) return spacesLoad;
+    spacesLoad = load
+      .spaces()
+      .then(
+        (spaces) => {
+          lists.spaces = spaces;
+        },
+        () => {
+          askedAgain.delete(spaceId);
+        },
+      )
       .finally(() => {
-        inFlight.delete(key);
+        spacesLoad = undefined;
       });
-    inFlight.set(key, settled);
-    return settled;
+    return spacesLoad;
+  };
+
+  const channelsFor = (spaceId: string, channelId: string) => {
+    const going = channelLoads.get(spaceId);
+    if (going || !needs(lists.channels.get(spaceId), channelId)) return going;
+    const loading = load
+      .channels(spaceId)
+      .then(
+        (channels) => {
+          lists.channels.set(spaceId, channels);
+        },
+        () => {
+          askedAgain.delete(channelId);
+        },
+      )
+      .finally(() => {
+        channelLoads.delete(spaceId);
+      });
+    channelLoads.set(spaceId, loading);
+    return loading;
   };
 
   const names = async (item: Where): Promise<PlaceNames> => {
     if (!item.spaceId) return {};
-    const asks = [
-      ask("", item.spaceId, lists.spaces?.some((space) => space.id === item.spaceId) ?? false),
-      ask(
-        item.spaceId,
-        item.channelId,
-        lists.channels.get(item.spaceId)?.some((channel) => channel.id === item.channelId) ?? false,
-      ),
-    ].filter((going) => going !== undefined);
-    if (asks.length > 0) {
+    const loads = [spacesFor(item.spaceId), channelsFor(item.spaceId, item.channelId)].filter(
+      (loading) => loading !== undefined,
+    );
+    if (loads.length > 0) {
       let timer: ReturnType<typeof setTimeout> | undefined;
       const waited = new Promise<void>((resolve) => {
         timer = setTimeout(resolve, waitMs);
       });
-      await Promise.race([Promise.all(asks), waited]);
+      await Promise.race([Promise.all(loads), waited]);
       clearTimeout(timer);
     }
     return namesIn(lists, item);

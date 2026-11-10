@@ -1,8 +1,10 @@
 import type { FocusedPlace } from "./focus";
 
-// What a notification would be about, as far as staying quiet goes: the
-// fields an activity item and a notification's data both carry. An
-// empty threadRootId is no thread, as the server sends it.
+// What a notification would be about, as far as staying quiet goes.
+// Where it landed is in an activity item and in a notification's data
+// alike; muted and read are the item's alone, and are left out by a
+// caller that has only the data. An empty threadRootId is no thread, as
+// the server sends it.
 export type Arrival = {
   serverId: string;
   channelId: string;

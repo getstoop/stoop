@@ -1,6 +1,6 @@
 import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type Lists, namesIn, placesCache } from "./places";
 
 const space = (id: string, name: string) => ({ id, name }) as Space;
@@ -29,6 +29,10 @@ describe("namesIn", () => {
 });
 
 describe("placesCache", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const loaders = () => ({
     spaces: vi.fn(async () => [space("s1", "Neighbours"), space("s2", "Garden")]),
     channels: vi.fn(async () => [channel("c1", "general")]),
@@ -76,6 +80,5 @@ describe("placesCache", () => {
     const names = placesCache(load, 2000).names(mention);
     await vi.advanceTimersByTimeAsync(2000);
     expect(await names).toEqual({ space: "Neighbours" });
-    vi.useRealTimers();
   });
 });
