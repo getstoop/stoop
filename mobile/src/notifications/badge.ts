@@ -14,13 +14,12 @@ import { Platform } from "react-native";
 let last: Promise<void> = Promise.resolve();
 
 // A badge that can't be set is left as it was.
-export function setIconBadge(count: number): Promise<void> {
-  if (Platform.OS !== "ios") return Promise.resolve();
+export function setIconBadge(count: number): void {
+  if (Platform.OS !== "ios") return;
   last = last
     .then(() => Notifications.setBadgeCountAsync(count))
     .then(
       () => {},
       () => {},
     );
-  return last;
 }

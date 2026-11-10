@@ -73,6 +73,15 @@ describe("alertsLoader", () => {
     expect(totals).toEqual([2]);
   });
 
+  it("asks once, after the same quiet, on Ready", async () => {
+    lists.mockResolvedValue(answer(6));
+    start().event(event({ case: "ready", value: {} }));
+    expect(lists).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS);
+    expect(lists).toHaveBeenCalledTimes(1);
+    expect(totals).toEqual([6]);
+  });
+
   it("leaves an event that changes no count", async () => {
     start().event(event({ case: "presenceChanged", value: create(PresenceChangedSchema, {}) }));
     await vi.advanceTimersByTimeAsync(RELOAD_DELAY_MS);

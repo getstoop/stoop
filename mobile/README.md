@@ -633,7 +633,7 @@ the total
 (`api/alerts` `touchesAlerts`: a message anywhere, a marker moving, a
 mute, a deletion, a space or a conversation coming or going), and when
 the Messages tab closes a conversation, which no event says. A load
-that fails keeps the last total, and a session that has ended has none
+that fails keeps the last total, and a session that has ended holds 0
 and is asked no more. The tab reads its own server's (`useAlerts`), and
 the app's icon shows them all added up (Notifications, below). The
 switcher and You still ask the other servers the same two lists
@@ -779,9 +779,15 @@ badge stays as it was when the app left the front.
   It is set whenever that sum changes and once more as the app goes to
   the background (`AppIconBadge.tsx`, `badge.ts`), so a badge allowed
   after the sum last changed still shows; with nothing waiting, or no
-  servers, there is none. Nothing moves it while the app is in the
-  background or closed: messages that arrive then, or are read on
-  another device, show in it only once the app is opened again. iOS
+  servers, there is none. The icon carries what the app last heard:
+  nothing moves it while the app is in the background or closed, so
+  messages that arrive then, or are read on another device, show in it
+  only once the app is opened again, and a read made in the last moment
+  before the app leaves the front (inside the moment's quiet, or with
+  its load still on the way) may be missing from it. Opening the app
+  clears the badge until each server answers, so opened offline it
+  stays cleared. A load that fails keeps that server's last total, so
+  a server reached once and then lost still adds what it last said. iOS
   only, and only when the person allowed badges, which the one prompt
   asks for; a badge that can't be set is left as it was. On Android
   nothing is called: the library's count reaches only the few launchers

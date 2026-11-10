@@ -7,14 +7,15 @@ import { sessionToken } from "../api/servers";
 // One session's badge total (core/alerts alertingTotal), asked for
 // again rather than kept up here: the server's counts on its spaces and
 // conversations (api/alerts). Whoever holds this (AlertsProvider.tsx)
-// asks on mounting and on coming back to the app, and hands it every
-// event of the server's socket: one that could change the total
-// (touchesAlerts, Ready among them) asks again after a moment's quiet.
-// A screen asks too when it changes something no event tells (the
-// Messages tab closing a conversation). A load that fails keeps the
-// last total. CredentialRevoked, no session kept, or the server
-// refusing it says the session has ended: the total is none, and
-// nothing more is asked.
+// asks on mounting, and on coming back to the app when a few seconds
+// bring no Ready, and hands it every event of the server's socket: one
+// that could change the total (touchesAlerts; Ready is one, and follows
+// every reconnect, which coming back to the app brings) asks again
+// after a moment's quiet. A screen asks too when it changes something
+// no event tells (the Messages tab closing a conversation). A load
+// that fails keeps the last total. CredentialRevoked, no session kept,
+// or the server refusing it says the session has ended: the total is
+// 0, and nothing more is asked.
 
 export type AlertsLoader = {
   // Asks the server again; resolves once the answer has landed.

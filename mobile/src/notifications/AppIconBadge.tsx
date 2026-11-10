@@ -14,12 +14,12 @@ export default function AppIconBadge() {
   latest.current = count;
 
   useEffect(() => {
-    void setIconBadge(count);
+    setIconBadge(count);
   }, [count]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "background") void setIconBadge(latest.current);
+      if (state === "background") setIconBadge(latest.current);
     });
     return () => sub.remove();
   }, []);

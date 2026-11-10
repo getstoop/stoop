@@ -29,7 +29,7 @@ describe("alertsStore", () => {
   it("asks a server again the way it was last told to", async () => {
     const store = alertsStore();
     const refresh = vi.fn().mockResolvedValue(undefined);
-    store.loadWith("a", refresh);
+    store.setRefresh("a", refresh);
     await store.refresh("a");
     await store.refresh("b");
     expect(refresh).toHaveBeenCalledTimes(1);
@@ -39,8 +39,8 @@ describe("alertsStore", () => {
     const store = alertsStore();
     const older = vi.fn().mockResolvedValue(undefined);
     const newer = vi.fn().mockResolvedValue(undefined);
-    const forgetOlder = store.loadWith("a", older);
-    const forgetNewer = store.loadWith("a", newer);
+    const forgetOlder = store.setRefresh("a", older);
+    const forgetNewer = store.setRefresh("a", newer);
     forgetOlder();
     await store.refresh("a");
     expect(newer).toHaveBeenCalledTimes(1);

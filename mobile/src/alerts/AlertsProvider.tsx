@@ -18,13 +18,10 @@ import { type AlertsLoader, alertsLoader } from "./loader";
 import { type AlertsStore, alertsStore, waitingEverywhere } from "./store";
 
 // Every saved server's badge total, kept at the root of the app, inside
-// the realtime provider: one loader per session (loader.ts), on every
-// server and not only the one on screen, so that the app's icon can
-// show them added up (src/notifications/AppIconBadge.tsx). A server's
-// Activity tab reads its own (useAlerts). Each is loaded on mounting
-// and on the socket's Ready (a reconnect, which coming back to the app
-// brings; a few seconds without one load anyway), and again, after a
-// moment's quiet, on any event of its own socket that could change it.
+// the realtime provider: one loader per session (loader.ts, which says
+// when it asks), on every server and not only the one on screen. A
+// server's Activity tab reads its own (useAlerts), and the app's icon
+// all of them added up (useWaitingEverywhere).
 
 const AlertsContext = createContext<AlertsStore | null>(null);
 
@@ -46,11 +43,13 @@ export default function AlertsProvider({ children }: { children: ReactNode }) {
 function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsStore }) {
   const { id, origin } = server;
   const loader = useRef<AlertsLoader | null>(null);
-  // Ahead of useLoadOnReturn's effect, which loads as it mounts.
+  // Ahead of useLoadOnReturn's effect, which loads as it mounts. Made
+  // once: a server's ID and origin never change under one key, so the
+  // load below always asks this loader.
   useEffect(() => {
     const mine = alertsLoader({ id, origin }, (total) => store.set(id, total));
     loader.current = mine;
-    const forget = store.loadWith(id, mine.refresh);
+    const forget = store.setRefresh(id, mine.refresh);
     return () => {
       mine.stop();
       loader.current = null;
@@ -59,8 +58,8 @@ function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsSto
     };
   }, [id, origin, store]);
 
-  const refresh = useCallback(() => void loader.current?.refresh(), []);
-  const readyCame = useLoadOnReturn(refresh);
+  const load = useCallback(() => void loader.current?.refresh(), []);
+  const readyCame = useLoadOnReturn(load);
 
   useServerEvents(id, (event: ServerEvent) => {
     if (event.payload.case === "ready") readyCame();
