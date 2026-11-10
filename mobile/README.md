@@ -38,7 +38,8 @@ Markdown, reactions, replies, threads, files and pins, a composer that
 formats, mentions, attaches and keeps its draft, and a search of the
 space. While the app is in front, a mention, a reply or a direct message
 on any saved server rings as a system notification, and tapping it
-opens the message (Notifications, below). Not there yet: notifications
+opens the message, and the app's icon carries what waits on all of
+them (Notifications, below). Not there yet: notifications
 while the app is closed, joining a voice room, and account settings
 beyond the profile.
 The screens follow the mobile mockups, one at a time.
@@ -623,13 +624,20 @@ badges are not counted from it. The Activity tab's badge is the
 server's alert counts (`docs/architecture/messaging.md` → Alert
 counts) added up by `core/alerts` `alertingTotal`: the spaces' counts,
 less the muted ones, plus one per conversation with unread messages;
-a store beside the feed (`src/alerts`) asks for the two lists on
+a store at the root of the app (`src/alerts`) holds that total for
+every saved server, not only the one on screen, one loader per session
+(`loader.ts`): it asks for the two lists on
 opening, on coming back to the app and on Ready, and again, after a
-moment's quiet, on any event that could change the total
+moment's quiet, on any event of that server's socket that could change
+the total
 (`api/alerts` `touchesAlerts`: a message anywhere, a marker moving, a
 mute, a deletion, a space or a conversation coming or going), and when
-the Messages tab closes a conversation, which no event says. The
-switcher and You ask the other servers the same two lists for their
+the Messages tab closes a conversation, which no event says. A load
+that fails keeps the last total, and a session that has ended has none
+and is asked no more. The tab reads its own server's (`useAlerts`), and
+the app's icon shows them all added up (Notifications, below). The
+switcher and You still ask the other servers the same two lists
+themselves, as they open, for their
 badges (`src/servers/useWaiting`). A channel screen reads nothing of
 the feed: moving the reader's marker reads, on the server, the
 activity it passes, and the badges follow the markers. A channel runs on
@@ -689,9 +697,10 @@ config plugin, so a build on the phone needs `make mobile-prebuild` and
 screen (`NotificationsProvider.tsx`, one listener per session inside
 the realtime provider). Only the live event rings: what the feed loads
 after a reconnect is history. Tapping one opens its message, and
-reading what one points at takes it out of the list. There is no push,
-so nothing arrives while the app is in the background, and the app's
-icon carries no badge.
+reading what one points at takes it out of the list. On iOS the app's
+icon carries one number, what waits on every saved server. There is no
+push, so nothing arrives while the app is in the background, and the
+badge stays as it was when the app left the front.
 
 - What it says is `content.ts`: the title is who and what ("Priya Shah
   mentioned you", core's `activityVerb`), a direct message's just its
@@ -763,6 +772,24 @@ icon carries no badge.
   waiting for its names when the read lands, which then shows; and
   anything by the person's own message sent from another device, for
   which the server sends no ChannelRead.
+- The icon's badge is every saved server's total added up
+  (`src/alerts/store.ts` `waitingEverywhere`), each the number its
+  Activity tab shows; a server whose sign-in has ended, or that hasn't
+  answered, adds nothing, and forgetting a server takes its count out.
+  It is set whenever that sum changes and once more as the app goes to
+  the background (`AppIconBadge.tsx`, `badge.ts`), so a badge allowed
+  after the sum last changed still shows; with nothing waiting, or no
+  servers, there is none. Nothing moves it while the app is in the
+  background or closed: messages that arrive then, or are read on
+  another device, show in it only once the app is opened again. iOS
+  only, and only when the person allowed badges, which the one prompt
+  asks for; a badge that can't be set is left as it was. On Android
+  nothing is called: the library's count reaches only the few launchers
+  that draw their own (it fails on the rest), and its zero cancels
+  every notification the app has showing. Android's launchers mark the
+  icon themselves while one of the app's notifications is in the list.
+  A notification carries no count of its own (`present.ts`,
+  `shouldSetBadge: false`).
 - Android posts to one channel, "Mentions and messages", at high
   importance (`channel.ts`), made before the prompt, which Android
   won't show without one. Its status-bar glyph is
@@ -898,6 +925,7 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
+`alerts/loader.ts`, `alerts/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts` and
 `shouldAsk.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
