@@ -15,6 +15,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { loadActivity, loadOlderActivity, loadReader, type Reader, readActivity } from "../api/activity";
 import { sessionToken } from "../api/servers";
 import { useLoadOnReturn } from "../hooks/useLoadOnReturn";
+import { clearNotifications } from "../notifications/clearNotifications";
 import { useServerEvents } from "../realtime/RealtimeProvider";
 import type { SavedServer } from "../servers";
 import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed";
@@ -35,7 +36,8 @@ import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed
 // says nothing of them), or a mute or a deleted channel made what is
 // held stale. CredentialRevoked says the session has ended. Reading
 // through markRead stamps the items here as the server answers, since
-// MarkActivityRead sends no event.
+// MarkActivityRead sends no event, and takes their notifications out of
+// the system's list (src/notifications/clear.ts).
 
 export type Feed =
   | { state: "loading" }
@@ -241,6 +243,8 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
       if (!session) throw new Error("Signed out.");
       try {
         stampRead(ids, await readActivity(server.origin, session, ids));
+        // What was read no longer waits in the system's list.
+        void clearNotifications({ serverId: server.id, ...(ids === "all" ? { all: true } : { itemIds: ids }) });
       } catch (err) {
         if (unauthenticated(err)) end();
         throw err;

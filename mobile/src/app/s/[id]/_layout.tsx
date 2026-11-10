@@ -1,6 +1,7 @@
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import ActivityProvider from "../../../activity/ActivityProvider";
 import AlertsProvider from "../../../alerts/AlertsProvider";
+import OpenTappedNotification from "../../../notifications/OpenTappedNotification";
 import { useAskToNotify } from "../../../notifications/permission";
 import { CurrentServer, useServer } from "../../../servers";
 import { sessionKey } from "../../../servers/sessionKey";
@@ -17,7 +18,9 @@ import { useTheme } from "../../../theme";
 // total on that tab beside it (src/alerts). All of it starts again on a
 // new sign-in, which may be another account's on the same ID. The app
 // asks to notify when the first server shows
-// (src/notifications/permission.ts).
+// (src/notifications/permission.ts), and a tapped notification is
+// opened from here, on this stack
+// (src/notifications/OpenTappedNotification.tsx).
 export const unstable_settings = { anchor: "(tabs)" };
 
 // A channel's header, and a thread's, has no bar of its own: the list
@@ -43,6 +46,7 @@ export default function ServerLayout() {
     <CurrentServer server={server}>
       <ActivityProvider key={sessionKey(server)} server={server}>
         <AlertsProvider key={sessionKey(server)} server={server}>
+          <OpenTappedNotification server={server} />
           <Stack
             screenOptions={{
               title: "",
