@@ -65,7 +65,7 @@ brand/masters/   hand-drawn SVGs, the only files edited by hand
 brand/build.mjs  `make brand`: cuts everything below
 brand/dist/      committed outputs for other repos (desktop/, press/)
 web/public/      the web icon set, written directly, served from the root
-mobile/assets/   the phone app's mark, written directly
+mobile/assets/   the phone app's mark and notification glyph, written directly
 ```
 
 **Masters.**
@@ -122,6 +122,7 @@ icon at 256 and 1024, for a README, a site, a listing.
 | File | From | Read by |
 | --- | --- | --- |
 | `mark.png`, `@2x`, `@3x` | `mark` at 96 pt, in black | `mobile/src/screens/Welcome.tsx`, tinted with the theme's accent (`tintColor`) |
+| `notification-icon.png` | `badge` at 96 px, in white | `mobile/app.json`, the `expo-notifications` plugin's `icon`: Android's status-bar glyph, tinted Brownstone's accent |
 
 ## Regenerating
 

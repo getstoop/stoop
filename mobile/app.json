@@ -29,6 +29,14 @@
       "expo-secure-store",
       "expo-web-browser",
       [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false,
+          "icon": "./assets/notification-icon.png",
+          "color": "#b5482f"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Stoop lets you pick photos and videos to send in a message.",

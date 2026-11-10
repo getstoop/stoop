@@ -4,7 +4,7 @@
 > **Work in progress. Do not build or install this app.**
 >
 > It is not a finished Stoop client: it reads and writes messages but
-> notifies of nothing, joins no voice room, is built against a
+> notifies only while it is open, joins no voice room, is built against a
 > development server over plain HTTP, and is not released, signed for
 > distribution or supported. Use Stoop in the browser. The steps below
 > are only for people developing the app itself.
@@ -36,8 +36,11 @@ asks first), picks the theme, lists the phone's servers and signs out.
 A channel or a conversation is read and written in: messages with their
 Markdown, reactions, replies, threads, files and pins, a composer that
 formats, mentions, attaches and keeps its draft, and a search of the
-space. Not there yet: notifications of any kind, joining a voice room,
-and account settings beyond the profile.
+space. While the app is in front, a mention, a reply or a direct message
+on any saved server rings as a system notification (Notifications,
+below). Not there yet: notifications while the app is closed, opening
+one from a tap, joining a voice room, and account settings beyond the
+profile.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -673,6 +676,54 @@ screen was left joins them to the stored draft, there on return, and a
 send the app died during comes back as a draft once it has had its time
 (`SEND_STALL_MS`, which is also the send's timeout).
 
+## Notifications
+
+While the app is in front, each activity item a saved server's socket
+delivers (ActivityItemCreated: a mention, a reply, a thread's reply, a
+direct message) is shown as a system notification, a banner with the
+default sound that stays in the notification list
+(`src/notifications`, `expo-notifications`, a native module with a
+config plugin, so a build on the phone needs `make mobile-prebuild` and
+`make mobile-ios` again). Every saved server rings, not only the one on
+screen (`NotificationsProvider.tsx`, one listener per session inside
+the realtime provider). Only the live event rings: what the feed loads
+after a reconnect is history. There is no push, so nothing arrives
+while the app is in the background; a tap opens the app and goes
+nowhere yet, and the app's icon carries no badge.
+
+- What it says is `content.ts`: the title is who and what ("Priya Shah
+  mentioned you", core's `activityVerb`), a direct message's just its
+  sender; the subtitle where, nearest first ("#general · Neighbours ·
+  Elm Street"), with the space only when the account is in several and
+  the server only when several are saved; the body the server's
+  preview. Its identifier is the server's ID and the entry's key
+  (`core/activity` `activityEntryKey`), so a conversation or a thread
+  holds one notification, each message replacing the last, and a
+  mention or a reply is its own. Its data (`NotificationData`) says
+  where it points, the one shape a tap and, later, a push will read.
+- The names come from lists kept per session (`places.ts`), asked for
+  when an item first needs them and once more for a channel made since;
+  a notification waits two seconds for them at most, then goes out
+  without.
+- Nothing rings for what the server stamped muted, what is already
+  read, or what is being read as it arrives (`quiet.ts`): a channel's
+  or a conversation's arrival while that screen is in front, a thread's
+  reply while that thread is. A thread's reply still rings over its
+  channel. The channel and thread screens say when they are the place
+  on screen (`focus.ts`).
+- The app asks to notify the first time a signed-in server shows
+  (`permission.ts`, from `src/app/s/[id]/_layout.tsx`), with the
+  system's prompt alone, and only while the person hasn't answered. On
+  Android 13 and later, which reports no such state, it asks while the
+  system still lets it: on first run, and once more after one refusal.
+  Refused, nothing shows and nothing else changes.
+- Android posts to one channel, "Mentions and messages", at high
+  importance (`channel.ts`), made before the prompt, which Android
+  won't show without one. Its status-bar glyph is
+  `assets/notification-icon.png`, the mark in white cut by `make brand`,
+  tinted Brownstone's accent (`app.json`). On iOS the plugin is told to
+  add no push entitlement (`enableRemoteNotifications: false`).
+
 ## Themes
 
 The app wears the web app's themes. `src/theme/generated.ts` is written
@@ -800,7 +851,8 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
-`Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
+`notifications/content.ts`, `quiet.ts` and `places.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
