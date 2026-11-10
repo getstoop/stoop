@@ -1,6 +1,6 @@
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
-// One log per channel (docs/proposals/channel-log.md): every row known by
+// One log per channel (docs/architecture/channel-log.md): every row known by
 // id, the position through which every change is known, and the views
 // that range over it. The rules that change one are the functions beside
 // this file; each returns the same object when nothing changed.

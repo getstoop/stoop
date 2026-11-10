@@ -51,7 +51,7 @@ func messageSeq(t *testing.T, pool *pgxpool.Pool, messageID string) int64 {
 
 // Every write that changes how a message renders takes the channel's next
 // seq and stamps the row with it; a write that changes nothing takes none
-// (docs/proposals/channel-log.md).
+// (docs/architecture/channel-log.md).
 func TestChannelLogStampsEveryWrite(t *testing.T) {
 	pool, _, svc := newTestService(t)
 	deleter := &deletingUnfurler{fakeUnfurler: &fakeUnfurler{fetches: map[string]int{}}}

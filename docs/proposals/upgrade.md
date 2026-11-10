@@ -266,5 +266,3 @@ command.
   bare-binary path, a Windows build (GoReleaser targets linux and
   darwin), and migrating from the new image while the old one still
   serves.
-- STOOP-294 is still in Backlog in Plane and should be closed or
-  retitled to the phase 3 work.

@@ -143,7 +143,7 @@ reader has in view is a range over it that pages at both ends, jumps,
 and takes events by position. Holding that as a cached array meant
 request bookkeeping (events kept per in-flight request, a reconnect
 counter) and a reconnect that refetched everything. The channel log
-([../proposals/channel-log.md](../proposals/channel-log.md)) is a store
+([channel-log.md](channel-log.md)) is a store
 built for it: one log per channel, rows merged by the `seq` the server
 stamps on every change, and a reconnect that asks `ListChanges` for what
 was missed from the seq it holds. Nothing about a message is in the

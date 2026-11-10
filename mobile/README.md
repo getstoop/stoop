@@ -92,12 +92,15 @@ import a screen; the screens themselves live in `src/screens`, so
   the composer goes. Emptying the field and leaving discards it; a draft
   untouched for seven days expires; signing out of a server, or removing
   it, deletes every account's drafts for it (`useLeaveServer`). During an
-  edit the draft set aside is what is saved, never the edit. The
-  documents folder is in device backups on both platforms
-  (`expo-file-system` can't leave a folder out, and `android.allowBackup`
-  isn't set), so a backup carries draft text; one restored to another
+  edit the draft set aside is what is saved, never the edit. On iOS the
+  documents folder is in device backups (`expo-file-system` can't leave
+  a folder out), so a backup carries draft text; one restored to another
   phone has no saved servers, and the sweep at first start deletes it.
-  Setting `android.allowBackup` to false is an open question. On iOS 26
+  On Android no backup or device transfer carries it: the rules
+  `expo-secure-store`'s plugin installs include shared preferences only
+  (less its own), and a rule that includes anything leaves the rest
+  out, files among them. `android.allowBackup` is left at its default,
+  since turning it off would change nothing we keep. On iOS 26
   the surface is Liquid Glass
   (`expo-glass-effect`); older iOS and Android draw it with the theme's
   panel and border under a light shadow. The channel's header, and the

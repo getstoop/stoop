@@ -70,5 +70,4 @@ nothing installed on the server — and says plainly which of them can
 carry voice audio. A companion app for phones is being built in
 [`mobile/`](../mobile/README.md) and is not released. A larger change
 starts as a proposal in [proposals/](proposals/); once it is built the
-architecture docs describe the result and the proposal is usually
-deleted.
+architecture docs describe the result and the proposal is deleted.

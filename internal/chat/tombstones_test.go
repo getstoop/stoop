@@ -80,7 +80,7 @@ func eventKinds(sub *events.Subscription) []string {
 // hanging off the row, one seq higher; nobody is shown it, except a root
 // kept as the placeholder of a thread with live replies. The events are
 // the ones the client expects of today's deletes
-// (docs/proposals/channel-log.md, step 3).
+// (docs/architecture/channel-log.md, step 3).
 func TestDeletesLeaveTombstones(t *testing.T) {
 	pool, bus, svc := newTestService(t)
 	files := &dbFiles{pool: pool}

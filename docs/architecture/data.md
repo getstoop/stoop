@@ -153,7 +153,7 @@ timestamp ordering because ids are UUIDv7 — see below. Search reads the
 GIN index on `search` instead
 ([messaging.md](messaging.md#search)).
 
-`seq` is the channel log ([proposals/channel-log.md](../proposals/channel-log.md)).
+`seq` is the channel log ([channel-log.md](channel-log.md)).
 `channels.seq` counts the channel's render-affecting message writes, and
 each one — a send, an edit, a delete, a reaction, a pin or unpin, a link
 preview arriving or dismissed, a root whose thread summary changed —

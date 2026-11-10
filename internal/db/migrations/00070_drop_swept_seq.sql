@@ -1,6 +1,6 @@
 -- +goose Up
 -- Owned by the chat module. channels.swept_seq goes
--- (docs/proposals/channel-log.md): 0.14.0's retention sweep wrote it,
+-- (docs/architecture/channel-log.md): 0.14.0's retention sweep wrote it,
 -- nothing ever read it, and 0.15.0 stopped writing it.
 --
 -- Contract: 0.15.0's generated queries still name the column wherever
