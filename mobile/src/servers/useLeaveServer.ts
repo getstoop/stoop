@@ -9,10 +9,11 @@ import { useServers } from "./index";
 // server that may never answer, and it is on its way even if forgetting
 // the server then fails. A rejection means the server is still saved here,
 // though its session may be over. Once it is forgotten, every account's
-// drafts for it go too (docs/proposals/drafts.md). The store refuses a
-// write for a server not in its saved set, which the provider updates as
-// the list changes and deleteServerDrafts trims itself, so a composer
-// saving as it goes away, or a send failing late, can't write them back.
+// drafts for it go too (docs/architecture/messaging.md → The composer).
+// The store refuses a write for a server not in its saved set, which the
+// provider updates as the list changes and deleteServerDrafts trims
+// itself, so a composer saving as it goes away, or a send failing late,
+// can't write them back.
 export function useLeaveServer() {
   const { forget } = useServers();
   return useCallback(

@@ -1,16 +1,16 @@
-# Proposal: the channel log
+# The channel log: how it came to be
 
-Approved 2026-10-21; built in seven pull requests the same week, with the
-contract half of its migration one release later. Replaces
-the client's request bookkeeping with a per-channel sequence, makes
-deletes tombstones, moves messages out of the query cache into their own
-store, and virtualises the message list. This document is the record:
-what was planned, what was built, where the two differ and why, and what
-is still open. The architecture docs describe the result
-([architecture/messaging.md](../architecture/messaging.md#history),
-[architecture/realtime.md](../architecture/realtime.md#the-channel-log-on-the-client),
-[architecture/web.md](../architecture/web.md#the-channel-log-store),
-[architecture/data.md](../architecture/data.md#chat)).
+Proposed and approved 2026-10-21; built in seven pull requests the same
+week, with the contract half of its migration one release later. It
+replaced the client's request bookkeeping with a per-channel sequence,
+made deletes tombstones, moved messages out of the query cache into
+their own store, and virtualised the message list. This document is the
+record: what was planned, what was built, where the two differ and why,
+and what is still open. It began as a proposal and is kept because the
+reasons are worth more than the result alone. The other architecture
+docs describe the result ([messaging.md](messaging.md#history),
+[realtime.md](realtime.md#the-channel-log-on-the-client),
+[web.md](web.md#the-channel-log-store), [data.md](data.md#chat)).
 
 ## Why
 

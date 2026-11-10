@@ -10,7 +10,7 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 )
 
-// The channel log (docs/proposals/channel-log.md): every write that
+// The channel log (docs/architecture/channel-log.md): every write that
 // changes how a message renders takes the channel's next seq and stamps
 // the row with it, in the write's own transaction. The stamp comes first
 // in that transaction, so every RPC transaction that writes message rows

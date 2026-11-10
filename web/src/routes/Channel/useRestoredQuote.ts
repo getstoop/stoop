@@ -3,7 +3,7 @@ import { hasOpened, useRow, useView } from "../../api/channelLog";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 // The quote of a shown draft belongs to the screen, which owns the reply
-// (docs/proposals/drafts.md): once the log has its first page, the reply
+// (docs/architecture/messaging.md → The composer): once the log has its first page, the reply
 // is the quoted message if it is held there and not deleted, and nothing
 // otherwise. A draft with no quote clears the reply at once. Returns the
 // setter the composer calls with the stored quote's id, or none.

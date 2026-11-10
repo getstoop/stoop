@@ -13,7 +13,7 @@ import {
 
 // The composer's words, kept on the device under their key (core/drafts.ts
 // → draftKey) so they are there when the channel or thread opens again
-// (docs/proposals/drafts.md). The composer shows `text`, reports typing
+// (docs/architecture/messaging.md → The composer). The composer shows `text`, reports typing
 // through `setText` and brackets each send with `startSend`; this saves,
 // restores and follows the other tab. Without a key (no account: the
 // story) it is plain state.

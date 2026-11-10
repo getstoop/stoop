@@ -1,6 +1,6 @@
 -- +goose Up
 -- Owned by the chat module. The contract half of the channel log
--- (docs/proposals/channel-log.md): 00068 added messages.seq nullable and
+-- (docs/architecture/channel-log.md): 00068 added messages.seq nullable and
 -- every write since 0.14.0 stamps it, so this release makes it NOT NULL.
 --
 -- Backfill first. A row with no seq was written by a 0.13.0 binary during

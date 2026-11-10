@@ -3,11 +3,11 @@
 > [!CAUTION]
 > **Work in progress. Do not build or install this app.**
 >
-> It is not a usable Stoop client: it signs in and stops there,
-> it talks to a development server over plain HTTP, and it is not
-> released, signed for distribution or supported. Use Stoop in the
-> browser. The steps below are only for people developing the app
-> itself.
+> It is not a finished Stoop client: it reads and writes messages but
+> notifies of nothing, joins no voice room, is built against a
+> development server over plain HTTP, and is not released, signed for
+> distribution or supported. Use Stoop in the browser. The steps below
+> are only for people developing the app itself.
 
 The React Native app, built with Expo as a **development build**: a native
 app of our own (not Expo Go) that installs from a Mac onto a real iPhone or
@@ -28,9 +28,16 @@ has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the server's count of what is addressed
 to you past your read markers on its tab, each opening its channel or
 thread at the message;
-Messages, still empty; and You, which says who you are, opens Edit
+Messages, this account's direct messages and groups, newest first, each
+opening its conversation, with New message picking who to talk to; and
+You, which says who you are, opens Edit
 profile (your names, pronouns, bio and avatar; leaving with unsaved edits
-asks first), picks the theme and signs out.
+asks first), picks the theme, lists the phone's servers and signs out.
+A channel or a conversation is read and written in: messages with their
+Markdown, reactions, replies, threads, files and pins, a composer that
+formats, mentions, attaches and keeps its draft, and a search of the
+space. Not there yet: notifications of any kind, joining a voice room,
+and account settings beyond the profile.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -85,7 +92,15 @@ import a screen; the screens themselves live in `src/screens`, so
   the composer goes. Emptying the field and leaving discards it; a draft
   untouched for seven days expires; signing out of a server, or removing
   it, deletes every account's drafts for it (`useLeaveServer`). During an
-  edit the draft set aside is what is saved, never the edit. On iOS 26
+  edit the draft set aside is what is saved, never the edit. On iOS the
+  documents folder is in device backups (`expo-file-system` can't leave
+  a folder out), so a backup carries draft text; one restored to another
+  phone has no saved servers, and the sweep at first start deletes it.
+  On Android no backup or device transfer carries it: the rules
+  `expo-secure-store`'s plugin installs include shared preferences only
+  (less its own), and a rule that includes anything leaves the rest
+  out, files among them. `android.allowBackup` is left at its default,
+  since turning it off would change nothing we keep. On iOS 26
   the surface is Liquid Glass
   (`expo-glass-effect`); older iOS and Android draw it with the theme's
   panel and border under a light shadow. The channel's header, and the
@@ -202,15 +217,21 @@ import a screen; the screens themselves live in `src/screens`, so
 - A message's files are drawn under its words, in the channel and the
   thread (`src/components/Attachments`, sized before layout by its
   `layout.ts` from the width and height the server measured, so a row
-  never jumps; `docs/proposals/mobile-attachments-inline.md`): one
+  never jumps; `docs/architecture/files.md` → Attachment image sizes): one
   image at its own size, shrunk to the words' width and 320 high, on
   the panel; one the server has no size for in a fixed 4:3 box with
   the image fitted inside; one video as web's frame, 280 by 158 on
   black with its round play badge and its name and size in a bar over
-  its foot (no still, as the server makes none, and nothing plays in
-  the list); two or more images and videos in a grid of square tiles,
-  two to a row, all shown, a video's black with the badge, and the
-  other files after them; an audio file as web's player, its name and
+  its foot, over the video's first frame once the phone has read it
+  (the server makes no still, so `src/api/posters.ts` asks the system's
+  player for one from `/files`, two at a time, keeps it as a JPEG in
+  the app's cache and clears it on sign-out; `expo-video-thumbnails`,
+  patched in `mobile/patches/` to read at most 1024 px on a side and, on
+  iOS, off the queue other modules share; a tile stays black until the
+  frame comes, and one that fails isn't asked for again for a minute;
+  nothing plays in the list); two or more images and videos in a grid
+  of square tiles, two to a row, all shown, a video's its first frame
+  filling the tile under the badge, and the other files after them; an audio file as web's player, its name and
   size over a player of the app's own (below); any other file as
   web's card; an expired file as web's dashed placeholder, which
   fetches nothing. An image loads from
@@ -306,6 +327,14 @@ import a screen; the screens themselves live in `src/screens`, so
   locks itself; and `expo-video` leaves the audio session active after
   a pause, so music another app was playing doesn't come back on its
   own (the viewer's video is the same).
+- Not yet, for files: an in-app preview (a tap on a file only shares
+  it), Save to Photos, pausing a GIF under the system's Reduce Motion,
+  picking a download up where it stopped, and
+  uploading in pieces (a file over the cap just fails). On the server:
+  thumbnails for images uploaded before thumbnails were made, and a
+  video's size and length read at upload, which is why a lone video is
+  a fixed frame with no length on it. Web doesn't yet reserve an image's
+  space from the sizes the server measures.
 - A long press on a message opens its menu
   (`src/screens/Channel/MessageMenu.tsx`): the channel under a scrim, the
   message drawn once more as a card, and a sheet of five quick reactions

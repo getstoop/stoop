@@ -117,6 +117,7 @@ one its reasoning, its enforcement, and what it costs.
 | [identity.md](identity.md) | Accounts, passwords, sessions, OIDC sign-in, rate limiting, and the CSRF posture. |
 | [permissions.md](permissions.md) | The two permission axes, the fixed permission table, invites, bans, and blocks. |
 | [messaging.md](messaging.md) | Messages and their Markdown, mentions and activity, unreads, history and the channel log (`seq`, tombstones, `ListChanges`), direct messages, and link previews. |
+| [channel-log.md](channel-log.md) | The record of the channel log: why it replaced request bookkeeping, the contract and the client as built, where the build left the plan, and what is known and left as is. |
 | [files.md](files.md) | Uploads, image normalisation, the blob port, the download handler, the sweep, and the quota. |
 | [voice.md](voice.md) | LiveKit tokens, the signaling proxy, ICE and TURN, the stage, and why media never touches Stoop. |
 | [web.md](web.md) | The React client: routing, the query cache and the channel log store as the one home of each fact, themes, the settings frame, tables, and the virtualised message list. |

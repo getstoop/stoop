@@ -3,8 +3,8 @@
 // curated row of the usual suspects, hand-written search keywords for
 // the common ones, and the search over all of it. What was used recently
 // is each client's own store (web/src/api/emoji.ts, mobile/src/api/emoji.ts)
-// over the pure list rules here. Custom emoji per space will arrive with
-// file uploads and fit the same shape.
+// over the pure list rules here. Custom emoji per space are not built;
+// they would fit the same shape.
 
 import { EMOJI_GROUPS } from "./emojiData";
 import { aliasesFor } from "./shortcodes";

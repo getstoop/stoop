@@ -1,5 +1,5 @@
 -- +goose Up
--- Owned by the chat module. The channel log (docs/proposals/channel-log.md):
+-- Owned by the chat module. The channel log (docs/architecture/channel-log.md):
 -- channels.seq counts the channel's render-affecting message writes, and
 -- each one stamps messages.seq with the value it took, so a client can
 -- tell which copy of a row is newer and what it has missed. swept_seq is

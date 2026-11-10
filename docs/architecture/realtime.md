@@ -67,7 +67,7 @@ client reconnects and refetches. So:
   (`Message.seq` on `message_created` and `message_updated`, a `seq`
   field on `message_deleted`, `reactions_changed`, `message_pinned` and
   `thread_changed`;
-  [proposals/channel-log.md](../proposals/channel-log.md)). Positions are
+  [channel-log.md](channel-log.md)). Positions are
   monotonic per channel but not dense — a rolled-back write leaves a gap
   — so a client cannot tell a lost event from a gap in the numbering. It
   can, and the socket guarantees nothing else, apply events by "higher

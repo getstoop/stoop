@@ -1,5 +1,5 @@
 // The channel log: one log per channel, every row by id, merged by seq,
-// with the views that range over it (docs/proposals/channel-log.md). Pure;
+// with the views that range over it (docs/architecture/channel-log.md). Pure;
 // the loader in web/src/api/channelLog.ts makes the requests and keeps the
 // logs in its store.
 

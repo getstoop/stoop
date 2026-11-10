@@ -1,8 +1,8 @@
 import { isBlankMessage } from "./markdown/text";
 import { restoreDraft } from "./unsent";
 
-// The rules for an unsent message kept on the device (docs/proposals/
-// drafts.md). A key names one account's words in one channel or thread;
+// The rules for an unsent message kept on the device
+// (docs/architecture/messaging.md → The composer). A key names one account's words in one channel or thread;
 // its entry has two slots, the `draft` the field shows and the `sending`
 // it hides while a send is out. Every rule is a pure function taking the
 // time, so each client's store (web: api/drafts.ts over localStorage;

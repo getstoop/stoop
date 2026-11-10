@@ -258,7 +258,24 @@ document, and Markdown is what it sends and what it loads to edit.
   reload or an ended session no longer loses it. Drafts live on the
   device (`localStorage`; the rules in `web/src/core/drafts.ts`, the
   store in `web/src/api/drafts.ts`), signing out deletes them, and one
-  untouched for seven days expires.
+  untouched for seven days expires. The phone keeps its own the same way
+  ([mobile/README.md](../../mobile/README.md)).
+- **What a draft is not.** It is the words and their quote: files picked
+  and an edit in progress still go with the screen. Each device keeps its
+  own, so nothing reaches the server or another device, and no list
+  marks the conversations that hold one. Emptying the field is how one
+  is discarded. An ended session keeps its drafts until they expire, so
+  the words are there after signing in again; the cost, accepted, is
+  that "Log out everywhere" from another device leaves them readable on
+  this one, and an expired draft is only removed when the app next
+  starts, so on a device never opened again it stays. In the desktop
+  app a draft sits in its server's partition
+  ([desktop.md](desktop.md#sessions)); removing a server there clears
+  nothing of its own, and since that partition is never opened again
+  nothing sweeps it, so the drafts stay on disk. Accepted. Two smaller ones are accepted too: a send cut off
+  after the server took the message brings the words back beside it, and
+  a draft whose quoted message is outside what is loaded comes back
+  without the quote.
 
 ### The phone's field
 
@@ -797,7 +814,7 @@ doesn't exist, so an id can't be probed for existence.
 `channel_seq` on the response is the channel's `seq`, read before the page
 query, so anything that commits after it has a higher seq and reaches the
 client as a change; each row carries the `seq` it was last stamped with
-([data.md](data.md#chat), [proposals/channel-log.md](../proposals/channel-log.md)).
+([data.md](data.md#chat), [channel-log.md](channel-log.md)).
 
 ### Catching up: `ListChanges`
 
@@ -986,7 +1003,7 @@ anyone from.
   row used to vanish, and `MessageUpdated` with `deleted` set for a
   placeholder; the events keep their kinds because outgoing webhooks
   forward them ([realtime.md](realtime.md#serverevent),
-  [proposals/channel-log.md](../proposals/channel-log.md)). Only the
+  [channel-log.md](channel-log.md)). Only the
   retention sweep hard-deletes message rows. `messages.moderate` covers
   other people's; your own are always yours.
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is
