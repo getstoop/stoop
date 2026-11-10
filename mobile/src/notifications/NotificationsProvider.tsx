@@ -1,3 +1,4 @@
+import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { loadChannelList, loadSpaceList } from "../api/activity";
@@ -6,8 +7,8 @@ import { useServerEvents } from "../realtime/RealtimeProvider";
 import { type SavedServer, useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
 import { readOfPlace } from "./clear";
-import { clearNotifications } from "./clearNotifications";
 import { notificationContent } from "./content";
+import { dismissNotifications } from "./dismiss";
 import { focusedPlace, onFocusedPlace } from "./focus";
 import { placesCache } from "./places";
 import { present } from "./present";
@@ -23,14 +24,17 @@ import { useNotificationTaps } from "./taps";
 // (quiet.ts).
 //
 // A notification stays in the system's list only while what it points
-// at is unread (clear.ts): a channel or a thread coming on screen clears
-// its own, as does its read marker moving, on this device or another;
-// a session's all go when it ends or its server is forgotten. Tapping
-// one is heard here too (taps.ts) and opened by the server's layout.
+// at is unread (clear.ts for which, dismiss.ts for the taking out): a
+// channel or a thread coming on screen clears its own, which coming
+// back to the app on one does again, as does its read marker moving,
+// on this device or another; a session's all go when it ends or its
+// server is forgotten. A read that lands while a notification still
+// waits for its names doesn't stop it showing. Tapping one is heard
+// here too (taps.ts) and opened by the server's layout.
 export default function NotificationsProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
   useNotificationTaps(servers);
-  useEffect(() => onFocusedPlace((place) => void clearNotifications(readOfPlace(place))), []);
+  useEffect(() => onFocusedPlace((place) => void dismissNotifications(readOfPlace(place))), []);
   return (
     <>
       {servers.map((server) => (
@@ -62,22 +66,11 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
     mounted.current = true;
     return () => {
       mounted.current = false;
-      void clearNotifications({ serverId: server.id, all: true });
+      void dismissNotifications({ serverId: server.id, all: true });
     };
   }, [server.id]);
 
-  useServerEvents(server.id, (event: ServerEvent) => {
-    const { payload } = event;
-    if (payload.case === "channelRead") {
-      void clearNotifications({ serverId: server.id, channelId: payload.value.channelId });
-    } else if (payload.case === "threadRead") {
-      void clearNotifications({ serverId: server.id, threadRootId: payload.value.rootMessageId });
-    } else if (payload.case === "credentialRevoked") {
-      void clearNotifications({ serverId: server.id, all: true });
-    }
-    if (payload.case !== "activityItemCreated") return;
-    const item = payload.value.item;
-    if (!item) return;
+  const ring = (item: ActivityItem) => {
     const { channelId, threadRootId, muted } = item;
     const arrival = { serverId: server.id, channelId, threadRootId, muted, read: !!item.readAt };
     if (staysQuiet(arrival, focusedPlace())) return;
@@ -91,6 +84,23 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
       })
       // A notification that can't be shown is dropped.
       .catch(() => {});
+  };
+
+  useServerEvents(server.id, ({ payload }: ServerEvent) => {
+    switch (payload.case) {
+      case "activityItemCreated":
+        if (payload.value.item) ring(payload.value.item);
+        break;
+      case "channelRead":
+        void dismissNotifications({ serverId: server.id, channelId: payload.value.channelId });
+        break;
+      case "threadRead":
+        void dismissNotifications({ serverId: server.id, threadRootId: payload.value.rootMessageId });
+        break;
+      case "credentialRevoked":
+        void dismissNotifications({ serverId: server.id, all: true });
+        break;
+    }
   });
   return null;
 }

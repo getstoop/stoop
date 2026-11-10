@@ -1,6 +1,6 @@
 import { type ActivityItem, ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import { describe, expect, it } from "vitest";
-import { notificationContent } from "./content";
+import { notificationContent, notificationData } from "./content";
 
 const server = { id: "abc123", name: "Elm Street" };
 
@@ -84,5 +84,29 @@ describe("notificationContent", () => {
       threadRootId: "root",
       messageId: "m1",
     });
+  });
+});
+
+describe("notificationData", () => {
+  const sent = notificationContent(item(), server, {}, false).data;
+
+  it("comes back as it was sent", () => {
+    expect(notificationData({ ...sent })).toEqual(sent);
+    const direct = notificationContent(dm(), server, {}, false).data;
+    expect(notificationData({ ...direct, extra: 1 })).toEqual(direct);
+  });
+
+  it("is nothing when it isn't the payload", () => {
+    expect(notificationData(undefined)).toBeNull();
+    expect(notificationData(null)).toBeNull();
+    expect(notificationData("a")).toBeNull();
+    expect(notificationData({})).toBeNull();
+    expect(notificationData({ ...sent, serverId: "" })).toBeNull();
+    expect(notificationData({ ...sent, itemId: "" })).toBeNull();
+    expect(notificationData({ ...sent, channelId: 7 })).toBeNull();
+    expect(notificationData({ ...sent, messageId: undefined })).toBeNull();
+    expect(notificationData({ ...sent, threadRootId: null })).toBeNull();
+    expect(notificationData({ ...sent, spaceId: undefined })).toBeNull();
+    expect(notificationData({ ...sent, kind: "mention" })).toBeNull();
   });
 });

@@ -723,35 +723,46 @@ icon carries no badge.
 - A tap opens the message, whether the app was in front, in the
   background or closed: the thread at the reply when the item has a
   thread, else the channel or the conversation at the message, the
-  route an Activity row opens (`open.ts`, which also checks the data
+  route an Activity row opens (`open.ts`; `content.ts` checks the data
   the system hands back), with the item read on the way. The tap is
   heard at the root (`taps.ts`): as an event while the app runs, and
   from the library's last response for the tap that launched it, which
   every later tap also sets, so each response is cleared as it is heard
-  and accepted once by its key. It is opened from the server's layout
-  (`OpenTappedNotification.tsx`), the only place that server's stack
-  can be pushed onto, so the root leaves it in a small store between
-  the two (`pendingTap.ts`). A tap for another saved server swaps to it
-  as the switcher does (`swapServer`, then first in the list) and that
-  server's layout opens it as it mounts; one whose sign-in has ended
-  shows that. A sheet or screen over the server (the switcher, a
-  sign-in, New message) is closed first. On the screen it points at
-  nothing is pushed and the screen goes to the message; from one of the
-  channel's threads the app goes back to the channel. Data that isn't
-  ours, or a server forgotten since, does nothing more than open the
-  app, and a tap not opened within ten seconds is dropped.
+  and accepted once by its key (`tapped.ts`: the notification's
+  identifier and when it was shown). It is opened from the server's
+  layout (`OpenTappedNotification.tsx`), the only place that server's
+  stack can be pushed onto, so the root leaves it in a small store
+  between the two (`pendingTap.ts`); what the layout does with it is
+  decided in `open.ts` (`tapAction`). A tap for another saved server
+  swaps to it as the switcher does (`swapServer`, then first in the
+  list) and that server's layout opens it as it mounts; if its sign-in
+  has ended, the channel opens all the same and says so. A sheet or
+  screen over the server (the switcher, a sign-in, New message) is
+  closed first, and the screen is then pushed even if it was the one
+  beneath. On the screen it points at nothing is pushed: a channel
+  jumps to the message, and a thread, which lands only as it opens,
+  stays where it is. From one of the channel's threads the app goes
+  back to the channel. Data that isn't ours, or a server forgotten
+  since, does nothing more than open the app, and a tap not opened
+  within ten seconds is dropped.
 - A notification stays in the list only while what it points at is
-  unread (`clear.ts` for which, `clearNotifications.ts` for the
-  dismissing, by the data each presented notification carries). A
-  channel or a conversation coming on screen clears what landed in it,
-  not its threads' replies; a thread's screen clears that thread's; the
-  same when ChannelRead or ThreadRead arrives on the server's socket,
-  so reading on another device clears them here. Marking activity read
-  clears those items, or all of that server's (`ActivityProvider`'s
-  `markRead`). A session ending (CredentialRevoked), signing in again
-  and forgetting the server clear all of that server's. Coming back to
-  the app clears nothing by itself. Both systems take a tapped
-  notification out themselves.
+  unread (`clear.ts` for which, `dismiss.ts` for the taking out, by the
+  data each presented notification carries). A channel or a
+  conversation coming on screen clears what landed in it, not its
+  threads' replies; a thread's screen clears that thread's; the same
+  when ChannelRead or ThreadRead arrives on the server's socket, so
+  reading on another device clears them here. Coming back to the app
+  on one of those screens puts it on screen again, and clears the same.
+  Marking activity read clears those items, or all of that server's
+  (`ActivityProvider`'s `markRead`). A session ending (CredentialRevoked,
+  or a request the server refuses), signing in again and forgetting the
+  server clear all of that server's. Both systems take a tapped
+  notification out themselves. Not cleared: a thread's reply also sent
+  to the channel, by the channel's read (its data doesn't say it is in
+  the channel; the thread's read clears it); a notification still
+  waiting for its names when the read lands, which then shows; and
+  anything by the person's own message sent from another device, for
+  which the server sends no ChannelRead.
 - Android posts to one channel, "Mentions and messages", at high
   importance (`channel.ts`), made before the prompt, which Android
   won't show without one. Its status-bar glyph is

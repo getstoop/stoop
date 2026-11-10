@@ -1,21 +1,11 @@
 import type { NotificationData } from "./content";
 
-// The tapped notification waiting to be opened. A tap is heard at the
-// root of the app (taps.ts), but its message opens on a server's own
-// stack, which only that server's layout can push onto, and which may
-// not be the server on screen, or mounted at all yet when the tap
-// launched the app. So the root leaves the tap here and the server
-// layout on screen (OpenTappedNotification.tsx) picks it up: its own it
-// takes and opens; another saved server's it swaps to, and that
-// server's layout takes it as it mounts. Kept outside React so it
-// outlives the swap between the two.
-//
-// Each tap is opened once. The system reports a tap both as an event
-// and as its "last response", and either may be read again after a
-// re-render or a return from the background, so a response is accepted
-// by its key only the first time; and what is taken is gone. A tap
-// nobody took in time is dropped: the app just opened, and it won't
-// jump somewhere minutes later.
+// The one tapped notification waiting to be opened, left by whoever
+// heard the tap (taps.ts) for the server layout that opens it
+// (OpenTappedNotification.tsx); outside React, so it outlives a swap
+// from one server's layout to another's. A tap is accepted once by its
+// key, taken once, and dropped when nobody takes it in time, so the app
+// doesn't jump somewhere minutes later.
 
 export const TAP_WAIT_MS = 10_000;
 
@@ -23,14 +13,12 @@ let pending: { data: NotificationData; at: number } | null = null;
 let lastKey: string | undefined;
 const listeners = new Set<() => void>();
 
-// Holds a tap for whoever opens it. False when this response has been
-// accepted before.
-export function acceptTap(key: string, data: NotificationData, now = Date.now()): boolean {
-  if (key === lastKey) return false;
+// Holds a tap for whoever opens it, unless its key was accepted before.
+export function acceptTap(key: string, data: NotificationData, now = Date.now()) {
+  if (key === lastKey) return;
   lastKey = key;
   pending = { data, at: now };
   for (const listener of listeners) listener();
-  return true;
 }
 
 // The tap waiting, left where it is.

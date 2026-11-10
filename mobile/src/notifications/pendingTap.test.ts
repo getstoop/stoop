@@ -33,13 +33,14 @@ describe("the pending tap", () => {
     const k = key();
     const heard = vi.fn();
     const off = onTap(heard);
-    expect(acceptTap(k, tap("a"), 0)).toBe(true);
+    acceptTap(k, tap("a"), 0);
     expect(takeTap("a", 1)).not.toBeNull();
-    expect(acceptTap(k, tap("a"), 2)).toBe(false);
+    acceptTap(k, tap("a"), 2);
     expect(pendingTap(2)).toBeNull();
     expect(heard).toHaveBeenCalledTimes(1);
     off();
-    expect(acceptTap(key(), tap("a"), 3)).toBe(true);
+    acceptTap(key(), tap("a"), 3);
+    expect(pendingTap(3)).not.toBeNull();
     expect(heard).toHaveBeenCalledTimes(1);
   });
 

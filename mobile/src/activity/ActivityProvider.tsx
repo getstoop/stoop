@@ -15,7 +15,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { loadActivity, loadOlderActivity, loadReader, type Reader, readActivity } from "../api/activity";
 import { sessionToken } from "../api/servers";
 import { useLoadOnReturn } from "../hooks/useLoadOnReturn";
-import { clearNotifications } from "../notifications/clearNotifications";
+import { dismissNotifications } from "../notifications/dismiss";
 import { useServerEvents } from "../realtime/RealtimeProvider";
 import type { SavedServer } from "../servers";
 import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed";
@@ -106,7 +106,11 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
     if (alive.current) setFeed(next);
   }, []);
   // The server said the session is over: nothing more to load.
-  const end = useCallback(() => set({ state: "ended" }), [set]);
+  // Its notifications go too, however the end was learnt.
+  const end = useCallback(() => {
+    set({ state: "ended" });
+    void dismissNotifications({ serverId: server.id, all: true });
+  }, [set, server.id]);
 
   const token = useCallback(async () => {
     const held = feedRef.current;
@@ -244,7 +248,7 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
       try {
         stampRead(ids, await readActivity(server.origin, session, ids));
         // What was read no longer waits in the system's list.
-        void clearNotifications({ serverId: server.id, ...(ids === "all" ? { all: true } : { itemIds: ids }) });
+        void dismissNotifications({ serverId: server.id, ...(ids === "all" ? { all: true } : { itemIds: ids }) });
       } catch (err) {
         if (unauthenticated(err)) end();
         throw err;

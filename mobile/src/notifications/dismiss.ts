@@ -1,11 +1,11 @@
 import * as Notifications from "expo-notifications";
 import { clears, type Read } from "./clear";
-import { notificationData } from "./open";
+import { notificationData } from "./content";
 
 // Takes out of the system's list the notifications a read clears
 // (clear.ts), going by the data each was shown with. One that can't be
 // listed or dismissed stays until it is tapped or swiped away.
-export async function clearNotifications(read: Read): Promise<void> {
+export async function dismissNotifications(read: Read): Promise<void> {
   try {
     const presented = await Notifications.getPresentedNotificationsAsync();
     await Promise.all(

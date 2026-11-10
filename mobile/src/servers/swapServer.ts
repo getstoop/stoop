@@ -35,6 +35,7 @@ export function swapServer(navigation: ServerNavigation, id: string) {
 export function backToServer(navigation: ServerNavigation) {
   const found = serverScreen(navigation);
   if (!found) return;
-  const over = found.state.routes.length - 1 - found.state.routes.lastIndexOf(found.route);
+  // From the screen in front: a route past it isn't over anything.
+  const over = found.state.index - found.state.routes.lastIndexOf(found.route);
   if (over > 0) found.nav.dispatch({ type: "POP", payload: { count: over }, target: found.state.key });
 }

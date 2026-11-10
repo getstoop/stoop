@@ -22,6 +22,13 @@ describe("what a read clears", () => {
     expect(clears(read, { ...inChannel, channelId: "other" })).toBe(false);
   });
 
+  it("leaves a direct message's thread notification when its conversation is read", () => {
+    const dm = { ...inChannel, kind: ActivityKind.DM, spaceId: "", channelId: "d1" };
+    const read = { serverId: "a", channelId: "d1" };
+    expect(clears(read, dm)).toBe(true);
+    expect(clears(read, { ...dm, kind: ActivityKind.THREAD_REPLY, threadRootId: "root" })).toBe(false);
+  });
+
   it("is the thread's notifications for a thread", () => {
     const read = { serverId: "a", threadRootId: "root" };
     expect(clears(read, inThread)).toBe(true);

@@ -7,7 +7,9 @@ import type { FocusedPlace } from "./focus";
 // another device) clears what landed in the channel itself and leaves
 // its threads' replies, which only the thread's read clears; marking
 // activity read clears those items, or all of them; and everything goes
-// when the server is forgotten or its session ends.
+// when the server is forgotten or its session ends. A thread's reply
+// also sent to its channel counts as the thread's alone: the data
+// doesn't say it is in the channel too.
 
 export type Read = { serverId: string } & (
   | { all: true }
