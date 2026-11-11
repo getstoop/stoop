@@ -64,8 +64,8 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
       channels: async (spaceId) => loadChannelList(server.origin, await token(), spaceId),
     });
   });
-  // Whether the session still is: not once this unmounts, nor once its
-  // credential is revoked, which leaves the server saved and this here.
+  // False once this unmounts or the session's credential is revoked
+  // (the server stays saved then, so this stays mounted).
   const live = useRef(true);
   useEffect(() => {
     live.current = true;

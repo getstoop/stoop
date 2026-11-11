@@ -36,8 +36,8 @@ export function backToServer(navigation: ServerNavigation) {
   const found = serverScreen(navigation);
   if (!found) return;
   // Counted from the screen in front (a route past it isn't over
-  // anything) and popped from it: a screen's navigation would otherwise
-  // name its own screen as where the pop starts.
+  // anything) and popped from it: a screen's navigation stamps its own
+  // route key as `source`, and POP counts from `source`.
   const { index, routes, key } = found.state;
   const over = index - routes.lastIndexOf(found.route);
   if (over > 0) found.nav.dispatch({ type: "POP", payload: { count: over }, source: routes[index].key, target: key });
