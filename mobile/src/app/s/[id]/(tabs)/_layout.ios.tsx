@@ -7,8 +7,9 @@ import { useTheme } from "../../../../theme";
 // iOS 26), with SF Symbols for icons, as the native back button the
 // pushed screens already have. Android keeps the drawn bar in
 // _layout.tsx until it has icons of its own. Activity's badge is the
-// server's count of what is addressed to you past your markers, as
-// web's dock badge is (src/alerts), and is hidden at none.
+// server's count of what is addressed to you in the spaces past your
+// markers, and Messages' the unread messages in your conversations
+// (src/alerts), each hidden at none.
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
@@ -20,7 +21,7 @@ export default function TabsLayout() {
   // opened for the first time doesn't flash the system background before
   // its screen draws.
   const content = { backgroundColor: theme.surface };
-  const { total: alerting } = useAlerts();
+  const { activity: alerting, messages: unread } = useAlerts();
 
   return (
     <NativeTabs tintColor={theme.accent} badgeBackgroundColor={theme.danger}>
@@ -39,6 +40,7 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="messages" testID="tab-messages" contentStyle={content}>
         <NativeTabs.Trigger.Label>Messages</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: "bubble.left", selected: "bubble.left.fill" }} />
+        {unread > 0 && <NativeTabs.Trigger.Badge>{badgeCount(unread)}</NativeTabs.Trigger.Badge>}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="you" testID="tab-you" contentStyle={content}>
         <NativeTabs.Trigger.Label>You</NativeTabs.Trigger.Label>

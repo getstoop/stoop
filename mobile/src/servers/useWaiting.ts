@@ -6,8 +6,8 @@ import { sessionToken } from "../api/servers";
 import type { SavedServer } from "./index";
 
 // What is waiting on the servers other than the current one, for the
-// switcher and the You tab: a badge's count, the same total that server's
-// Activity tab shows (src/alerts): the server's alert counts over its
+// switcher and the You tab: a badge's count, the total that server adds
+// to the app's icon (src/alerts): the server's alert counts over its
 // spaces, less the muted ones, plus one per conversation with unread
 // messages (core/alerts alertingTotal), or a sign-in that has ended.
 export type Waiting =

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadAlertLists } from "../api/alerts";
 import { sessionToken } from "../api/servers";
 import { alertsLoader, RELOAD_DELAY_MS } from "./loader";
+import { NO_BADGES } from "./store";
 
 // The lists are stood in for; which events ask again is the real rule.
 vi.mock("../api/alerts", async (original) => ({
@@ -19,7 +20,7 @@ const SERVER = { id: "aaaaaa", origin: "https://stoop.example" };
 const token = vi.mocked(sessionToken);
 const lists = vi.mocked(loadAlertLists);
 
-// A server's answer whose total is `count`.
+// A server's answer whose total is `count`, all of it in a space.
 const answer = (count: number) => ({ spaces: [{ muted: false, alertCount: count }], dms: [] }) as never;
 
 const event = (payload: MessageInitShape<typeof ServerEventSchema>["payload"]) =>
@@ -39,7 +40,7 @@ function held() {
 
 describe("alertsLoader", () => {
   let totals: number[];
-  const start = () => alertsLoader(SERVER, (total) => totals.push(total));
+  const start = () => alertsLoader(SERVER, (badges) => totals.push(badges.total));
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -58,6 +59,28 @@ describe("alertsLoader", () => {
     await start().refresh();
     expect(totals).toEqual([3]);
     expect(lists).toHaveBeenCalledWith(SERVER.origin, "session");
+  });
+
+  it("hands on each tab's badge beside the total", async () => {
+    lists.mockResolvedValue({
+      spaces: [{ muted: false, alertCount: 3 }],
+      dms: [{ closed: false, channel: { muted: false, unreadCount: 5 } }],
+    } as never);
+    const said: unknown[] = [];
+    await alertsLoader(SERVER, (badges) => said.push(badges)).refresh();
+    expect(said).toEqual([{ activity: 3, messages: 5, total: 4 }]);
+  });
+
+  it("clears both tabs' badges with the total when the session ends", async () => {
+    lists.mockResolvedValue({
+      spaces: [{ muted: false, alertCount: 3 }],
+      dms: [{ closed: false, channel: { muted: false, unreadCount: 5 } }],
+    } as never);
+    const said: unknown[] = [];
+    const loader = alertsLoader(SERVER, (badges) => said.push(badges));
+    await loader.refresh();
+    loader.event(revoked);
+    expect(said).toEqual([{ activity: 3, messages: 5, total: 4 }, NO_BADGES]);
   });
 
   it("asks once, after a moment's quiet, for a burst of events", async () => {

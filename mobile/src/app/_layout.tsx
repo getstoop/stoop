@@ -11,8 +11,9 @@ import { ThemeProvider, useTheme } from "../theme";
 // a few lines each; the screens they show live in src/screens. Gestures
 // (the picture viewer's) need their root view around everything. What
 // arrives on any saved server's socket rings from here (src/notifications),
-// and every server's badge total is kept here (src/alerts), for its
-// Activity tab and, added up, for the app's icon.
+// and every server's badges are kept here (src/alerts), for its
+// Activity and Messages tabs and, the totals added up, for the app's
+// icon.
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>

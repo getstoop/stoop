@@ -404,7 +404,8 @@ with web). `scripts/check-core.mjs` refuses any import from outside
 - `alerts.ts` — `alertingTotal`, what one server's badge adds up to
   (the spaces' `alertCount` plus one per conversation with unread
   messages), for the desktop shell's dock and tray and the mobile app's
-  Activity tab, switcher and You tab; and `addressesMe`, whether a
+  icon, switcher and You tab (its Activity tab shows the spaces' part
+  alone); and `addressesMe`, whether a
   message counts as an alert for the reader the way the server counts
   them.
 - `unreads.ts` (`badgeCount`, `isUnread`), `reactions.ts`
