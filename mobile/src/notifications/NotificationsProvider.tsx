@@ -61,11 +61,13 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
       channels: async (spaceId) => loadChannelList(server.origin, await token(), spaceId),
     });
   });
-  const mounted = useRef(true);
+  // Whether the session still is: not once this unmounts, nor once its
+  // credential is revoked, which leaves the server saved and this here.
+  const live = useRef(true);
   useEffect(() => {
-    mounted.current = true;
+    live.current = true;
     return () => {
-      mounted.current = false;
+      live.current = false;
       void dismissNotifications({ serverId: server.id, all: true });
     };
   }, [server.id]);
@@ -77,9 +79,9 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
     places
       .names(item)
       .then((names) => {
-        // The wait for the names may have seen the server forgotten or
-        // signed in to again, or the person open where this landed.
-        if (!mounted.current || staysQuiet(arrival, focusedPlace())) return;
+        // The wait for the names may have seen the session end, or the
+        // person open where this landed.
+        if (!live.current || staysQuiet(arrival, focusedPlace())) return;
         return present(notificationContent(item, server, names, manyServers));
       })
       // A notification that can't be shown is dropped.
@@ -98,6 +100,7 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
         void dismissNotifications({ serverId: server.id, threadRootId: payload.value.rootMessageId });
         break;
       case "credentialRevoked":
+        live.current = false;
         void dismissNotifications({ serverId: server.id, all: true });
         break;
     }
