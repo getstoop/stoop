@@ -257,7 +257,7 @@ fetched again to bring it.
    again, and the header is fetched again for a rename or a member count
    the socket missed; a deletion arrives as a tombstone; rows below the
    retention floor go unless pinned. What the old modules provided that
-   the screen still needs moved: `mentionsMe` to `core/mentions.ts`, the
+   the screen still needs moved: the
    `ChannelHeader` type with `losesChannel` and the header's event rules
    to `core/channelHeader.ts` (live events only, the replay case having
    gone with the reducer), and the day and "New" lines to `core/grouping.ts`

@@ -1,11 +1,12 @@
 import type { User } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Avatar from "../../components/Avatar";
+import { PencilIcon } from "../../components/Icons";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // Who you are on this server: your avatar, your name, and your handle
-// and pronouns with the server's name, and the way to change them.
+// and pronouns with the server's name, and the pencil that changes them.
 export default function Identity({
   user,
   server,
@@ -17,7 +18,8 @@ export default function Identity({
   token: string;
   onEdit: () => void;
 }) {
-  const styles = makeStyles(useTheme());
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const name = user.displayName || user.username;
   const line = [`@${user.username}`, user.pronouns, `on ${server.name}`].filter(Boolean).join(" · ");
 
@@ -35,11 +37,11 @@ export default function Identity({
         accessibilityRole="button"
         accessibilityLabel="Edit profile"
         testID="edit-profile"
-        hitSlop={4}
+        hitSlop={2}
         onPress={onEdit}
         style={({ pressed }) => [styles.edit, pressed && styles.pressed]}
       >
-        <Text style={styles.editLabel}>Edit</Text>
+        <PencilIcon color={theme.text} size={22} />
       </Pressable>
     </View>
   );
@@ -69,19 +71,15 @@ function makeStyles(theme: Theme) {
       fontSize: tokens.textUi,
     },
     edit: {
-      height: 36,
-      paddingHorizontal: 14,
+      width: 44,
+      height: 44,
       borderRadius: tokens.radiusMd,
+      alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.raised,
     },
     pressed: {
       opacity: 0.7,
-    },
-    editLabel: {
-      color: theme.text,
-      fontSize: tokens.textUi,
-      fontWeight: "600",
     },
   });
 }

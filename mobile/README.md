@@ -395,13 +395,12 @@ import a screen; the screens themselves live in `src/screens`, so
   placeholder when that event says so. What the server refuses is said
   in a line over the composer for a few seconds, with its reason. Quote
   in reply makes the message the composer's quote: the sheet closes,
-  the row is ringed in the accent on the panel surface (over the
-  mention tint when it has one; the ring stays while the reader scrolls
-  or puts the keyboard away), and the composer opens on the reply
-  strip with the field focused and, once the keyboard is up, the row
-  scrolled to the middle of what it leaves (once; a later keyboard
-  leaves the list where the reader put it). The screen holds the quote by id, for this
-  channel only, and reads the row from the log, so it goes, silently
+  the row is ringed in the accent on the panel surface (the ring stays
+  while the reader scrolls or puts the keyboard away), and the composer
+  opens on the reply strip with the field focused and, once the keyboard
+  is up, the row scrolled to the middle of what it leaves (once; a later
+  keyboard leaves the list where the reader put it). The screen holds
+  the quote by id, for this channel only, and reads the row from the log, so it goes, silently
   and with the draft kept, when the message is deleted or left as a
   placeholder; a second Quote in reply replaces it, and a send or
   Cancel reply clears it. The reply goes out with `reply_to_message_id`
@@ -579,7 +578,10 @@ import a screen; the screens themselves live in `src/screens`, so
   of the layout's route params, so everything under a server reads it
   from `CurrentServer`.
 - The app tells the system it is light or dark as the theme is
-  (`Appearance.setColorScheme`), so what the system draws matches.
+  (`Appearance.setColorScheme`), so what the system draws matches. The
+  navigator is told as well (its own theme, set in `src/app/_layout.tsx`):
+  it puts light or dark on every navigation bar from that, whatever the
+  system was told, and paints its colours behind a screen still arriving.
 
 ## Realtime
 
