@@ -8,7 +8,8 @@ import { useTheme } from "../../../../theme";
 // drawn tab bar is Android's; iOS uses the system's own (_layout.ios.tsx).
 // Each tab's screen puts its own heading in its body, so the tabs carry
 // no header. Activity's badge is the server's count of what is addressed
-// to you past your markers (src/alerts), hidden at none.
+// to you in the spaces past your markers, and Messages' the unread
+// messages in your conversations (src/alerts), each hidden at none.
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
@@ -16,7 +17,8 @@ export const unstable_settings = { anchor: "(spaces)" };
 
 export default function TabsLayout() {
   const theme = useTheme();
-  const { total: alerting } = useAlerts();
+  const { activity: alerting, messages: unread } = useAlerts();
+  const badgeStyle = { backgroundColor: theme.danger, color: theme.onAccent };
 
   return (
     <Tabs
@@ -46,7 +48,7 @@ export default function TabsLayout() {
           // The badge said, as iOS says its own ("1 item"), for a screen
           // reader and the flows.
           tabBarAccessibilityLabel: alerting > 0 ? `Activity, ${badgeCount(alerting)} new` : "Activity",
-          tabBarBadgeStyle: { backgroundColor: theme.danger, color: theme.onAccent },
+          tabBarBadgeStyle: badgeStyle,
           tabBarIcon: ({ color }) => <BellIcon color={color} />,
         }}
       />
@@ -55,6 +57,9 @@ export default function TabsLayout() {
         options={{
           title: "Messages",
           tabBarButtonTestID: "tab-messages",
+          tabBarBadge: unread > 0 ? badgeCount(unread) : undefined,
+          tabBarAccessibilityLabel: unread > 0 ? `Messages, ${badgeCount(unread)} unread` : "Messages",
+          tabBarBadgeStyle: badgeStyle,
           tabBarIcon: ({ color }) => <MessagesIcon color={color} />,
         }}
       />

@@ -19,7 +19,7 @@ const SERVER = { id: "aaaaaa", origin: "https://stoop.example" };
 const token = vi.mocked(sessionToken);
 const lists = vi.mocked(loadAlertLists);
 
-// A server's answer whose total is `count`.
+// A server's answer whose total is `count`, all of it in a space.
 const answer = (count: number) => ({ spaces: [{ muted: false, alertCount: count }], dms: [] }) as never;
 
 const event = (payload: MessageInitShape<typeof ServerEventSchema>["payload"]) =>
@@ -39,7 +39,7 @@ function held() {
 
 describe("alertsLoader", () => {
   let totals: number[];
-  const start = () => alertsLoader(SERVER, (total) => totals.push(total));
+  const start = () => alertsLoader(SERVER, (badges) => totals.push(badges.total));
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -58,6 +58,16 @@ describe("alertsLoader", () => {
     await start().refresh();
     expect(totals).toEqual([3]);
     expect(lists).toHaveBeenCalledWith(SERVER.origin, "session");
+  });
+
+  it("hands on each tab's badge beside the total", async () => {
+    lists.mockResolvedValue({
+      spaces: [{ muted: false, alertCount: 3 }],
+      dms: [{ closed: false, channel: { muted: false, unreadCount: 5 } }],
+    } as never);
+    const said: unknown[] = [];
+    await alertsLoader(SERVER, (badges) => said.push(badges)).refresh();
+    expect(said).toEqual([{ activity: 3, messages: 5, total: 4 }]);
   });
 
   it("asks once, after a moment's quiet, for a burst of events", async () => {

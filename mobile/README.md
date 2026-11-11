@@ -26,10 +26,11 @@ header that opens the server switcher, a sheet listing every server on the phone
 count or a sign-in that has ended, and Add a server; Activity, what
 has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the server's count of what is addressed
-to you past your read markers on its tab, each opening its channel or
-thread at the message;
+to you in the spaces past your read markers on its tab, each opening its
+channel or thread at the message;
 Messages, this account's direct messages and groups, newest first, each
-opening its conversation, with New message picking who to talk to; and
+opening its conversation, with New message picking who to talk to and
+the count of unread messages on its tab; and
 You, which says who you are, opens Edit
 profile (your names, pronouns, bio and avatar; leaving with unsaved edits
 asks first), picks the theme, lists the phone's servers and signs out.
@@ -622,20 +623,26 @@ pages (`core/activity` `needsOlderPageForNew`); past that the person
 scrolls. The
 badges are not counted from it. The Activity tab's badge is the
 server's alert counts (`docs/architecture/messaging.md` → Alert
-counts) added up by `core/alerts` `alertingTotal`: the spaces' counts,
-less the muted ones, plus one per conversation with unread messages;
-a store at the root of the app (`src/alerts`) holds that total for
+counts) for the spaces, less the muted ones; direct messages are not
+in it. The Messages tab's badge is the unread messages in the
+conversations, less the muted and closed ones, as web's DM pill counts
+them (`core/dms` `dmUnreadTotal`). A server's total, for the app's
+icon, is `core/alerts` `alertingTotal`: the spaces' counts plus one
+per conversation with unread messages, so one busy conversation counts
+once there. A store at the root of the app (`src/alerts`) holds the
+three (`store.ts` `serverBadges`) for
 every saved server, not only the one on screen, one loader per session
 (`loader.ts`): it asks for the two lists on
 opening, on coming back to the app and on Ready, and again, after a
 moment's quiet, on any event of that server's socket that could change
-the total
+a badge
 (`api/alerts` `touchesAlerts`: a message anywhere, a marker moving, a
 mute, a deletion, a space or a conversation coming or going), and when
 the Messages tab closes a conversation, which no event says. A load
-that fails keeps the last total, and a session that has ended holds 0
-and is asked no more. The tab reads its own server's (`useAlerts`), and
-the app's icon shows them all added up (Notifications, below). The
+that fails keeps the last badges, and a session that has ended holds
+none and is asked no more. The two tabs read their own server's
+(`useAlerts`), and the app's icon shows every server's total added up
+(Notifications, below). The
 switcher and You still ask the other servers the same two lists
 themselves, as they open, for their
 badges (`src/servers/useWaiting`). A channel screen reads nothing of
@@ -773,8 +780,8 @@ badge stays as it was when the app left the front.
   anything by the person's own message sent from another device, for
   which the server sends no ChannelRead.
 - The icon's badge is every saved server's total added up
-  (`src/alerts/store.ts` `waitingEverywhere`), each the number its
-  Activity tab shows; a server whose sign-in has ended, or that hasn't
+  (`src/alerts/store.ts` `waitingEverywhere`), each what its Activity
+  tab shows plus one per conversation with unread messages; a server whose sign-in has ended, or that hasn't
   answered, adds nothing, and forgetting a server takes its count out.
   It is set whenever that sum changes and once more as the app goes to
   the background (`AppIconBadge.tsx`, `badge.ts`), so a badge allowed

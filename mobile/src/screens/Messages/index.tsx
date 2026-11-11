@@ -203,8 +203,8 @@ export default function Messages({ server }: { server: SavedServer }) {
         return;
       }
       change((dms) => dms.filter((d) => d.channel?.id !== id));
-      // A close is told to nobody, the Activity tab's badge included: a
-      // conversation with unread messages counted there until now.
+      // A close is told to nobody, this tab's badge included: a
+      // conversation's unread messages counted there until now.
       closeConversation(server.origin, token.current, id)
         .catch((err) => say("Couldn't close the conversation", errorText(err)))
         .finally(() => {

@@ -3,12 +3,12 @@ import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { chatClient } from "./clients";
 
-// What a server's badge adds up (core/alerts alertingTotal): the spaces
-// the account is in, each with the server's count of what is addressed
-// to the reader past their marker (`alertCount`, `muted`), and its
-// direct messages, each with what is unread there. Two lists, asked for
-// together, by the Activity tab's badge for the current server
-// (src/alerts) and by the switcher and You for the others (useWaiting).
+// What a server's badges add up: the spaces the account is in, each
+// with the server's count of what is addressed to the reader past their
+// marker (`alertCount`, `muted`), and its direct messages, each with
+// what is unread there. Two lists, asked for together, by the Activity
+// and Messages tabs' badges and the app's icon (src/alerts) and by the
+// switcher and You for the other servers (useWaiting).
 
 const TIMEOUT_MS = 10000;
 
@@ -24,7 +24,7 @@ export async function loadAlertLists(origin: string, token: string): Promise<Ale
   return { spaces, dms: directMessages };
 }
 
-// Whether an event could change the total: a message anywhere (one
+// Whether an event could change a badge: a message anywhere (one
 // addressed to the reader raises it, the reader's own moves their marker,
 // one in a conversation makes it unread; an edit adds or takes away a
 // mention, or leaves a placeholder), a marker moving, a mute, a deletion,

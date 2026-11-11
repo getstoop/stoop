@@ -17,11 +17,11 @@ import { sessionKey } from "../servers/sessionKey";
 import { type AlertsLoader, alertsLoader } from "./loader";
 import { type AlertsStore, alertsStore, waitingEverywhere } from "./store";
 
-// Every saved server's badge total, kept at the root of the app, inside
-// the realtime provider: one loader per session (loader.ts, which says
+// Every saved server's badges, kept at the root of the app, inside the
+// realtime provider: one loader per session (loader.ts, which says
 // when it asks), on every server and not only the one on screen. A
-// server's Activity tab reads its own (useAlerts), and the app's icon
-// all of them added up (useWaitingEverywhere).
+// server's Activity and Messages tabs read their own (useAlerts), and
+// the app's icon every server's total added up (useWaitingEverywhere).
 
 const AlertsContext = createContext<AlertsStore | null>(null);
 
@@ -39,7 +39,7 @@ export default function AlertsProvider({ children }: { children: ReactNode }) {
 }
 
 // One session's loader. It unmounts when the server is forgotten or
-// signed in to again, and its total goes with it.
+// signed in to again, and its badges go with it.
 function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsStore }) {
   const { id, origin } = server;
   const loader = useRef<AlertsLoader | null>(null);
@@ -47,7 +47,7 @@ function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsSto
   // once: a server's ID and origin never change under one key, so the
   // load below always asks this loader.
   useEffect(() => {
-    const mine = alertsLoader({ id, origin }, (total) => store.set(id, total));
+    const mine = alertsLoader({ id, origin }, (badges) => store.set(id, badges));
     loader.current = mine;
     const forget = store.setRefresh(id, mine.refresh);
     return () => {
@@ -74,18 +74,19 @@ function useAlertsStore(): AlertsStore {
   return store;
 }
 
-// The current server's badge total, and the way to ask for it again.
-export function useAlerts(): { total: number; refresh: () => Promise<void> } {
+// The current server's two tab badges (store.ts ServerBadges), and the
+// way to ask for them again.
+export function useAlerts(): { activity: number; messages: number; refresh: () => Promise<void> } {
   const store = useAlertsStore();
   const { id } = useCurrentServer();
-  const total = useSyncExternalStore(store.subscribe, () => store.total(id));
+  const { activity, messages } = useSyncExternalStore(store.subscribe, () => store.badges(id));
   const refresh = useCallback(() => store.refresh(id), [store, id]);
-  return useMemo(() => ({ total, refresh }), [total, refresh]);
+  return useMemo(() => ({ activity, messages, refresh }), [activity, messages, refresh]);
 }
 
 // What waits on every saved server, added up (store.ts).
 export function useWaitingEverywhere(): number {
   const store = useAlertsStore();
   const { servers } = useServers();
-  return useSyncExternalStore(store.subscribe, () => waitingEverywhere(servers, store.total));
+  return useSyncExternalStore(store.subscribe, () => waitingEverywhere(servers, (id) => store.badges(id).total));
 }

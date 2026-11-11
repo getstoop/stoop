@@ -1,22 +1,22 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { alertingTotal } from "@stoop/core/alerts";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { loadAlertLists, touchesAlerts } from "../api/alerts";
 import { sessionToken } from "../api/servers";
+import { NO_BADGES, type ServerBadges, serverBadges } from "./store";
 
-// One session's badge total (core/alerts alertingTotal), asked for
-// again rather than kept up here: the server's counts on its spaces and
+// One session's badges (store.ts serverBadges), asked for again rather
+// than kept up here: the server's counts on its spaces and
 // conversations (api/alerts). Whoever holds this (AlertsProvider.tsx)
 // asks on mounting, and on coming back to the app when a few seconds
 // bring no Ready, and hands it every event of the server's socket: one
-// that could change the total (touchesAlerts; Ready is one, and follows
+// that could change a badge (touchesAlerts; Ready is one, and follows
 // every reconnect, which coming back to the app brings) asks again
 // after a moment's quiet. A screen asks too when it changes something
 // no event tells (the Messages tab closing a conversation). A load
-// that fails keeps the last total, as does a keychain that can't be
+// that fails keeps the last badges, as does a keychain that can't be
 // read just now. CredentialRevoked, no session kept, or the server
-// refusing it says the session has ended: the total is 0, and nothing
-// more is asked.
+// refusing it says the session has ended: the badges are none, and
+// nothing more is asked.
 
 export type AlertsLoader = {
   // Asks the server again; resolves once the answer has landed.
@@ -32,7 +32,10 @@ export const RELOAD_DELAY_MS = 300;
 
 const unauthenticated = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
 
-export function alertsLoader(server: { id: string; origin: string }, onTotal: (total: number) => void): AlertsLoader {
+export function alertsLoader(
+  server: { id: string; origin: string },
+  onBadges: (badges: ServerBadges) => void,
+): AlertsLoader {
   // Loads can overlap (opening, Ready, an event), and an older one
   // finishing last must not undo a newer one: only the latest started
   // counts, and stopping makes none the latest.
@@ -49,7 +52,7 @@ export function alertsLoader(server: { id: string; origin: string }, onTotal: (t
   const end = () => {
     if (over) return;
     stop();
-    onTotal(0);
+    onBadges(NO_BADGES);
   };
 
   const refresh = async () => {
@@ -70,7 +73,7 @@ export function alertsLoader(server: { id: string; origin: string }, onTotal: (t
     const mine = ++latest;
     try {
       const { spaces, dms } = await loadAlertLists(server.origin, session);
-      if (mine === latest) onTotal(alertingTotal(spaces, dms));
+      if (mine === latest) onBadges(serverBadges(spaces, dms));
     } catch (err) {
       // An older load refused says the same as the latest would.
       if (unauthenticated(err)) end();
