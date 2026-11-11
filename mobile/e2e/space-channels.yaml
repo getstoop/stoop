@@ -31,8 +31,9 @@ name: Open a space and see its channels, with what is waiting in each, kept live
 - extendedWaitUntil:
     visible: "general, 1 mention"
     timeout: 15000
-# However many members other flows have brought in by now.
-- assertVisible: "\\d+ members · Reading The Overstory"
+# The header's pill, by its label. However many members other flows have
+# brought in by now.
+- assertVisible: "${SPACE}, \\d+ members · Reading The Overstory"
 - assertVisible: "random, unread"
 - assertVisible: "off-topic, muted"
 # Live: a channel made, posted in, mentioning ada and deleted elsewhere

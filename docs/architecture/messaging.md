@@ -173,9 +173,12 @@ tapped, an emoji-only message at twice the size.
   styled runs (`MessageBody/native.ts`), never Markdown, and the view
   paints web's rounded, padded boxes behind pills, inline code and
   spoilers, which nested React Native `Text` can't (a nested run takes
-  no padding or corners). A covered spoiler is drawn clear on its fill
+  no padding or corners). A person's or a group's mention ends with
+  web's glyph for it, a run of its own that the view draws in the pill's
+  colour (a bot's has the person's for now: the row has no member list
+  to tell them apart by). A covered spoiler is drawn clear on its fill
   and never reaches a screen reader. Anything without the module draws
-  nested `Text` with the pills flat.
+  nested `Text` with the pills flat and no glyph.
 - **Measured before it is laid out.** The view lays out at a width it is
   given and reports a height, so a row is the right height the first
   time: a synchronous call measures the runs at the window's width less

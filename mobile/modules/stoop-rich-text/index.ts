@@ -21,6 +21,10 @@ export type RichRun = {
   fill?: string;
   fillId?: number;
   fillPad?: number;
+  // A drawn mark in place of the run's words, in the run's colour and at
+  // its size: the person or group after a mention's handle, as web's
+  // pill has (messages.css). Its text is a placeholder the views replace.
+  glyph?: "person" | "group";
   spoiler?: number;
   covered?: boolean;
   spoilerFill?: string;

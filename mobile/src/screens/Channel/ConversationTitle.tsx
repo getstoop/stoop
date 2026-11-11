@@ -34,7 +34,7 @@ export default function ConversationTitle({
   const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);
   const label = [title, under, status].filter(Boolean).join(", ");
   return (
-    <TitlePill label={label}>
+    <TitlePill label={label} beside={0}>
       <View style={styles.row}>
         <ConversationFaces
           faces={dmFaces(dm, myUserId)}

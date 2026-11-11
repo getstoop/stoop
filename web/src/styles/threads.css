@@ -9,9 +9,12 @@
   gap: 8px;
   margin-top: 6px;
   padding: 4px 12px 4px 4px;
+  /* Its own surface at rest, so it reads apart from the messages round
+     it, as mobile draws it; a step up when pointed at or open. The
+     clear border keeps the size it had with a drawn one. */
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: none;
+  background: var(--panel);
   color: var(--text-muted);
   font: inherit;
   font-size: var(--text-ui);
@@ -20,8 +23,7 @@
 
 .thread-summary:hover,
 .thread-summary.open {
-  border-color: var(--border);
-  background: var(--panel);
+  background: var(--raised);
 }
 
 .thread-faces {

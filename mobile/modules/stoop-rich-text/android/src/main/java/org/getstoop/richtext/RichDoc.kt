@@ -31,6 +31,10 @@ class RichRun : Record {
   @Field val fillId: Int? = null
   @Field val fillPad: Double? = null
 
+  // A drawn mark in place of the run's words ("person" or "group"), in
+  // the run's colour and at its size: what ends a mention's pill.
+  @Field val glyph: String? = null
+
   // Under a spoiler: its id (while covered, the outermost covered one's,
   // so a tap anywhere on the cover reveals it), whether it is covered,
   // and its fill.

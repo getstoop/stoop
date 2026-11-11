@@ -1,22 +1,25 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Stack, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/react-navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { loadSpaceChannels, memberName, type SpaceChannels, touchesSpace } from "../../api/channels";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
-import SpaceIcon from "../../components/SpaceIcon";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents, useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelRow from "./ChannelRow";
+import SpaceTitle from "./SpaceTitle";
 import VoiceRoom from "./VoiceRoom";
 
 // A space's channels, pushed over the Spaces tab: the space's name and
-// what it is, its text channels with what is waiting in each (each opens
-// the channel), and its voice rooms with who is in them. Loaded on
+// what it is in the header's pill (SpaceTitle), which floats over the
+// list beside the back button as the channel's does, its text channels
+// with what is waiting in each (each opens the channel), and its voice
+// rooms with who is in them. Loaded on
 // opening, on a pull, on coming back to the app, and again whenever the
 // realtime socket says something here changed; who is in voice is live
 // from the socket itself.
@@ -39,6 +42,9 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
   const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
   const roster = useVoiceRoster(server.id);
+  // The header floats over the screen (the Spaces stack's layout), so
+  // the list and what stands in for it clear it by this much.
+  const headerHeight = useHeaderHeight();
   const [view, setView] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -101,17 +107,35 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     await refresh();
   };
 
+  // The title is rebuilt only when what it says changes, not on every
+  // reload that brings the same space back.
+  const ready = view.state === "ready" ? view : undefined;
+  const name = ready?.channels.space.name;
+  const iconFileId = ready?.channels.space.iconFileId;
+  const description = ready?.channels.space.description;
+  const memberCount = ready?.channels.memberCount;
+  const token = ready?.token;
+  const options = useMemo(() => {
+    if (name === undefined || iconFileId === undefined || memberCount === undefined || token === undefined) return {};
+    const about = [memberCount === 1 ? "1 member" : `${memberCount} members`, description].filter(Boolean).join(" · ");
+    return {
+      headerTitle: () => (
+        <SpaceTitle name={name} about={about} iconFileId={iconFileId} origin={server.origin} token={token} />
+      ),
+    };
+  }, [name, iconFileId, description, memberCount, token, server.origin]);
+
   if (view.state === "loading") {
     return (
       <View style={styles.screen}>
-        <ActivityIndicator style={styles.center} color={theme.textMuted} />
+        <ActivityIndicator style={{ marginTop: 24 + headerHeight }} color={theme.textMuted} />
       </View>
     );
   }
   if (view.state !== "ready") {
     return (
       <View style={styles.screen}>
-        <View style={styles.notice} accessibilityRole="alert">
+        <View style={[styles.notice, { marginTop: 8 + headerHeight }]} accessibilityRole="alert">
           {view.state === "ended" && (
             <>
               <Text style={styles.body}>Your sign-in to {server.name} has ended. Sign in again to carry on.</Text>
@@ -142,68 +166,65 @@ export default function Space({ server, spaceId }: { server: SavedServer; spaceI
     );
   }
 
-  const { space, text, voice, members, memberCount } = view.channels;
-  const about = [memberCount === 1 ? "1 member" : `${memberCount} members`, space.description]
-    .filter(Boolean)
-    .join(" · ");
+  const { space, text, voice, members } = view.channels;
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
-    >
-      <View style={styles.header}>
-        <SpaceIcon name={space.name} fileId={space.iconFileId} origin={server.origin} token={view.token} size={48} />
-        <View style={styles.titles}>
-          <Text style={styles.title} accessibilityRole="header" numberOfLines={2}>
-            {space.name}
+    <>
+      <Stack.Screen options={options} />
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[styles.content, { paddingTop: 12 + headerHeight }]}
+        scrollIndicatorInsets={{ top: headerHeight }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={pull}
+            tintColor={theme.textMuted}
+            progressViewOffset={headerHeight}
+          />
+        }
+      >
+        {text.length > 0 && (
+          <Text style={styles.section} accessibilityRole="header">
+            Text channels
           </Text>
-          <Text style={styles.about} numberOfLines={2}>
-            {about}
+        )}
+        {text.map((channel) => (
+          <ChannelRow
+            key={channel.id}
+            channel={channel}
+            spaceMuted={space.muted}
+            onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
+          />
+        ))}
+        {voice.length > 0 && (
+          <Text style={[styles.section, styles.later]} accessibilityRole="header">
+            Voice
           </Text>
-        </View>
-      </View>
-      {text.length > 0 && (
-        <Text style={styles.section} accessibilityRole="header">
-          Text channels
-        </Text>
-      )}
-      {text.map((channel) => (
-        <ChannelRow
-          key={channel.id}
-          channel={channel}
-          spaceMuted={space.muted}
-          onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
-        />
-      ))}
-      {voice.length > 0 && (
-        <Text style={[styles.section, styles.later]} accessibilityRole="header">
-          Voice
-        </Text>
-      )}
-      {voice.map((channel) => (
-        <VoiceRoom
-          key={channel.id}
-          channel={channel}
-          people={
-            roster &&
-            inRoom(roster, channel.id).map((participant) => {
-              const member = members[participant.userId];
-              // Someone the member list doesn't have yet: joined since it loaded.
-              return member
-                ? { userId: participant.userId, name: memberName(member), avatarFileId: member.avatarFileId }
-                : { userId: participant.userId, name: "Someone", avatarFileId: "" };
-            })
-          }
-          origin={server.origin}
-          token={view.token}
-        />
-      ))}
-      {text.length === 0 && voice.length === 0 && (
-        <Text style={[styles.body, styles.empty]}>No channels here yet.</Text>
-      )}
-    </ScrollView>
+        )}
+        {voice.map((channel) => (
+          <VoiceRoom
+            key={channel.id}
+            channel={channel}
+            people={
+              roster &&
+              inRoom(roster, channel.id).map((participant) => {
+                const member = members[participant.userId];
+                // Someone the member list doesn't have yet: joined since it loaded.
+                return member
+                  ? { userId: participant.userId, name: memberName(member), avatarFileId: member.avatarFileId }
+                  : { userId: participant.userId, name: "Someone", avatarFileId: "" };
+              })
+            }
+            origin={server.origin}
+            token={view.token}
+          />
+        ))}
+        {text.length === 0 && voice.length === 0 && (
+          <Text style={[styles.body, styles.empty]}>No channels here yet.</Text>
+        )}
+      </ScrollView>
+    </>
   );
 }
 
@@ -216,31 +237,6 @@ function makeStyles(theme: Theme) {
     content: {
       paddingHorizontal: 8,
       paddingBottom: 24,
-    },
-    center: {
-      marginTop: 24,
-    },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      paddingTop: 4,
-      paddingBottom: 16,
-      paddingHorizontal: 12,
-    },
-    titles: {
-      flex: 1,
-      gap: 2,
-    },
-    title: {
-      color: theme.text,
-      fontSize: tokens.textXl,
-      lineHeight: tokens.textXl * tokens.leadingTight,
-      fontWeight: "700",
-    },
-    about: {
-      color: theme.textMuted,
-      fontSize: tokens.textUi,
     },
     section: {
       marginTop: 8,
@@ -257,7 +253,6 @@ function makeStyles(theme: Theme) {
     },
     notice: {
       gap: 12,
-      marginTop: 8,
       paddingHorizontal: 20,
     },
     body: {

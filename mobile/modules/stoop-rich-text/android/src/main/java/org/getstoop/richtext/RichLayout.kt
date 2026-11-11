@@ -105,11 +105,24 @@ internal class RichLayout(val doc: RichDoc, val width: Int, private val density:
         }
       }
 
+      val covered = run.covered == true
+      val color = if (covered) Color.TRANSPARENT else run.color?.let { ColorCompat.toArgb(it) } ?: textColor
+      if (run.glyph != null) {
+        // A word joiner first, so the mark never wraps away from the
+        // handle it follows; the span draws over both.
+        val at = text.length
+        text.append("\u2060\uFFFC")
+        text.setSpan(
+          GlyphSpan(run.glyph, run.size.toFloat() * density, color, 3f * density),
+          at,
+          text.length,
+          Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+        )
+        continue
+      }
       val start = text.length
       text.append(run.text)
       val end = text.length
-      val covered = run.covered == true
-      val color = if (covered) Color.TRANSPARENT else run.color?.let { ColorCompat.toArgb(it) } ?: textColor
       val style = RunStyle(
         run.size.toFloat() * density,
         face((run.weight ?: 400.0).toInt(), run.italic == true, run.mono == true),

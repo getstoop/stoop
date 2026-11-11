@@ -23,6 +23,10 @@ const coverText = (text: string) =>
     .map((run) => (run.emoji ? EM_SPACE.repeat(clusters(run.text).length) : run.text))
     .join("");
 
+// A glyph run's text: the object replacement character, which the views
+// swap for the drawing.
+const GLYPH = "\uFFFC";
+
 // A link's id, from its node's path in the parse rather than a count, so
 // it stays the same when a reveal or the channel list arriving changes
 // which links come before it: the native views key their screen reader
@@ -97,15 +101,26 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
     });
   };
 
-  const pill = (text: string, context: Context, me: boolean, link?: { id: number; url: string }) =>
-    push(text, context, {
+  // A glyph, when the pill has one, is a run of its own after the words,
+  // in the same box.
+  const pill = (
+    text: string,
+    context: Context,
+    me: boolean,
+    link?: { id: number; url: string },
+    glyph?: RichRun["glyph"],
+  ) => {
+    const look = {
       weight: markdown.mentionWeight,
       color: theme[me ? markdown.mentionMeColor : markdown.mentionColor],
       fill: theme[me ? markdown.mentionMeBg : markdown.mentionBg],
       fillId: nextFill++,
       fillPad: markdown.mentionPadX,
       ...(link ? { link: link.url, linkId: link.id, linkHidden: undefined } : {}),
-    });
+    };
+    push(text, context, look);
+    if (glyph) push(GLYPH, context, { ...look, glyph });
+  };
 
   const mention = (ref: MentionRef, at: string, context: Context) => {
     if (ref.kind === "channel") {
@@ -114,7 +129,15 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
       const tappable = !!links && !compact && !context.inLink;
       return pill(`#${channel.name}`, context, false, tappable ? { id: linkId(at), url: `channel:${ref.id}` } : undefined);
     }
-    pill(mentionText(ref), context, ref.kind === "person" && ref.id === myUserId);
+    // Web's pill tells a bot from a person and fills a group's when the
+    // reader is in it; the message alone says neither here.
+    pill(
+      mentionText(ref),
+      context,
+      ref.kind === "person" && ref.id === myUserId,
+      undefined,
+      ref.kind === "group" ? "group" : "person",
+    );
   };
 
   const draw = (nodes: Inline[], parent: string, context: Context) => {
@@ -195,7 +218,7 @@ export function buildDoc(input: BuildInput): { doc: RichDoc; spoilers: string[] 
 
   const words = anyCovered(lines, isCovered)
     ? `${spoken(lines, isCovered, input.cover, (ref) => mentionWords(ref, links?.channels))}${input.edited ? " (edited)" : ""}`
-    : runs.map((run) => run.text).join("");
+    : runs.map((run) => (run.glyph ? "" : run.text)).join("");
 
   return {
     doc: {

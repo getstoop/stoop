@@ -315,7 +315,7 @@ export default function Channel({
         dm ? (
           <ConversationTitle dm={dm} myUserId={myUserId} serverId={server.id} origin={server.origin} token={token} />
         ) : (
-          <ChannelTitle channel={channel} spaceName={space?.name ?? ""} memberCount={memberCount} />
+          <ChannelTitle channel={channel} spaceName={space?.name ?? ""} memberCount={memberCount} beside={search ? 1 : 0} />
         ),
       ...(Platform.OS === "ios"
         ? { unstable_headerRightItems: () => (search ? [searchItem(search)] : []) }
