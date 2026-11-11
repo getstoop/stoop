@@ -65,7 +65,7 @@ brand/masters/   hand-drawn SVGs, the only files edited by hand
 brand/build.mjs  `make brand`: cuts everything below
 brand/dist/      committed outputs for other repos (desktop/, press/)
 web/public/      the web icon set, written directly, served from the root
-mobile/assets/   the phone app's mark and notification glyph, written directly
+mobile/assets/   the phone app's icon, mark and notification glyph, written directly
 ```
 
 **Masters.**
@@ -79,6 +79,7 @@ mobile/assets/   the phone app's mark and notification glyph, written directly
 | `badge.svg` | the path in white — the notification badge (alpha only) |
 | `icon-square.svg` | full-bleed brownstone tile, sandstone mark |
 | `icon-maskable.svg` | same tile, mark inside the 66 % safe circle |
+| `icon-adaptive.svg` | the sandstone mark alone, placed as in `icon-maskable` — Android's adaptive icon draws it over its own ground |
 | `icon-rounded.svg` | tile with transparent rounded corners (r 22.5 %) |
 | `icon-macos.svg` | Apple's app-icon template: the tile on 824/1024 of the canvas, transparent margin |
 | `menubar-template.svg` | the path in black; macOS reads only its alpha |
@@ -122,6 +123,9 @@ icon at 256 and 1024, for a README, a site, a listing.
 | File | From | Read by |
 | --- | --- | --- |
 | `mark.png`, `@2x`, `@3x` | `mark` at 96 pt, in black | `mobile/src/screens/Welcome.tsx`, tinted with the theme's accent (`tintColor`) |
+| `icon.png` | `icon-square` at 1024, no alpha | `mobile/app.json` `icon`: the app's icon on iOS, which rounds it and shows it on every notification, and on Android before 8, which has no adaptive icon |
+| `android-icon-foreground.png` | `icon-adaptive` at 432 | `app.json` `android.adaptiveIcon`: the foreground over a Brownstone `backgroundColor`, and the `monochromeImage` Android tints for a themed icon (it reads only the alpha) |
+| `favicon.png` | `favicon` at 48 | `app.json` `web.favicon`; the app has no web build today |
 | `notification-icon.png` | `badge` at 96 px, in white | `mobile/app.json`, the `expo-notifications` plugin's `icon`: Android's status-bar glyph, tinted Brownstone's accent |
 
 ## Regenerating
