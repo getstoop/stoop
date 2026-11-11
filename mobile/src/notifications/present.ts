@@ -4,8 +4,9 @@ import type { NotificationContent } from "./content";
 
 // Showing a notification through the system while the app is in front:
 // a banner, a place in the notification list and the default sound. The
-// app's icon badge is not set from here. The handler is set once, as
-// this file is first imported.
+// app's icon badge is not set from here but from what waits
+// (badge.ts): a notification carries no count. The handler is set
+// once, as this file is first imported.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,

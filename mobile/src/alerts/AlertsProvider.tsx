@@ -1,98 +1,91 @@
-import { Code, ConnectError } from "@connectrpc/connect";
-import { alertingTotal } from "@stoop/core/alerts";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { loadAlertLists, touchesAlerts } from "../api/alerts";
-import { sessionToken } from "../api/servers";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useLoadOnReturn } from "../hooks/useLoadOnReturn";
 import { useServerEvents } from "../realtime/RealtimeProvider";
-import type { SavedServer } from "../servers";
+import { type SavedServer, useCurrentServer, useServers } from "../servers";
+import { sessionKey } from "../servers/sessionKey";
+import { type AlertsLoader, alertsLoader } from "./loader";
+import { type AlertsStore, alertsStore, waitingEverywhere } from "./store";
 
-// One server's badge total for the Activity tab (core/alerts
-// alertingTotal): the server's counts on its spaces and conversations
-// (api/alerts), asked for again rather than kept up here. Loaded on
-// mounting and on the socket's Ready (a reconnect, which coming back to
-// the app brings; a few seconds without one load anyway), and again,
-// after a moment's quiet, on any event that could change it
-// (touchesAlerts) or when a screen says so (the Messages tab closing a
-// conversation, which no event tells). A load that fails keeps the last
-// total. CredentialRevoked says the session has ended: nothing more is
-// asked, and there is no badge.
+// Every saved server's badge total, kept at the root of the app, inside
+// the realtime provider: one loader per session (loader.ts, which says
+// when it asks), on every server and not only the one on screen. A
+// server's Activity tab reads its own (useAlerts), and the app's icon
+// all of them added up (useWaitingEverywhere).
 
-type Store = {
-  total: number;
-  // Asks the server again; resolves once the answer has landed.
-  refresh: () => Promise<void>;
-};
+const AlertsContext = createContext<AlertsStore | null>(null);
 
-const AlertsContext = createContext<Store | null>(null);
-
-// Events come in bursts (a message sent is also its channel read), so a
-// moment's quiet goes before one load.
-const RELOAD_DELAY_MS = 300;
-
-const unauthenticated = (err: unknown) => err instanceof ConnectError && err.code === Code.Unauthenticated;
-
-export default function AlertsProvider({ server, children }: { server: SavedServer; children: ReactNode }) {
-  const [total, setTotal] = useState(0);
-  // Loads can overlap (opening, Ready, an event), and an older one
-  // finishing last must not undo a newer one: only the latest started
-  // counts, and unmounting makes none the latest.
-  const latest = useRef(0);
-  const ended = useRef(false);
-  const reload = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const end = useCallback(() => {
-    ended.current = true;
-    latest.current++;
-    clearTimeout(reload.current);
-    setTotal(0);
-  }, []);
-
-  const refresh = useCallback(async () => {
-    if (ended.current) return;
-    const mine = ++latest.current;
-    const session = await sessionToken(server.id).catch(() => null);
-    if (mine !== latest.current) return;
-    if (!session) {
-      end();
-      return;
-    }
-    try {
-      const { spaces, dms } = await loadAlertLists(server.origin, session);
-      if (mine === latest.current) setTotal(alertingTotal(spaces, dms));
-    } catch (err) {
-      if (unauthenticated(err)) end();
-    }
-  }, [server, end]);
-
-  const readyCame = useLoadOnReturn(refresh);
-  useEffect(
-    () => () => {
-      latest.current++;
-      clearTimeout(reload.current);
-    },
-    [],
+export default function AlertsProvider({ children }: { children: ReactNode }) {
+  const { servers } = useServers();
+  const [store] = useState(alertsStore);
+  return (
+    <AlertsContext.Provider value={store}>
+      {servers.map((server) => (
+        <ServerAlerts key={sessionKey(server)} server={server} store={store} />
+      ))}
+      {children}
+    </AlertsContext.Provider>
   );
-
-  useServerEvents(server.id, (event: ServerEvent) => {
-    if (event.payload.case === "credentialRevoked") {
-      end();
-      return;
-    }
-    if (event.payload.case === "ready") readyCame();
-    if (!touchesAlerts(event)) return;
-    clearTimeout(reload.current);
-    reload.current = setTimeout(refresh, RELOAD_DELAY_MS);
-  });
-
-  const store = useMemo(() => ({ total, refresh }), [total, refresh]);
-  return <AlertsContext.Provider value={store}>{children}</AlertsContext.Provider>;
 }
 
-// The current server's badge total, and the way to ask for it again.
-export function useAlerts(): Store {
+// One session's loader. It unmounts when the server is forgotten or
+// signed in to again, and its total goes with it.
+function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsStore }) {
+  const { id, origin } = server;
+  const loader = useRef<AlertsLoader | null>(null);
+  // Ahead of useLoadOnReturn's effect, which loads as it mounts. Made
+  // once: a server's ID and origin never change under one key, so the
+  // load below always asks this loader.
+  useEffect(() => {
+    const mine = alertsLoader({ id, origin }, (total) => store.set(id, total));
+    loader.current = mine;
+    const forget = store.setRefresh(id, mine.refresh);
+    return () => {
+      mine.stop();
+      loader.current = null;
+      forget();
+      store.set(id, undefined);
+    };
+  }, [id, origin, store]);
+
+  const load = useCallback(() => void loader.current?.refresh(), []);
+  const readyCame = useLoadOnReturn(load);
+
+  useServerEvents(id, (event: ServerEvent) => {
+    if (event.payload.case === "ready") readyCame();
+    loader.current?.event(event);
+  });
+  return null;
+}
+
+function useAlertsStore(): AlertsStore {
   const store = useContext(AlertsContext);
   if (!store) throw new Error("useAlerts needs an AlertsProvider above it");
   return store;
+}
+
+// The current server's badge total, and the way to ask for it again.
+export function useAlerts(): { total: number; refresh: () => Promise<void> } {
+  const store = useAlertsStore();
+  const { id } = useCurrentServer();
+  const total = useSyncExternalStore(store.subscribe, () => store.total(id));
+  const refresh = useCallback(() => store.refresh(id), [store, id]);
+  return useMemo(() => ({ total, refresh }), [total, refresh]);
+}
+
+// What waits on every saved server, added up (store.ts).
+export function useWaitingEverywhere(): number {
+  const store = useAlertsStore();
+  const { servers } = useServers();
+  return useSyncExternalStore(store.subscribe, () => waitingEverywhere(servers, store.total));
 }

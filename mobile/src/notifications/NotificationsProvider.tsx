@@ -6,6 +6,7 @@ import { sessionToken } from "../api/servers";
 import { useServerEvents } from "../realtime/RealtimeProvider";
 import { type SavedServer, useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
+import AppIconBadge from "./AppIconBadge";
 import { readOfPlace } from "./clear";
 import { notificationContent } from "./content";
 import { dismissNotifications } from "./dismiss";
@@ -30,13 +31,15 @@ import { useNotificationTaps } from "./taps";
 // on this device or another; a session's all go when it ends or its
 // server is forgotten. A read that lands while a notification still
 // waits for its names doesn't stop it showing. Tapping one is heard
-// here too (taps.ts) and opened by the server's layout.
+// here too (taps.ts) and opened by the server's layout. The app's icon
+// badge is kept from here as well (AppIconBadge.tsx).
 export default function NotificationsProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
   useNotificationTaps(servers);
   useEffect(() => onFocusedPlace((place) => void dismissNotifications(readOfPlace(place))), []);
   return (
     <>
+      <AppIconBadge />
       {servers.map((server) => (
         <ServerNotifications key={sessionKey(server)} server={server} manyServers={servers.length > 1} />
       ))}
