@@ -80,7 +80,10 @@ import a screen; the screens themselves live in `src/screens`, so
   Metro runs, and `make mobile-typecheck` runs without it.
 - A server (`src/app/s/[id]/_layout.tsx`) is a stack with its tabs at
   the bottom, in the `(tabs)` group, so the URLs don't name it. A space's
-  channels push inside the Spaces tab, with the tab bar showing. A
+  channels push inside the Spaces tab, with the tab bar showing, under a
+  header with no bar: the space's icon, name and what it is sit in a
+  pill beside the back button (`src/screens/Space/SpaceTitle.tsx`,
+  Liquid Glass from iOS 26), and the channels scroll under both. A
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs instead, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer.
@@ -111,9 +114,11 @@ import a screen; the screens themselves live in `src/screens`, so
   (`expo-glass-effect`); older iOS and Android draw it with the theme's
   panel and border under a light shadow. The channel's header, and the
   thread's, is the same kind of surface (`src/app/s/[id]/_layout.tsx`):
-  the bar is transparent, the title sits in a pill of the same make in
-  the middle (`src/screens/Channel/TitlePill.tsx`), beside the system's
-  back button, and the list scrolls under all of it, padded by the
+  the bar is transparent, the title sits in a pill of the same make
+  (`src/screens/Channel/TitlePill.tsx`) beside the system's back button
+  (the channel's and a conversation's filling the row as far as Search,
+  the thread's as wide as its words in the middle), and the list scrolls
+  under all of it, padded by the
   header's height at its head, and fading out at both ends, under the
   status bar so the time stays readable and under the home indicator up
   to the composer's foot (`EdgeFade.tsx`). On iOS 26 the list is marked

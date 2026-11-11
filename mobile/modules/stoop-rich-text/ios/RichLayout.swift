@@ -23,6 +23,9 @@ struct RichRun: Record {
   @Field var fill: UIColor?
   @Field var fillId: Int?
   @Field var fillPad: Double = 4
+  // A drawn mark in place of the run's words ("person" or "group"), in
+  // the run's colour and at its size: what ends a mention's pill.
+  @Field var glyph: String?
   // Under a spoiler: its id (while covered, the outermost covered one's,
   // so a tap anywhere on the cover reveals it), whether it is covered,
   // and its fill.
@@ -44,6 +47,73 @@ struct RichDoc: Record {
   // False in the message menu's card: covered spoilers take no tap and the
   // paragraph offers no reveal.
   @Field var revealable: Bool = true
+}
+
+// The mark that ends a mention's pill, as web's (messages.css
+// .mention::after, drawn from Icons.tsx): 0.85 of the text's size, 3pt
+// after the handle, sitting a little under the baseline, stroked in the
+// pill's colour.
+enum MentionGlyph {
+  private static let images = NSCache<NSString, UIImage>()
+
+  static func attachment(_ kind: String, size: CGFloat, color: UIColor) -> NSTextAttachment {
+    let side = size * 0.85
+    let gap: CGFloat = 3
+    let attachment = NSTextAttachment()
+    attachment.image = image(kind, side: side, gap: gap, color: color)
+    attachment.bounds = CGRect(x: 0, y: -size * 0.08, width: gap + side, height: side)
+    return attachment
+  }
+
+  private static func image(_ kind: String, side: CGFloat, gap: CGFloat, color: UIColor) -> UIImage {
+    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+    color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+    let key = "\(kind) \(side) \(red) \(green) \(blue) \(alpha)" as NSString
+    if let held = images.object(forKey: key) { return held }
+    let made = UIGraphicsImageRenderer(size: CGSize(width: gap + side, height: side)).image { context in
+      let canvas = context.cgContext
+      canvas.translateBy(x: gap, y: 0)
+      canvas.scaleBy(x: side / 24, y: side / 24)
+      let path = kind == "group" ? group() : person()
+      path.lineWidth = 2.5
+      path.lineCapStyle = .round
+      path.lineJoinStyle = .round
+      color.setStroke()
+      path.stroke()
+    }
+    images.setObject(made, forKey: key)
+    return made
+  }
+
+  // In web's 24-unit box, from the same shapes. Angles run clockwise
+  // from the x axis, as the view's coordinates do.
+  private static func person() -> UIBezierPath {
+    let path = UIBezierPath(arcCenter: CGPoint(x: 12, y: 8), radius: 4, startAngle: 0, endAngle: 2 * .pi, clockwise: true)
+    path.move(to: CGPoint(x: 4, y: 21))
+    path.addLine(to: CGPoint(x: 4, y: 20))
+    path.addArc(withCenter: CGPoint(x: 10, y: 20), radius: 6, startAngle: .pi, endAngle: 1.5 * .pi, clockwise: true)
+    path.addLine(to: CGPoint(x: 14, y: 14))
+    path.addArc(withCenter: CGPoint(x: 14, y: 20), radius: 6, startAngle: 1.5 * .pi, endAngle: 2 * .pi, clockwise: true)
+    path.addLine(to: CGPoint(x: 20, y: 21))
+    return path
+  }
+
+  private static func group() -> UIBezierPath {
+    let lean = 75.5 * CGFloat.pi / 180
+    let path = UIBezierPath(arcCenter: CGPoint(x: 9, y: 7), radius: 4, startAngle: 0, endAngle: 2 * .pi, clockwise: true)
+    path.move(to: CGPoint(x: 16, y: 21))
+    path.addLine(to: CGPoint(x: 16, y: 19))
+    path.addArc(withCenter: CGPoint(x: 12, y: 19), radius: 4, startAngle: 0, endAngle: 1.5 * .pi, clockwise: false)
+    path.addLine(to: CGPoint(x: 6, y: 15))
+    path.addArc(withCenter: CGPoint(x: 6, y: 19), radius: 4, startAngle: 1.5 * .pi, endAngle: .pi, clockwise: false)
+    path.addLine(to: CGPoint(x: 2, y: 21))
+    path.move(to: CGPoint(x: 22, y: 21))
+    path.addLine(to: CGPoint(x: 22, y: 19))
+    path.addArc(withCenter: CGPoint(x: 18, y: 19), radius: 4, startAngle: 0, endAngle: -lean, clockwise: false)
+    path.move(to: CGPoint(x: 16, y: 3.13))
+    path.addArc(withCenter: CGPoint(x: 15, y: 7), radius: 4, startAngle: -lean, endAngle: lean, clockwise: true)
+    return path
+  }
 }
 
 // A rounded box drawn behind a range, `pad` wider at each end: equal by
@@ -275,6 +345,16 @@ final class RichLayout {
       }
       if let link = run.link, let id = run.linkId {
         attrs[.stoopLink] = LinkBox(id: id, url: link, hidden: run.linkHidden)
+      }
+      if let kind = run.glyph {
+        // A word joiner first, so the mark never wraps away from the
+        // handle it follows.
+        out.append(NSAttributedString(string: "\u{2060}", attributes: attrs))
+        let color = (attrs[.foregroundColor] as? UIColor) ?? .label
+        let mark = NSMutableAttributedString(attachment: MentionGlyph.attachment(kind, size: CGFloat(run.size), color: color))
+        mark.addAttributes(attrs, range: NSRange(location: 0, length: mark.length))
+        out.append(mark)
+        continue
       }
       out.append(NSAttributedString(string: run.text, attributes: attrs))
     }

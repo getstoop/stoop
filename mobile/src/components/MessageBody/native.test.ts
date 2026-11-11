@@ -164,6 +164,28 @@ describe("buildDoc: pills", () => {
     expect(me.fillId).not.toBe(dee.fillId);
   });
 
+  it("ends a mention's pill with its glyph, a person's or a group's", () => {
+    const { doc } = build(`<@u:${DEE}:dee> and <@g:${DEE}:crew>`);
+    const glyphs = doc.runs.filter((run) => run.glyph);
+    expect(glyphs.map((run) => run.glyph)).toEqual(["person", "group"]);
+    const dee = runWith(doc, "@dee");
+    expect(doc.runs[doc.runs.indexOf(dee) + 1]).toBe(glyphs[0]);
+    expect(glyphs[0].fillId).toBe(dee.fillId);
+    expect(glyphs[0].color).toBe(dee.color);
+    expect(glyphs[1].fillId).toBe(runWith(doc, "@crew").fillId);
+  });
+
+  it("keeps a mention's glyph out of the words a screen reader is given", () => {
+    const built = build(`<@u:${DEE}:dee> has it`);
+    expect(built.doc.runs.some((run) => run.glyph)).toBe(true);
+    expect(JSON.stringify(built)).toContain('"@dee has it"');
+  });
+
+  it("gives @here no glyph", () => {
+    const { doc } = build("for @here", { mentionsHere: true });
+    expect(doc.runs.some((run) => run.glyph)).toBe(false);
+  });
+
   it("draws @here as a pill only when the message carried it", () => {
     expect(runWith(build("for @here").doc, "@here").fill).toBeUndefined();
     const carried = runWith(build("for @here", { mentionsHere: true }).doc, "@here");
