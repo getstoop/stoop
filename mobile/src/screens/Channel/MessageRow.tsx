@@ -1,7 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { dayAndTime, sameDay } from "@stoop/core/dates";
 import { shownPreviews } from "@stoop/core/linkPreviews";
-import { mentionsMe } from "@stoop/core/mentions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo, useContext } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -25,14 +24,13 @@ const GAP = 10;
 // one before (same author, same minute); its words; and its files
 // (Attachments), small on the card. A reply says whom it answers and the
 // first words of that message over its byline, as the mockup draws it (the
-// server's preview; a quoted message since deleted reads as such). A
-// message that mentions the reader is tinted; the one the reader is
-// quoting or editing in the composer, or the one a jump landed on, for a
-// moment (`target`), is ringed in the accent on the panel surface, over
-// the tint when it has one, one ring for each, told apart by the row's
-// label. A long press anywhere
+// server's preview; a quoted message since deleted reads as such). The
+// message the reader is quoting or editing in the composer, or the one a
+// jump landed on, for a moment (`target`), is ringed in the accent on the
+// panel surface, one ring for each, told apart by the row's label. A
+// long press anywhere
 // on it opens the message menu (MessageMenu), which draws the row again
-// as a card: the mockup's 12px inset, no tint or ring, and the day with
+// as a card: the mockup's 12px inset, no ring, and the day with
 // the time, since the list's day lines are not there to carry it. A
 // root with replies has the thread's line under it (ThreadLine), which
 // opens the thread (onOpenThread); a root deleted while its thread has
@@ -108,7 +106,6 @@ export default memo(function MessageRow({
   const name = authorName(author);
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const hold = onLongPress && (() => onLongPress(message));
-  const mentioned = !card && mentionsMe(message, myUserId);
   const ringed = !card && !!target;
   // A quoted message since deleted comes with no author (and no preview;
   // core/channelLog withQuotesBlanked, as the server reads it).
@@ -168,8 +165,7 @@ export default memo(function MessageRow({
       testID={ringed ? `${target}-target` : undefined}
       style={({ pressed }) => [
         card ? styles.card : styles.row,
-        mentioned && styles.mentioned,
-        ringed && !mentioned && styles.targetSurface,
+        ringed && styles.targetSurface,
         ringed && styles.ring,
         pressed && !!hold && styles.pressed,
       ]}
@@ -252,9 +248,6 @@ function makeStyles(theme: Theme) {
       paddingHorizontal: 12,
       paddingTop: 4,
       paddingBottom: 12,
-    },
-    mentioned: {
-      backgroundColor: theme.accentSoft,
     },
     targetSurface: {
       backgroundColor: theme.panel,
