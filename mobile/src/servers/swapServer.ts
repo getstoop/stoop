@@ -35,7 +35,10 @@ export function swapServer(navigation: ServerNavigation, id: string) {
 export function backToServer(navigation: ServerNavigation) {
   const found = serverScreen(navigation);
   if (!found) return;
-  // From the screen in front: a route past it isn't over anything.
-  const over = found.state.index - found.state.routes.lastIndexOf(found.route);
-  if (over > 0) found.nav.dispatch({ type: "POP", payload: { count: over }, target: found.state.key });
+  // Counted from the screen in front (a route past it isn't over
+  // anything) and popped from it: a screen's navigation would otherwise
+  // name its own screen as where the pop starts.
+  const { index, routes, key } = found.state;
+  const over = index - routes.lastIndexOf(found.route);
+  if (over > 0) found.nav.dispatch({ type: "POP", payload: { count: over }, source: routes[index].key, target: key });
 }
