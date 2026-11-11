@@ -37,10 +37,10 @@ A channel or a conversation is read and written in: messages with their
 Markdown, reactions, replies, threads, files and pins, a composer that
 formats, mentions, attaches and keeps its draft, and a search of the
 space. While the app is in front, a mention, a reply or a direct message
-on any saved server rings as a system notification (Notifications,
-below). Not there yet: notifications while the app is closed, opening
-one from a tap, joining a voice room, and account settings beyond the
-profile.
+on any saved server rings as a system notification, and tapping it
+opens the message (Notifications, below). Not there yet: notifications
+while the app is closed, joining a voice room, and account settings
+beyond the profile.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -72,7 +72,8 @@ import a screen; the screens themselves live in `src/screens`, so
   that server's stack and the server never changes. The switcher is the
   one exception: it dispatches a plain stack `REPLACE` at the screen
   under its sheet, so the sheet closes onto the new server
-  (`src/screens/ServerSwitcher/index.tsx`).
+  (`src/screens/ServerSwitcher/index.tsx`); a tapped notification for
+  another server swaps the same way (Notifications, below).
 - Typed routes are off for now: Expo generates their types only while
   Metro runs, and `make mobile-typecheck` runs without it.
 - A server (`src/app/s/[id]/_layout.tsx`) is a stack with its tabs at
@@ -687,9 +688,10 @@ config plugin, so a build on the phone needs `make mobile-prebuild` and
 `make mobile-ios` again). Every saved server rings, not only the one on
 screen (`NotificationsProvider.tsx`, one listener per session inside
 the realtime provider). Only the live event rings: what the feed loads
-after a reconnect is history. There is no push, so nothing arrives
-while the app is in the background; a tap opens the app and goes
-nowhere yet, and the app's icon carries no badge.
+after a reconnect is history. Tapping one opens its message, and
+reading what one points at takes it out of the list. There is no push,
+so nothing arrives while the app is in the background, and the app's
+icon carries no badge.
 
 - What it says is `content.ts`: the title is who and what ("Priya Shah
   mentioned you", core's `activityVerb`), a direct message's just its
@@ -718,6 +720,49 @@ nowhere yet, and the app's icon carries no badge.
   Android 13 and later, which reports no such state, it asks while the
   system still lets it: on first run, and once more after one refusal.
   Refused, nothing shows and nothing else changes.
+- A tap opens the message, whether the app was in front, in the
+  background or closed: the thread at the reply when the item has a
+  thread, else the channel or the conversation at the message, the
+  route an Activity row opens (`open.ts`; `content.ts` checks the data
+  the system hands back), with the item read on the way. The tap is
+  heard at the root (`taps.ts`): as an event while the app runs, and
+  from the library's last response for the tap that launched it, which
+  every later tap also sets, so each response is cleared as it is heard
+  and accepted once by its key (`tapped.ts`: the notification's
+  identifier and when it was shown). It is opened from the server's
+  layout (`OpenTappedNotification.tsx`), the only place that server's
+  stack can be pushed onto, so the root leaves it in a small store
+  between the two (`pendingTap.ts`); what the layout does with it is
+  decided in `open.ts` (`tapAction`). A tap for another saved server
+  swaps to it as the switcher does (`swapServer`, then first in the
+  list) and that server's layout opens it as it mounts; if its sign-in
+  has ended, the channel opens all the same and says so. A sheet or
+  screen over the server (the switcher, a sign-in, New message) is
+  closed first, and the screen is then pushed even if it was the one
+  beneath. On the screen it points at nothing is pushed: a channel
+  jumps to the message, and a thread, which lands only as it opens,
+  stays where it is. From one of the channel's threads the app goes
+  back to the channel. Data that isn't ours, or a server forgotten
+  since, does nothing more than open the app, and a tap not opened
+  within ten seconds is dropped.
+- A notification stays in the list only while what it points at is
+  unread (`clear.ts` for which, `dismiss.ts` for the taking out, by the
+  data each presented notification carries). A channel or a
+  conversation coming on screen clears what landed in it, not its
+  threads' replies; a thread's screen clears that thread's; the same
+  when ChannelRead or ThreadRead arrives on the server's socket, so
+  reading on another device clears them here. Coming back to the app
+  on one of those screens puts it on screen again, and clears the same.
+  Marking activity read clears those items, or all of that server's
+  (`ActivityProvider`'s `markRead`). A session ending (CredentialRevoked,
+  or a request the server refuses), signing in again and forgetting the
+  server clear all of that server's. Both systems take a tapped
+  notification out themselves. Not cleared: a thread's reply also sent
+  to the channel, by the channel's read (its data doesn't say it is in
+  the channel; the thread's read clears it); a notification still
+  waiting for its names when the read lands, which then shows; and
+  anything by the person's own message sent from another device, for
+  which the server sends no ChannelRead.
 - Android posts to one channel, "Mentions and messages", at high
   importance (`channel.ts`), made before the prompt, which Android
   won't show without one. Its status-bar glyph is

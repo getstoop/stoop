@@ -18,6 +18,20 @@ export type NotificationData = {
   messageId: string;
 };
 
+const text = (value: unknown): value is string => typeof value === "string";
+
+// The payload read back from the system, which hands over whatever was
+// stored: nothing for data that isn't whole, every field present and
+// the IDs a tap can't do without not empty.
+export function notificationData(data: unknown): NotificationData | null {
+  if (typeof data !== "object" || data === null) return null;
+  const { serverId, itemId, kind, spaceId, channelId, threadRootId, messageId } = data as Record<string, unknown>;
+  if (!text(serverId) || !text(itemId) || !text(channelId) || !text(messageId)) return null;
+  if (!serverId || !itemId || !channelId || !messageId) return null;
+  if (!text(spaceId) || !text(threadRootId) || typeof kind !== "number") return null;
+  return { serverId, itemId, kind, spaceId, channelId, threadRootId, messageId };
+}
+
 export type NotificationContent = {
   identifier: string;
   title: string;

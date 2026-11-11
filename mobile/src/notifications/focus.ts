@@ -11,8 +11,21 @@ let place: FocusedPlace | null = null;
 
 export const focusedPlace = (): FocusedPlace | null => place;
 
+const listeners = new Set<(place: FocusedPlace) => void>();
+
 export function setFocusedPlace(next: FocusedPlace) {
   place = next;
+  for (const listener of listeners) listener(next);
+}
+
+// Calls back as a place comes on screen (its notifications are cleared
+// then, NotificationsProvider.tsx), until the returned function is
+// called.
+export function onFocusedPlace(listener: (place: FocusedPlace) => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 // Clears the place only while it is still the caller's: the screen
