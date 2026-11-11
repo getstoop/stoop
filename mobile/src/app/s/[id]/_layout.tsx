@@ -1,6 +1,7 @@
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import ActivityProvider from "../../../activity/ActivityProvider";
 import AlertsProvider from "../../../alerts/AlertsProvider";
+import { useAskToNotify } from "../../../notifications/permission";
 import { CurrentServer, useServer } from "../../../servers";
 import { sessionKey } from "../../../servers/sessionKey";
 import { useTheme } from "../../../theme";
@@ -14,7 +15,9 @@ import { useTheme } from "../../../theme";
 // pressing gets none of this layout's route params. The server's
 // activity feed is held here too, for the Activity tab, and the badge
 // total on that tab beside it (src/alerts). All of it starts again on a
-// new sign-in, which may be another account's on the same ID.
+// new sign-in, which may be another account's on the same ID. The app
+// asks to notify when the first server shows
+// (src/notifications/permission.ts).
 export const unstable_settings = { anchor: "(tabs)" };
 
 // A channel's header, and a thread's, has no bar of its own: the list
@@ -33,6 +36,7 @@ export default function ServerLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const server = useServer(id);
+  useAskToNotify(!!server);
   if (!server) return <Redirect href="/" />;
 
   return (

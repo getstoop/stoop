@@ -119,6 +119,8 @@ const app = join(root, "mobile/assets");
 await raster("mark", join(app, "mark.png"), 96);
 await raster("mark", join(app, "mark@2x.png"), 96, { scale: 2 });
 await raster("mark", join(app, "mark@3x.png"), 96, { scale: 3 });
+// Android's notification glyph: alpha only, as web's badge is.
+await raster("badge", join(app, "notification-icon.png"), 96);
 
 await browser.close();
 rmSync(tmp, { recursive: true });

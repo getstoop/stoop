@@ -1,20 +1,24 @@
 import { Stack } from "expo-router";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import NotificationsProvider from "../notifications/NotificationsProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
 import { ThemeProvider, useTheme } from "../theme";
 
 // The root of the app. Files under src/app are routes and layouts only,
 // a few lines each; the screens they show live in src/screens. Gestures
-// (the picture viewer's) need their root view around everything.
+// (the picture viewer's) need their root view around everything. What
+// arrives on any saved server's socket rings from here (src/notifications).
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <ThemeProvider>
         <ServersProvider>
           <RealtimeProvider>
-            <RootStack />
+            <NotificationsProvider>
+              <RootStack />
+            </NotificationsProvider>
           </RealtimeProvider>
         </ServersProvider>
       </ThemeProvider>

@@ -19,6 +19,7 @@ import { useViewer } from "../../components/Viewer/useViewer";
 import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { olderFits } from "../Channel/channelEngine";
@@ -103,6 +104,8 @@ export default function Thread({
   const thread = threads[rootId];
   const view = log.threads[rootId];
   const active = useAppActive();
+  // A reply arriving here while it is being read rings nothing.
+  useFocusedPlace({ serverId: server.id, channelId, threadRootId: rootId }, focused && active);
   const list = useRef<FlatList<GroupedRow>>(null);
   const followSend = useFollowSend(list);
   const landed = useRef(false);

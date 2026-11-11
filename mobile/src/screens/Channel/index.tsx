@@ -19,6 +19,7 @@ import { useViewer } from "../../components/Viewer/useViewer";
 import { useAppActive } from "../../hooks/useAppActive";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelOutcome from "./ChannelOutcome";
@@ -120,6 +121,8 @@ export default function Channel({
   const { log, header, outcome, token, newAfter, loadingOlder, landOn } = state;
   const { hasNewer } = log.channel;
   const active = useAppActive();
+  // What arrives here while it is being read rings nothing.
+  useFocusedPlace({ serverId: server.id, channelId }, focused && active);
   // The thread Reply in thread opens once the menu has gone, by its root.
   const threadAfterMenu = useRef<string | null>(null);
   const list = useRef<FlatList<GroupedRow>>(null);
