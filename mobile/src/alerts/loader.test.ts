@@ -113,7 +113,6 @@ describe("alertsLoader", () => {
 
   it.each([
     ["no session is kept", () => token.mockResolvedValue(null)],
-    ["the keychain won't give up the token", () => token.mockRejectedValue(new Error("keychain"))],
     ["the server refuses the session", () => lists.mockRejectedValue(new ConnectError("no", Code.Unauthenticated))],
   ])("has none and asks no more once %s", async (_name, arrange) => {
     lists.mockResolvedValueOnce(answer(4));
@@ -130,6 +129,18 @@ describe("alertsLoader", () => {
     expect(token).not.toHaveBeenCalled();
     expect(lists).not.toHaveBeenCalled();
     expect(totals).toEqual([4, 0]);
+  });
+
+  it("keeps the last total while the keychain won't be read, and asks again once it will", async () => {
+    lists.mockResolvedValueOnce(answer(4));
+    const loader = start();
+    await loader.refresh();
+    token.mockRejectedValueOnce(new Error("keychain"));
+    await loader.refresh();
+    expect(totals).toEqual([4]);
+    lists.mockResolvedValue(answer(5));
+    await loader.refresh();
+    expect(totals).toEqual([4, 5]);
   });
 
   it("has none on CredentialRevoked, whatever was waiting or still loading", async () => {

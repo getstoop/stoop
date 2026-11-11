@@ -13,9 +13,10 @@ import { sessionToken } from "../api/servers";
 // every reconnect, which coming back to the app brings) asks again
 // after a moment's quiet. A screen asks too when it changes something
 // no event tells (the Messages tab closing a conversation). A load
-// that fails keeps the last total. CredentialRevoked, no session kept,
-// or the server refusing it says the session has ended: the total is
-// 0, and nothing more is asked.
+// that fails keeps the last total, as does a keychain that can't be
+// read just now. CredentialRevoked, no session kept, or the server
+// refusing it says the session has ended: the total is 0, and nothing
+// more is asked.
 
 export type AlertsLoader = {
   // Asks the server again; resolves once the answer has landed.
@@ -53,13 +54,20 @@ export function alertsLoader(server: { id: string; origin: string }, onTotal: (t
 
   const refresh = async () => {
     if (over) return;
-    const mine = ++latest;
-    const session = await sessionToken(server.id).catch(() => null);
-    if (mine !== latest) return;
+    let session: string | null;
+    try {
+      session = await sessionToken(server.id);
+    } catch {
+      return;
+    }
+    if (over) return;
     if (!session) {
       end();
       return;
     }
+    // Only now the latest: a load that never asked the server must not
+    // put aside the answer of one that did.
+    const mine = ++latest;
     try {
       const { spaces, dms } = await loadAlertLists(server.origin, session);
       if (mine === latest) onTotal(alertingTotal(spaces, dms));
