@@ -29,7 +29,9 @@ const tmp = mkdtempSync(join(tmpdir(), "stoop-brand-"));
 
 // Renders one master at size×size CSS px, scale× device pixels, with an
 // optional drawn size and offset (the tray glyph sits inside its canvas).
-async function raster(name, out, size, { scale = 1, draw = size, offset = 0 } = {}) {
+// `opaque` writes no alpha channel by flattening onto the page's white,
+// so it is only for a full-bleed master (the phone app's icon).
+async function raster(name, out, size, { scale = 1, draw = size, offset = 0, opaque = false } = {}) {
   const page = await browser.newPage({ viewport: { width: size, height: size }, deviceScaleFactor: scale });
   const data = Buffer.from(svg(name)).toString("base64");
   await page.setContent(
@@ -37,7 +39,7 @@ async function raster(name, out, size, { scale = 1, draw = size, offset = 0 } = 
       `<img src="data:image/svg+xml;base64,${data}">`,
   );
   mkdirSync(dirname(out), { recursive: true });
-  await page.screenshot({ path: out, omitBackground: true, clip: { x: 0, y: 0, width: size, height: size } });
+  await page.screenshot({ path: out, omitBackground: !opaque, clip: { x: 0, y: 0, width: size, height: size } });
   await page.close();
 }
 
@@ -121,6 +123,13 @@ await raster("mark", join(app, "mark@2x.png"), 96, { scale: 2 });
 await raster("mark", join(app, "mark@3x.png"), 96, { scale: 3 });
 // Android's notification glyph: alpha only, as web's badge is.
 await raster("badge", join(app, "notification-icon.png"), 96);
+// The app's icon: the tile. iOS rounds it itself and rejects alpha;
+// Android before 8 crops it. Later Android masks its own shape over a
+// Brownstone ground (app.json) and draws this mark on it, or tints it
+// alone for a themed icon, so the one file is both layers.
+await raster("icon-square", join(app, "icon.png"), 1024, { opaque: true });
+await raster("icon-adaptive", join(app, "android-icon-foreground.png"), 432);
+await raster("favicon", join(app, "favicon.png"), 48);
 
 await browser.close();
 rmSync(tmp, { recursive: true });
