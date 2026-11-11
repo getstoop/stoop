@@ -4,7 +4,6 @@ import { alertsStore, NO_BADGES, type ServerBadges, serverBadges, waitingEverywh
 // Badges whose total is `total`, all of it in the spaces.
 const of = (total: number): ServerBadges => ({ activity: total, messages: 0, total });
 
-
 describe("alertsStore", () => {
   it("has none for a server until it is told, and after the server is taken out", () => {
     const store = alertsStore();
@@ -28,11 +27,15 @@ describe("alertsStore", () => {
     // One tab's badge moving is a change, though the total stays.
     store.set("a", { activity: 2, messages: 7, total: 3 });
     expect(listener).toHaveBeenCalledTimes(2);
-    store.set("a", undefined);
+    // As is a second message in a conversation already unread.
+    store.set("a", { activity: 2, messages: 8, total: 3 });
     expect(listener).toHaveBeenCalledTimes(3);
+    expect(store.badges("a").messages).toBe(8);
+    store.set("a", undefined);
+    expect(listener).toHaveBeenCalledTimes(4);
     stop();
     store.set("a", of(1));
-    expect(listener).toHaveBeenCalledTimes(3);
+    expect(listener).toHaveBeenCalledTimes(4);
   });
 
   it("asks a server again the way it was last told to", async () => {

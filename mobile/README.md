@@ -781,8 +781,8 @@ badge stays as it was when the app left the front.
   which the server sends no ChannelRead.
 - The icon's badge is every saved server's total added up
   (`src/alerts/store.ts` `waitingEverywhere`), each what its Activity
-  tab shows plus one per conversation with unread messages; a server whose sign-in has ended, or that hasn't
-  answered, adds nothing, and forgetting a server takes its count out.
+  tab shows plus one per conversation with unread messages; a server
+  whose sign-in has ended, or that hasn't answered, adds nothing, and forgetting a server takes its count out.
   It is set whenever that sum changes and once more as the app goes to
   the background (`AppIconBadge.tsx`, `badge.ts`), so a badge allowed
   after the sum last changed still shows; with nothing waiting, or no

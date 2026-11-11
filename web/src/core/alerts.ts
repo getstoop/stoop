@@ -9,7 +9,7 @@ import type { Space } from "../gen/stoop/chat/v1/space_pb";
 // between answers: the one total, and how a live arrival is judged.
 
 // What the desktop shell's dock and tray show for a server, and the
-// mobile app's badge for one: the alerts over every space, plus one per
+// mobile app's icon, switcher and You tab for one: the alerts over every space, plus one per
 // conversation with unread messages. A conversation's alertCount is
 // always 0, since everything there is addressed to the reader, so it
 // counts once however many messages wait. A muted space or conversation

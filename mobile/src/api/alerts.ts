@@ -26,7 +26,7 @@ export async function loadAlertLists(origin: string, token: string): Promise<Ale
 
 // Whether an event could change a badge: a message anywhere (one
 // addressed to the reader raises it, the reader's own moves their marker,
-// one in a conversation makes it unread; an edit adds or takes away a
+// one in a conversation adds to its unread messages; an edit adds or takes away a
 // mention, or leaves a placeholder), a marker moving, a mute, a deletion,
 // a space or a conversation coming or going, a private channel's readers
 // changing (what the reader can read is what is counted). Someone

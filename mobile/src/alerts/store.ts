@@ -24,7 +24,7 @@ export type ServerBadges = {
   total: number;
 };
 
-export const NO_BADGES: ServerBadges = { activity: 0, messages: 0, total: 0 };
+export const NO_BADGES: Readonly<ServerBadges> = { activity: 0, messages: 0, total: 0 };
 
 export function serverBadges(spaces: Space[] | undefined, dms: DirectMessage[] | undefined): ServerBadges {
   return {

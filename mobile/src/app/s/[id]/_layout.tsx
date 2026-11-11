@@ -13,10 +13,10 @@ import { useTheme } from "../../../theme";
 // for the composer. What is
 // under it reads the server from CurrentServer: a screen reached by
 // pressing gets none of this layout's route params. The server's
-// activity feed is held here too, for the Activity tab; the badge
-// total on that tab is kept at the root with every server's
+// activity feed is held here too, for the Activity tab; that tab's
+// badge, and Messages', are kept at the root with every server's
 // (src/alerts). The feed starts again on a new sign-in, which may be
-// another account's on the same ID, as the total does. The app
+// another account's on the same ID, as the badges do. The app
 // asks to notify when the first server shows
 // (src/notifications/permission.ts), and a tapped notification is
 // opened from here, on this stack

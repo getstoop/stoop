@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadAlertLists } from "../api/alerts";
 import { sessionToken } from "../api/servers";
 import { alertsLoader, RELOAD_DELAY_MS } from "./loader";
+import { NO_BADGES } from "./store";
 
 // The lists are stood in for; which events ask again is the real rule.
 vi.mock("../api/alerts", async (original) => ({
@@ -68,6 +69,18 @@ describe("alertsLoader", () => {
     const said: unknown[] = [];
     await alertsLoader(SERVER, (badges) => said.push(badges)).refresh();
     expect(said).toEqual([{ activity: 3, messages: 5, total: 4 }]);
+  });
+
+  it("clears both tabs' badges with the total when the session ends", async () => {
+    lists.mockResolvedValue({
+      spaces: [{ muted: false, alertCount: 3 }],
+      dms: [{ closed: false, channel: { muted: false, unreadCount: 5 } }],
+    } as never);
+    const said: unknown[] = [];
+    const loader = alertsLoader(SERVER, (badges) => said.push(badges));
+    await loader.refresh();
+    loader.event(revoked);
+    expect(said).toEqual([{ activity: 3, messages: 5, total: 4 }, NO_BADGES]);
   });
 
   it("asks once, after a moment's quiet, for a burst of events", async () => {
