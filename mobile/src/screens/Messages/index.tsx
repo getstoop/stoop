@@ -4,18 +4,13 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, AppState, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlerts } from "../../alerts/AlertsProvider";
-import {
-  type Conversations,
-  closeConversation,
-  loadConversations,
-  setConversationMuted,
-  touchesConversations,
-} from "../../api/conversations";
+import { setChannelMuted } from "../../api/channels";
+import { type Conversations, closeConversation, loadConversations, touchesConversations } from "../../api/conversations";
 import { errorText } from "../../api/errors";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
@@ -24,6 +19,7 @@ import { PencilIcon } from "../../components/Icons";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useSheetNotice } from "../../hooks/useSheetNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
@@ -144,26 +140,20 @@ export default function Messages({ server }: { server: SavedServer }) {
   // the menu opened, so the sheet can slide out over it.
   const [menuFor, setMenuFor] = useState<DirectMessage | null>(null);
   const menuDm = menuFor && (ready?.list.dms.find((dm) => dm.channel?.id === menuFor.channel?.id) ?? menuFor);
-  // A refusal is said once the sheet has gone: on iOS an alert over a
-  // modal goes with it (as AttachSheet waits for its own).
-  const menuOpen = useRef(false);
-  const unsaid = useRef<[string, string?] | null>(null);
-  const say = useCallback((title: string, body?: string) => {
-    if (menuOpen.current) unsaid.current = [title, body];
-    else Alert.alert(title, body);
-  }, []);
-  const openMenu = useCallback((dm: DirectMessage) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    menuOpen.current = true;
-    setMenuFor(dm);
-  }, []);
+  // A refusal is said once the sheet has gone.
+  const { say, opened, closed } = useSheetNotice();
+  const openMenu = useCallback(
+    (dm: DirectMessage) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      opened();
+      setMenuFor(dm);
+    },
+    [opened],
+  );
   const closeMenu = useCallback(() => {
-    menuOpen.current = false;
     setMenuFor(null);
-    const held = unsaid.current;
-    unsaid.current = null;
-    if (held) Alert.alert(...held);
-  }, []);
+    closed();
+  }, [closed]);
 
   // The list as shown, changed before the server says so. A load already
   // on its way knows nothing of the change, so it is dropped (latest);
@@ -194,7 +184,7 @@ export default function Messages({ server }: { server: SavedServer }) {
         const set = (to: boolean) =>
           change((dms) => dms.map((d) => (d.channel?.id === id ? { ...d, channel: { ...d.channel, muted: to } } : d)));
         set(muted);
-        setConversationMuted(server.origin, token.current, id, muted)
+        setChannelMuted(server.origin, token.current, id, muted)
           .catch((err) => {
             set(!muted);
             say(muted ? "Couldn't mute the conversation" : "Couldn't unmute the conversation", errorText(err));

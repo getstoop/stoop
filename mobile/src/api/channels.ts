@@ -47,6 +47,12 @@ export async function loadSpaceChannels(
   };
 }
 
+// The caller's own mute of a channel, a conversation's too: it stops
+// counting as unread. Told to the caller's other devices (ChannelMuted).
+export async function setChannelMuted(origin: string, token: string, channelId: string, muted: boolean) {
+  await chatClient(origin, token).setChannelMuted({ channelId, muted }, { timeoutMs: TIMEOUT_MS });
+}
+
 export function memberName(member: Pick<Member, "displayName" | "username">): string {
   return member.displayName || member.username;
 }
