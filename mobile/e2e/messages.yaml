@@ -29,7 +29,8 @@ name: See a direct message arrive in Messages, unread, then read, then answered
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-messages"

@@ -24,9 +24,11 @@ name: Quote lines and write a code block from the format row, leave each, and se
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 # Read already when channel.yaml ran first.
 - extendedWaitUntil:
     visible: "chapters(, unread)?"

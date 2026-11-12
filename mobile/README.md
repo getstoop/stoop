@@ -19,9 +19,10 @@ address, and Sign in, by password, a login provider, or a new account
 where the server takes them without an invite, with Forgot password
 asking the server for a reset link, and joining from an invite link,
 pasted or handed over by the web's open-in-app page. A signed-in server opens
-on four tabs: Spaces, listing the server's spaces with their mention
-badges, unread dots and mutes, each opening its channels (text channels
-with what is waiting in each, voice rooms with who is in them), under a
+on four tabs: Spaces, one screen with the server's spaces down a rail
+at the left, each with its mention badge, unread mark or mute, and the
+selected space's channels beside it (text channels with what is waiting
+in each, voice rooms with who is in them), under a
 header that opens the server switcher, a sheet listing every server on the phone with its badge
 count or a sign-in that has ended, and Add a server; Activity, what
 has happened to you there (mentions, replies, thread replies and direct
@@ -81,14 +82,27 @@ import a screen; the screens themselves live in `src/screens`, so
 - Typed routes are off for now: Expo generates their types only while
   Metro runs, and `make mobile-typecheck` runs without it.
 - A server (`src/app/s/[id]/_layout.tsx`) is a stack with its tabs at
-  the bottom, in the `(tabs)` group, so the URLs don't name it. A space's
-  channels push inside the Spaces tab, with the tab bar showing, under a
-  header with no bar: the space's icon, name and what it is sit in a
-  pill beside the back button (`src/screens/Space/SpaceTitle.tsx`,
-  Liquid Glass from iOS 26), and the channels scroll under both. A
+  the bottom, in the `(tabs)` group, so the URLs don't name it. The
+  Spaces tab is one screen (`src/screens/Spaces`), in a stack of its own
+  only so the tabs can anchor on its folder: the server's header across
+  the top, a rail of the server's spaces down the left (`Rail.tsx`,
+  `RailItem.tsx`; what each button shows and says is `railRules.ts`),
+  and the selected space's channels in the pane beside it (`Pane.tsx`),
+  under the space's name, how many are in it and what it is, and a
+  button that searches it (`PaneHeader.tsx`). Picking a space on the
+  rail changes the pane; nothing is pushed, and no route names the
+  space. The selection is held while the tab is mounted
+  (`useSelectedSpace.ts`): a server opens on its first space, a space
+  the account is no longer in gives way to the first, and opening a
+  channel from search, Activity or a notification leaves it alone.
+  While the spaces load the rail and the pane are skeletons
+  (`src/components/Skeleton.tsx`), and the pane is again while a
+  picked space's channels load. The rail and the channel list each
+  scroll, inset by the system on iOS so their last rows clear the tab
+  bar that lies over them. A
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
-  tabs instead, as a conversation does in the system's own apps, leaving
-  the bottom of the screen for its composer.
+  tabs, as a conversation does in the system's own apps, leaving
+  the bottom of the screen for its composer; back returns to the tab.
 - The composer (`src/screens/Channel/Composer.tsx`) is one control in
   two states: at rest a pill floating over the list, which scrolls under
   it; tapped, a card above the keyboard with the field, Attach, Aa (the
@@ -616,9 +630,11 @@ server's stack mounts again, a channel's log is a new
 one, the old session is logged out, best effort, and the cached files go,
 as on signing out (`session` in `src/api/servers.ts`). Who is in each voice room is
 kept there (Ready, then VoiceStateChanged); a screen that needs other
-events listens with `useServerEvents`. A space's channels screen
-reloads, after a moment's quiet, whenever one touches that space, as
-when a channel is created, renamed, deleted or read. Each server's
+events listens with `useServerEvents`. The Spaces tab's pane
+reloads, after a moment's quiet, whenever one touches its space, as
+when a channel is created, renamed, deleted or read, and its rail
+whenever one touches any of the server's spaces or one comes or goes
+(`api/channels` `touchesSpace`, `api/spaces` `touchesSpaces`). Each server's
 activity feed is held once, in its stack (`src/activity`), for the
 Activity tab: the first page, loaded on
 opening, on coming back to the app and on Ready, with
@@ -1028,8 +1044,9 @@ own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,
-sign in and see the Spaces tab's badges, open a space and see what is
-waiting in each of its channels, read a channel from its "New" line back
+sign in and see the badges on the Spaces tab's rail, see what is
+waiting in each of the selected space's channels and pick another space
+on the rail, read a channel from its "New" line back
 to its first message while messages arrive, change and go, write in a
 channel and see the message land once, react to a message from its
 menu, see its chip under the message and take it back from the chip,
@@ -1073,8 +1090,8 @@ pasted invite link,
 open an invite the way the web's open-in-app page does, then sign in and
 join, and see a mention arrive in Activity with the tab's badge, open
 it in its channel and come back to it read with the badge gone.
-They find things by the words on screen and, for text fields, a
-`testID`. They run in the order `e2e/config.yaml` lists them: by their
+They find things by the words on screen and, for text fields, the
+tabs and the rail's spaces (`space-<id>`), a `testID`. They run in the order `e2e/config.yaml` lists them: by their
 names, in file-name order (Maestro runs a directory in no fixed order
 of its own; a new flow goes in that list too). Some lean on it: the message-menu
 flow has ada write in chapters, message-actions has dee write there

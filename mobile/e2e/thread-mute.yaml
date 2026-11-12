@@ -36,9 +36,11 @@ name: Mute a thread, see a reply in it counted as nothing new, and unmute it
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 - extendedWaitUntil:
     visible: "chapter-nine(, unread)?"
     timeout: 15000

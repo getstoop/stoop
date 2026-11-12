@@ -29,7 +29,8 @@ name: Start a conversation from New message, and land in the one that exists
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-messages"

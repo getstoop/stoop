@@ -28,9 +28,11 @@ name: Pick a reaction from the emoji picker, and copy a message's link
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 - extendedWaitUntil:
     visible: "chapters(, unread)?"
     timeout: 15000

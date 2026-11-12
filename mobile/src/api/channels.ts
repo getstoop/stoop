@@ -4,8 +4,9 @@ import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { chatClient } from "./clients";
 
-// A space's channels screen: the space, its text and voice channels in
-// the space's order, each text channel carrying what is waiting in it
+// A space's channels, the Spaces tab's pane: the space, its text and
+// voice channels in the space's order, each text channel carrying what
+// is waiting in it
 // (`unreadCount`, `alertCount`, `muted`, the caller's own), and its
 // members, for the count under the name and the faces in voice rooms. A
 // snapshot, fetched again on pull and on coming back to the app; who is
@@ -57,24 +58,29 @@ export function voiceNames(names: string[]): string {
   return `${names[0]} and ${names[1]} + ${names.length - 2} more`;
 }
 
-// Whether an event could change what a space's channels screen shows:
-// its channels and their order, mutes, unreads and alert counts (a
-// message created can be addressed to the reader; one deleted or edited
-// can take an unread or an alert with it; a thread muted changes which
-// alerts count; a read marker, channel or thread, reads the alerts it
-// passes), the space itself, or who is in it. Ready follows a reconnect,
-// when anything may have been missed. Who is in voice is not here: the
-// roster follows it.
+// Whether an event could change what a space's channels show: its
+// channels and their order, mutes, unreads and alert counts (a message
+// created can be addressed to the reader; one deleted or edited can take
+// an unread or an alert with it; a thread muted changes which alerts
+// count; a read marker, channel or thread, reads the alerts it passes),
+// the space itself, or who is in it. Ready follows a reconnect, when
+// anything may have been missed. Who is in voice is not here: the roster
+// follows it.
 export function touchesSpace(event: ServerEvent, spaceId: string): boolean {
+  return event.payload.case === "ready" || eventSpaceId(event) === spaceId;
+}
+
+// The space an event of those kinds is about: "" for one in a direct
+// message, undefined for a kind that changes nothing a space's channels
+// show. The Spaces tab's rail reads the same kinds for every space
+// (`touchesSpaces` in ./spaces.ts).
+export function eventSpaceId(event: ServerEvent): string | undefined {
   const payload = event.payload;
   switch (payload.case) {
-    case "ready":
-      return true;
     case "channelCreated":
     case "channelUpdated":
     case "messageCreated":
     case "messageUpdated":
-      return payload.value.spaceId === spaceId;
     case "channelDeleted":
     case "channelsReordered":
     case "channelMuted":
@@ -89,10 +95,10 @@ export function touchesSpace(event: ServerEvent, spaceId: string): boolean {
     case "memberUpdated":
     case "channelMemberJoined":
     case "channelMemberLeft":
-      return payload.value.spaceId === spaceId;
+      return payload.value.spaceId;
     case "spaceUpdated":
-      return payload.value.space?.id === spaceId;
+      return payload.value.space?.id;
     default:
-      return false;
+      return undefined;
   }
 }

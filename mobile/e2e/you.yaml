@@ -23,7 +23,8 @@ name: See who you are on You, refreshed by a pull, and think better of signing o
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-you"
@@ -62,7 +63,8 @@ name: See who you are on You, refreshed by a pull, and think better of signing o
 - tapOn:
     id: "tab-spaces"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - runScript:
     file: scripts/rpc.js
