@@ -45,14 +45,18 @@ export type NotificationContent = {
 // new message replacing the last, and a mention or a reply its own. A
 // direct message is titled by its sender alone. The subtitle says
 // where, nearest first, leaving out what the person can't mistake: the
-// server's name only when more than one is saved.
+// server's name only when more than one is saved. With the text hidden
+// (src/alertPrefs) it names neither who nor what: "Someone mentioned
+// you", a direct message just "New direct message", no body; where it
+// happened is still said, and the data is what it always is.
 export function notificationContent(
   item: ActivityItem,
   server: { id: string; name: string },
   names: PlaceNames,
   manyServers: boolean,
+  showText = true,
 ): NotificationContent {
-  const who = item.actor?.displayName || item.actor?.username || "Someone";
+  const who = showText ? item.actor?.displayName || item.actor?.username || "Someone" : "Someone";
   const where = [
     names.channel ? `#${names.channel}` : undefined,
     names.space,
@@ -60,9 +64,14 @@ export function notificationContent(
   ].filter(Boolean);
   return {
     identifier: `${server.id}:${activityEntryKey(item)}`,
-    title: item.kind === ActivityKind.DM ? who : `${who} ${activityVerb(item.kind)}`,
+    title:
+      item.kind === ActivityKind.DM
+        ? showText
+          ? who
+          : "New direct message"
+        : `${who} ${activityVerb(item.kind)}`,
     subtitle: where.length > 0 ? where.join(" · ") : undefined,
-    body: item.preview,
+    body: showText ? item.preview : "",
     data: {
       serverId: server.id,
       itemId: item.id,

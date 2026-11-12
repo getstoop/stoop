@@ -11,7 +11,7 @@ import { useLeaveServer } from "../../servers/useLeaveServer";
 import type { Waiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { confirmRemove } from "./confirmRemove";
-import Section from "./Section";
+import Section from "../../components/Section";
 import ServerEntry from "./ServerEntry";
 import ServerMenu from "./ServerMenu";
 import SwipeToRemove from "./SwipeToRemove";

@@ -110,3 +110,35 @@ describe("notificationData", () => {
     expect(notificationData({ ...sent, kind: "mention" })).toBeNull();
   });
 });
+
+describe("notificationContent with the text hidden", () => {
+  const hidden = (over: Partial<ActivityItem> = {}, names = { channel: "book-club", space: "Neighbours" }) =>
+    notificationContent(item(over), server, names, false, false);
+
+  it("names neither who nor what, and still says where", () => {
+    const content = hidden();
+    expect(content.title).toBe("Someone mentioned you");
+    expect(content.subtitle).toBe("#book-club · Neighbours");
+    expect(content.body).toBe("");
+    expect(JSON.stringify(content)).not.toContain("Priya");
+    expect(JSON.stringify(content)).not.toContain("coming");
+  });
+
+  it("keeps the verb of a reply and a thread's reply", () => {
+    expect(hidden({ kind: ActivityKind.REPLY }).title).toBe("Someone replied to you");
+    expect(hidden({ kind: ActivityKind.THREAD_REPLY }).title).toBe("Someone replied in a thread");
+  });
+
+  it("titles a direct message without its sender", () => {
+    const content = notificationContent(dm(), server, {}, false, false);
+    expect(content.title).toBe("New direct message");
+    expect(content.body).toBe("");
+  });
+
+  it("carries the same data and identifier as with the text shown", () => {
+    const shown = notificationContent(item(), server, {}, false);
+    const content = notificationContent(item(), server, {}, false, false);
+    expect(content.data).toEqual(shown.data);
+    expect(content.identifier).toBe(shown.identifier);
+  });
+});

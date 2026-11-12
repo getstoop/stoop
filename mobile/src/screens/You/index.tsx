@@ -13,7 +13,7 @@ import { type SavedServer, useServers } from "../../servers";
 import { useWaiting } from "../../servers/useWaiting";
 import { type Theme, themeList, useTheme, useThemeName } from "../../theme";
 import Identity from "./Identity";
-import Section from "./Section";
+import Section from "../../components/Section";
 import ServersSection from "./ServersSection";
 import SettingRow from "./SettingRow";
 import SignOutButton from "./SignOutButton";

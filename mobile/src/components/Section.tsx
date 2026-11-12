@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { type Theme, tokens, useTheme } from "../../theme";
+import { type Theme, tokens, useTheme } from "../theme";
 
-// A titled group of rows on the You tab.
+// A titled group of rows, on the You tab and the Notifications screen.
 export default function Section({ title, children }: { title: string; children: ReactNode }) {
   const styles = makeStyles(useTheme());
   return (

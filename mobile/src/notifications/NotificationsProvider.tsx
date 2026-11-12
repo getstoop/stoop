@@ -1,6 +1,7 @@
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useAlertPrefsNow } from "../alertPrefs/AlertPrefsProvider";
 import { loadChannelList, loadSpaceList } from "../api/activity";
 import { sessionToken } from "../api/servers";
 import { useDndHolds } from "../dnd/DndProvider";
@@ -25,7 +26,8 @@ import { useNotificationTaps } from "./taps";
 // Nothing is said for what is muted, read, or being read as it arrives,
 // or while do not disturb holds that server's banners: the phone's
 // switch, or the server's account set from another device (quiet.ts,
-// src/dnd). Only the banner is held: the badges count on.
+// src/dnd), or for a kind the phone isn't set to alert about
+// (src/alertPrefs). Only the banner is held: the badges count on.
 //
 // A notification stays in the system's list only while what it points
 // at is unread (clear.ts for which, dismiss.ts for the taking out): a
@@ -79,12 +81,22 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
   }, [server.id]);
 
   const dndHolds = useDndHolds();
+  const alertPrefs = useAlertPrefsNow();
   const ring = (item: ActivityItem) => {
     const { channelId, threadRootId, muted } = item;
     // Asked each time: do not disturb may turn on, or end, in between.
     const quiet = () =>
       staysQuiet(
-        { serverId: server.id, channelId, threadRootId, muted, read: !!item.readAt, held: dndHolds(server.id) },
+        {
+          serverId: server.id,
+          channelId,
+          threadRootId,
+          muted,
+          read: !!item.readAt,
+          held: dndHolds(server.id),
+          kind: item.kind,
+          alerts: alertPrefs(),
+        },
         focusedPlace(),
       );
     if (quiet()) return;
@@ -94,7 +106,7 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
         // The wait for the names may have seen the session end, the
         // person open where this landed, or do not disturb turn on.
         if (!live.current || quiet()) return;
-        return present(notificationContent(item, server, names, manyServers));
+        return present(notificationContent(item, server, names, manyServers, alertPrefs().showText));
       })
       // A notification that can't be shown is dropped.
       .catch(() => {});
