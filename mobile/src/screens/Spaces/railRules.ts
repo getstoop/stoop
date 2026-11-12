@@ -33,8 +33,9 @@ export function railOffset(index: number, count: number, height: number, obstruc
 }
 
 export type RailItemView = {
-  // The mark at the rail's edge: the selected space's bar, else a short
-  // one while something in the space is unread.
+  // The mark at the rail's right edge, where the pane meets it: the
+  // selected space's bar, else a small tab while something in the space
+  // is unread.
   mark: "selected" | "unread" | "none";
   // The mention count to badge the icon with; 0 for no badge.
   mentions: number;
@@ -43,11 +44,14 @@ export type RailItemView = {
 };
 
 // What one space's button shows: the space's `alertCount` as its badge
-// (docs/architecture/messaging.md → Alert counts) and a mark while it
-// has something unread. A muted space is dimmed and shows neither, as
-// on web's rail (the server already counts a muted space as 0, so the
-// check here only keeps the button honest), but selected it still
-// carries the bar. The label is the name, "selected", then what waits.
+// (docs/architecture/messaging.md → Alert counts) and one mark at the
+// rail's edge, the selected space's bar or, on any other, a tab while
+// it has something unread, whether or not it has mentions too, so such
+// a space shows tab and badge. A muted space is dimmed and shows
+// neither tab nor badge, as on web's rail (the server already counts a
+// muted space as 0, so the check here only keeps the button honest),
+// but selected it still carries the bar. The label is the name,
+// "selected", then what waits: muted, else the mentions, else unread.
 export function railItem(
   space: Pick<Space, "name" | "muted" | "hasUnread" | "alertCount">,
   selected: boolean,

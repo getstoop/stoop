@@ -8,10 +8,12 @@ import { RAIL_ITEM_HEIGHT, railItem } from "./railRules";
 const ICON = 44;
 const RING = 2;
 
-// One space on the rail: its icon, ringed with a bar at the rail's edge
-// while it is the one shown, a short mark there while something in it is
-// unread, and its mention count on the icon's corner (./railRules.ts has the
-// rules). Pressed, the pane shows its channels.
+// One space on the rail: its icon, with one mark at the rail's right
+// edge, where the pane meets it (the accent bar, with a ring round the
+// icon, while it is the space shown; on any other a small tab while
+// something in it is unread), and its mention count on the icon's
+// bottom-right corner (./railRules.ts has the rules). Nothing is drawn
+// at the left edge. Pressed, the pane shows its channels.
 export default function RailItem({
   space,
   selected,
@@ -60,12 +62,14 @@ function makeStyles(theme: Theme) {
     pressed: {
       opacity: 0.85,
     },
+    // Flush with the rail's right edge, a point clear of the badge's
+    // border beside it.
     mark: {
       position: "absolute",
-      left: 0,
+      right: 0,
       width: 4,
-      borderTopRightRadius: tokens.radiusSm,
-      borderBottomRightRadius: tokens.radiusSm,
+      borderTopLeftRadius: tokens.radiusSm,
+      borderBottomLeftRadius: tokens.radiusSm,
     },
     // Each centred on the button's 56.
     bar: {
