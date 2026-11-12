@@ -2,13 +2,13 @@ import { badgeCount } from "@stoop/core/unreads";
 import { type Channel, ChannelPostPolicy } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { mentionLabel } from "../../api/spaces";
-import { LockIcon, MegaphoneIcon, MutedIcon } from "../../components/Icons";
+import { MutedIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import ChannelMark from "./ChannelMark";
 import { type ChannelAction, channelRowActions } from "./channelMenuRules";
 
-// One text channel: its mark (# or, as on web, a lock for a private
-// channel and a megaphone for an announcement channel), its name, bold
-// while it has unread messages, and a mention count (the channel's
+// One text channel: its mark (ChannelMark), its name, bold while it has
+// unread messages, and a mention count (the channel's
 // `alertCount`, docs/architecture/messaging.md → Alert counts) or an
 // unread dot. A muted channel is dimmed and shows neither, and nothing
 // is waiting anywhere in a muted space; the server already counts a
@@ -55,15 +55,7 @@ export default function ChannelRow({
       onLongPress={onLongPress}
       style={({ pressed }) => [styles.row, channel.muted && styles.muted, pressed && styles.pressed]}
     >
-      <View style={styles.mark}>
-        {channel.private ? (
-          <LockIcon color={theme.textMuted} />
-        ) : announcement ? (
-          <MegaphoneIcon color={theme.textMuted} />
-        ) : (
-          <Text style={styles.hash}>#</Text>
-        )}
-      </View>
+      <ChannelMark channel={channel} />
       <Text style={[styles.name, (unread || badge) && styles.bold]} numberOfLines={1}>
         {channel.name}
       </Text>
@@ -95,14 +87,6 @@ function makeStyles(theme: Theme) {
     },
     pressed: {
       backgroundColor: theme.hover,
-    },
-    mark: {
-      width: 20,
-      alignItems: "center",
-    },
-    hash: {
-      color: theme.textMuted,
-      fontSize: tokens.textLg,
     },
     name: {
       flex: 1,

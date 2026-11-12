@@ -245,6 +245,16 @@ export function LinkIcon({ color, size = 20 }: IconProps) {
   );
 }
 
+// The app's own: web has no icon for About.
+export function InfoIcon({ color, size = 20 }: IconProps) {
+  return (
+    <Format color={color} size={size}>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M12 11v6M12 7.5v.01" />
+    </Format>
+  );
+}
+
 export function BulletListIcon({ color, size = 20 }: IconProps) {
   return (
     <Format color={color} size={size}>

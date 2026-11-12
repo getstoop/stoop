@@ -1,8 +1,8 @@
 import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { voiceNames } from "../../api/channels";
-import { SpeakerIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import ChannelMark from "./ChannelMark";
 import { type ChannelAction, channelRowActions } from "./channelMenuRules";
 import Face, { type Person } from "./Face";
 
@@ -52,7 +52,7 @@ export default function VoiceRoom({
       onLongPress={onLongPress}
     >
       <View style={styles.line}>
-        <SpeakerIcon color={theme.textMuted} size={20} />
+        <ChannelMark channel={channel} />
         <Text style={styles.name} numberOfLines={1}>
           {channel.name}
         </Text>

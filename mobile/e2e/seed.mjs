@@ -3,9 +3,9 @@
 // for scripts/mobile-e2e.sh to hand Maestro.
 //
 // ada and dee are in Book club, which has a description and where dee
-// mentions ada in general, posts in random, and off-topic is muted by
-// ada. dee has written more than a page in chapters, the last two since
-// ada read it. ada is also in Climbing crew, unread, and Garden swap,
+// mentions ada in general, posts in random, and off-topic, the one
+// channel with a topic, is muted by ada. dee has written more than a
+// page in chapters, the last two since ada read it. ada is also in Climbing crew, unread, and Garden swap,
 // muted. In chapter-nine ada started a thread that dee has replied to
 // four times, the last two since ada read it, and dee's question after it
 // has no thread yet; ada has read the channel. bea, fay, gil and hal have accounts
@@ -53,6 +53,11 @@ const offTopic = await rpc(
   ada,
 );
 await rpc("chat.v1.ChatService/SetChannelMuted", { channelId: offTopic.channel.id, muted: true }, ada);
+await rpc(
+  "chat.v1.ChatService/UpdateChannel",
+  { channelId: offTopic.channel.id, topic: "Anything but the book" },
+  ada,
+);
 
 // More than the app's first page (50), one at a time so they keep their
 // order; ada has read all but the last two. None mentions ada, so the
