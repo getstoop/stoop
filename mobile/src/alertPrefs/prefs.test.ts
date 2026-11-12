@@ -11,8 +11,8 @@ describe("parsePrefs", () => {
     expect(parsePrefs("3")).toEqual(DEFAULT_PREFS);
   });
 
-  it("has threads off and the rest on by default", () => {
-    expect(DEFAULT_PREFS).toEqual({ mentions: true, directMessages: true, threads: false, showText: true, servers: {} });
+  it("has everything on by default", () => {
+    expect(DEFAULT_PREFS).toEqual({ mentions: true, directMessages: true, threads: true, showText: true, servers: {} });
   });
 
   it("reads a saved value back", () => {
