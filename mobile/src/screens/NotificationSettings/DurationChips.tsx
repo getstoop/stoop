@@ -14,7 +14,7 @@ export default function DurationChips({
 }) {
   const styles = makeStyles(useTheme());
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel="For how long" style={styles.chips}>
+    <View accessibilityRole="radiogroup" style={styles.chips}>
       {DND_DURATIONS.map(({ key, label }) => {
         const checked = key === picked;
         return (
@@ -24,9 +24,13 @@ export default function DurationChips({
             accessibilityState={{ checked }}
             testID={`dnd-duration-${key}`}
             onPress={() => onPick(key)}
-            style={({ pressed }) => [styles.chip, checked && styles.checked, pressed && styles.pressed]}
+            style={styles.target}
           >
-            <Text style={[styles.label, checked && styles.checkedLabel]}>{label}</Text>
+            {({ pressed }) => (
+              <View style={[styles.chip, checked && styles.checked, pressed && styles.pressed]}>
+                <Text style={[styles.label, checked && styles.checkedLabel]}>{label}</Text>
+              </View>
+            )}
           </Pressable>
         );
       })}
@@ -36,12 +40,20 @@ export default function DurationChips({
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    // Each chip's target is taller than its pill, so the rows of targets
+    // touch: the room above and below is taken back here.
     chips: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 8,
+      columnGap: 8,
+      marginTop: -5,
       paddingHorizontal: 14,
-      paddingBottom: 14,
+      paddingBottom: 9,
+    },
+    // 44 high to tap, around a pill of 34.
+    target: {
+      justifyContent: "center",
+      height: 44,
     },
     chip: {
       justifyContent: "center",

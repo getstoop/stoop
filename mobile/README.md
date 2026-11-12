@@ -756,9 +756,12 @@ badge stays as it was when the app left the front.
   on too. Nothing but turning it off tells a server off: starting the
   app, connecting and an end passing send nothing, or they would clear
   do not disturb set from another device; past its end the switch
-  reads as off and each server ends its own. A call that fails leaves
+  reads as off (the store says when, and again as the app comes back
+  to the front) and each server ends its own. A call that fails leaves
   that server as it was, says nothing on screen, and is made again at
-  that server's next Ready while the switch is on. What a server's
+  that server's next Ready while the switch is on. A server is sent
+  one call at a time and then only the newest that waited, so two
+  quick changes land in order. What a server's
   account says is read as its socket says Ready (GetMe, or the answer
   to the call that set it) and kept by DoNotDisturbChanged, its end
   passing included (`store.ts`). The Notifications screen has nothing

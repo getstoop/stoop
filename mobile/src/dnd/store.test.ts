@@ -22,12 +22,31 @@ function setup() {
   );
   const account = vi.fn(async (_server: SavedServer): Promise<AccountDnd | undefined> => NOT_ON);
   const save = vi.fn<(next: DndSwitch) => void>();
-  const store = dndStore({ send, account, save, now: () => clock.now });
-  return { clock, send, account, save, store };
+  // The one wait the store keeps, for the test to end or find called off.
+  const timer: { ms?: number; done?: () => void } = {};
+  const wait = (ms: number, done: () => void) => {
+    timer.ms = ms;
+    timer.done = done;
+    return () => {
+      timer.ms = undefined;
+      timer.done = undefined;
+    };
+  };
+  const store = dndStore({ send, account, save, now: () => clock.now, wait });
+  return { clock, send, account, save, timer, store };
 }
 
 // Lets every call already made be answered.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+// A call the test answers when it chooses.
+function held() {
+  let answer: (account: AccountDnd | undefined) => void = () => {};
+  const call = new Promise<AccountDnd | undefined>((resolve) => {
+    answer = resolve;
+  });
+  return { call, answer };
+}
 
 describe("the switch", () => {
   it("is off until the saved one is read, then as saved", () => {
@@ -66,6 +85,60 @@ describe("the switch", () => {
     expect(save).toHaveBeenLastCalledWith(DND_OFF);
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps what the person set before the saved one was read", () => {
+    const { send, store } = setup();
+    store.connected(elm);
+    const mine = turnedOn("1h", NOW);
+    store.set(mine, [elm]);
+    send.mockClear();
+    store.loaded(turnedOn("never", NOW - HOUR));
+    expect(store.current()).toBe(mine);
+    expect(send).not.toHaveBeenCalled();
+    store.loaded(DND_OFF);
+    expect(store.current()).toBe(mine);
+  });
+
+  it("tells its listeners once when its end passes, waiting again if woken early", () => {
+    const { clock, timer, store } = setup();
+    store.loaded(DND_OFF);
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.set(turnedOn("1h", NOW), []);
+    listener.mockClear();
+    expect(timer.ms).toBe(HOUR);
+    clock.now = NOW + HOUR - 500;
+    timer.done?.();
+    expect(listener).not.toHaveBeenCalled();
+    expect(timer.ms).toBe(500);
+    clock.now = NOW + HOUR;
+    timer.done?.();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.current()).toBe(DND_OFF);
+  });
+
+  it("waits for the end of a saved switch read as on, and for none with no end or off", () => {
+    const { timer, store } = setup();
+    store.loaded(turnedOn("3h", NOW - HOUR));
+    expect(timer.ms).toBe(2 * HOUR);
+    store.set(turnedOn("never", NOW), []);
+    expect(timer.ms).toBeUndefined();
+    store.set(turnedOn("1h", NOW), []);
+    expect(timer.ms).toBe(HOUR);
+    store.set(DND_OFF, []);
+    expect(timer.ms).toBeUndefined();
+  });
+
+  it("tells its listeners of an end that passed while the app was away, as it wakes", () => {
+    const { clock, store } = setup();
+    store.loaded(turnedOn("1h", NOW));
+    const listener = vi.fn();
+    store.subscribe(listener);
+    clock.now = NOW + 2 * HOUR;
+    store.woke();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.current()).toBe(DND_OFF);
+  });
 });
 
 describe("what each server is told", () => {
@@ -96,11 +169,82 @@ describe("what each server is told", () => {
     ]);
   });
 
-  it("is never off as the app starts or a server connects: only its account is read", () => {
+  it("is nothing when the switch is turned off after its end has passed", () => {
+    const { clock, send, save, store } = setup();
+    store.loaded(turnedOn("1h", NOW));
+    clock.now = NOW + HOUR;
+    store.set(DND_OFF, [elm, oak]);
+    expect(send).not.toHaveBeenCalled();
+    expect(save).toHaveBeenCalledWith(DND_OFF);
+  });
+
+  it("is one call at a time, then only the newest change that waited", async () => {
+    const { send, store } = setup();
+    store.loaded(DND_OFF);
+    const first = held();
+    send.mockReturnValueOnce(first.call);
+    store.set(turnedOn("1h", NOW), [elm, oak]);
+    store.set(turnedOn("1d", NOW), [elm, oak]);
+    store.set(DND_OFF, [elm, oak]);
+    // elm's first call is still out; oak, the mock's default, has answered none yet either.
+    expect(send.mock.calls.filter(([server]) => server === elm)).toEqual([[elm, true, new Date(NOW + HOUR)]]);
+    first.answer({ dnd: true, dndUntil: undefined });
+    await settle();
+    expect(send.mock.calls.filter(([server]) => server === elm)).toEqual([
+      [elm, true, new Date(NOW + HOUR)],
+      [elm, false, undefined],
+    ]);
+    expect(send.mock.calls.filter(([server]) => server === oak).at(-1)).toEqual([oak, false, undefined]);
+    expect(store.holds("elm")).toBe(false);
+  });
+
+  it("sends what waited after a call that failed, too", async () => {
+    const { send, store } = setup();
+    store.loaded(DND_OFF);
+    send.mockRejectedValueOnce(new Error("unreachable"));
+    store.set(turnedOn("1h", NOW), [elm]);
+    store.set(DND_OFF, [elm]);
+    await settle();
+    expect(send.mock.calls).toEqual([
+      [elm, true, new Date(NOW + HOUR)],
+      [elm, false, undefined],
+    ]);
+  });
+
+  it("doesn't let a connect's read take the place of a change that waits", async () => {
+    const { send, account, store } = setup();
+    store.loaded(turnedOn("never", NOW));
+    const first = held();
+    send.mockReturnValueOnce(first.call);
+    store.connected(elm);
+    store.set(DND_OFF, [elm]);
+    store.connected(elm);
+    first.answer(undefined);
+    await settle();
+    expect(send).toHaveBeenLastCalledWith(elm, false, undefined);
+    expect(account).not.toHaveBeenCalled();
+  });
+
+  it("is on for a new session on the same server while the switch is on", async () => {
+    const { send, store } = setup();
+    store.loaded(turnedOn("never", NOW));
+    store.connected(elm);
+    await settle();
+    store.forget("elm");
+    const again: SavedServer = { ...elm, session: 2 };
+    store.connected(again);
+    expect(send.mock.calls).toEqual([
+      [elm, true, undefined],
+      [again, true, undefined],
+    ]);
+  });
+
+  it("is never off as the app starts or a server connects: only its account is read", async () => {
     const { send, account, store } = setup();
     store.connected(elm);
     store.loaded(DND_OFF);
     store.connected(oak);
+    await settle();
     store.connected(elm);
     expect(send).not.toHaveBeenCalled();
     expect(account.mock.calls).toEqual([[elm], [oak], [elm]]);
@@ -128,10 +272,12 @@ describe("what each server is told", () => {
     expect(account).not.toHaveBeenCalled();
   });
 
-  it("is on for a server that connected before the saved switch was read", () => {
+  it("is on for a server that connected before the saved switch was read", async () => {
     const { send, store } = setup();
     store.connected(elm);
     store.loaded(turnedOn("never", NOW - HOUR));
+    // Behind the read its connect made.
+    await settle();
     expect(send.mock.calls).toEqual([[elm, true, undefined]]);
   });
 

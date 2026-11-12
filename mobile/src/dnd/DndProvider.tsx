@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { AppState } from "react-native";
 import { setDoNotDisturb } from "../api/dnd";
 import { loadMe } from "../api/me";
 import { sessionToken } from "../api/servers";
@@ -35,6 +36,10 @@ export default function DndProvider({ children }: { children: ReactNode }) {
       // A failed save only means the next launch opens on the switch before.
       save: (next) => void SecureStore.setItemAsync(KEY, JSON.stringify(next)).catch(() => {}),
       now: Date.now,
+      wait: (ms, done) => {
+        const timer = setTimeout(done, ms);
+        return () => clearTimeout(timer);
+      },
     }),
   );
 
@@ -43,6 +48,13 @@ export default function DndProvider({ children }: { children: ReactNode }) {
     SecureStore.getItemAsync(KEY)
       .catch(() => null)
       .then((raw) => store.loaded(parseSwitch(raw)));
+  }, [store]);
+
+  // No timer runs in the background, so an end that passed there is
+  // told as the app comes back.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => state === "active" && store.woke());
+    return () => sub.remove();
   }, [store]);
 
   return (
@@ -69,25 +81,17 @@ function ServerDnd({ server, store }: { server: SavedServer; store: DndStore }) 
 
 function useDndStore(): DndStore {
   const store = useContext(DndContext);
-  if (!store) throw new Error("useDndSwitch needs a DndProvider above it");
+  if (!store) throw new Error("Do not disturb needs a DndProvider above it");
   return store;
 }
 
 // The phone's switch as it reads now, and the way to move it: off, or
-// on for a duration counted from now. Drawn again the moment its end
-// passes, which nothing else says.
+// on for a duration counted from now. The store says when its end
+// passes (store.ts).
 export function useDndSwitch(): [DndSwitch, (next: DndDuration | "off") => void] {
   const store = useDndStore();
   const { servers } = useServers();
   const current = useSyncExternalStore(store.subscribe, store.current);
-  const end = current.on ? current.until : null;
-  const [, redraw] = useState(0);
-  useEffect(() => {
-    if (end === null) return;
-    const timer = setTimeout(() => redraw((count) => count + 1), Math.max(0, end - Date.now()));
-    return () => clearTimeout(timer);
-  }, [end]);
-
   const change = useCallback(
     (next: DndDuration | "off") => store.set(next === "off" ? DND_OFF : turnedOn(next, Date.now()), servers),
     [store, servers],

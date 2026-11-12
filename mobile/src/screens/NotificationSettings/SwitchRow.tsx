@@ -26,7 +26,8 @@ export default function SwitchRow({
   const styles = makeStyles(theme);
   return (
     <View style={[styles.row, divided && styles.divided]}>
-      <View style={styles.text}>
+      {/* The switch says both lines, so a screen reader hears the row once. */}
+      <View style={styles.text} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Text style={[styles.label, strong && styles.strong]}>{label}</Text>
         {detail !== undefined && <Text style={styles.detail}>{detail}</Text>}
       </View>
