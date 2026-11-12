@@ -2,7 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { loadSpaces, touchesSpaces } from "../../api/spaces";
@@ -14,9 +14,11 @@ import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Pane from "./Pane";
+import PaneScroll from "./PaneScroll";
 import PaneSkeleton from "./PaneSkeleton";
 import Rail from "./Rail";
 import RailSkeleton from "./RailSkeleton";
+import { afterLoad } from "./reloads";
 import { useQuietReload } from "./useQuietReload";
 import { useSelectedSpace } from "./useSelectedSpace";
 
@@ -24,9 +26,13 @@ import { useSelectedSpace } from "./useSelectedSpace";
 // header opens the switcher), the spaces this account is in on it down
 // a rail at the left, with what is waiting in each, and the selected
 // space's channels in the pane that fills the rest. The spaces are
-// loaded on opening, on a pull of the pane, on coming back to the app,
-// and again, after a moment's quiet, whenever the realtime socket says
-// something in one of them changed, or one came or went.
+// loaded on opening and on a pull of the pane, and again, while the tab
+// is in sight, on coming back to the app and, after a moment's quiet,
+// whenever the realtime socket says something in one of them changed,
+// or one came or went; out of sight (under a channel, behind another
+// tab) a change is remembered and reloaded once on return. A reload
+// that fails keeps the list already shown: only the first load and Try
+// again say the server couldn't be reached.
 
 type State =
   | { state: "loading" }
@@ -42,6 +48,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const styles = makeStyles(theme);
   const signInAgain = useSignInAgain(server.origin);
   const [list, setList] = useState<State>({ state: "loading" });
+  const [refreshing, setRefreshing] = useState(false);
   const spaces = list.state === "ready" ? list.spaces : undefined;
   const { selected, select } = useSelectedSpace(spaces);
   const space = spaces?.find((one) => one.id === selected);
@@ -64,18 +71,18 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const refresh = useCallback(async () => {
     const mine = ++latest.current;
     const next = await load();
-    if (mine === latest.current) setList(next);
+    if (mine === latest.current) setList((shown) => afterLoad(shown, next));
   }, [load]);
 
   const quiet = useQuietReload(refresh);
   useEffect(() => {
     refresh();
-    const sub = AppState.addEventListener("change", (state) => state === "active" && refresh());
+    const sub = AppState.addEventListener("change", (state) => state === "active" && quiet.now());
     return () => {
       latest.current++;
       sub.remove();
     };
-  }, [refresh]);
+  }, [refresh, quiet]);
 
   const end = useCallback(() => {
     latest.current++;
@@ -90,6 +97,12 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const retry = async () => {
     setList({ state: "loading" });
     await refresh();
+  };
+
+  const pull = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
   };
 
   return (
@@ -119,7 +132,9 @@ export default function Spaces({ server }: { server: SavedServer }) {
         />
       )}
       {list.state === "ready" && (
-        <View style={styles.body}>
+        // Measures the safe area where the body is, so the rail and the
+        // pane know what lies over their bottom (./useBottomObstruction.ts).
+        <SafeAreaProvider style={styles.body}>
           <Rail
             spaces={list.spaces}
             selected={selected}
@@ -131,12 +146,14 @@ export default function Spaces({ server }: { server: SavedServer }) {
             {space ? (
               // One pane per space, so a space picked starts from its
               // own loading state, never the last one's channels.
-              <Pane key={space.id} server={server} space={space} onReloadSpaces={refresh} onGone={refresh} onEnded={end} />
+              <Pane key={space.id} server={server} space={space} onReloadSpaces={refresh} onEnded={end} />
             ) : (
-              <Text style={styles.empty}>You're not in any spaces here yet.</Text>
+              <PaneScroll refreshing={refreshing} onRefresh={pull}>
+                <Text style={styles.empty}>You're not in any spaces here yet.</Text>
+              </PaneScroll>
             )}
           </View>
-        </View>
+        </SafeAreaProvider>
       )}
     </View>
   );
@@ -163,9 +180,10 @@ function makeStyles(theme: Theme) {
       backgroundColor: theme.surface,
       overflow: "hidden",
     },
+    // With the scroll's own 4 and 8, the pane's 20.
     empty: {
-      marginTop: 20,
-      marginHorizontal: 20,
+      marginTop: 16,
+      marginHorizontal: 12,
       color: theme.textMuted,
       fontSize: tokens.textBody,
       lineHeight: tokens.textBody * tokens.leadingBody,

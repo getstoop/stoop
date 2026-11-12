@@ -1,34 +1,18 @@
-import { type ReactNode, useEffect, useRef } from "react";
-import { Animated, type StyleProp, type ViewStyle } from "react-native";
-
-const PULSE_MS = 800;
-// off-scale: the dim end of the pulse, not a disabled state.
-const PULSE_LOW = 0.5;
+import type { ReactNode } from "react";
+import { type StyleProp, View, type ViewStyle } from "react-native";
+import SkeletonPulse from "./SkeletonPulse";
+import { usePulse } from "./usePulse";
 
 // A region standing in for content still loading: SkeletonBlocks laid
 // out as the content will be, pulsing gently together. It reads as one
-// thing, "Loading", to a screen reader, with its blocks hidden.
+// thing, "Loading", to a screen reader, with its blocks hidden. Inside
+// a SkeletonPulse it keeps that one's time.
 export default function Skeleton({ style, children }: { style?: StyleProp<ViewStyle>; children: ReactNode }) {
-  const opacity = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: PULSE_LOW, duration: PULSE_MS, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: PULSE_MS, useNativeDriver: true }),
-      ]),
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [opacity]);
-
-  return (
-    <Animated.View
-      accessible
-      accessibilityRole="progressbar"
-      accessibilityLabel="Loading"
-      style={[style, { opacity }]}
-    >
+  const shared = usePulse();
+  const region = (
+    <View accessible accessibilityRole="progressbar" accessibilityLabel="Loading" style={style}>
       {children}
-    </Animated.View>
+    </View>
   );
+  return shared ? region : <SkeletonPulse>{region}</SkeletonPulse>;
 }

@@ -37,10 +37,8 @@ export default function RailItem({
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}
     >
       {view.mark !== "none" && <View style={[styles.mark, view.mark === "selected" ? styles.bar : styles.unread]} />}
-      <View style={[styles.ring, selected && styles.ringed]}>
-        <View style={view.dimmed && styles.dimmed}>
-          <SpaceIcon name={space.name} fileId={space.iconFileId} origin={origin} token={token} size={ICON} />
-        </View>
+      <View style={[styles.ring, selected && styles.ringed, view.dimmed && styles.dimmed]}>
+        <SpaceIcon name={space.name} fileId={space.iconFileId} origin={origin} token={token} size={ICON} />
       </View>
       {view.mentions > 0 && (
         <View style={styles.badge}>
@@ -89,6 +87,7 @@ function makeStyles(theme: Theme) {
     ringed: {
       borderColor: theme.accent,
     },
+    // A muted space's icon, its ring with it.
     dimmed: {
       opacity: 0.5,
     },

@@ -7,14 +7,18 @@ import { searchLabel } from "../Channel/searchItem";
 // The top of the pane: the space's name over how many are in it and
 // what it is, and the button that searches it. The name is there as
 // soon as a space is picked; the line under it comes with the space's
-// channels, a placeholder holding its place until then.
+// channels, a placeholder holding its place while they load (`pending`;
+// it pulses with the pane's skeleton, under the same SkeletonPulse).
+// When they couldn't be loaded the name stands alone.
 export default function PaneHeader({
   name,
   about,
+  pending,
   onSearch,
 }: {
   name: string;
   about: string | undefined;
+  pending: boolean;
   onSearch: () => void;
 }) {
   const theme = useTheme();
@@ -31,15 +35,15 @@ export default function PaneHeader({
         <Text style={styles.name} numberOfLines={1}>
           {name}
         </Text>
-        {about === undefined ? (
-          <View style={styles.pending}>
-            <SkeletonBlock width="70%" height={tokens.textUi} />
-          </View>
-        ) : (
+        {about !== undefined ? (
           <Text style={styles.about} numberOfLines={1}>
             {about}
           </Text>
-        )}
+        ) : pending ? (
+          <View style={styles.pending}>
+            <SkeletonBlock width="70%" height={tokens.textUi} />
+          </View>
+        ) : null}
       </View>
       <Pressable
         accessibilityRole="button"

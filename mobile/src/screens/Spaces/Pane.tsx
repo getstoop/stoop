@@ -2,11 +2,12 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AppState, StyleSheet, Text, View } from "react-native";
 import { loadSpaceChannels, memberName, type SpaceChannels, touchesSpace } from "../../api/channels";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import Skeleton from "../../components/Skeleton";
+import SkeletonPulse from "../../components/SkeletonPulse";
 import TabNotice from "../../components/TabNotice";
 import { useServerEvents, useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
@@ -14,7 +15,9 @@ import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ChannelRow from "./ChannelRow";
 import PaneHeader from "./PaneHeader";
+import PaneScroll from "./PaneScroll";
 import PaneSkeleton from "./PaneSkeleton";
+import { afterLoad } from "./reloads";
 import { useQuietReload } from "./useQuietReload";
 import VoiceRoom from "./VoiceRoom";
 
@@ -23,44 +26,47 @@ import VoiceRoom from "./VoiceRoom";
 // what is waiting in each (each opens the channel) and its voice rooms
 // with who is in them. The tab mounts one per space picked, so each
 // starts from its skeleton, under the name the rail's list already has.
-// Loaded on opening, on a pull, on coming back to the app, and again
-// whenever the realtime socket says something in the space changed; who
-// is in voice is live from the socket itself.
+// Loaded on opening and on a pull, and again, while the tab is in
+// sight, on coming back to the app and whenever the realtime socket
+// says something in the space changed (out of sight, once on return);
+// who is in voice is live from the socket itself. A reload that fails
+// keeps the channels already shown: only the first load and Try again
+// say the server couldn't be reached.
 
 type State =
   | { state: "loading" }
   | { state: "ready"; token: string; channels: SpaceChannels }
-  // Left, removed, or the space deleted since the rail's list was
-  // loaded. The tab is told, and moves on to another space; until its
-  // list says so too, the skeleton stays.
-  | { state: "gone" }
   | { state: "failed" };
+
+// What a load can also answer, which the tab acts on: the session over,
+// or the account no longer in the space (left, removed, or the space
+// deleted since the rail's list was loaded).
+type Answer = State | "ended" | "gone";
 
 export default function Pane({
   server,
   space,
   onReloadSpaces,
-  onGone,
   onEnded,
 }: {
   server: SavedServer;
   // The space as the rail's list has it.
   space: Space;
-  // A pull reloads the rail with the pane.
+  // Reloads the rail's list: on a pull, with the pane, and when the
+  // pane's load says the space is gone, after which the tab moves on to
+  // another space.
   onReloadSpaces: () => Promise<void>;
-  onGone: () => void;
   // The server said the session is over: the whole tab says so.
   onEnded: () => void;
 }) {
-  const theme = useTheme();
-  const styles = makeStyles(theme);
+  const styles = makeStyles(useTheme());
   const router = useRouter();
   const roster = useVoiceRoster(server.id);
   const spaceId = space.id;
   const [view, setView] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async (): Promise<State | "ended"> => {
+  const load = useCallback(async (): Promise<Answer> => {
     const token = await sessionToken(server.id).catch(() => null);
     if (!token) return "ended";
     try {
@@ -68,15 +74,15 @@ export default function Pane({
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) return "ended";
       if (err instanceof ConnectError && (err.code === Code.NotFound || err.code === Code.PermissionDenied)) {
-        return { state: "gone" };
+        return "gone";
       }
       return { state: "failed" };
     }
   }, [server, spaceId]);
 
   // What the load's answer is passed to, as they are on the latest draw.
-  const told = useRef({ onGone, onEnded });
-  told.current = { onGone, onEnded };
+  const told = useRef({ onReloadSpaces, onEnded });
+  told.current = { onReloadSpaces, onEnded };
 
   // Loads can overlap (opening, a pull, coming back, an event), and an
   // older one finishing last must not undo a newer one: only the latest
@@ -84,25 +90,33 @@ export default function Pane({
   const latest = useRef(0);
   const refresh = useCallback(async () => {
     const mine = ++latest.current;
-    const next = await load();
+    const answer = await load();
     if (mine !== latest.current) return;
-    if (next === "ended") {
+    if (answer === "ended") {
       told.current.onEnded();
       return;
     }
-    setView(next);
-    if (next.state === "gone") told.current.onGone();
+    if (answer !== "gone") {
+      setView((shown) => afterLoad(shown, answer));
+      return;
+    }
+    // The rail's list is asked again, and without the space the tab
+    // takes this pane away. Still here after that, the list and the
+    // space disagree: say so, with a way to ask again, rather than
+    // leave what was shown.
+    await told.current.onReloadSpaces();
+    if (mine === latest.current) setView({ state: "failed" });
   }, [load]);
 
   const quiet = useQuietReload(refresh);
   useEffect(() => {
     refresh();
-    const sub = AppState.addEventListener("change", (state) => state === "active" && refresh());
+    const sub = AppState.addEventListener("change", (state) => state === "active" && quiet.now());
     return () => {
       latest.current++;
       sub.remove();
     };
-  }, [refresh]);
+  }, [refresh, quiet]);
   useServerEvents(server.id, (event) => {
     if (touchesSpace(event, spaceId)) quiet.soon();
   });
@@ -130,30 +144,37 @@ export default function Pane({
     <PaneHeader
       name={shown.name}
       about={about}
+      pending={view.state === "loading"}
       onSearch={() =>
         router.push({ pathname: "/s/[id]/space/[spaceId]/search", params: { id: server.id, spaceId } })
       }
     />
   );
 
-  if (view.state === "failed") {
+  if (view.state === "loading") {
+    // One pulse for the header's placeholder and the rows'.
     return (
-      <>
+      <SkeletonPulse>
         {header}
-        <TabNotice
-          message={`Couldn't reach ${hostOf(server.origin)}.`}
-          action={{ label: "Try again", onPress: retry }}
-        />
-      </>
+        <Skeleton>
+          <PaneSkeleton />
+        </Skeleton>
+      </SkeletonPulse>
     );
   }
   if (!ready) {
     return (
       <>
         {header}
-        <Skeleton>
-          <PaneSkeleton />
-        </Skeleton>
+        <PaneScroll refreshing={refreshing} onRefresh={pull}>
+          <View style={styles.notice}>
+            <TabNotice
+              flush
+              message={`Couldn't reach ${hostOf(server.origin)}.`}
+              action={{ label: "Try again", onPress: retry }}
+            />
+          </View>
+        </PaneScroll>
       </>
     );
   }
@@ -163,14 +184,7 @@ export default function Pane({
   return (
     <>
       {header}
-      <ScrollView
-        style={styles.list}
-        contentContainerStyle={styles.content}
-        // The tab bar lies over the bottom of the screen on iOS: the
-        // system insets the list by it, so the last row scrolls clear.
-        contentInsetAdjustmentBehavior="automatic"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
-      >
+      <PaneScroll refreshing={refreshing} onRefresh={pull}>
         {text.length > 0 && (
           <Text style={styles.section} accessibilityRole="header">
             Text channels
@@ -208,20 +222,17 @@ export default function Pane({
           />
         ))}
         {text.length === 0 && voice.length === 0 && <Text style={styles.empty}>No channels here yet.</Text>}
-      </ScrollView>
+      </PaneScroll>
     </>
   );
 }
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
-    list: {
-      flex: 1,
-    },
-    content: {
-      paddingTop: 4,
-      paddingHorizontal: 8,
-      paddingBottom: 24,
+    // With the scroll's own 8, the pane's 20 at the sides.
+    notice: {
+      marginTop: 4,
+      paddingHorizontal: 12,
     },
     section: {
       marginTop: 8,

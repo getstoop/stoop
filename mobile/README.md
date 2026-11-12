@@ -98,8 +98,11 @@ import a screen; the screens themselves live in `src/screens`, so
   While the spaces load the rail and the pane are skeletons
   (`src/components/Skeleton.tsx`), and the pane is again while a
   picked space's channels load. The rail and the channel list each
-  scroll, inset by the system on iOS so their last rows clear the tab
-  bar that lies over them. A
+  scroll, their content padded by what lies over the bottom of the
+  screen (on iOS the tab bar and home indicator, measured by a
+  `SafeAreaProvider` around the tab's body, `useBottomObstruction.ts`;
+  nothing on Android, whose bar is below the screen), so their last
+  rows always come clear. A
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer; back returns to the tab.
@@ -634,7 +637,11 @@ events listens with `useServerEvents`. The Spaces tab's pane
 reloads, after a moment's quiet, whenever one touches its space, as
 when a channel is created, renamed, deleted or read, and its rail
 whenever one touches any of the server's spaces or one comes or goes
-(`api/channels` `touchesSpace`, `api/spaces` `touchesSpaces`). Each server's
+(`api/channels` `touchesSpace`, `api/spaces` `touchesSpaces`). Both
+reload only while the tab is in sight: under a pushed channel or behind
+another tab a change is remembered and reloaded once on return, and a
+reload that fails keeps what is shown
+(`src/screens/Spaces/reloads.ts`). Each server's
 activity feed is held once, in its stack (`src/activity`), for the
 Activity tab: the first page, loaded on
 opening, on coming back to the app and on Ready, with
@@ -1090,8 +1097,9 @@ pasted invite link,
 open an invite the way the web's open-in-app page does, then sign in and
 join, and see a mention arrive in Activity with the tab's badge, open
 it in its channel and come back to it read with the badge gone.
-They find things by the words on screen and, for text fields, the
-tabs and the rail's spaces (`space-<id>`), a `testID`. They run in the order `e2e/config.yaml` lists them: by their
+They find things by the words on screen, or by a `testID` where
+words won't do: text fields, the tabs, and the rail's spaces
+(`space-<id>`). They run in the order `e2e/config.yaml` lists them: by their
 names, in file-name order (Maestro runs a directory in no fixed order
 of its own; a new flow goes in that list too). Some lean on it: the message-menu
 flow has ada write in chapters, message-actions has dee write there
