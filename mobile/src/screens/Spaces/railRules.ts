@@ -33,21 +33,25 @@ export function railOffset(index: number, count: number, height: number, obstruc
 }
 
 export type RailItemView = {
-  // The mark at the rail's edge: the selected space's bar, else a short
-  // one while something in the space is unread.
-  mark: "selected" | "unread" | "none";
+  // The selected space: the bar at the rail's left edge and the ring.
+  selected: boolean;
+  // Something in the space is unread: the tab at the rail's right edge.
+  unread: boolean;
   // The mention count to badge the icon with; 0 for no badge.
   mentions: number;
   dimmed: boolean;
   label: string;
 };
 
-// What one space's button shows: the space's `alertCount` as its badge
-// (docs/architecture/messaging.md → Alert counts) and a mark while it
-// has something unread. A muted space is dimmed and shows neither, as
-// on web's rail (the server already counts a muted space as 0, so the
-// check here only keeps the button honest), but selected it still
-// carries the bar. The label is the name, "selected", then what waits.
+// What one space's button shows, as web's rail: the space's
+// `alertCount` as its badge (docs/architecture/messaging.md → Alert
+// counts) and, on its own account, a tab while it has something unread,
+// so a space with mentions shows both, and the selected one keeps its
+// tab. A muted space is dimmed and shows neither (the server already
+// counts a muted space as 0, so the check here only keeps the button
+// honest), but selected it still carries the bar. The label is the
+// name, "selected", then what waits: muted, else the mentions, else
+// unread.
 export function railItem(
   space: Pick<Space, "name" | "muted" | "hasUnread" | "alertCount">,
   selected: boolean,
@@ -56,7 +60,8 @@ export function railItem(
   const unread = !space.muted && space.hasUnread;
   const waiting = space.muted ? "muted" : mentions > 0 ? mentionLabel(mentions) : unread ? "unread" : null;
   return {
-    mark: selected ? "selected" : unread ? "unread" : "none",
+    selected,
+    unread,
     mentions,
     dimmed: space.muted,
     label: [space.name, selected ? "selected" : null, waiting].filter(Boolean).join(", "),

@@ -8,10 +8,12 @@ import { RAIL_ITEM_HEIGHT, railItem } from "./railRules";
 const ICON = 44;
 const RING = 2;
 
-// One space on the rail: its icon, ringed with a bar at the rail's edge
-// while it is the one shown, a short mark there while something in it is
-// unread, and its mention count on the icon's corner (./railRules.ts has the
-// rules). Pressed, the pane shows its channels.
+// One space on the rail: its icon, ringed with a bar at the rail's left
+// edge while it is the one shown; a small tab at the rail's right edge,
+// where the pane meets it, while something in it is unread, as web's
+// rail has it, longer on the selected space; and its mention count on
+// the icon's bottom-right corner (./railRules.ts has the rules).
+// Pressed, the pane shows its channels.
 export default function RailItem({
   space,
   selected,
@@ -36,8 +38,9 @@ export default function RailItem({
       onPress={onPress}
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}
     >
-      {view.mark !== "none" && <View style={[styles.mark, view.mark === "selected" ? styles.bar : styles.unread]} />}
-      <View style={[styles.ring, selected && styles.ringed, view.dimmed && styles.dimmed]}>
+      {view.selected && <View style={styles.bar} />}
+      {view.unread && <View style={[styles.unread, view.selected && styles.unreadSelected]} />}
+      <View style={[styles.ring, view.selected && styles.ringed, view.dimmed && styles.dimmed]}>
         <SpaceIcon name={space.name} fileId={space.iconFileId} origin={origin} token={token} size={ICON} />
       </View>
       {view.mentions > 0 && (
@@ -60,23 +63,32 @@ function makeStyles(theme: Theme) {
     pressed: {
       opacity: 0.85,
     },
-    mark: {
+    // Each of the three centred on the button's 56.
+    bar: {
       position: "absolute",
       left: 0,
+      top: 12,
       width: 4,
+      height: 32,
       borderTopRightRadius: tokens.radiusSm,
       borderBottomRightRadius: tokens.radiusSm,
-    },
-    // Each centred on the button's 56.
-    bar: {
-      top: 12,
-      height: 32,
       backgroundColor: theme.accent,
     },
+    // Flush with the rail's right edge, a point clear of the badge's
+    // border beside it.
     unread: {
+      position: "absolute",
+      right: 0,
       top: 24,
+      width: 4,
       height: 8,
+      borderTopLeftRadius: tokens.radiusSm,
+      borderBottomLeftRadius: tokens.radiusSm,
       backgroundColor: theme.text,
+    },
+    unreadSelected: {
+      top: 18,
+      height: 20,
     },
     // The ring's room is always kept, so picking a space moves nothing.
     ring: {
