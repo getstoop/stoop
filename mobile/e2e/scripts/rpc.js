@@ -105,6 +105,14 @@ var steps = {
   "delete": function () {
     rpc("DeleteChannel", OWNER_TOKEN, { channelId: output.channelId });
   },
+  // random as ada's list of Book club's channels holds it
+  // (channel-menu.yaml): whether she muted it.
+  channelState: function () {
+    var channels = rpc("ListChannels", OWNER_TOKEN, { spaceId: SPACE_ID }).channels || [];
+    for (var i = 0; i < channels.length; i++) {
+      if (channels[i].id === RANDOM_ID) output.channelMuted = !!channels[i].muted;
+    }
+  },
   // In dee's conversation with ada (messages.yaml): dee writes TEXT, ada
   // reads it, and ada answers with TEXT, each as another device would.
   // Opening is idempotent, so a run after the first finds the same one.

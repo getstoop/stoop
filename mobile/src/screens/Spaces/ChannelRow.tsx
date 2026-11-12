@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { mentionLabel } from "../../api/spaces";
 import { LockIcon, MegaphoneIcon, MutedIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
+import { type ChannelAction, channelRowActions } from "./channelMenuRules";
 
 // One text channel: its mark (# or, as on web, a lock for a private
 // channel and a megaphone for an announcement channel), its name, bold
@@ -12,15 +13,21 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // unread dot. A muted channel is dimmed and shows neither, and nothing
 // is waiting anywhere in a muted space; the server already counts a
 // muted channel as 0, so the check here only keeps the row honest.
-// Pressing it opens the channel.
+// Pressing it opens the channel and a long press its menu (ChannelMenu),
+// whose items a screen reader is given as the row's own actions. Drawn
+// as that menu's card, it takes neither.
 export default function ChannelRow({
   channel,
   spaceMuted,
   onPress,
+  onLongPress,
+  onAction,
 }: {
   channel: Channel;
   spaceMuted: boolean;
-  onPress: () => void;
+  onPress?: () => void;
+  onLongPress?: () => void;
+  onAction?: (action: ChannelAction) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -40,9 +47,12 @@ export default function ChannelRow({
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={label}
+      accessibilityActions={onAction && channelRowActions(channel, spaceMuted)}
+      onAccessibilityAction={(event) => onAction?.(event.nativeEvent.actionName as ChannelAction)}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [styles.row, channel.muted && styles.muted, pressed && styles.pressed]}
     >
       <View style={styles.mark}>

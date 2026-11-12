@@ -22,7 +22,8 @@ pasted or handed over by the web's open-in-app page. A signed-in server opens
 on four tabs: Spaces, one screen with the server's spaces down a rail
 at the left, each with its mention badge, unread mark or mute, and the
 selected space's channels beside it (text channels with what is waiting
-in each, voice rooms with who is in them), under a
+in each, voice rooms with who is in them; a long press on either opens
+its menu, Mute or Unmute and Copy link), under a
 header that opens the server switcher, a sheet listing every server on the phone with its badge
 count or a sign-in that has ended, and Add a server; Activity, what
 has happened to you there (mentions, replies, thread replies and direct
@@ -1059,7 +1060,8 @@ The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
 one YAML file each, driving the app on the iPhone simulator: add a server,
 sign in and see the badges on the Spaces tab's rail, see what is
 waiting in each of the selected space's channels and pick another space
-on the rail, read a channel from its "New" line back
+on the rail, long-press a channel there, mute and unmute it and copy
+its link, read a channel from its "New" line back
 to its first message while messages arrive, change and go, write in a
 channel and see the message land once, react to a message from its
 menu, see its chip under the message and take it back from the chip,
