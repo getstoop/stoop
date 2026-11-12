@@ -106,7 +106,7 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
         // The wait for the names may have seen the session end, the
         // person open where this landed, or do not disturb turn on.
         if (!live.current || quiet()) return;
-        return present(notificationContent(item, server, names, manyServers, alertPrefs().showText));
+        return present(notificationContent(item, server, names, { manyServers, showText: alertPrefs().showText }));
       })
       // A notification that can't be shown is dropped.
       .catch(() => {});

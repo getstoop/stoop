@@ -22,60 +22,60 @@ const dm = (over: Partial<ActivityItem> = {}) => item({ kind: ActivityKind.DM, s
 
 describe("notificationContent", () => {
   it("titles a mention with who did what, and says the preview", () => {
-    const content = notificationContent(item(), server, {}, false);
+    const content = notificationContent(item(), server, {}, { manyServers: false });
     expect(content.title).toBe("Priya Shah mentioned you");
     expect(content.body).toBe("@ada are you coming?");
   });
 
   it("titles a reply and a thread's reply by their verbs", () => {
-    expect(notificationContent(item({ kind: ActivityKind.REPLY }), server, {}, false).title).toBe(
+    expect(notificationContent(item({ kind: ActivityKind.REPLY }), server, {}, { manyServers: false }).title).toBe(
       "Priya Shah replied to you",
     );
-    expect(notificationContent(item({ kind: ActivityKind.THREAD_REPLY }), server, {}, false).title).toBe(
+    expect(notificationContent(item({ kind: ActivityKind.THREAD_REPLY }), server, {}, { manyServers: false }).title).toBe(
       "Priya Shah replied in a thread",
     );
   });
 
   it("titles a direct message with the sender alone", () => {
-    expect(notificationContent(dm(), server, {}, false).title).toBe("Priya Shah");
+    expect(notificationContent(dm(), server, {}, { manyServers: false }).title).toBe("Priya Shah");
   });
 
   it("names the actor by username, then as Someone", () => {
     const unnamed = { id: "u1", username: "priya", displayName: "" } as ActivityItem["actor"];
-    expect(notificationContent(dm({ actor: unnamed }), server, {}, false).title).toBe("priya");
-    expect(notificationContent(item({ actor: undefined }), server, {}, false).title).toBe("Someone mentioned you");
+    expect(notificationContent(dm({ actor: unnamed }), server, {}, { manyServers: false }).title).toBe("priya");
+    expect(notificationContent(item({ actor: undefined }), server, {}, { manyServers: false }).title).toBe("Someone mentioned you");
   });
 
   it("has no subtitle for a direct message with one server saved", () => {
-    expect(notificationContent(dm(), server, {}, false).subtitle).toBeUndefined();
+    expect(notificationContent(dm(), server, {}, { manyServers: false }).subtitle).toBeUndefined();
   });
 
   it("says where, nearest first: the channel, the space, the server", () => {
-    expect(notificationContent(item(), server, { channel: "general" }, false).subtitle).toBe("#general");
-    expect(notificationContent(item(), server, { channel: "general", space: "Neighbours" }, false).subtitle).toBe(
+    expect(notificationContent(item(), server, { channel: "general" }, { manyServers: false }).subtitle).toBe("#general");
+    expect(notificationContent(item(), server, { channel: "general", space: "Neighbours" }, { manyServers: false }).subtitle).toBe(
       "#general · Neighbours",
     );
-    expect(notificationContent(item(), server, { channel: "general", space: "Neighbours" }, true).subtitle).toBe(
+    expect(notificationContent(item(), server, { channel: "general", space: "Neighbours" }, { manyServers: true }).subtitle).toBe(
       "#general · Neighbours · Elm Street",
     );
   });
 
   it("says only the server for a direct message, and for a channel not known yet", () => {
-    expect(notificationContent(dm(), server, {}, true).subtitle).toBe("Elm Street");
-    expect(notificationContent(item(), server, {}, true).subtitle).toBe("Elm Street");
-    expect(notificationContent(item(), server, {}, false).subtitle).toBeUndefined();
+    expect(notificationContent(dm(), server, {}, { manyServers: true }).subtitle).toBe("Elm Street");
+    expect(notificationContent(item(), server, {}, { manyServers: true }).subtitle).toBe("Elm Street");
+    expect(notificationContent(item(), server, {}, { manyServers: false }).subtitle).toBeUndefined();
   });
 
   it("is identified by its entry under its server", () => {
-    expect(notificationContent(item(), server, {}, false).identifier).toBe("abc123:i1");
-    expect(notificationContent(dm(), server, {}, false).identifier).toBe("abc123:d1");
+    expect(notificationContent(item(), server, {}, { manyServers: false }).identifier).toBe("abc123:i1");
+    expect(notificationContent(dm(), server, {}, { manyServers: false }).identifier).toBe("abc123:d1");
     const reply = item({ kind: ActivityKind.THREAD_REPLY, threadRootId: "root" });
-    expect(notificationContent(reply, server, {}, false).identifier).toBe("abc123:root");
+    expect(notificationContent(reply, server, {}, { manyServers: false }).identifier).toBe("abc123:root");
   });
 
   it("carries where to go as plain values", () => {
     const reply = item({ kind: ActivityKind.THREAD_REPLY, threadRootId: "root" });
-    expect(notificationContent(reply, server, {}, false).data).toEqual({
+    expect(notificationContent(reply, server, {}, { manyServers: false }).data).toEqual({
       serverId: "abc123",
       itemId: "i1",
       kind: ActivityKind.THREAD_REPLY,
@@ -88,11 +88,11 @@ describe("notificationContent", () => {
 });
 
 describe("notificationData", () => {
-  const sent = notificationContent(item(), server, {}, false).data;
+  const sent = notificationContent(item(), server, {}, { manyServers: false }).data;
 
   it("comes back as it was sent", () => {
     expect(notificationData({ ...sent })).toEqual(sent);
-    const direct = notificationContent(dm(), server, {}, false).data;
+    const direct = notificationContent(dm(), server, {}, { manyServers: false }).data;
     expect(notificationData({ ...direct, extra: 1 })).toEqual(direct);
   });
 
@@ -113,7 +113,7 @@ describe("notificationData", () => {
 
 describe("notificationContent with the text hidden", () => {
   const hidden = (over: Partial<ActivityItem> = {}, names = { channel: "book-club", space: "Neighbours" }) =>
-    notificationContent(item(over), server, names, false, false);
+    notificationContent(item(over), server, names, { manyServers: false, showText: false });
 
   it("names neither who nor what, and still says where", () => {
     const content = hidden();
@@ -130,14 +130,14 @@ describe("notificationContent with the text hidden", () => {
   });
 
   it("titles a direct message without its sender", () => {
-    const content = notificationContent(dm(), server, {}, false, false);
+    const content = notificationContent(dm(), server, {}, { manyServers: false, showText: false });
     expect(content.title).toBe("New direct message");
     expect(content.body).toBe("");
   });
 
   it("carries the same data and identifier as with the text shown", () => {
-    const shown = notificationContent(item(), server, {}, false);
-    const content = notificationContent(item(), server, {}, false, false);
+    const shown = notificationContent(item(), server, {}, { manyServers: false });
+    const content = notificationContent(item(), server, {}, { manyServers: false, showText: false });
     expect(content.data).toEqual(shown.data);
     expect(content.identifier).toBe(shown.identifier);
   });

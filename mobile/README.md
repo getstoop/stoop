@@ -778,8 +778,10 @@ badge stays as it was when the app left the front.
   that fits none of these (unspecified, or one a newer server adds) is
   not held back. Show message text (on), when off, makes a banner say
   neither who nor what: "Someone mentioned you", a direct message "New
-  direct message", no body, with the subtitle still saying where and the
-  data, so a tap, unchanged (`content.ts`). A saved value that can't be
+  direct message", no body. The subtitle still says where, and the data
+  is unchanged, so a tap still opens the right place (`content.ts`).
+  Banners already showing keep their text, and stay, when a switch is
+  turned off; only later banners follow the change. A saved value that can't be
   read, or a single one that isn't a boolean, reads as its default
   (`prefs.ts`).
 - The app asks to notify the first time a signed-in server shows

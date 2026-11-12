@@ -53,10 +53,11 @@ export function notificationContent(
   item: ActivityItem,
   server: { id: string; name: string },
   names: PlaceNames,
-  manyServers: boolean,
-  showText = true,
+  { manyServers, showText = true }: { manyServers: boolean; showText?: boolean },
 ): NotificationContent {
   const who = showText ? item.actor?.displayName || item.actor?.username || "Someone" : "Someone";
+  let title = `${who} ${activityVerb(item.kind)}`;
+  if (item.kind === ActivityKind.DM) title = showText ? who : "New direct message";
   const where = [
     names.channel ? `#${names.channel}` : undefined,
     names.space,
@@ -64,12 +65,7 @@ export function notificationContent(
   ].filter(Boolean);
   return {
     identifier: `${server.id}:${activityEntryKey(item)}`,
-    title:
-      item.kind === ActivityKind.DM
-        ? showText
-          ? who
-          : "New direct message"
-        : `${who} ${activityVerb(item.kind)}`,
+    title,
     subtitle: where.length > 0 ? where.join(" · ") : undefined,
     body: showText ? item.preview : "",
     data: {

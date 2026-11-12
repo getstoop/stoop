@@ -1,4 +1,4 @@
-import { type AlertPrefs, kindAlerts } from "../alertPrefs/prefs";
+import { type KindSwitches, kindAlerts } from "../alertPrefs/prefs";
 import type { FocusedPlace } from "./focus";
 
 // What a notification would be about, as far as staying quiet goes.
@@ -19,7 +19,7 @@ export type Arrival = {
   read?: boolean;
   held?: boolean;
   kind?: number;
-  alerts?: Pick<AlertPrefs, "mentions" | "directMessages" | "threads">;
+  alerts?: KindSwitches;
 };
 
 // Whether an arrival gets no notification: it came from somewhere muted

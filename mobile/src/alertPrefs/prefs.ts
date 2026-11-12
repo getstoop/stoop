@@ -14,6 +14,9 @@ export type AlertPrefs = {
   showText: boolean;
 };
 
+// The switches that decide a kind of activity.
+export type KindSwitches = Pick<AlertPrefs, "mentions" | "directMessages" | "threads">;
+
 // As the Notifications screen draws them: threads off.
 export const DEFAULT_PREFS: AlertPrefs = { mentions: true, directMessages: true, threads: false, showText: true };
 
@@ -40,7 +43,7 @@ export function parsePrefs(raw: string | null): AlertPrefs {
 // Whether a kind of activity may show a banner. A kind that fits no
 // switch (an unspecified one, or one a newer server adds) is not held
 // back: it keeps ringing.
-export function kindAlerts(prefs: Pick<AlertPrefs, "mentions" | "directMessages" | "threads">, kind: number): boolean {
+export function kindAlerts(prefs: KindSwitches, kind: number): boolean {
   switch (kind) {
     case ActivityKind.MENTION:
     case ActivityKind.REPLY:
