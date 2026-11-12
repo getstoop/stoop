@@ -6,7 +6,7 @@ import { type Theme, tokens, useTheme } from "../theme";
 
 // A space's icon, fetched with the session as a bearer token (the server
 // takes it on /files as on every RPC; expo-image, whose cache sign-out
-// clears), or its first letter when it has none or the icon won't load.
+// clears), or its first two letters when it has none or the icon won't load.
 export default function SpaceIcon({
   name,
   fileId,
@@ -34,7 +34,7 @@ export default function SpaceIcon({
   }
   return (
     <View style={styles.icon}>
-      <Text style={styles.letter}>{name.trim().charAt(0).toUpperCase()}</Text>
+      <Text style={styles.letter}>{name.trim().slice(0, 2).toUpperCase()}</Text>
     </View>
   );
 }
@@ -52,7 +52,7 @@ function makeStyles(theme: Theme, size: number) {
     },
     letter: {
       color: theme.accent,
-      fontSize: size >= 48 ? tokens.textXl : tokens.textLg,
+      fontSize: size >= 48 ? tokens.textXl : size >= 40 ? tokens.textBody : tokens.textUi,
       fontWeight: "700",
     },
   });
