@@ -33,6 +33,26 @@ describe("alertPrefsStore", () => {
     expect(store.current()).toEqual({ ...DEFAULT_PREFS, showText: false });
   });
 
+  it("sets a server's switch, saving all", () => {
+    const save = vi.fn();
+    const store = alertPrefsStore(save);
+    store.setServer("a", false);
+    expect(store.current().servers).toEqual({ a: false });
+    expect(save).toHaveBeenCalledWith({ ...DEFAULT_PREFS, servers: { a: false } });
+  });
+
+  it("forgets a removed server's switch, and says nothing for one it had none for", () => {
+    const save = vi.fn();
+    const store = alertPrefsStore(save);
+    store.setServer("a", false);
+    save.mockClear();
+    store.forgetServer("b");
+    expect(save).not.toHaveBeenCalled();
+    store.forgetServer("a");
+    expect(store.current().servers).toEqual({});
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it("stops telling a listener that unsubscribed", () => {
     const store = alertPrefsStore(vi.fn());
     const listener = vi.fn();

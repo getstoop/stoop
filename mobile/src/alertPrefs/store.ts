@@ -1,4 +1,4 @@
-import { type AlertPrefs, DEFAULT_PREFS } from "./prefs";
+import { type AlertPrefs, DEFAULT_PREFS, withoutServer, withServer } from "./prefs";
 
 // The prefs held outside React so a notification can ask as it arrives.
 // The defaults stand until the saved ones are read, and a read that
@@ -9,6 +9,9 @@ export type AlertPrefsStore = {
   subscribe: (listener: () => void) => () => void;
   loaded: (saved: AlertPrefs) => void;
   set: (change: Partial<AlertPrefs>) => void;
+  setServer: (serverId: string, on: boolean) => void;
+  // A removed server's switch goes with it.
+  forgetServer: (serverId: string) => void;
 };
 
 export function alertPrefsStore(save: (next: AlertPrefs) => void): AlertPrefsStore {
@@ -17,6 +20,12 @@ export function alertPrefsStore(save: (next: AlertPrefs) => void): AlertPrefsSto
   const listeners = new Set<() => void>();
   const notify = () => {
     for (const listener of listeners) listener();
+  };
+  const replace = (next: AlertPrefs) => {
+    moved = true;
+    prefs = next;
+    save(prefs);
+    notify();
   };
   return {
     current: () => prefs,
@@ -31,11 +40,12 @@ export function alertPrefsStore(save: (next: AlertPrefs) => void): AlertPrefsSto
       prefs = saved;
       notify();
     },
-    set: (change) => {
-      moved = true;
-      prefs = { ...prefs, ...change };
-      save(prefs);
-      notify();
+    set: (change) => replace({ ...prefs, ...change }),
+    setServer: (serverId, on) => replace(withServer(prefs, serverId, on)),
+    forgetServer: (serverId) => {
+      // Nothing kept for it: nothing to save, and no hold on a read still to come.
+      if (!(serverId in prefs.servers)) return;
+      replace(withoutServer(prefs, serverId));
     },
   };
 }

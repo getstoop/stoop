@@ -1,6 +1,7 @@
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { serverAlerts } from "../alertPrefs/prefs";
 import { useAlertPrefsNow } from "../alertPrefs/AlertPrefsProvider";
 import { loadChannelList, loadSpaceList } from "../api/activity";
 import { sessionToken } from "../api/servers";
@@ -26,8 +27,8 @@ import { useNotificationTaps } from "./taps";
 // Nothing is said for what is muted, read, or being read as it arrives,
 // or while do not disturb holds that server's banners: the phone's
 // switch, or the server's account set from another device (quiet.ts,
-// src/dnd), or for a kind the phone isn't set to alert about
-// (src/alertPrefs). Only the banner is held: the badges count on.
+// src/dnd), or for a kind or a server the phone isn't set to alert
+// about (src/alertPrefs). Only the banner is held: the badges count on.
 //
 // A notification stays in the system's list only while what it points
 // at is unread (clear.ts for which, dismiss.ts for the taking out): a
@@ -96,6 +97,7 @@ function ServerNotifications({ server, manyServers }: { server: SavedServer; man
           held: dndHolds(server.id),
           kind: item.kind,
           alerts: alertPrefs(),
+          serverOff: !serverAlerts(alertPrefs(), server.id),
         },
         focusedPlace(),
       );

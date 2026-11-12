@@ -41,6 +41,16 @@ export function useAlertPrefs(): [AlertPrefs, (change: Partial<AlertPrefs>) => v
   return [useSyncExternalStore(store.subscribe, store.current), store.set];
 }
 
+// Turns one server's banners on or off.
+export function useSetServerAlerts(): (serverId: string, on: boolean) => void {
+  return useStore().setServer;
+}
+
+// Drops a removed server's switch.
+export function useForgetServerAlerts(): (serverId: string) => void {
+  return useStore().forgetServer;
+}
+
 // The prefs as they read when asked, for each banner as it arrives.
 export function useAlertPrefsNow(): () => AlertPrefs {
   return useStore().current;

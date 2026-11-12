@@ -745,7 +745,8 @@ badge stays as it was when the app left the front.
   the activity list, the tabs' badges and the icon's count on. The
   switch is on the Notifications screen (`/notifications`, from the You
   tab's This phone, `src/screens/NotificationSettings`), whose row on
-  You reads "Do not disturb" while it is on. It follows the desktop
+  You reads "Off" while the system's permission is refused (below),
+  else "Do not disturb" while it is on. It follows the desktop
   app's (`docs/architecture/desktop.md` → Do not disturb): one switch
   for every saved server, kept on the phone in the keychain with its
   end, on for 1 hour, 3 hours, 1 day, 1 week or Never expire (web's
@@ -764,9 +765,7 @@ badge stays as it was when the app left the front.
   quick changes land in order. What a server's
   account says is read as its socket says Ready (GetMe, or the answer
   to the call that set it) and kept by DoNotDisturbChanged, its end
-  passing included (`store.ts`). The screen's other section is which
-  servers alert, still to come.
-- What this phone alerts about is the screen's "Alert this phone about"
+  passing included (`store.ts`). - What this phone alerts about is the screen's "Alert this phone about"
   section (`src/alertPrefs`), for every server on it and kept on the
   phone alone, in the keychain, with no server call. A banner is held
   for a kind whose switch is off (`quiet.ts`, the arrival's `kind` and
@@ -784,13 +783,37 @@ badge stays as it was when the app left the front.
   turned off; only later banners follow the change. A saved value that can't be
   read, or a single one that isn't a boolean, reads as its default
   (`prefs.ts`).
+- "From these servers" is the screen's last section: one row per saved
+  server, its tile and name as the You tab draws them, and a switch (on
+  by default). It is kept with the other prefs, by the server's local
+  ID, and a server with no value is on. A banner from a server whose
+  switch is off is held (`quiet.ts`'s `serverOff`, plain like the
+  rest); the activity list, the tabs' and switcher's badges and the
+  icon's count go on counting. A server whose sign-in has ended shows
+  "Signed out" where the switch would be, as on You. Removing a
+  server, or signing out of it from You, deletes its switch
+  (`useLeaveServer`), so a later server never inherits it; a session
+  that only ended keeps it. There is no admin-disabled variant: nothing
+  on the server says so yet.
 - The app asks to notify the first time a signed-in server shows
   (`permission.ts`, from `src/app/s/[id]/_layout.tsx`), with the
   system's prompt alone, and only while the person hasn't answered
   (`shouldAsk.ts`). On
   Android 13 and later, which reports no such state, it asks while the
   system still lets it: on first run, and once more after one refusal.
-  Refused, nothing shows and nothing else changes.
+  Refused, nothing shows and nothing else changes, except on the
+  Notifications screen: a notice at its top says "Notifications are
+  off" with a Settings button that opens the app's page in the system's
+  settings (`Linking.openSettings()`), the "Alert this phone about" and
+  "From these servers" groups are faded and their switches held with
+  their values kept, and do not disturb stays live, since other people
+  see it. "Refused" is not granted and not a state the app would still
+  ask in (`refused.ts`, built on `shouldAsk.ts`), so before the first
+  ask, and on Android while it may ask again, nothing shows. The
+  permission is read as the screen opens and again as the app returns
+  to the front (`useRefused.ts`); the screen never asks. The You tab's
+  Notifications row reads the same, and "Off" outranks "Do not
+  disturb", since nothing rings either way.
 - A tap opens the message, whether the app was in front, in the
   background or closed: the thread at the reply when the item has a
   thread, else the channel or the conversation at the message, the
