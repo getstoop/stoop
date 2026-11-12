@@ -3,14 +3,15 @@ import { StyleSheet, Text, View } from "react-native";
 import { type Theme, tokens, useTheme } from "../theme";
 
 // A titled group of rows, on the You tab and the Notifications screen.
-export default function Section({ title, children }: { title: string; children: ReactNode }) {
+// Dimmed, its rows are drawn faded: the group alone, not its title.
+export default function Section({ title, dimmed, children }: { title: string; dimmed?: boolean; children: ReactNode }) {
   const styles = makeStyles(useTheme());
   return (
     <View style={styles.section}>
       <Text style={styles.title} accessibilityRole="header">
         {title}
       </Text>
-      <View style={styles.group}>{children}</View>
+      <View style={[styles.group, dimmed && styles.dimmed]}>{children}</View>
     </View>
   );
 }
@@ -34,6 +35,9 @@ function makeStyles(theme: Theme) {
       borderColor: theme.border,
       backgroundColor: theme.panel,
       overflow: "hidden",
+    },
+    dimmed: {
+      opacity: tokens.disabled,
     },
   });
 }

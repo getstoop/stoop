@@ -1,14 +1,19 @@
+import type { ReactNode } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // A setting that is on or off: its name, a line under it when there is
-// one to say, and the system's switch.
+// one to say, and the system's switch. A note stands in for the switch
+// when there is nothing to set, and a leading element goes before the name.
 export default function SwitchRow({
   label,
   detail,
   strong,
   value,
   divided,
+  leading,
+  note,
+  disabled,
   testID,
   onValueChange,
 }: {
@@ -19,27 +24,47 @@ export default function SwitchRow({
   value: boolean;
   // A line above it, for any row but a group's first.
   divided?: boolean;
+  leading?: ReactNode;
+  // Replaces the switch when there is nothing to set ("Signed out").
+  note?: string;
+  // Shown as it is, but not to be changed.
+  disabled?: boolean;
   testID?: string;
   onValueChange: (value: boolean) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   return (
-    <View style={[styles.row, divided && styles.divided]}>
+    <View
+      style={[styles.row, divided && styles.divided]}
+      accessible={note !== undefined}
+      accessibilityLabel={note !== undefined ? `${label}, ${note.toLowerCase()}` : undefined}
+      testID={note !== undefined ? testID : undefined}
+    >
+      {leading}
       {/* The switch says both lines, so a screen reader hears the row once. */}
-      <View style={styles.text} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View
+        style={styles.text}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <Text style={[styles.label, strong && styles.strong]}>{label}</Text>
         {detail !== undefined && <Text style={styles.detail}>{detail}</Text>}
       </View>
-      <Switch
-        accessibilityLabel={detail === undefined ? label : `${label}, ${detail}`}
-        testID={testID}
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: theme.raised, true: theme.accent }}
-        ios_backgroundColor={theme.raised}
-        thumbColor={theme.onAccent}
-      />
+      {note !== undefined ? (
+        <Text style={styles.note}>{note}</Text>
+      ) : (
+        <Switch
+          accessibilityLabel={detail === undefined ? label : `${label}, ${detail}`}
+          testID={testID}
+          value={value}
+          disabled={disabled}
+          onValueChange={onValueChange}
+          trackColor={{ false: theme.raised, true: theme.accent }}
+          ios_backgroundColor={theme.raised}
+          thumbColor={theme.onAccent}
+        />
+      )}
     </View>
   );
 }
@@ -68,6 +93,10 @@ function makeStyles(theme: Theme) {
     },
     strong: {
       fontWeight: "600",
+    },
+    note: {
+      color: theme.warn,
+      fontSize: tokens.textUi,
     },
     detail: {
       color: theme.textMuted,

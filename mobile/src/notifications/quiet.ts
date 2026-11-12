@@ -10,7 +10,8 @@ import type { FocusedPlace } from "./focus";
 // as the server sends it. Kind is the activity kind and alerts the
 // phone's switches for kinds (src/alertPrefs), both plain so a push
 // handler can give them from a notification's data; without either the
-// kind is not held back.
+// kind is not held back. ServerOff is the phone's switch for that
+// server's banners (src/alertPrefs), plain too.
 export type Arrival = {
   serverId: string;
   channelId: string;
@@ -20,16 +21,17 @@ export type Arrival = {
   held?: boolean;
   kind?: number;
   alerts?: KindSwitches;
+  serverOff?: boolean;
 };
 
 // Whether an arrival gets no notification: it came from somewhere muted
 // (the server's stamp, so it holds for a space never opened here), it is
-// read already, do not disturb holds it, its kind's switch is off, or
+// read already, do not disturb holds it, its kind's or its server's switch is off, or
 // the person is reading where it landed. A thread's
 // reply is quiet only on that thread's screen, so it still rings while
 // its channel is the screen; anything else is quiet on its channel's.
 export function staysQuiet(arrival: Arrival, focused: FocusedPlace | null): boolean {
-  if (arrival.muted || arrival.read || arrival.held) return true;
+  if (arrival.muted || arrival.read || arrival.held || arrival.serverOff) return true;
   if (arrival.alerts && arrival.kind !== undefined && !kindAlerts(arrival.alerts, arrival.kind)) return true;
   if (!focused || focused.serverId !== arrival.serverId) return false;
   if (arrival.threadRootId) return focused.threadRootId === arrival.threadRootId;

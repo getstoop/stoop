@@ -1,6 +1,7 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { hostOf } from "../../api/probe";
+import ServerTile from "../../components/ServerTile";
 import type { SavedServer } from "../../servers";
 import type { Waiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -47,9 +48,7 @@ export default function ServerEntry({
       onLongPress={onLongPress}
       style={({ pressed }) => [styles.row, divided && styles.divided, pressed && styles.pressed]}
     >
-      <View style={[styles.tile, ended && styles.dim]}>
-        <Text style={styles.letter}>{server.name.trim().charAt(0).toUpperCase()}</Text>
-      </View>
+      <ServerTile name={server.name} dim={ended} />
       <Text style={styles.name} numberOfLines={1}>
         {server.name}
       </Text>
@@ -80,22 +79,6 @@ function makeStyles(theme: Theme) {
     },
     pressed: {
       backgroundColor: theme.hover,
-    },
-    tile: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.accentSoft,
-    },
-    dim: {
-      opacity: tokens.disabled,
-    },
-    letter: {
-      color: theme.accent,
-      fontSize: tokens.textUi,
-      fontWeight: "700",
     },
     name: {
       flex: 1,

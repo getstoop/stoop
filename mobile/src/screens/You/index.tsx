@@ -9,6 +9,7 @@ import TabNotice from "../../components/TabNotice";
 import { useDndSwitch } from "../../dnd/DndProvider";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
+import { useRefused } from "../../notifications/useRefused";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import { type SavedServer, useServers } from "../../servers";
 import { useWaiting } from "../../servers/useWaiting";
@@ -45,6 +46,7 @@ export default function You({ server }: { server: SavedServer }) {
   const [themeName] = useThemeName();
   const themeLabel = themeList.find((t) => t.name === themeName)?.label ?? themeName;
   const [dnd] = useDndSwitch();
+  const refused = useRefused();
 
   const { servers } = useServers();
   const { waiting, refresh: refreshWaiting } = useWaiting(servers, server.id);
@@ -162,7 +164,8 @@ export default function You({ server }: { server: SavedServer }) {
           />
           <SettingRow
             label="Notifications"
-            value={dnd.on ? "Do not disturb" : "On"}
+            // Refused outranks do not disturb: nothing shows either way.
+            value={refused ? "Off" : dnd.on ? "Do not disturb" : "On"}
             divided
             testID="notifications-row"
             onPress={() => pushOnce(() => router.push("/notifications"))}

@@ -1,6 +1,6 @@
 import { ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PREFS, kindAlerts, parsePrefs } from "./prefs";
+import { DEFAULT_PREFS, kindAlerts, parsePrefs, serverAlerts, withoutServer, withServer } from "./prefs";
 
 describe("parsePrefs", () => {
   it("is the defaults for nothing saved or what can't be read", () => {
@@ -12,11 +12,11 @@ describe("parsePrefs", () => {
   });
 
   it("has everything on by default", () => {
-    expect(DEFAULT_PREFS).toEqual({ mentions: true, directMessages: true, threads: true, showText: true });
+    expect(DEFAULT_PREFS).toEqual({ mentions: true, directMessages: true, threads: true, showText: true, servers: {} });
   });
 
   it("reads a saved value back", () => {
-    const saved = { mentions: false, directMessages: false, threads: true, showText: false };
+    const saved = { mentions: false, directMessages: false, threads: true, showText: false, servers: { a: false, b: true } };
     expect(parsePrefs(JSON.stringify(saved))).toEqual(saved);
   });
 
@@ -25,6 +25,42 @@ describe("parsePrefs", () => {
       ...DEFAULT_PREFS,
       mentions: false,
     });
+  });
+});
+
+describe("servers", () => {
+  it("reads a server's saved switch, and keeps only booleans", () => {
+    const raw = JSON.stringify({ servers: { a: false, b: true, c: "no", d: null } });
+    expect(parsePrefs(raw).servers).toEqual({ a: false, b: true });
+  });
+
+  it("reads a save with no servers, or a bad one, as none", () => {
+    expect(parsePrefs(JSON.stringify({ mentions: false })).servers).toEqual({});
+    expect(parsePrefs(JSON.stringify({ servers: [true] })).servers).toEqual({});
+    expect(parsePrefs(JSON.stringify({ servers: "a" })).servers).toEqual({});
+  });
+
+  it("is on unless turned off", () => {
+    expect(serverAlerts(DEFAULT_PREFS, "a")).toBe(true);
+    expect(serverAlerts({ servers: { a: false } }, "a")).toBe(false);
+    expect(serverAlerts({ servers: { a: false } }, "b")).toBe(true);
+    expect(serverAlerts({ servers: { a: true } }, "a")).toBe(true);
+  });
+
+  it("sets one server and leaves the others", () => {
+    const next = withServer({ ...DEFAULT_PREFS, servers: { b: false } }, "a", false);
+    expect(next.servers).toEqual({ a: false, b: false });
+  });
+
+  it("drops a removed server's switch, so a later one with its ID is on", () => {
+    const prefs = { ...DEFAULT_PREFS, servers: { a: false, b: false } };
+    const next = withoutServer(prefs, "a");
+    expect(next.servers).toEqual({ b: false });
+    expect(serverAlerts(next, "a")).toBe(true);
+  });
+
+  it("is the same prefs when the server had no switch", () => {
+    expect(withoutServer(DEFAULT_PREFS, "a")).toBe(DEFAULT_PREFS);
   });
 });
 

@@ -22,6 +22,12 @@ describe("staysQuiet", () => {
     expect(staysQuiet({ ...mention, held: false }, null)).toBe(false);
   });
 
+  it("is quiet while the phone's switch for its server is off", () => {
+    expect(staysQuiet({ ...mention, serverOff: true }, null)).toBe(true);
+    expect(staysQuiet({ ...reply, serverOff: true }, { serverId: "a", channelId: "random" })).toBe(true);
+    expect(staysQuiet({ ...mention, serverOff: false }, null)).toBe(false);
+  });
+
   it("is quiet for a channel's arrival while that channel is the screen", () => {
     expect(staysQuiet(mention, { serverId: "a", channelId: "general" })).toBe(true);
   });

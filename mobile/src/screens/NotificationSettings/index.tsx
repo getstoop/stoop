@@ -1,21 +1,29 @@
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRefused } from "../../notifications/useRefused";
 import { type Theme, tokens, useTheme } from "../../theme";
 import AlertKindsSection from "./AlertKindsSection";
 import DoNotDisturbCard from "./DoNotDisturbCard";
+import RefusedNotice from "./RefusedNotice";
+import ServerAlertsSection from "./ServerAlertsSection";
 
 // What this phone is alerted about, for every server on it: one section
-// under the next. Do not disturb is the first, then which kinds alert.
+// under the next. A notice comes first while the system has notifications
+// refused; then do not disturb, which stays live (other people see it),
+// then which kinds alert and which servers do.
 export default function NotificationSettings() {
   const insets = useSafeAreaInsets();
   const styles = makeStyles(useTheme());
+  const refused = useRefused();
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 16 }]}>
       <Text style={styles.title} accessibilityRole="header">
         Notifications
       </Text>
+      {refused && <RefusedNotice />}
       <DoNotDisturbCard />
-      <AlertKindsSection />
+      <AlertKindsSection refused={refused} />
+      <ServerAlertsSection refused={refused} />
     </ScrollView>
   );
 }
