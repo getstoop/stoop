@@ -55,19 +55,39 @@ describe("railItem", () => {
   const space = { name: "Book club", muted: false, hasUnread: false, alertCount: 0 };
 
   it("shows nothing on a space with nothing waiting", () => {
-    expect(railItem(space, false)).toEqual({
-      selected: false,
-      unread: false,
+    expect(railItem(space, false)).toEqual({ mark: "none", mentions: 0, dimmed: false, label: "Book club" });
+  });
+
+  it("gives the selected space the bar", () => {
+    expect(railItem(space, true)).toEqual({
+      mark: "selected",
       mentions: 0,
       dimmed: false,
-      label: "Book club",
+      label: "Book club, selected",
+    });
+  });
+
+  it("gives a selected space with something unread the bar alone", () => {
+    expect(railItem({ ...space, hasUnread: true }, true)).toEqual({
+      mark: "selected",
+      mentions: 0,
+      dimmed: false,
+      label: "Book club, selected, unread",
+    });
+  });
+
+  it("gives a selected space with mentions the bar and the badge", () => {
+    expect(railItem({ ...space, hasUnread: true, alertCount: 2 }, true)).toEqual({
+      mark: "selected",
+      mentions: 2,
+      dimmed: false,
+      label: "Book club, selected, 2 mentions",
     });
   });
 
   it("gives an unread space the tab", () => {
     expect(railItem({ ...space, hasUnread: true }, false)).toEqual({
-      selected: false,
-      unread: true,
+      mark: "unread",
       mentions: 0,
       dimmed: false,
       label: "Book club, unread",
@@ -76,8 +96,7 @@ describe("railItem", () => {
 
   it("shows the tab and the badge together, and says the mentions", () => {
     expect(railItem({ ...space, hasUnread: true, alertCount: 1 }, false)).toEqual({
-      selected: false,
-      unread: true,
+      mark: "unread",
       mentions: 1,
       dimmed: false,
       label: "Book club, 1 mention",
@@ -86,50 +105,26 @@ describe("railItem", () => {
   });
 
   it("badges mentions without the tab when nothing is unread", () => {
-    expect(railItem({ ...space, alertCount: 2 }, false)).toMatchObject({ unread: false, mentions: 2 });
-  });
-
-  it("gives the selected space the bar", () => {
-    expect(railItem(space, true)).toEqual({
-      selected: true,
-      unread: false,
-      mentions: 0,
-      dimmed: false,
-      label: "Book club, selected",
-    });
-  });
-
-  it("keeps the tab on a selected space with something unread", () => {
-    expect(railItem({ ...space, hasUnread: true }, true)).toEqual({
-      selected: true,
-      unread: true,
-      mentions: 0,
-      dimmed: false,
-      label: "Book club, selected, unread",
-    });
-    expect(railItem({ ...space, hasUnread: true, alertCount: 2 }, true)).toEqual({
-      selected: true,
-      unread: true,
+    expect(railItem({ ...space, alertCount: 2 }, false)).toEqual({
+      mark: "none",
       mentions: 2,
       dimmed: false,
-      label: "Book club, selected, 2 mentions",
+      label: "Book club, 2 mentions",
     });
   });
 
   it("dims a muted space and shows nothing waiting in it", () => {
     expect(railItem({ ...space, muted: true, hasUnread: true, alertCount: 4 }, false)).toEqual({
-      selected: false,
-      unread: false,
+      mark: "none",
       mentions: 0,
       dimmed: true,
       label: "Book club, muted",
     });
   });
 
-  it("still gives a muted space the bar when it is selected, without the tab", () => {
+  it("still gives a muted space the bar when it is selected", () => {
     expect(railItem({ ...space, muted: true, hasUnread: true }, true)).toEqual({
-      selected: true,
-      unread: false,
+      mark: "selected",
       mentions: 0,
       dimmed: true,
       label: "Book club, selected, muted",
