@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
 import TabNotice from "../../components/TabNotice";
+import { useDndSwitch } from "../../dnd/DndProvider";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
@@ -43,6 +44,7 @@ export default function You({ server }: { server: SavedServer }) {
   const [refreshing, setRefreshing] = useState(false);
   const [themeName] = useThemeName();
   const themeLabel = themeList.find((t) => t.name === themeName)?.label ?? themeName;
+  const [dnd] = useDndSwitch();
 
   const { servers } = useServers();
   const { waiting, refresh: refreshWaiting } = useWaiting(servers, server.id);
@@ -158,7 +160,13 @@ export default function You({ server }: { server: SavedServer }) {
             testID="theme-row"
             onPress={() => pushOnce(() => router.push("/theme"))}
           />
-          <SettingRow label="Notifications" value="Mentions & messages" divided />
+          <SettingRow
+            label="Notifications"
+            value={dnd.on ? "Do not disturb" : "On"}
+            divided
+            testID="notifications-row"
+            onPress={() => pushOnce(() => router.push("/notifications"))}
+          />
         </Section>
         <SignOutButton server={server} />
       </ScrollView>

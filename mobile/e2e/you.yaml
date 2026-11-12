@@ -32,9 +32,13 @@ name: See who you are on You, refreshed by a pull, and think better of signing o
     timeout: 15000
 - assertVisible: "This phone"
 - assertVisible: "Theme, .*"
-# Notifications shows, and does nothing yet.
-- tapOn: "Notifications, Mentions & messages"
-- assertVisible: "@${MEMBER} · on .*"
+# Notifications opens its screen, with do not disturb off.
+- tapOn:
+    id: "notifications-row"
+- assertVisible: "Do not disturb"
+- assertVisible: "Holds every alert on every device, on all your servers."
+- tapOn: "Back|Navigate up"
+- assertVisible: "Notifications, On"
 # Pronouns set on another device, seen on a pull.
 - runScript:
     file: scripts/rpc.js

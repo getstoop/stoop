@@ -2,17 +2,12 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { errorText } from "../../api/errors";
-import {
-  DND_DURATIONS,
-  dndChoice,
-  dndEnd,
-  setDoNotDisturb,
-  useDndActive,
-} from "../../api/presence";
+import { setDoNotDisturb, useDndActive } from "../../api/presence";
 import { useMe } from "../../api/queries";
 import { Select } from "../../components/Select";
 import { SettingRow } from "../../components/SettingRow";
 import { shortDateTime } from "../../core/dates";
+import { DND_DURATIONS, dndChoice, dndEnd } from "../../core/doNotDisturb";
 import { notice } from "../../stores/dialogs";
 
 // Do not disturb belongs to the account: turned on here, it holds alerts on
