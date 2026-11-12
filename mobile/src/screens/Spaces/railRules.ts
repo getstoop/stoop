@@ -12,6 +12,26 @@ export function pickSpace(spaces: readonly Pick<Space, "id">[], wanted: string |
   return spaces[0]?.id;
 }
 
+// One space's button is this tall, and the rail's content is padded by
+// this much above the first and below the last.
+export const RAIL_ITEM_HEIGHT = 56;
+export const RAIL_PADDING = 8;
+
+// How far down the rail starts, so the selected space (the one at
+// `index` of `count`) is in sight as the tab first shows its list: not
+// at all while its button is already whole above what lies over the
+// rail's bottom (`obstruction`, which the content is also padded by),
+// else far enough to put it mid-way, short of scrolling past the end.
+export function railOffset(index: number, count: number, height: number, obstruction: number): number {
+  if (index < 0 || height <= 0) return 0;
+  const top = RAIL_PADDING + index * RAIL_ITEM_HEIGHT;
+  const clear = height - obstruction;
+  if (top + RAIL_ITEM_HEIGHT <= clear) return 0;
+  const content = RAIL_PADDING + count * RAIL_ITEM_HEIGHT + RAIL_PADDING + obstruction;
+  const middle = top - (clear - RAIL_ITEM_HEIGHT) / 2;
+  return Math.round(Math.max(0, Math.min(middle, content - height)));
+}
+
 export type RailItemView = {
   // The mark at the rail's edge: the selected space's bar, else a short
   // one while something in the space is unread.

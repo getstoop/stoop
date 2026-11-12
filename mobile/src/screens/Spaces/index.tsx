@@ -25,7 +25,8 @@ import { useSelectedSpace } from "./useSelectedSpace";
 // The Spaces tab, three levels at once: the server across the top (its
 // header opens the switcher), the spaces this account is in on it down
 // a rail at the left, with what is waiting in each, and the selected
-// space's channels in the pane that fills the rest. The spaces are
+// space's channels in the pane that fills the rest; the space is the
+// one last picked on this server (./useSelectedSpace.ts). The spaces are
 // loaded on opening and on a pull of the pane, and again, while the tab
 // is in sight, on coming back to the app and, after a moment's quiet,
 // whenever the realtime socket says something in one of them changed,
@@ -50,7 +51,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const [list, setList] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
   const spaces = list.state === "ready" ? list.spaces : undefined;
-  const { selected, select } = useSelectedSpace(spaces);
+  const { settled, selected, select } = useSelectedSpace(server.id, spaces);
   const space = spaces?.find((one) => one.id === selected);
 
   const load = useCallback(async () => {
@@ -108,7 +109,8 @@ export default function Spaces({ server }: { server: SavedServer }) {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ServerHeader server={server} />
-      {list.state === "loading" && (
+      {/* Until the remembered space is read too: no space is picked without it. */}
+      {(list.state === "loading" || (list.state === "ready" && !settled)) && (
         <Skeleton style={styles.body}>
           <RailSkeleton />
           <View style={styles.pane}>
@@ -131,7 +133,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
           action={{ label: "Try again", onPress: retry }}
         />
       )}
-      {list.state === "ready" && (
+      {list.state === "ready" && settled && (
         // Measures the safe area where the body is, so the rail and the
         // pane know what lies over their bottom (./useBottomObstruction.ts).
         <SafeAreaProvider style={styles.body}>
