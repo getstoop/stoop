@@ -764,8 +764,26 @@ badge stays as it was when the app left the front.
   quick changes land in order. What a server's
   account says is read as its socket says Ready (GetMe, or the answer
   to the call that set it) and kept by DoNotDisturbChanged, its end
-  passing included (`store.ts`). The Notifications screen has nothing
-  else yet: which kinds alert, and which servers, come next.
+  passing included (`store.ts`). The screen's other section is which
+  servers alert, still to come.
+- What this phone alerts about is the screen's "Alert this phone about"
+  section (`src/alertPrefs`), for every server on it and kept on the
+  phone alone, in the keychain, with no server call. A banner is held
+  for a kind whose switch is off (`quiet.ts`, the arrival's `kind` and
+  `alerts`, plain so a push handler can give them from a notification's
+  data); the activity list, the tabs' badges and the icon's count go on
+  counting. Mentions and replies (default on) holds a mention and a
+  reply to the person's own message; Direct messages (on) a direct
+  message; New replies in threads I'm in (on) a thread's reply. A kind
+  that fits none of these (unspecified, or one a newer server adds) is
+  not held back. Show message text (on), when off, makes a banner say
+  neither who nor what: "Someone mentioned you", a direct message "New
+  direct message", no body. The subtitle still says where, and the data
+  is unchanged, so a tap still opens the right place (`content.ts`).
+  Banners already showing keep their text, and stay, when a switch is
+  turned off; only later banners follow the change. A saved value that can't be
+  read, or a single one that isn't a boolean, reads as its default
+  (`prefs.ts`).
 - The app asks to notify the first time a signed-in server shows
   (`permission.ts`, from `src/app/s/[id]/_layout.tsx`), with the
   system's prompt alone, and only while the person hasn't answered

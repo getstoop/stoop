@@ -1,3 +1,4 @@
+import { ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import { describe, expect, it } from "vitest";
 import { staysQuiet } from "./quiet";
 
@@ -42,5 +43,32 @@ describe("staysQuiet", () => {
 
   it("rings for a thread's reply while only its channel is the screen", () => {
     expect(staysQuiet(reply, { serverId: "a", channelId: "general" })).toBe(false);
+  });
+});
+
+describe("staysQuiet by kind", () => {
+  const alerts = { mentions: true, directMessages: true, threads: false };
+
+  it("is quiet for a kind whose switch is off, wherever the person is", () => {
+    expect(staysQuiet({ ...reply, kind: ActivityKind.THREAD_REPLY, alerts }, null)).toBe(true);
+    expect(staysQuiet({ ...mention, kind: ActivityKind.MENTION, alerts: { ...alerts, mentions: false } }, null)).toBe(
+      true,
+    );
+    expect(staysQuiet({ ...mention, kind: ActivityKind.REPLY, alerts: { ...alerts, mentions: false } }, null)).toBe(
+      true,
+    );
+    expect(staysQuiet({ ...mention, kind: ActivityKind.DM, alerts: { ...alerts, directMessages: false } }, null)).toBe(
+      true,
+    );
+  });
+
+  it("rings for a kind whose switch is on, and for one that fits no switch", () => {
+    expect(staysQuiet({ ...mention, kind: ActivityKind.MENTION, alerts }, null)).toBe(false);
+    expect(staysQuiet({ ...mention, kind: ActivityKind.UNSPECIFIED, alerts }, null)).toBe(false);
+  });
+
+  it("holds nothing back without a kind or the switches", () => {
+    expect(staysQuiet({ ...reply, alerts }, null)).toBe(false);
+    expect(staysQuiet({ ...reply, kind: ActivityKind.THREAD_REPLY }, null)).toBe(false);
   });
 });

@@ -4,6 +4,7 @@ import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Vi
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
+import Section from "../../components/Section";
 import TabNotice from "../../components/TabNotice";
 import { useDndSwitch } from "../../dnd/DndProvider";
 import { usePushOnce } from "../../hooks/usePushOnce";
@@ -13,7 +14,6 @@ import { type SavedServer, useServers } from "../../servers";
 import { useWaiting } from "../../servers/useWaiting";
 import { type Theme, themeList, useTheme, useThemeName } from "../../theme";
 import Identity from "./Identity";
-import Section from "./Section";
 import ServersSection from "./ServersSection";
 import SettingRow from "./SettingRow";
 import SignOutButton from "./SignOutButton";

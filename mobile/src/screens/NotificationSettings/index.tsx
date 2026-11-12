@@ -1,10 +1,11 @@
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
+import AlertKindsSection from "./AlertKindsSection";
 import DoNotDisturbCard from "./DoNotDisturbCard";
 
 // What this phone is alerted about, for every server on it: one section
-// under the next. Do not disturb is the first, and so far the only one.
+// under the next. Do not disturb is the first, then which kinds alert.
 export default function NotificationSettings() {
   const insets = useSafeAreaInsets();
   const styles = makeStyles(useTheme());
@@ -14,6 +15,7 @@ export default function NotificationSettings() {
         Notifications
       </Text>
       <DoNotDisturbCard />
+      <AlertKindsSection />
     </ScrollView>
   );
 }
