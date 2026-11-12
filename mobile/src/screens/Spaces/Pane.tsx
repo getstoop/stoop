@@ -148,7 +148,8 @@ export default function Pane({
   const [menuFor, setMenuFor] = useState<Channel | null>(null);
   const [aboutFor, setAboutFor] = useState<string | null>(null);
   // The channel About was picked for in the menu, held until the menu's
-  // sheet has gone: two modals changing places at once misbehave on iOS.
+  // sheet has finished sliding out (closeMenu), when the two change
+  // places in one commit.
   const aboutNext = useRef<string | null>(null);
   const { say, opened, closed } = useSheetNotice();
   const openMenu = (channel: Channel) => {
@@ -367,7 +368,6 @@ export default function Pane({
       )}
       {aboutChannel && (
         <ChannelAbout
-          key={aboutChannel.id}
           channel={aboutChannel}
           topic={channelTopic(aboutChannel)}
           onClose={closeAbout}
