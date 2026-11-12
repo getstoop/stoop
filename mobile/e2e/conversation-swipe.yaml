@@ -28,7 +28,8 @@ name: Swipe a conversation in Messages to Close and tap it, then swipe one all t
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-messages"

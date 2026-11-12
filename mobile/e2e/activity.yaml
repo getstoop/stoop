@@ -28,7 +28,8 @@ name: See a mention in Activity with the tab's badge, open it, and see it read
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-activity"

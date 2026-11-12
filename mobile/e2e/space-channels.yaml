@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Open a space and see its channels, with what is waiting in each, kept live
+name: Pick a space on the rail and see its channels, with what is waiting in each, kept live
 ---
 - clearKeychain
 - launchApp:
@@ -22,22 +22,30 @@ name: Open a space and see its channels, with what is waiting in each, kept live
     id: "password"
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
+# The tab opens on the first space, Book club (seed.mjs), selected on the
+# rail with dee's mention on it; the rail's buttons are read from their
+# accessibility labels.
 - extendedWaitUntil:
-    visible: "${SPACE}, 1 mention, Reading The Overstory"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, 1 mention, Reading The Overstory"
-# The space's channels (seed.mjs), read from the rows' accessibility
-# labels: dee's mention in general, dee's post in random, off-topic muted.
+- assertVisible: "${SPACE}, selected, 1 mention"
+- assertVisible: "Climbing crew, unread"
+- assertVisible: "Garden swap, muted"
+# Its channels fill the pane, read from the rows' accessibility labels:
+# dee's mention in general, dee's post in random, off-topic muted.
 - extendedWaitUntil:
     visible: "general, 1 mention"
     timeout: 15000
-# The header's pill, by its label. However many members other flows have
+# The pane's header, by its label. However many members other flows have
 # brought in by now.
 - assertVisible: "${SPACE}, \\d+ members · Reading The Overstory"
+- assertVisible: "Search in ${SPACE}"
 - assertVisible: "random, unread"
 - assertVisible: "off-topic, muted"
 # Live: a channel made, posted in, mentioning ada and deleted elsewhere
-# shows here as it happens, through the realtime socket.
+# shows here as it happens, through the realtime socket, in the pane and
+# on the rail's badge.
 - runScript:
     file: scripts/rpc.js
     env:
@@ -60,6 +68,9 @@ name: Open a space and see its channels, with what is waiting in each, kept live
 - extendedWaitUntil:
     visible: "live-check, 1 mention"
     timeout: 10000
+- extendedWaitUntil:
+    visible: "${SPACE}, selected, 2 mentions"
+    timeout: 10000
 - runScript:
     file: scripts/rpc.js
     env:
@@ -67,8 +78,25 @@ name: Open a space and see its channels, with what is waiting in each, kept live
 - extendedWaitUntil:
     notVisible: "live-check.*"
     timeout: 10000
-# Back to the list, with the tab bar there all along.
+- extendedWaitUntil:
+    visible: "${SPACE}, selected, 1 mention"
+    timeout: 10000
+# Another space, picked on the rail: its channels take the pane, and
+# Book club keeps its badge unselected.
+- tapOn: "Climbing crew, unread"
+- extendedWaitUntil:
+    visible: "Climbing crew, \\d+ members"
+    timeout: 15000
+- assertVisible: "Climbing crew, selected, unread"
+- assertVisible: "general, unread"
+- assertVisible: "${SPACE}, 1 mention"
+- assertNotVisible: "off-topic, muted"
+# And back, by the rail, with the tab bar there all along.
+- tapOn:
+    id: "space-${SPACE_ID}"
+- extendedWaitUntil:
+    visible: "general, 1 mention"
+    timeout: 15000
+- assertVisible: "${SPACE}, selected, 1 mention"
 - assertVisible:
     id: "tab-spaces"
-- tapOn: "Back"
-- assertVisible: "Spaces"

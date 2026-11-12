@@ -27,9 +27,11 @@ name: See files under messages, a photo, two in a grid, a PDF, a video with its 
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 - extendedWaitUntil:
     visible: "photos"
     timeout: 15000

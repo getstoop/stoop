@@ -22,10 +22,10 @@ name: Add a server, sign in, see Spaces, change the theme, sign out
     id: "password"
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
-# Each space with what is waiting in it (seed.mjs), read from the rows'
-# accessibility labels.
+# Each space on the rail with what is waiting in it (seed.mjs), read
+# from the buttons' accessibility labels; the first is the one selected.
 - extendedWaitUntil:
-    visible: "${SPACE}, 1 mention, Reading The Overstory"
+    visible: "${SPACE}, selected, 1 mention"
     timeout: 15000
 - assertVisible: "Climbing crew, unread"
 - assertVisible: "Garden swap, muted"

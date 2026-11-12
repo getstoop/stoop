@@ -24,9 +24,11 @@ name: Format as you type, undo a shortcut with backspace, and paste Markdown, an
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 # Read already when channel.yaml ran first.
 - extendedWaitUntil:
     visible: "chapters(, unread)?"

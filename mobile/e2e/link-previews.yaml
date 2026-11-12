@@ -28,9 +28,11 @@ name: See link previews under messages, open a message's menu from one, and remo
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 - extendedWaitUntil:
     visible: "links"
     timeout: 15000

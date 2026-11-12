@@ -24,9 +24,11 @@ name: Format words from the row, at the caret and over a selection, and see them
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 # Read already when channel.yaml ran first.
 - extendedWaitUntil:
     visible: "chapters(, unread)?"

@@ -28,9 +28,11 @@ name: Quote a message in a reply, cancel it, send it, and see the quote go with 
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-- tapOn: "${SPACE}, .*"
+- tapOn:
+    id: "space-${SPACE_ID}"
 - extendedWaitUntil:
     visible: "chapters(, unread)?"
     timeout: 15000

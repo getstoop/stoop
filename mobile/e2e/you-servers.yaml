@@ -10,7 +10,8 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
       ADDRESS: ${SERVER}
       USER: ${MEMBER}
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-you"
@@ -24,7 +25,8 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
       ADDRESS: ${SECOND_SERVER}
       USER: ${MEMBER}
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-you"
@@ -37,13 +39,15 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
 # The current server's row goes to its Spaces tab, another's switches.
 - tapOn: ".*, 127\\.0\\.0\\.1:\\d+, current server"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 5000
 - tapOn:
     id: "tab-you"
 - tapOn: ".*, localhost:\\d+, 1 new"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-you"
@@ -97,7 +101,8 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
 - assertNotVisible: ".*, 127\\.0\\.0\\.1:\\d+.*"
 - tapOn: ".*, localhost:\\d+, current server"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 5000
 # Back again, then a swipe left shows Remove on the other server.
 - tapOn:
@@ -108,7 +113,8 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
       ADDRESS: ${SECOND_SERVER}
       USER: ${MEMBER}
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-you"
@@ -161,7 +167,8 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
     timeout: 15000
 - tapOn: ".*, 127\\.0\\.0\\.1:\\d+, 1 new"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - runScript:
     file: scripts/rpc.js
@@ -200,7 +207,8 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
     timeout: 15000
 - tapOn: ".*, 127\\.0\\.0\\.1:\\d+.*"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "server-switcher"

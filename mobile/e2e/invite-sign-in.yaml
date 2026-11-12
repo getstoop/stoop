@@ -29,9 +29,11 @@ name: Open an invite from the web's open-in-app link, sign in and join
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - assertNotVisible: "Couldn't join the space"
-# Spaces lists the invite's space: the account joined it.
+# The Spaces tab's rail has the invite's space: the account joined it.
 - extendedWaitUntil:
-    visible: "Spaces"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
-# The row reads as the name and what is waiting in it.
-- assertVisible: "${SPACE}(, .*)?"
+# Its only space, so the one selected; the button reads as the name,
+# that, and what is waiting in it.
+- assertVisible: "${SPACE}, selected(, .*)?"

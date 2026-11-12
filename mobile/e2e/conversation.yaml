@@ -30,7 +30,8 @@ name: Open a conversation from Messages, read it live, answer, reply in a thread
 - inputText: ${PASSWORD}
 - tapOn: "Sign in"
 - extendedWaitUntil:
-    visible: "${SPACE}, .*"
+    visible:
+      id: "space-${SPACE_ID}"
     timeout: 15000
 - tapOn:
     id: "tab-messages"
