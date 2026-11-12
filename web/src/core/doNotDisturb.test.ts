@@ -1,12 +1,6 @@
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { describe, expect, it, vi } from "vitest";
-import { dndActive, dndChoice, dndEnd } from "./presence";
-
-// api/clients.ts builds its transport from location.origin as it loads,
-// and the unit suite runs in node.
-vi.hoisted(() => {
-  Object.assign(globalThis, { location: new URL("http://localhost:8091") });
-});
+import { describe, expect, it } from "vitest";
+import { dndActive, dndChoice, dndEnd } from "./doNotDisturb";
 
 const now = new Date("2026-09-15T12:00:00Z");
 const at = (ms: number) => timestampFromDate(new Date(now.getTime() + ms));

@@ -33,7 +33,8 @@ opening its conversation, with New message picking who to talk to and
 the count of unread messages on its tab; and
 You, which says who you are, opens Edit
 profile (your names, pronouns, bio and avatar; leaving with unsaved edits
-asks first), picks the theme, lists the phone's servers and signs out.
+asks first), picks the theme, turns on do not disturb, lists the phone's
+servers and signs out.
 A channel or a conversation is read and written in: messages with their
 Markdown, reactions, replies, threads, files and pins, a composer that
 formats, mentions, attaches and keeps its draft, and a search of the
@@ -41,8 +42,9 @@ space. While the app is in front, a mention, a reply or a direct message
 on any saved server rings as a system notification, and tapping it
 opens the message, and the app's icon carries what waits on all of
 them (Notifications, below). Not there yet: notifications
-while the app is closed, joining a voice room, and account settings
-beyond the profile.
+while the app is closed, keeping mobile quiet while Stoop is open on
+another device (STOOPMOBIL-33), joining a voice room, and account
+settings beyond the profile.
 The screens follow the mobile mockups, one at a time.
 
 ## Screens and routes
@@ -736,6 +738,34 @@ badge stays as it was when the app left the front.
   reply while that thread is, asked again once the names have landed.
   A thread's reply still rings over its channel. The channel and thread screens say when they are the place
   on screen (`focus.ts`).
+- Do not disturb holds a server's banners (`src/dnd`; `quiet.ts` takes
+  it as the arrival's `held`, a plain answer a push handler can give
+  too): while the phone's switch is on, or while that server's own
+  account says so, set from another device. Only the banner is held:
+  the activity list, the tabs' badges and the icon's count on. The
+  switch is on the Notifications screen (`/notifications`, from the You
+  tab's This phone, `src/screens/NotificationSettings`), whose row on
+  You reads "Do not disturb" while it is on. It follows the desktop
+  app's (`docs/architecture/desktop.md` → Do not disturb): one switch
+  for every saved server, kept on the phone in the keychain with its
+  end, on for 1 hour, 3 hours, 1 day, 1 week or Never expire (web's
+  list, `core/doNotDisturb.ts`), counted from the tap; flipping it on
+  starts at 1 hour. Moving it calls `SetDoNotDisturb` on every saved
+  server, on with the same end or off, and a server whose socket says
+  Ready while it is on (a launch, a reconnect, a later sign-in) is set
+  on too. Nothing but turning it off tells a server off: starting the
+  app, connecting and an end passing send nothing, or they would clear
+  do not disturb set from another device; past its end the switch
+  reads as off (the store says when, and again as the app comes back
+  to the front) and each server ends its own. A call that fails leaves
+  that server as it was, says nothing on screen, and is made again at
+  that server's next Ready while the switch is on. A server is sent
+  one call at a time and then only the newest that waited, so two
+  quick changes land in order. What a server's
+  account says is read as its socket says Ready (GetMe, or the answer
+  to the call that set it) and kept by DoNotDisturbChanged, its end
+  passing included (`store.ts`). The Notifications screen has nothing
+  else yet: which kinds alert, and which servers, come next.
 - The app asks to notify the first time a signed-in server shows
   (`permission.ts`, from `src/app/s/[id]/_layout.tsx`), with the
   system's prompt alone, and only while the person hasn't answered
@@ -945,7 +975,7 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
-`alerts/loader.ts`, `alerts/store.ts`,
+`alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts` and
 `shouldAsk.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
@@ -1071,7 +1101,9 @@ which reads the Connect code, with its words kept once in
   the paths a message's link carries and the message a pasted link
   names (`core/shareLinks.ts`), which link previews show and how
   (`core/linkPreviews.ts`), a
-  message's one-line preview (`core/messagePreview.ts`), badge
+  message's one-line preview (`core/messagePreview.ts`), whether do
+  not disturb is on and how long it is turned on for
+  (`core/doNotDisturb.ts`), badge
   counts, which
   messages run together and where the "New" line goes, the channel log
   web's timeline runs on (`core/channelLog`, which this app's channel

@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AlertsProvider from "../alerts/AlertsProvider";
+import DndProvider from "../dnd/DndProvider";
 import NotificationsProvider from "../notifications/NotificationsProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
@@ -14,18 +15,21 @@ import { ThemeProvider, useTheme } from "../theme";
 // arrives on any saved server's socket rings from here (src/notifications),
 // and every server's badges are kept here (src/alerts), for its
 // Activity and Messages tabs and, the totals added up, for the app's
-// icon.
+// icon. Do not disturb is held here as well (src/dnd): the phone's one
+// switch, and each server's account's.
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <ThemeProvider>
         <ServersProvider>
           <RealtimeProvider>
-            <AlertsProvider>
-              <NotificationsProvider>
-                <RootStack />
-              </NotificationsProvider>
-            </AlertsProvider>
+            <DndProvider>
+              <AlertsProvider>
+                <NotificationsProvider>
+                  <RootStack />
+                </NotificationsProvider>
+              </AlertsProvider>
+            </DndProvider>
           </RealtimeProvider>
         </ServersProvider>
       </ThemeProvider>
