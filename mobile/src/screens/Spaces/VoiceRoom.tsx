@@ -15,7 +15,7 @@ const JOIN_NOTE = "Join voice from the web or desktop app for now.";
 // three of their faces and who they are in one line ("Priya and Theo + 5
 // more"). people is undefined while the realtime socket isn't connected,
 // and the room shows just its name. The phone can't join yet, so a
-// press does nothing; a long press opens its menu (ChannelMenu), whose
+// press does nothing but show it is held; a long press opens its menu (ChannelMenu), whose
 // items a screen reader is given as the room's own actions. Drawn as
 // that menu's card, it takes neither.
 export default function VoiceRoom({
@@ -42,7 +42,7 @@ export default function VoiceRoom({
 
   return (
     <Pressable
-      style={styles.room}
+      style={({ pressed }) => [styles.room, pressed && onLongPress && styles.pressed]}
       accessible
       accessibilityLabel={[channel.name, "voice", live ? `${names} in it. ${JOIN_NOTE}` : null]
         .filter(Boolean)
@@ -88,6 +88,10 @@ function makeStyles(theme: Theme) {
       gap: 6,
       paddingVertical: 12,
       paddingHorizontal: 12,
+      borderRadius: tokens.radiusMd,
+    },
+    pressed: {
+      backgroundColor: theme.hover,
     },
     line: {
       flexDirection: "row",

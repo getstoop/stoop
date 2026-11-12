@@ -40,7 +40,8 @@ import VoiceRoom from "./VoiceRoom";
 // what is waiting in each (each opens the channel) and its voice rooms
 // with who is in them. A long press on either opens its menu
 // (ChannelMenu): a mute shows once the server has answered and the
-// pane has reloaded, and one refused is said. The tab mounts one per space picked, so each
+// pane has reloaded, and one refused is said. What is muted with the
+// space is read from the rail's list, the only place that says so. The tab mounts one per space picked, so each
 // starts from its skeleton, under the name the rail's list already has.
 // Loaded on opening and on a pull, and again, while the tab is in
 // sight, on coming back to the app and whenever the realtime socket
@@ -146,10 +147,25 @@ export default function Pane({
     opened();
     setMenuFor(channel);
   };
-  const closeMenu = () => {
+  const closeMenu = useCallback(() => {
     setMenuFor(null);
     closed();
-  };
+  }, [closed]);
+  // The menu goes with the channels: a pane that stops showing them
+  // (a retry, the space gone) must not bring the sheet back later.
+  const showing = view.state === "ready";
+  useEffect(() => {
+    if (!showing) closeMenu();
+  }, [showing, closeMenu]);
+
+  // An action's answer can come after the pane has gone.
+  const left = useRef(false);
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
 
   const pull = async () => {
     setRefreshing(true);
@@ -163,6 +179,9 @@ export default function Pane({
   };
 
   const ready = view.state === "ready" ? view : undefined;
+  // The space as its own load has it, but for the caller's mute of it,
+  // which only the rail's list carries (ListSpaces; GetSpace leaves it
+  // unset): `space.muted` is the one to read.
   const shown = ready?.channels.space ?? space;
   const about =
     ready &&
@@ -229,12 +248,18 @@ export default function Pane({
       );
       return;
     }
-    // The socket's ChannelMuted reloads the pane too; asked here as
-    // well, the row is right with the socket down.
+    // The reload is the one the socket's ChannelMuted asks for, asked
+    // here too so the row is right with the socket down: the two make
+    // one request (quiet.soon).
     const muted = !channel.muted;
-    setChannelMuted(server.origin, ready.token, channel.id, muted)
-      .catch((err) => say(muted ? "Couldn't mute the channel" : "Couldn't unmute the channel", errorText(err)))
-      .finally(refresh);
+    setChannelMuted(server.origin, ready.token, channel.id, muted).then(
+      () => {
+        if (!left.current) quiet.soon();
+      },
+      (err) => {
+        if (!left.current) say(muted ? "Couldn't mute the channel" : "Couldn't unmute the channel", errorText(err));
+      },
+    );
   };
 
   // The menu's channel as the pane now draws it, so a mute or a reload
@@ -256,7 +281,7 @@ export default function Pane({
           <ChannelRow
             key={channel.id}
             channel={channel}
-            spaceMuted={shown.muted}
+            spaceMuted={space.muted}
             onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
             onLongPress={() => openMenu(channel)}
             onAction={(action) => act(channel, action)}
@@ -271,7 +296,7 @@ export default function Pane({
           <VoiceRoom
             key={channel.id}
             channel={channel}
-            spaceMuted={shown.muted}
+            spaceMuted={space.muted}
             people={people(channel)}
             origin={server.origin}
             token={ready.token}
@@ -284,18 +309,18 @@ export default function Pane({
       {menuChannel && (
         <ChannelMenu
           channel={menuChannel}
-          spaceMuted={shown.muted}
+          spaceMuted={space.muted}
           card={
             menuChannel.kind === ChannelKind.VOICE ? (
               <VoiceRoom
                 channel={menuChannel}
-                spaceMuted={shown.muted}
+                spaceMuted={space.muted}
                 people={people(menuChannel)}
                 origin={server.origin}
                 token={ready.token}
               />
             ) : (
-              <ChannelRow channel={menuChannel} spaceMuted={shown.muted} />
+              <ChannelRow channel={menuChannel} spaceMuted={space.muted} />
             )
           }
           onAction={(action) => act(menuChannel, action)}
