@@ -30,13 +30,14 @@ export default function Rail({
   const obstruction = useBottomObstruction();
   const rail = useRef<ComponentRef<typeof ScrollView>>(null);
   const placed = useRef(false);
-  // Once, at the rail's first size: a later reload, pick or resize
-  // leaves the scroll where it is.
+  // Once, at the rail's first usable size: a later reload, pick or
+  // resize leaves the scroll where it is.
   const place = (event: LayoutChangeEvent) => {
-    if (placed.current) return;
+    const height = event.nativeEvent.layout.height;
+    if (placed.current || height <= 0) return;
     placed.current = true;
     const index = spaces.findIndex((space) => space.id === selected);
-    const offset = railOffset(index, spaces.length, event.nativeEvent.layout.height, obstruction);
+    const offset = railOffset(index, spaces.length, height, obstruction);
     if (offset > 0) rail.current?.scrollTo({ y: offset, animated: false });
   };
   return (
