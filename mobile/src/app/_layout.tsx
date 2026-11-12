@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AlertPrefsProvider from "../alertPrefs/AlertPrefsProvider";
 import AlertsProvider from "../alerts/AlertsProvider";
 import DndProvider from "../dnd/DndProvider";
+import LastSpaceProvider from "../lastSpace/LastSpaceProvider";
 import NotificationsProvider from "../notifications/NotificationsProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
@@ -18,7 +19,8 @@ import { ThemeProvider, useTheme } from "../theme";
 // Activity and Messages tabs and, the totals added up, for the app's
 // icon. Do not disturb is held here as well (src/dnd): the phone's one
 // switch, and each server's account's; so are the kinds the phone
-// alerts about (src/alertPrefs).
+// alerts about (src/alertPrefs), and the space each server's Spaces tab
+// last showed (src/lastSpace).
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -27,11 +29,13 @@ export default function RootLayout() {
           <RealtimeProvider>
             <DndProvider>
               <AlertPrefsProvider>
-                <AlertsProvider>
-                  <NotificationsProvider>
-                    <RootStack />
-                  </NotificationsProvider>
-                </AlertsProvider>
+                <LastSpaceProvider>
+                  <AlertsProvider>
+                    <NotificationsProvider>
+                      <RootStack />
+                    </NotificationsProvider>
+                  </AlertsProvider>
+                </LastSpaceProvider>
               </AlertPrefsProvider>
             </DndProvider>
           </RealtimeProvider>

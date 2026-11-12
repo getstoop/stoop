@@ -91,11 +91,17 @@ import a screen; the screens themselves live in `src/screens`, so
   under the space's name, how many are in it and what it is, and a
   button that searches it (`PaneHeader.tsx`). Picking a space on the
   rail changes the pane; nothing is pushed, and no route names the
-  space. The selection is held while the tab is mounted
-  (`useSelectedSpace.ts`): a server opens on its first space, a space
-  the account is no longer in gives way to the first, and opening a
-  channel from search, Activity or a notification leaves it alone.
-  While the spaces load the rail and the pane are skeletons
+  space. The selection is the space last picked on that server
+  (`useSelectedSpace.ts`), remembered across restarts and switches of
+  server: one map of server to space, kept on the phone alone, in the
+  keychain (`src/lastSpace`), read as the app starts and cleared of a
+  server as it is removed. A server with nothing remembered opens on
+  its first space, a space the account is no longer in gives way to
+  the first (which is then the one remembered), and opening a channel
+  from search, Activity or a notification leaves it alone. The rail
+  first shows scrolled to the selected space (`railRules.ts`
+  `railOffset`). While the spaces load, and until the remembered space
+  is read, the rail and the pane are skeletons
   (`src/components/Skeleton.tsx`), and the pane is again while a
   picked space's channels load. The rail and the channel list each
   scroll, their content padded by what lies over the bottom of the

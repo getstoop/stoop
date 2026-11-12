@@ -3,7 +3,7 @@ import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import SpaceIcon from "../../components/SpaceIcon";
 import { type Theme, tokens, useTheme } from "../../theme";
-import { railItem } from "./railRules";
+import { RAIL_ITEM_HEIGHT, railItem } from "./railRules";
 
 const ICON = 44;
 const RING = 2;
@@ -53,7 +53,7 @@ function makeStyles(theme: Theme) {
   return StyleSheet.create({
     item: {
       width: tokens.railW,
-      height: 56,
+      height: RAIL_ITEM_HEIGHT,
       alignItems: "center",
       justifyContent: "center",
     },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickSpace, railItem } from "./railRules";
+import { pickSpace, railItem, railOffset } from "./railRules";
 
 const spaces = [{ id: "books" }, { id: "climbing" }, { id: "garden" }];
 
@@ -19,6 +19,35 @@ describe("pickSpace", () => {
   it("picks nothing from no spaces", () => {
     expect(pickSpace([], "books")).toBeUndefined();
     expect(pickSpace([], undefined)).toBeUndefined();
+  });
+});
+
+describe("railOffset", () => {
+  // A rail 600 tall with 80 of its bottom under the tab bar: 520 clear,
+  // so nine buttons (8 + 9 × 56 = 512) show whole.
+  const offset = (index: number, count: number) => railOffset(index, count, 600, 80);
+
+  it("stays at the top while the selected space is whole in sight", () => {
+    expect(offset(0, 30)).toBe(0);
+    expect(offset(8, 30)).toBe(0);
+  });
+
+  it("puts a space further down mid-way in what is clear", () => {
+    // Its top at 8 + 15 × 56 = 848, less half of 520 − 56.
+    expect(offset(15, 30)).toBe(616);
+    // The first one that isn't whole: cut by the tab bar at the top of the rail.
+    expect(offset(9, 30)).toBe(280);
+  });
+
+  it("stops at the end of the rail for the last spaces", () => {
+    // Content 8 + 30 × 56 + 8 + 80 = 1776, less the rail's 600.
+    expect(offset(29, 30)).toBe(1176);
+    expect(offset(28, 30)).toBe(1176);
+  });
+
+  it("stays at the top with no space selected or a rail not yet measured", () => {
+    expect(offset(-1, 30)).toBe(0);
+    expect(railOffset(3, 4, 0, 0)).toBe(0);
   });
 });
 
