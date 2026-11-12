@@ -17,8 +17,8 @@ export type AlertPrefs = {
 // The switches that decide a kind of activity.
 export type KindSwitches = Pick<AlertPrefs, "mentions" | "directMessages" | "threads">;
 
-// As the Notifications screen draws them: threads off.
-export const DEFAULT_PREFS: AlertPrefs = { mentions: true, directMessages: true, threads: false, showText: true };
+// Everything on: what rang before there were switches goes on ringing.
+export const DEFAULT_PREFS: AlertPrefs = { mentions: true, directMessages: true, threads: true, showText: true };
 
 // The prefs as they were saved. What can't be understood is the
 // defaults, and so is a single value that isn't a boolean, so a partly

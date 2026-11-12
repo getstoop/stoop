@@ -12,9 +12,9 @@ describe("alertPrefsStore", () => {
     const store = alertPrefsStore(save);
     const listener = vi.fn();
     store.subscribe(listener);
-    store.set({ threads: true });
-    expect(store.current()).toEqual({ ...DEFAULT_PREFS, threads: true });
-    expect(save).toHaveBeenCalledWith({ ...DEFAULT_PREFS, threads: true });
+    store.set({ threads: false });
+    expect(store.current()).toEqual({ ...DEFAULT_PREFS, threads: false });
+    expect(save).toHaveBeenCalledWith({ ...DEFAULT_PREFS, threads: false });
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
@@ -37,7 +37,7 @@ describe("alertPrefsStore", () => {
     const store = alertPrefsStore(vi.fn());
     const listener = vi.fn();
     store.subscribe(listener)();
-    store.set({ threads: true });
+    store.set({ threads: false });
     expect(listener).not.toHaveBeenCalled();
   });
 });
