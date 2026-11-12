@@ -21,6 +21,14 @@ describe("isRefused", () => {
     expect(isRefused({ status: "denied", granted: false, canAskAgain: true }, "android")).toBe(false);
   });
 
+  it("is refused on Android when this run asked and it is still not granted", () => {
+    expect(isRefused({ status: "denied", granted: false, canAskAgain: true }, "android", true)).toBe(true);
+  });
+
+  it("is not refused after an ask this run once granted", () => {
+    expect(isRefused({ status: "granted", granted: true, canAskAgain: true }, "android", true)).toBe(false);
+  });
+
   it("is refused on Android once it may not ask again", () => {
     expect(isRefused({ status: "denied", granted: false, canAskAgain: false }, "android")).toBe(true);
   });

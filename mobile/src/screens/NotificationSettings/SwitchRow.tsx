@@ -25,6 +25,7 @@ export default function SwitchRow({
   // A line above it, for any row but a group's first.
   divided?: boolean;
   leading?: ReactNode;
+  // Replaces the switch when there is nothing to set ("Signed out").
   note?: string;
   // Shown as it is, but not to be changed.
   disabled?: boolean;
@@ -34,13 +35,18 @@ export default function SwitchRow({
   const theme = useTheme();
   const styles = makeStyles(theme);
   return (
-    <View style={[styles.row, divided && styles.divided]}>
+    <View
+      style={[styles.row, divided && styles.divided]}
+      accessible={note !== undefined}
+      accessibilityLabel={note !== undefined ? `${label}, ${note.toLowerCase()}` : undefined}
+      testID={note !== undefined ? testID : undefined}
+    >
       {leading}
       {/* The switch says both lines, so a screen reader hears the row once. */}
       <View
         style={styles.text}
-        accessibilityElementsHidden={note === undefined}
-        importantForAccessibility={note === undefined ? "no-hide-descendants" : "auto"}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
       >
         <Text style={[styles.label, strong && styles.strong]}>{label}</Text>
         {detail !== undefined && <Text style={styles.detail}>{detail}</Text>}

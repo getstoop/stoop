@@ -765,7 +765,8 @@ badge stays as it was when the app left the front.
   quick changes land in order. What a server's
   account says is read as its socket says Ready (GetMe, or the answer
   to the call that set it) and kept by DoNotDisturbChanged, its end
-  passing included (`store.ts`). - What this phone alerts about is the screen's "Alert this phone about"
+  passing included (`store.ts`).
+- What this phone alerts about is the screen's "Alert this phone about"
   section (`src/alertPrefs`), for every server on it and kept on the
   phone alone, in the keychain, with no server call. A banner is held
   for a kind whose switch is off (`quiet.ts`, the arrival's `kind` and
@@ -809,7 +810,11 @@ badge stays as it was when the app left the front.
   their values kept, and do not disturb stays live, since other people
   see it. "Refused" is not granted and not a state the app would still
   ask in (`refused.ts`, built on `shouldAsk.ts`), so before the first
-  ask, and on Android while it may ask again, nothing shows. The
+  ask, and on Android while it may ask again, nothing shows; an ask
+  this run that left it ungranted counts, as Android still says askable
+  after a first "Don't allow" (`permission.ts` remembers it for the run).
+  A revoke in the system's settings on Android looks like never having
+  asked, so it shows no notice. The
   permission is read as the screen opens and again as the app returns
   to the front (`useRefused.ts`); the screen never asks. The You tab's
   Notifications row reads the same, and "Off" outranks "Do not

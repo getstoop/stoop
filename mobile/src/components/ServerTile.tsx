@@ -2,10 +2,15 @@ import { StyleSheet, Text, View } from "react-native";
 import { type Theme, tokens, useTheme } from "../theme";
 
 // A server's tile: its first letter. Dimmed for one signed out of.
+// Hidden from screen readers: the name beside it says the same.
 export default function ServerTile({ name, dim }: { name: string; dim?: boolean }) {
   const styles = makeStyles(useTheme());
   return (
-    <View style={[styles.tile, dim && styles.dim]}>
+    <View
+      style={[styles.tile, dim && styles.dim]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <Text style={styles.letter}>{name.trim().charAt(0).toUpperCase()}</Text>
     </View>
   );
