@@ -53,8 +53,6 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const [list, setList] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
   const spaces = list.state === "ready" ? list.spaces : undefined;
-  const { settled, selected, select } = useSelectedSpace(server.id, spaces);
-  const space = spaces?.find((one) => one.id === selected);
   // What each space's pane last showed, while the tab shows this
   // session: someone else signing in to the server starts afresh.
   const session = sessionKey(server);
@@ -81,6 +79,9 @@ export default function Spaces({ server }: { server: SavedServer }) {
     const next = await load();
     if (mine === latest.current) setList((shown) => afterLoad(shown, next));
   }, [load]);
+
+  const { settled, selected, select } = useSelectedSpace(server.id, spaces, refresh);
+  const space = spaces?.find((one) => one.id === selected);
 
   const quiet = useQuietReload(refresh);
   useEffect(() => {

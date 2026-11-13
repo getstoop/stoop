@@ -894,9 +894,10 @@ badge stays as it was when the app left the front.
   launched the app or found it running. A link to a space closes
   whatever is over the tabs and asks the Spaces tab for it
   (`src/lastSpace`), which picks it on its rail if the account is in
-  it and otherwise stays on the space it had. A link nobody takes
-  within ten seconds (the saved servers couldn't be read) is dropped. A server the phone isn't signed in to opens Sign in for that
-  address (once the launch has reached the saved server's screen, if
+  it, reloading its list once for a space joined since, and otherwise
+  stays on the space it had. A link nobody takes within ten seconds
+  (the saved servers couldn't be read) is dropped. A server the phone
+  isn't signed in to opens Sign in for that address (once the launch has reached the saved server's screen, if
   there is one), and the link goes no further; one saved under another
   address (the LAN's) counts as not signed in to.
 - A notification stays in the list only while what it points at is
