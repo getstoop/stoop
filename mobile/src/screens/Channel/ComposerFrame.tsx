@@ -15,12 +15,15 @@ import { tokens, useTheme } from "../../theme";
 // height, over what it holds, which keeps its own height throughout and
 // shows from its foot up (the card's buttons where the pill was). Its
 // place takes the new height at once, so what is laid out around it
-// (the list's clearance) is told once, not every frame. Then it is let
-// go, and is laid out by what it holds again, as a surface that never
-// moved is. At once under Reduce Motion.
+// (the list's clearance) is told as that height changes, not every
+// frame. What it holds can grow on the way (the field, once it has
+// measured a draft of several lines): the surface makes for the new
+// height, and its time starts again. Then it is let go, and is laid out
+// by what it holds again, as a surface that never moved is. At once
+// under Reduce Motion.
 
 // The pill's corners, and the card's: half the pill's height.
-export const FRAME_RADIUS = 24;
+const FRAME_RADIUS = 24;
 
 export default function ComposerFrame({
   glass,
@@ -56,12 +59,15 @@ export default function ComposerFrame({
     return () => clearTimeout(timer);
   }, [own]);
 
+  // The surface's height over what it holds: its border, where it has
+  // one, is inside it.
+  const edge = glass ? 0 : 2 * StyleSheet.hairlineWidth;
   const measured = (event: LayoutChangeEvent) => {
-    const height = event.nativeEvent.layout.height;
+    const height = event.nativeEvent.layout.height + edge;
     onHeight(height);
-    if (!moving || own !== null) return;
-    if (height === start) setMoving(false);
-    else setOwn(height);
+    if (!moving) return;
+    if (own === null && height === start) setMoving(false);
+    else if (height !== own) setOwn(height);
   };
 
   const height = own ?? start;
@@ -80,7 +86,8 @@ export default function ComposerFrame({
           moving && { height, ...GROW },
         ]}
       >
-        {glass && <GlassView glassEffectStyle="regular" colorScheme={theme.scheme} style={StyleSheet.absoluteFill} />}
+        {/* The glass shapes itself by its own corners, not by the clip. */}
+        {glass && <GlassView glassEffectStyle="regular" colorScheme={theme.scheme} style={styles.glass} />}
         <View style={style} onLayout={measured}>
           {children}
         </View>
@@ -99,6 +106,14 @@ const styles = StyleSheet.create({
   surface: {
     borderRadius: FRAME_RADIUS,
     overflow: "hidden",
+  },
+  glass: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: FRAME_RADIUS,
   },
   // To the foot of its place, what it holds to its own foot.
   held: {

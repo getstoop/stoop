@@ -44,10 +44,11 @@ import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 // becomes a card above the keyboard, the text on top and under it
 // Attach, Aa (which opens the formatting row) and Send. Losing focus
 // returns it to the pill, the draft kept. The surface grows from the
-// one's height to the other's, Attach where it was (ComposerFrame). The text is the native rich
-// text field (RichField), which shows a draft formatted, its markers
-// never; the draft is held here as Markdown, and the pill shows it as
-// plain words. The formats are placed for the step that gives them work.
+// one's height to the other's, Attach where it was (ComposerFrame). The
+// text is the native rich text field (RichField), which shows a draft
+// formatted, its markers never; the draft is held here as Markdown, and
+// the pill shows it as plain words. The formats are placed for the step
+// that gives them work.
 //
 // The draft is kept on the device under its account and conversation
 // (`draftAddress`, useSavedDraft): the field opens on what was there,
