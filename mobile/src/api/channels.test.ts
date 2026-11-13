@@ -12,7 +12,7 @@ import {
   ThreadReadSchema,
 } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { describe, expect, it } from "vitest";
-import { touchesSpace } from "./channels";
+import { touchesSpace, voiceRoomLabel } from "./channels";
 
 const event = (payload: MessageInitShape<typeof ServerEventSchema>["payload"]) =>
   create(ServerEventSchema, { payload });
@@ -52,5 +52,25 @@ describe("touchesSpace", () => {
       value: create(ActivityItemCreatedSchema, { item: create(ActivityItemSchema, { spaceId: "s1" }) }),
     } as const;
     expect(touchesSpace(event(payload), "s1")).toBe(false);
+  });
+});
+
+describe("voiceRoomLabel", () => {
+  const inIt = "Priya and Theo in it. Join voice from the web or desktop app for now.";
+
+  it("says the name and that it is voice for an empty room", () => {
+    expect(voiceRoomLabel({ name: "Lounge", muted: false }, "")).toBe("Lounge, voice");
+  });
+
+  it("says who is in a live room last", () => {
+    expect(voiceRoomLabel({ name: "Lounge", muted: false }, inIt)).toBe(`Lounge, voice, ${inIt}`);
+  });
+
+  it("says a muted room is muted", () => {
+    expect(voiceRoomLabel({ name: "Lounge", muted: true }, "")).toBe("Lounge, voice, muted");
+  });
+
+  it("says muted before who is in a live room", () => {
+    expect(voiceRoomLabel({ name: "Lounge", muted: true }, inIt)).toBe(`Lounge, voice, muted, ${inIt}`);
   });
 });
