@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { findInvite, joinSpace, sentence, stopped } from "../../api/invites";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
+import { loadSpaces } from "../../api/spaces";
 import TabNotice from "../../components/TabNotice";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
@@ -32,7 +33,8 @@ import { pasted } from "./pasted";
 // checked as it is pasted and the card says what it invites to before
 // Join commits anything, as the Invite screen does for someone not yet
 // on the server; a join the server then refuses is said in its own
-// words. Once joined, the sheet stays up ("Joining…") until the tab
+// words. An invite to a space the account is already in says so, and
+// the button goes there. Once joined, the sheet stays up ("Joining…") until the tab
 // under it holds the space, and closes on it; a tab that takes too long
 // picks the space when it does answer. A link to another server is only
 // named for now.
@@ -54,6 +56,8 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   const [text, setText] = useState("");
   const [focused, setFocused] = useState(false);
   const [check, setCheck] = useState<Check>({ state: "idle" });
+  // Whether the account is already in the space the invite is to.
+  const [member, setMember] = useState(false);
   // The host a pasted link is for, when it isn't this server's.
   const [elsewhere, setElsewhere] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
@@ -90,8 +94,15 @@ export default function AddSpace({ server }: { server: SavedServer }) {
       const token = await sessionToken(server.id).catch(() => null);
       if (controller.signal.aborted) return;
       if (!token) return setEnded(true);
-      const found = await findInvite(server.origin, token, what.code, controller.signal);
+      // The account's spaces are asked for beside the invite, to say when
+      // it is already in the one invited to. Not knowing (the list didn't
+      // load) is taken for not being in it: Join then lands there anyway.
+      const [found, mine] = await Promise.all([
+        findInvite(server.origin, token, what.code, controller.signal),
+        loadSpaces(server.origin, token, controller.signal).catch(() => []),
+      ]);
       if (controller.signal.aborted) return;
+      setMember(found.kind === "found" && mine.some((space) => space.id === found.preview.spaceId));
       setCheck({
         state: "done",
         result:
@@ -119,27 +130,33 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   // (the card's live region is Android's), so it is said.
   useEffect(() => {
     if (spaceName && Platform.OS === "ios") {
-      AccessibilityInfo.announceForAccessibility(`You're invited to ${spaceName}. Join is ready.`);
+      AccessibilityInfo.announceForAccessibility(
+        member ? `You're already in ${spaceName}.` : `You're invited to ${spaceName}. Join is ready.`,
+      );
     }
-  }, [spaceName]);
+  }, [spaceName, member]);
+
+  // The tab is asked for the space and the sheet closes on it, as after
+  // a join: by the space's own id here, nothing having been joined.
+  const land = async (spaceId: string) => {
+    landing.current = spaceId;
+    const how = await landOn(store, server.id, spaceId, LAND_MS);
+    // Whatever asked for another space meanwhile closes the sheet itself.
+    if (!open.current || how === "replaced") return;
+    landing.current = null;
+    router.dismiss();
+  };
 
   const join = async () => {
     if (!found || joiningNow.current) return;
     joiningNow.current = true;
     setJoining(true);
     setRefusal(null);
+    if (member) return land(found.preview.spaceId);
     const token = await sessionToken(server.id).catch(() => null);
     const outcome = token ? await joinSpace(server.origin, token, found.code) : ({ kind: "ended" } as const);
     if (!open.current) return;
-    if (outcome.kind === "joined") {
-      landing.current = outcome.spaceId;
-      const how = await landOn(store, server.id, outcome.spaceId, LAND_MS);
-      // Whatever asked for another space meanwhile closes the sheet itself.
-      if (!open.current || how === "replaced") return;
-      landing.current = null;
-      router.dismiss();
-      return;
-    }
+    if (outcome.kind === "joined") return land(outcome.spaceId);
     joiningNow.current = false;
     setJoining(false);
     if (outcome.kind === "ended") setEnded(true);
@@ -148,6 +165,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   };
 
   const canJoin = !!found && !joining;
+  const goTo = `Go to ${spaceName ?? "the space"}`;
 
   return (
     <View style={[styles.screen, { paddingBottom: (keyboard || insets.bottom) + 8 }]}>
@@ -190,6 +208,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
                   if (joiningNow.current) return;
                   setText(next);
                   setCheck({ state: "idle" });
+                  setMember(false);
                   setElsewhere(null);
                   setRefusal(null);
                 }}
@@ -209,7 +228,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
                 style={[styles.input, focused && styles.inputFocused]}
               />
             </View>
-            <InviteCard check={check} />
+            <InviteCard check={check} member={member} />
             {elsewhere && (
               <InviteNotice tone="plain" heading="That invite is for another server" body={`It's for ${elsewhere}.`} />
             )}
@@ -218,15 +237,17 @@ export default function AddSpace({ server }: { server: SavedServer }) {
           <View style={styles.footer}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={joining ? "Joining" : "Join space"}
+              accessibilityLabel={member ? goTo : joining ? "Joining" : "Join space"}
               accessibilityState={{ disabled: !canJoin, busy: joining }}
               disabled={!canJoin}
               onPress={join}
               testID="add-space-join"
               style={({ pressed }) => [styles.button, !found && styles.disabled, pressed && styles.pressed]}
             >
-              {joining && <ActivityIndicator color={theme.onAccent} />}
-              <Text style={styles.buttonLabel}>{joining ? "Joining…" : "Join"}</Text>
+              {joining && !member && <ActivityIndicator color={theme.onAccent} />}
+              <Text style={styles.buttonLabel} numberOfLines={1}>
+                {member ? goTo : joining ? "Joining…" : "Join"}
+              </Text>
             </Pressable>
           </View>
         </>

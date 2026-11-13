@@ -101,7 +101,8 @@ import a screen; the screens themselves live in `src/screens`, so
   the first (which is then the one remembered), and opening a channel
   from search, Activity or a notification leaves it alone. The rail
   first shows scrolled to the selected space (`railRules.ts`
-  `railOffset`). While the spaces load, and until the remembered space
+  `railOffset`), and scrolls again only to bring a newly selected space
+  into sight (`railReveal`). While the spaces load, and until the remembered space
   is read, the rail and the pane are skeletons
   (`src/components/Skeleton.tsx`), and the pane is again while a
   picked space's channels load. The rail and the channel list each
@@ -119,7 +120,9 @@ import a screen; the screens themselves live in `src/screens`, so
   Invite screen's card before Join commits anything; a link that isn't
   one, an invite that can't be used and a join the server refuses are
   each said on a card, the last two in the server's words; a link to
-  another server is only named for now (`pasted.ts`). Once joined, the
+  another server is only named for now (`pasted.ts`); an invite to a
+  space the account is already in says so, and the button goes there.
+  Once joined, the
   sheet asks the tab under it for the space (the last-space store's
   `ask`, `landed.ts`) and stays up, saying "Joining…", until the tab
   holds it, then closes on it selected; after five seconds it closes

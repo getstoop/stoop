@@ -9,7 +9,10 @@ import InviteNotice from "./InviteNotice";
 
 // What the check of a pasted link found: still asking, the space it
 // invites to, or why it can't be used. Nothing until there is a link.
-export default function InviteCard({ check }: { check: Check }) {
+// `member` is for an account already in the space the invite is to
+// (Add a space knows; the Invite screen, with nobody signed in, never
+// does): the card then says so in place of inviting.
+export default function InviteCard({ check, member = false }: { check: Check; member?: boolean }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -33,10 +36,18 @@ export default function InviteCard({ check }: { check: Check }) {
     );
   }
 
-  return <Result result={check.result} styles={styles} />;
+  return <Result result={check.result} member={member} styles={styles} />;
 }
 
-function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<typeof makeStyles> }) {
+function Result({
+  result,
+  member,
+  styles,
+}: {
+  result: InviteCheck;
+  member: boolean;
+  styles: ReturnType<typeof makeStyles>;
+}) {
   switch (result.kind) {
     case "found": {
       const { preview } = result;
@@ -52,7 +63,7 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
             styles={styles}
           />
           <View style={styles.space}>
-            <Text style={styles.eyebrow}>You're invited to</Text>
+            <Text style={styles.eyebrow}>{member ? "You're already in" : "You're invited to"}</Text>
             <Text style={styles.name} numberOfLines={1}>
               {preview.spaceName}
             </Text>
