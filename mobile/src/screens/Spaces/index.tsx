@@ -202,7 +202,7 @@ function makeStyles(theme: Theme) {
     fill: {
       flex: 1,
     },
-    // The server's bar and the rail sit on the canvas; the pane is a
+    // The rail sits on the canvas; the pane is a
     // surface laid over its corner.
     screen: {
       flex: 1,

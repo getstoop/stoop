@@ -295,6 +295,9 @@ function makeStyles(theme: Theme) {
       width: 44,
       height: 44,
       borderRadius: 22,
+      // The row is as tall as the title's line, as Activity's title
+      // is, so the two tabs' lists start at one height.
+      marginVertical: -5,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -312,6 +315,7 @@ function makeStyles(theme: Theme) {
       paddingRight: 8,
     },
     title: {
+      flexShrink: 1,
       color: theme.text,
       fontSize: tokens.textDisplay,
       lineHeight: tokens.textDisplay * tokens.leadingTight,

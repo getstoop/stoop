@@ -85,8 +85,8 @@ import a screen; the screens themselves live in `src/screens`, so
 - A server (`src/app/s/[id]/_layout.tsx`) is a stack with its tabs at
   the bottom, in the `(tabs)` group, so the URLs don't name it. The
   Spaces tab is one screen (`src/screens/Spaces`), in a stack of its own
-  only so the tabs can anchor on its folder: the server's header across
-  the top, a rail of the server's spaces down the left (`Rail.tsx`,
+  only so the tabs can anchor on its folder: a rail of the server's
+  spaces down the left (`Rail.tsx`,
   `RailItem.tsx`; what each button shows and says is `railRules.ts`),
   and the selected space's channels in the pane beside it (`Pane.tsx`),
   under the space's name, how many are in it and what it is, and a
