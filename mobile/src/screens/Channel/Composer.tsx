@@ -30,10 +30,10 @@ import AlsoSendRow from "./AlsoSendRow";
 import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
 import AttachSheet from "./AttachSheet";
+import ComposerFrame from "./ComposerFrame";
 import FormatRow from "./FormatRow";
 import LinkDialog from "./LinkDialog";
 import RichField, { type RichFieldHandle } from "./RichField";
-import Surface from "./Surface";
 import { useAttachments } from "./useAttachments";
 import type { ComposerMentions } from "./useMentionNames";
 import { useMentionQuery } from "./useMentionQuery";
@@ -43,10 +43,12 @@ import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 // pill floating over the list, Attach and "Message #channel"; tapped, it
 // becomes a card above the keyboard, the text on top and under it
 // Attach, Aa (which opens the formatting row) and Send. Losing focus
-// returns it to the pill, the draft kept. The text is the native rich
-// text field (RichField), which shows a draft formatted, its markers
-// never; the draft is held here as Markdown, and the pill shows it as
-// plain words. The formats are placed for the step that gives them work.
+// returns it to the pill, the draft kept. The surface grows from the
+// one's height to the other's, Attach where it was (ComposerFrame). The
+// text is the native rich text field (RichField), which shows a draft
+// formatted, its markers never; the draft is held here as Markdown, and
+// the pill shows it as plain words. The formats are placed for the step
+// that gives them work.
 //
 // The draft is kept on the device under its account and conversation
 // (`draftAddress`, useSavedDraft): the field opens on what was there,
@@ -440,6 +442,13 @@ export default forwardRef<
     }, 1000);
   };
 
+  // The height the surface stands at, for the other state's to start
+  // from as the pill opens into the card and the card closes into it
+  // (ComposerFrame).
+  const frameHeight = useRef<number | undefined>(undefined);
+  const setFrameHeight = (height: number) => {
+    frameHeight.current = height;
+  };
   const raised = glass ? styles.glassRaised : styles.raised;
   const waiting = attachments.uploading && !editing;
   const openAttach = () => attachments.openSheet(writing);
@@ -453,7 +462,14 @@ export default forwardRef<
     const shownText = editing ? "Editing message" : words || (replyTo ? `Replying to ${quotedName}` : placeholder);
     return (
       <>
-        <Surface glass={glass} style={styles.pill}>
+        <ComposerFrame
+          key="pill"
+          glass={glass}
+          margin={12}
+          from={frameHeight.current}
+          onHeight={setFrameHeight}
+          style={styles.pill}
+        >
           <Round label="Attach files" disabled={!!editing} onPress={openAttach} style={raised}>
             <PlusIcon color={theme.text} size={22} />
           </Round>
@@ -476,7 +492,7 @@ export default forwardRef<
           {/* A send that failed after the field lost focus: the reason waits in
               the card, so the pill says there is one. */}
           {error && <Text style={styles.failed}>{editing ? "Couldn't save" : "Couldn't send"}</Text>}
-        </Surface>
+        </ComposerFrame>
         {sheet}
       </>
     );
@@ -498,7 +514,14 @@ export default forwardRef<
           onCancel={closeLink}
         />
       )}
-      <Surface glass={glass} style={styles.card}>
+      <ComposerFrame
+        key="card"
+        glass={glass}
+        margin={8}
+        from={frameHeight.current}
+        onHeight={setFrameHeight}
+        style={styles.card}
+      >
         {files.length > 0 && <AttachmentStrip files={files} raised={raised} onRemove={attachments.remove} />}
         {attachments.notice && !editing && (
           <Text style={styles.error} accessibilityRole="alert">
@@ -633,7 +656,7 @@ export default forwardRef<
             </Round>
           )}
         </View>
-      </Surface>
+      </ComposerFrame>
       {sheet}
     </>
   );
@@ -708,10 +731,9 @@ const roundStyles = StyleSheet.create({
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    // Inside ComposerFrame, which draws the surface and its corners.
     pill: {
       height: PILL,
-      marginHorizontal: 12,
-      borderRadius: tokens.radiusPill,
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
@@ -767,8 +789,6 @@ function makeStyles(theme: Theme) {
       justifyContent: "center",
     },
     card: {
-      marginHorizontal: 8,
-      borderRadius: 24,
       paddingTop: 6,
       paddingBottom: 8,
       paddingHorizontal: 8,
