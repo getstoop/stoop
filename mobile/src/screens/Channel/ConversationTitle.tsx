@@ -64,11 +64,14 @@ const FACE = 34;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    // The face starts 10 points in from the pill's end, not the 5 it
+    // has above and below: at 8 the end's curve reaches the square's
+    // corners, and nearer it cuts them.
     row: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      marginLeft: -10,
+      marginLeft: -6,
     },
     lines: {
       flexShrink: 1,
