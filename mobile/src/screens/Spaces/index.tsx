@@ -148,7 +148,14 @@ export default function Spaces({ server }: { server: SavedServer }) {
             {space ? (
               // One pane per space, so a space picked starts from its
               // own loading state, never the last one's channels.
-              <Pane key={space.id} server={server} space={space} onReloadSpaces={refresh} onEnded={end} />
+              <Pane
+                key={space.id}
+                server={server}
+                space={space}
+                onReloadSpaces={refresh}
+                onSpaceChanged={quiet.soon}
+                onEnded={end}
+              />
             ) : (
               <PaneScroll refreshing={refreshing} onRefresh={pull}>
                 <Text style={styles.empty}>You're not in any spaces here yet.</Text>

@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { initialWindowMetrics, SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheet } from "../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../theme";
 
@@ -9,7 +9,9 @@ import { type Theme, tokens, useTheme } from "../theme";
 // sheet of items under it. Picking an item runs it and closes the
 // sheet; a disabled one is drawn dimmed, takes no press and is
 // announced as disabled. A tap on the scrim, a swipe down or Android's
-// back closes it with nothing (useSheet).
+// back closes it with nothing (useSheet). The modal covers the whole
+// window, the tab bar included, so it measures its own safe area: the
+// one around the screen that opened it can count the tab bar in.
 
 export type MenuSheetItem = {
   label: string;
@@ -35,7 +37,6 @@ export default function MenuSheet({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const insets = useSafeAreaInsets();
   const shown = useRef(new Animated.Value(0)).current;
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
 
@@ -51,45 +52,56 @@ export default function MenuSheet({
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.fill} onAccessibilityEscape={dismiss}>
-        <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
-        <View style={styles.above}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={dismiss}
-            testID={closeTestID}
-          />
-          <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
-            {card}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <View style={styles.fill} onAccessibilityEscape={dismiss}>
+          <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
+          <View style={styles.above}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              onPress={dismiss}
+              testID={closeTestID}
+            />
+            <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
+              {card}
+            </Animated.View>
+          </View>
+          <Animated.View
+            style={[styles.sheet, { transform: [{ translateY: slide }] }]}
+            accessibilityRole="menu"
+            accessibilityLabel={label}
+            onLayout={onLayout}
+            {...panHandlers}
+          >
+            <View style={styles.handle} />
+            {items.map((item) => (
+              <Pressable
+                key={item.label}
+                accessibilityRole="menuitem"
+                accessibilityLabel={item.label}
+                disabled={item.disabled}
+                onPress={pick(item)}
+                style={({ pressed }) => [styles.item, item.disabled && styles.disabled, pressed && styles.pressed]}
+              >
+                {item.icon}
+                <Text style={styles.label}>{item.label}</Text>
+              </Pressable>
+            ))}
+            <SheetFoot />
           </Animated.View>
         </View>
-        <Animated.View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
-          accessibilityRole="menu"
-          accessibilityLabel={label}
-          onLayout={onLayout}
-          {...panHandlers}
-        >
-          <View style={styles.handle} />
-          {items.map((item) => (
-            <Pressable
-              key={item.label}
-              accessibilityRole="menuitem"
-              accessibilityLabel={item.label}
-              disabled={item.disabled}
-              onPress={pick(item)}
-              style={({ pressed }) => [styles.item, item.disabled && styles.disabled, pressed && styles.pressed]}
-            >
-              {item.icon}
-              <Text style={styles.label}>{item.label}</Text>
-            </Pressable>
-          ))}
-        </Animated.View>
-      </View>
+      </SafeAreaProvider>
     </Modal>
   );
+}
+
+// The room under the last item: what the window keeps clear at its
+// bottom (the home indicator, Android's navigation bar), and a little
+// more.
+function SheetFoot() {
+  const insets = useSafeAreaInsets();
+  return <View style={{ height: Math.max(insets.bottom, 8) + 8 }} />;
 }
 
 function makeStyles(theme: Theme) {

@@ -64,6 +64,7 @@ export default function Pane({
   server,
   space,
   onReloadSpaces,
+  onSpaceChanged,
   onEnded,
 }: {
   server: SavedServer;
@@ -73,6 +74,10 @@ export default function Pane({
   // pane's load says the space is gone, after which the tab moves on to
   // another space.
   onReloadSpaces: () => Promise<void>;
+  // Something the pane did changed what the rail shows of the space (a
+  // channel muted): the rail's list reloads after a moment's quiet, the
+  // reload the socket's event for it asks for too.
+  onSpaceChanged: () => void;
   // The server said the session is over: the whole tab says so.
   onEnded: () => void;
 }) {
@@ -98,8 +103,8 @@ export default function Pane({
   }, [server, spaceId]);
 
   // What the load's answer is passed to, as they are on the latest draw.
-  const told = useRef({ onReloadSpaces, onEnded });
-  told.current = { onReloadSpaces, onEnded };
+  const told = useRef({ onReloadSpaces, onSpaceChanged, onEnded });
+  told.current = { onReloadSpaces, onSpaceChanged, onEnded };
 
   // Loads can overlap (opening, a pull, coming back, an event), and an
   // older one finishing last must not undo a newer one: only the latest
@@ -248,13 +253,16 @@ export default function Pane({
       );
       return;
     }
-    // The reload is the one the socket's ChannelMuted asks for, asked
-    // here too so the row is right with the socket down: the two make
-    // one request (quiet.soon).
+    // The reloads, the pane's and the rail's, are the ones the socket's
+    // ChannelMuted asks for, asked here too so the row and the space's
+    // mark are right with the socket down: the two make one request
+    // each (quiet.soon).
     const muted = !channel.muted;
     setChannelMuted(server.origin, ready.token, channel.id, muted).then(
       () => {
-        if (!left.current) quiet.soon();
+        if (left.current) return;
+        quiet.soon();
+        told.current.onSpaceChanged();
       },
       (err) => {
         if (!left.current) say(muted ? "Couldn't mute the channel" : "Couldn't unmute the channel", errorText(err));
