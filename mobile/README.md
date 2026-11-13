@@ -119,10 +119,15 @@ import a screen; the screens themselves live in `src/screens`, so
   link is looked up (`api/invites.ts` `findInvite`) and shown on the
   Invite screen's card before Join commits anything; a link that isn't
   one, an invite that can't be used and a join the server refuses are
-  each said on a card, the last two in the server's words; a link to
-  another server is only named for now (`pasted.ts`); an invite to a
+  each said on a card, the last two in the server's words;
+  an invite to a
   space the account is already in says so, and the button goes there.
-  Once joined, the
+  A link to another server the phone is signed in to (`pasted.ts`;
+  matched by its exact address) is looked up and joined with that
+  server's session, the button saying "Join on" it, and the app then
+  swaps to that server as the switcher does, on the space; a link to a
+  server the phone isn't signed in to is checked as the Invite screen
+  checks one and handed to that screen. Once joined on this server, the
   sheet asks the tab under it for the space (the last-space store's
   `ask`, `landed.ts`) and stays up, saying "Joining…", until the tab
   holds it, then closes on it selected; after five seconds it closes
