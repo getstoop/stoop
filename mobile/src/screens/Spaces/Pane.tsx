@@ -25,9 +25,10 @@ import { useServerEvents, useVoiceRoster } from "../../realtime/RealtimeProvider
 import { inRoom } from "../../realtime/voice";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import ChannelAbout from "./ChannelAbout";
 import ChannelMenu from "./ChannelMenu";
 import ChannelRow from "./ChannelRow";
-import type { ChannelAction } from "./channelMenuRules";
+import { type ChannelAction, channelTopic } from "./channelMenuRules";
 import PaneHeader from "./PaneHeader";
 import PaneScroll from "./PaneScroll";
 import PaneSkeleton from "./PaneSkeleton";
@@ -40,9 +41,12 @@ import VoiceRoom from "./VoiceRoom";
 // what is waiting in each (each opens the channel) and its voice rooms
 // with who is in them. A long press on either opens its menu
 // (ChannelMenu): a mute shows once the server has answered and the
-// pane has reloaded, and one refused is said. What is muted with the
-// space is read from the rail's list, the only place that says so. The tab mounts one per space picked, so each
-// starts from its skeleton, under the name the rail's list already has.
+// pane has reloaded, and one refused is said; About this channel opens
+// the channel's topic in a sheet of its own (ChannelAbout) once the
+// menu has gone. What is muted with the space is read from the rail's
+// list, the only place that says so. The tab mounts one per space
+// picked, so each starts from its skeleton, under the name the rail's
+// list already has.
 // Loaded on opening and on a pull, and again, while the tab is in
 // sight, on coming back to the app and whenever the realtime socket
 // says something in the space changed (out of sight, once on return);
@@ -143,9 +147,15 @@ export default function Pane({
     if (touchesSpace(event, spaceId)) quiet.soon();
   });
 
-  // The channel whose menu is up; a refusal is said once its sheet has
-  // gone.
+  // The channel whose menu is up, and the id of the one About this
+  // channel is up for: one sheet at a time, and a refusal is said once
+  // neither is up.
   const [menuFor, setMenuFor] = useState<Channel | null>(null);
+  const [aboutFor, setAboutFor] = useState<string | null>(null);
+  // The channel About was picked for in the menu, held until the menu's
+  // sheet has finished sliding out (closeMenu), when the two change
+  // places in one commit.
+  const aboutNext = useRef<string | null>(null);
   const { say, opened, closed } = useSheetNotice();
   const openMenu = (channel: Channel) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -154,14 +164,33 @@ export default function Pane({
   };
   const closeMenu = useCallback(() => {
     setMenuFor(null);
+    const next = aboutNext.current;
+    aboutNext.current = null;
+    if (next) setAboutFor(next);
+    else closed();
+  }, [closed]);
+  const closeAbout = useCallback(() => {
+    setAboutFor(null);
     closed();
   }, [closed]);
   // The menu goes with the channels: a pane that stops showing them
-  // (a retry, the space gone) must not bring the sheet back later.
+  // (a retry, the space gone) must not bring a sheet back later.
   const showing = view.state === "ready";
   useEffect(() => {
-    if (!showing) closeMenu();
+    if (showing) return;
+    aboutNext.current = null;
+    closeMenu();
   }, [showing, closeMenu]);
+
+  // About's channel as the pane now draws it, so a topic changed under
+  // the sheet shows. Without the channel or a topic there is nothing to
+  // read, and the sheet goes.
+  const listed = view.state === "ready" ? [...view.channels.text, ...view.channels.voice] : [];
+  const aboutChannel = listed.find((channel) => channel.id === aboutFor && channelTopic(channel));
+  const aboutOver = aboutFor !== null && !aboutChannel;
+  useEffect(() => {
+    if (aboutOver) closeAbout();
+  }, [aboutOver, closeAbout]);
 
   // An action's answer can come after the pane has gone.
   const left = useRef(false);
@@ -246,6 +275,17 @@ export default function Pane({
     });
 
   const act = (channel: Channel, action: ChannelAction) => {
+    if (action === "about") {
+      // From the menu, when its sheet has gone (closeMenu); from a
+      // screen reader's action on the row, at once.
+      if (menuFor) {
+        aboutNext.current = channel.id;
+      } else {
+        opened();
+        setAboutFor(channel.id);
+      }
+      return;
+    }
     if (action === "copyLink") {
       Clipboard.setStringAsync(channelLink(server.origin, spaceId, channel.id)).then(
         () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
@@ -273,8 +313,7 @@ export default function Pane({
   // The menu's channel as the pane now draws it, so a mute or a reload
   // under it shows; once off the list (deleted), as it was when the
   // menu opened, so the sheet can slide out over it.
-  const menuChannel =
-    menuFor && ([...text, ...voice].find((channel) => channel.id === menuFor.id) ?? menuFor);
+  const menuChannel = menuFor && (listed.find((channel) => channel.id === menuFor.id) ?? menuFor);
 
   return (
     <>
@@ -333,6 +372,13 @@ export default function Pane({
           }
           onAction={(action) => act(menuChannel, action)}
           onClose={closeMenu}
+        />
+      )}
+      {aboutChannel && (
+        <ChannelAbout
+          channel={aboutChannel}
+          topic={channelTopic(aboutChannel)}
+          onClose={closeAbout}
         />
       )}
     </>

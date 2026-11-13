@@ -1,6 +1,6 @@
 import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { ReactNode } from "react";
-import { BellIcon, LinkIcon, MutedIcon } from "../../components/Icons";
+import { BellIcon, InfoIcon, LinkIcon, MutedIcon } from "../../components/Icons";
 import MenuSheet from "../../components/MenuSheet";
 import { useTheme } from "../../theme";
 import { type ChannelAction, channelMenuItems } from "./channelMenuRules";
@@ -33,6 +33,7 @@ export default function ChannelMenu({
         <MutedIcon color={theme.textMuted} size={22} />
       ),
     copyLink: <LinkIcon color={theme.textMuted} size={22} />,
+    about: <InfoIcon color={theme.textMuted} size={22} />,
   };
 
   return (

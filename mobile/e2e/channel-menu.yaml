@@ -1,12 +1,13 @@
 appId: ${APP_ID}
-name: Long-press a channel on Spaces, mute and unmute it, and copy its link
+name: Long-press a channel on Spaces, mute and unmute it, copy its link, and read what it is about
 ---
 # As ada (seed.mjs), in Book club. A long press on random opens its menu
 # over the row drawn as a card; Mute marks the row muted and the server
 # holds it, Unmute takes it back; Copy link closes the sheet. The row
 # changes once the server has answered, so what the server holds is
 # asked again until it has. random is unread or read by now, as the
-# flows before left it.
+# flows before left it, and has no topic, so its menu has no About this
+# channel; off-topic's has, and opens its topic in a sheet of its own.
 - clearKeychain
 - launchApp:
     clearState: true
@@ -74,7 +75,24 @@ name: Long-press a channel on Spaces, mute and unmute it, and copy its link
 - extendedWaitUntil:
     visible: "Copy link"
     timeout: 5000
+- assertNotVisible: "About this channel"
 - tapOn: "Copy link"
 - extendedWaitUntil:
     notVisible: "Copy link"
     timeout: 5000
+# About this channel: the topic, in a sheet the scrim closes.
+- longPressOn: "off-topic, muted"
+- extendedWaitUntil:
+    visible: "About this channel"
+    timeout: 5000
+- tapOn: "About this channel"
+- extendedWaitUntil:
+    visible: "Anything but the book"
+    timeout: 5000
+- assertNotVisible: "Copy link"
+- tapOn:
+    id: "channel-about-close"
+- extendedWaitUntil:
+    notVisible: "Anything but the book"
+    timeout: 5000
+- assertVisible: "off-topic, muted"
