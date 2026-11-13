@@ -7,11 +7,16 @@ import { Animated, Easing, type LayoutChangeEvent, PanResponder } from "react-na
 // which starts at 0) fades in, the two as one animation so neither
 // starts ahead of the other; it follows a finger dragging it down, and
 // closes on a swipe far or fast enough, or on dismiss, sliding out while
-// the scrim fades; onClose runs when both are done. It comes in fast and
-// settles slowly, and goes out quicker, gathering speed. A sheet on its way out takes no more actions (`closing`): a
-// second tap during the slide-out would otherwise do the first one's
-// work again. The message menu and its emoji picker are each one of
-// these, over the one scrim.
+// the scrim fades; onClose runs when both are done. It starts gently,
+// while the modal is still being put up, and settles slowly; it goes
+// out quicker, gathering speed. A sheet on its way out takes no more
+// actions (`closing`): a second tap during the slide-out would otherwise
+// do the first one's work again. The message menu and its emoji picker
+// are each one of these, over the one scrim: the picker's way in also
+// carries the scrim to full, should the menu's have been cut short by
+// the swap. The way in and the way out list the scrim first, then the
+// sheet: a dismiss during the way in stops it whole before the way
+// out's own slide starts, and that order is what makes it so.
 
 // Off screen until the sheet has been measured.
 const OFF = 2000;
@@ -20,7 +25,7 @@ const DISMISS_DY = 80;
 const DISMISS_VY = 0.6;
 // The way in and the way out. Longer than the app's other changes
 // (tokens.dur): a sheet crosses a good part of the screen.
-const IN = { duration: 320, easing: Easing.bezier(0.32, 0.72, 0, 1), useNativeDriver: true };
+const IN = { duration: 320, easing: Easing.bezier(0.2, 0, 0, 1), useNativeDriver: true };
 const OUT = { duration: 220, easing: Easing.bezier(0.4, 0, 1, 1), useNativeDriver: true };
 
 export function useSheet(shown: Animated.Value, onClose: () => void) {
