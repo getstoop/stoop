@@ -925,10 +925,13 @@ badge stays as it was when the app left the front.
 - A shared link the web's open-in-app page hands over
   (`stoop://open?server=<origin>&path=<web's path>`) is opened the same
   way. `app/+native-intent.tsx` hears it before anything has rendered:
-  an invite is left in a store of its own (`links/pendingInvite.ts`)
-  for `links/OpenInviteLink.tsx`, beside the root stack, which opens Add
-  a space with the link when the phone has that server saved and the
-  Invite screen when it hasn't; and a space, a channel, a direct message, a
+  an invite is left in a store of its own (`links/pendingInvite.ts`):
+  when the phone has that server saved, the layout of the server on
+  screen (`links/OpenInviteHere.tsx`) closes what is over it and opens
+  Add a space with the link, and when it hasn't,
+  `links/OpenInviteLink.tsx`, beside the root stack, opens the Invite
+  screen; one not opened within ten seconds (the saved servers
+  couldn't be read) is let go, as a shared link is; and a space, a channel, a direct message, a
   message or a thread is read from web's path (`links/sharedLink.ts`;
   web's `/s/<id>` is a space, the app's a server) and left in a store
   (`links/pendingLink.ts`). The router is told nothing of either. Beside the root

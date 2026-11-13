@@ -45,7 +45,7 @@ import { inviteLink, pasted } from "./pasted";
 // to a server the phone isn't signed in to (saved or not) is checked as
 // the Invite screen checks one and handed to it, to sign in or make an
 // account. The web's open-in-app page hands an invite to a saved server
-// here too (`initialLink`, links/OpenInviteLink.tsx), already in the
+// here too (`initialLink`, links/OpenInviteHere.tsx), already in the
 // field and checked at once.
 
 // As the Invite screen: long enough not to ask about a half-pasted link.

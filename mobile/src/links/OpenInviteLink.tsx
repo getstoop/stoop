@@ -2,17 +2,16 @@ import { usePathname, useRouter } from "expo-router";
 import { useEffect, useEffectEvent, useState } from "react";
 import { parseInviteLink } from "../api/invites";
 import { useServers } from "../servers";
-import { onInvite, takeInvite } from "./pendingInvite";
+import { onInvite, peekInvite, takeInvite } from "./pendingInvite";
 
 // Opens the invite link the web's open-in-app page handed over
-// (pendingInvite.ts): once as the app starts, for the link that
-// launched it, and then as each is heard. An invite to a server this
-// phone has saved opens Add a space over the server on screen, with
-// the link in its field: that sheet joins as the account signed in,
-// on this server or the other, and says so when the sign-in has ended
-// (screens/AddSpace). Any other invite opens the Invite screen, to
-// sign in or make an account. The server is matched by the address the
-// link was opened at, as a shared link's is (OpenSharedLink.tsx).
+// (pendingInvite.ts) when it is to a server this phone hasn't saved:
+// the Invite screen, to sign in or make an account. Once as the app
+// starts, for the link that launched it, and then as each is heard. An
+// invite to a saved server is left for that server's layout
+// (OpenInviteHere.tsx), which opens Add a space. The server is matched
+// by the address the link was opened at, as a shared link's is
+// (OpenSharedLink.tsx).
 export default function OpenInviteLink() {
   const router = useRouter();
   const pathname = usePathname();
@@ -21,8 +20,12 @@ export default function OpenInviteLink() {
   const [invite, setInvite] = useState<string | null>(null);
 
   const hear = useEffectEvent(() => {
-    const link = takeInvite();
-    if (link) setInvite(link);
+    const link = peekInvite();
+    if (!link) return;
+    const origin = parseInviteLink(link)?.origin;
+    if (servers.some((each) => each.origin === origin)) return;
+    takeInvite();
+    setInvite(link);
   });
   useEffect(() => {
     hear();
@@ -32,17 +35,15 @@ export default function OpenInviteLink() {
   // As the app starts with a server saved, the first screen ("/") is
   // on its way to that server (app/index.tsx), and a screen pushed
   // before it gets there is lost; so it waits for the server's screen.
-  // With none saved "/" is Welcome, and Invite opens over it.
-  const [current] = servers;
+  // With none saved "/" is Welcome, and Invite opens over it. An Invite
+  // screen already in front takes the new link in place.
   const leaving = pathname === "/" && servers.length > 0;
   useEffect(() => {
     if (!invite || leaving) return;
     setInvite(null);
-    const origin = parseInviteLink(invite)?.origin;
-    const saved = current && servers.some((each) => each.origin === origin);
-    if (saved) router.push({ pathname: "/s/[id]/add-space", params: { id: current.id, link: invite } });
+    if (pathname === "/invite") router.setParams({ link: invite });
     else router.push({ pathname: "/invite", params: { link: invite } });
-  }, [invite, leaving, servers, current, router]);
+  }, [invite, leaving, pathname, router]);
 
   return null;
 }

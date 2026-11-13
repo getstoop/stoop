@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { heardInvite, INVITE_WAIT_MS, onInvite, takeInvite } from "./pendingInvite";
+import { heardInvite, INVITE_WAIT_MS, onInvite, peekInvite, takeInvite } from "./pendingInvite";
 
 const link = "https://chat.example.org/join/k3Xq9TzR";
 
@@ -10,6 +10,14 @@ describe("pendingInvite", () => {
     heardInvite(link, 1000);
     expect(takeInvite(1500)).toBe(link);
     expect(takeInvite(1500)).toBeNull();
+  });
+
+  it("can be looked at and left for another to take", () => {
+    heardInvite(link, 1000);
+    expect(peekInvite(1200)).toBe(link);
+    expect(peekInvite(1000 + INVITE_WAIT_MS + 1)).toBeNull();
+    expect(takeInvite(1500)).toBe(link);
+    expect(peekInvite(1500)).toBeNull();
   });
 
   it("keeps only the latest", () => {
