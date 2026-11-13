@@ -350,6 +350,17 @@ export function PencilIcon({ color, size = 22 }: IconProps) {
   );
 }
 
+// Writing something new: a pencil over a square, where PencilIcon alone
+// is changing what is there.
+export function ComposeIcon({ color, size = 22 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+      <Path d="M18.4 3.6a2 2 0 0 1 2.8 2.8L12 15.6l-4 1 1-4z" />
+    </Stroke>
+  );
+}
+
 // A pin, as web's PinIcon: filled once the message is pinned.
 export function PinIcon({ color, size = 22, filled = false }: IconProps & { filled?: boolean }) {
   return (

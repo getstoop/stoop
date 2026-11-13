@@ -15,7 +15,7 @@ import { errorText } from "../../api/errors";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { conversationLink } from "../../api/shareLinks";
-import { PencilIcon } from "../../components/Icons";
+import { ComposeIcon } from "../../components/Icons";
 import ServerChipOverlay from "../../components/ServerChipOverlay";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
@@ -222,7 +222,7 @@ export default function Messages({ server }: { server: SavedServer }) {
           onPress={() => pushOnce(() => router.push({ pathname: "/s/[id]/new-message", params: { id: server.id } }))}
           style={({ pressed }) => [styles.compose, pressed && styles.composePressed]}
         >
-          <PencilIcon color={theme.accent} />
+          <ComposeIcon color={theme.accent} />
         </Pressable>
       </View>
       {view.state === "loading" && <ActivityIndicator style={styles.center} color={theme.textMuted} />}
