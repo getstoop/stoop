@@ -17,7 +17,6 @@ import { sessionToken } from "../../api/servers";
 import { conversationLink } from "../../api/shareLinks";
 import { PencilIcon } from "../../components/Icons";
 import ServerChipOverlay from "../../components/ServerChipOverlay";
-import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerChipRoom } from "../../hooks/useServerChipRoom";
@@ -210,23 +209,22 @@ export default function Messages({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ServerHeader
-        server={server}
-        action={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="New message"
-            testID="new-message"
-            onPress={() => pushOnce(() => router.push({ pathname: "/s/[id]/new-message", params: { id: server.id } }))}
-            style={({ pressed }) => [styles.compose, pressed && styles.composePressed]}
-          >
-            <PencilIcon color={theme.accent} />
-          </Pressable>
-        }
-      />
-      <Text style={styles.title} accessibilityRole="header">
-        Messages
-      </Text>
+      {/* The tab's title and, at the other end of its row, its one
+          button. */}
+      <View style={styles.head}>
+        <Text style={styles.title} accessibilityRole="header">
+          Messages
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="New message"
+          testID="new-message"
+          onPress={() => pushOnce(() => router.push({ pathname: "/s/[id]/new-message", params: { id: server.id } }))}
+          style={({ pressed }) => [styles.compose, pressed && styles.composePressed]}
+        >
+          <PencilIcon color={theme.accent} />
+        </Pressable>
+      </View>
       {view.state === "loading" && <ActivityIndicator style={styles.center} color={theme.textMuted} />}
       {view.state === "ended" && (
         <TabNotice
@@ -303,10 +301,17 @@ function makeStyles(theme: Theme) {
     composePressed: {
       backgroundColor: theme.hover,
     },
-    title: {
+    // The button's own 44pt square holds its icon off the edge.
+    head: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       marginTop: 12,
       marginBottom: 8,
-      marginHorizontal: 20,
+      paddingLeft: 20,
+      paddingRight: 8,
+    },
+    title: {
       color: theme.text,
       fontSize: tokens.textDisplay,
       lineHeight: tokens.textDisplay * tokens.leadingTight,

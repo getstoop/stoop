@@ -90,16 +90,13 @@ name: See every server on You, switch, remove from a swipe and a long press, sig
           timeout: 500
 - assertTrue: ${output.sessionsNow < output.sessionsBefore}
 - assertVisible: ".*, localhost:\\d+, current server"
-# The switcher agrees.
+# One server left: the chip by the tab bar, the way to the switcher, is
+# gone with the other.
+- assertNotVisible: ".*, 127\\.0\\.0\\.1:\\d+.*"
+- assertNotVisible:
+    id: "server-switcher"
 - tapOn:
     id: "tab-spaces"
-- tapOn:
-    id: "server-switcher"
-- extendedWaitUntil:
-    visible: ".*, localhost:\\d+, current server"
-    timeout: 5000
-- assertNotVisible: ".*, 127\\.0\\.0\\.1:\\d+.*"
-- tapOn: ".*, localhost:\\d+, current server"
 - extendedWaitUntil:
     visible:
       id: "space-${SPACE_ID}"

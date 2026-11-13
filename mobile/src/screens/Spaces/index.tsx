@@ -8,7 +8,6 @@ import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { loadSpaces, touchesSpaces } from "../../api/spaces";
 import ServerChipOverlay from "../../components/ServerChipOverlay";
-import ServerHeader from "../../components/ServerHeader";
 import Skeleton from "../../components/Skeleton";
 import TabNotice from "../../components/TabNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
@@ -129,7 +128,6 @@ export default function Spaces({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ServerHeader server={server} />
       {/* Until the remembered space is read too: no space is picked without it. */}
       {(list.state === "loading" || (list.state === "ready" && !settled)) && (
         <Skeleton style={styles.body}>

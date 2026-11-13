@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActivity } from "../../activity/ActivityProvider";
 import { hostOf } from "../../api/probe";
 import ServerChipOverlay from "../../components/ServerChipOverlay";
-import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerChipRoom } from "../../hooks/useServerChipRoom";
@@ -120,7 +119,6 @@ export default function Activity({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ServerHeader server={server} />
       <Text style={styles.title} accessibilityRole="header">
         Activity
       </Text>

@@ -33,7 +33,7 @@ export default function ServerChip({ bare = false }: { bare?: boolean }) {
           ? `${server.name}. Switch server, ${badgeCount(waiting)} new on other servers`
           : `${server.name}. Switch server`
       }
-      testID="server-chip"
+      testID="server-switcher"
       onPress={() => pushOnce(() => router.push({ pathname: "/servers", params: { current: server.id } }))}
       style={({ pressed }) => [styles.chip, bare ? pressed && styles.barePressed : [styles.docked, pressed && styles.pressed]]}
     >
