@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useRef } from "react";
-import { Animated, type LayoutChangeEvent, PanResponder } from "react-native";
-import { tokens } from "../theme";
+import { Animated, Easing, type LayoutChangeEvent, PanResponder } from "react-native";
 
 // A sheet drawn up from the bottom of a modal (the message menu, Attach,
-// the conversation menu): it slides in from its own height below its
-// place once measured, follows a finger dragging it down, and closes on
-// a swipe far or fast enough, or on dismiss, sliding out while the
-// modal's scrim (`shown`, the modal's own) fades; onClose runs when both
-// are done. A sheet on its way out takes no more actions (`closing`): a
+// the conversation menu): once measured it slides in from its own height
+// below its place while the modal's scrim (`shown`, the modal's own,
+// which starts at 0) fades in, the two as one animation so neither
+// starts ahead of the other; it follows a finger dragging it down, and
+// closes on a swipe far or fast enough, or on dismiss, sliding out while
+// the scrim fades; onClose runs when both are done. It comes in fast and
+// settles slowly, and goes out quicker, gathering speed. A sheet on its way out takes no more actions (`closing`): a
 // second tap during the slide-out would otherwise do the first one's
 // work again. The message menu and its emoji picker are each one of
 // these, over the one scrim.
@@ -17,6 +18,10 @@ const OFF = 2000;
 // How far, or how fast, a swipe down must go to close the sheet.
 const DISMISS_DY = 80;
 const DISMISS_VY = 0.6;
+// The way in and the way out. Longer than the app's other changes
+// (tokens.dur): a sheet crosses a good part of the screen.
+const IN = { duration: 320, easing: Easing.bezier(0.32, 0.72, 0, 1), useNativeDriver: true };
+const OUT = { duration: 220, easing: Easing.bezier(0.4, 0, 1, 1), useNativeDriver: true };
 
 export function useSheet(shown: Animated.Value, onClose: () => void) {
   const offset = useRef(new Animated.Value(OFF)).current;
@@ -28,8 +33,8 @@ export function useSheet(shown: Animated.Value, onClose: () => void) {
     if (closing.current) return;
     closing.current = true;
     Animated.parallel([
-      Animated.timing(shown, { toValue: 0, duration: tokens.dur, useNativeDriver: true }),
-      Animated.timing(offset, { toValue: height.current || OFF, duration: tokens.dur, useNativeDriver: true }),
+      Animated.timing(shown, { ...OUT, toValue: 0 }),
+      Animated.timing(offset, { ...OUT, toValue: height.current || OFF }),
     ]).start(onClose);
   }, [shown, offset, onClose]);
 
@@ -49,17 +54,22 @@ export function useSheet(shown: Animated.Value, onClose: () => void) {
     [drag, dismiss],
   );
 
-  // The first measure slides the sheet in; later ones (a sheet that
-  // shrinks for the keyboard) only keep the height the slide-out uses.
+  // The first measure slides the sheet in and fades the scrim in with
+  // it; later ones (a sheet that shrinks for the keyboard) only keep the
+  // height the slide-out uses. A sheet measured while already closing
+  // stays out.
   const onLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const measured = height.current;
       height.current = event.nativeEvent.layout.height;
-      if (measured) return;
+      if (measured || closing.current) return;
       offset.setValue(height.current);
-      Animated.timing(offset, { toValue: 0, duration: tokens.dur, useNativeDriver: true }).start();
+      Animated.parallel([
+        Animated.timing(shown, { ...IN, toValue: 1 }),
+        Animated.timing(offset, { ...IN, toValue: 0 }),
+      ]).start();
     },
-    [offset],
+    [shown, offset],
   );
 
   const slide = useMemo(

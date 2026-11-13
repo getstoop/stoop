@@ -3,7 +3,7 @@ import { plainLines } from "@stoop/core/markdown";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { recentEmoji } from "../../api/emoji";
@@ -95,7 +95,8 @@ export default function MessageMenu({
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
-  // The scrim and the card fade in, and out with whichever sheet is up.
+  // The scrim and the card fade in with the sheet (useSheet), and out
+  // with whichever sheet is up.
   const shown = useRef(new Animated.Value(0)).current;
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
   // The picker in the menu's place, with the recent emoji it opens on.
@@ -108,10 +109,6 @@ export default function MessageMenu({
       if (!closing()) setPicking(recent);
     });
   };
-
-  useEffect(() => {
-    Animated.timing(shown, { toValue: 1, duration: tokens.dur, useNativeDriver: true }).start();
-  }, [shown]);
 
   const mine = message.author?.id === myUserId;
   const replies = message.thread?.replyCount ?? 0;

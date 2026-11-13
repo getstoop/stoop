@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TrashIcon } from "../../components/Icons";
@@ -32,10 +32,6 @@ export default function ServerMenu({
   const insets = useSafeAreaInsets();
   const shown = useRef(new Animated.Value(0)).current;
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
-
-  useEffect(() => {
-    Animated.timing(shown, { toValue: 1, duration: tokens.dur, useNativeDriver: true }).start();
-  }, [shown]);
 
   const remove = () => {
     if (closing()) return;
