@@ -8,8 +8,9 @@ import { useWaiting } from "../../servers/useWaiting";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ServerRow from "./ServerRow";
 
-// The server switcher: a sheet over the Spaces tab listing every server
-// on this phone, the current one ticked, each other one with a badge for
+// The server switcher: a sheet over a server's tabs, opened from the
+// server chip by the tab bar (components/ServerChip.tsx), listing every
+// server on this phone, the current one ticked, each other one with a badge for
 // what is waiting there or a note that its sign-in has ended. Each is
 // asked once, when the sheet opens.
 
@@ -73,10 +74,6 @@ export default function ServerSwitcher({ current }: { current?: string }) {
         </View>
         <Text style={styles.addLabel}>Add a server</Text>
       </Pressable>
-      <Text style={styles.note}>
-        Spaces, Activity and Messages show the server you're on. A badge here means something's
-        waiting on another one.
-      </Text>
     </View>
   );
 }
@@ -126,13 +123,6 @@ function makeStyles(theme: Theme) {
       color: theme.accent,
       fontSize: tokens.textBody,
       fontWeight: "600",
-    },
-    note: {
-      marginTop: 8,
-      marginHorizontal: 12,
-      color: theme.textMuted,
-      fontSize: tokens.textUi,
-      lineHeight: tokens.textUi * tokens.leadingUi,
     },
   });
 }
