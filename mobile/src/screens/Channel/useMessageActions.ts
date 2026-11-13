@@ -3,7 +3,7 @@ import type { GroupedRow } from "@stoop/core/grouping";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import * as Haptics from "expo-haptics";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
-import { Alert, type FlatList } from "react-native";
+import { Alert, type FlatList, Keyboard, Platform } from "react-native";
 import { errorText } from "../../api/errors";
 import type { ChannelEngine } from "./channelEngine";
 import type { ComposerHandle } from "./Composer";
@@ -44,7 +44,6 @@ export function useMessageActions({
   gone,
   opened,
   engine,
-  keyboard,
   focused,
   composing = true,
   list,
@@ -60,7 +59,6 @@ export function useMessageActions({
   // hold is one it won't.
   opened: boolean;
   engine: Pick<ChannelEngine, "react" | "remove" | "pin" | "dismissPreview">;
-  keyboard: number;
   focused: boolean;
   composing?: boolean;
   list: RefObject<FlatList<GroupedRow> | null>;
@@ -223,15 +221,37 @@ export function useMessageActions({
   // leaves the list be. A row the list doesn't hold (a thread's root,
   // over its replies) stays where it is.
   const targetId = replyToId ?? editingId;
+  // The keyboard is listened for here, not held as state, so the
+  // screen is not drawn again as it comes up.
   useEffect(() => {
-    if (!targetId || keyboard === 0 || !scrollOnce.current || !focused) return;
-    const timer = setTimeout(() => {
-      scrollOnce.current = false;
-      const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === targetId);
-      if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
-    }, KEYBOARD_SETTLE_MS);
-    return () => clearTimeout(timer);
-  }, [targetId, keyboard, focused, list]);
+    if (!targetId || !focused) return;
+    const ios = Platform.OS === "ios";
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      if (!scrollOnce.current || timer) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        scrollOnce.current = false;
+        const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === targetId);
+        if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+      }, KEYBOARD_SETTLE_MS);
+    };
+    // Put away before it settled: the scroll is still owed to the next
+    // keyboard.
+    const unsettle = () => {
+      clearTimeout(timer);
+      timer = undefined;
+    };
+    // Up already (a quote picked with the composer open), or on its way.
+    if (Keyboard.isVisible()) settle();
+    const shown = Keyboard.addListener(ios ? "keyboardWillShow" : "keyboardDidShow", settle);
+    const hidden = Keyboard.addListener(ios ? "keyboardWillHide" : "keyboardDidHide", unsettle);
+    return () => {
+      shown.remove();
+      hidden.remove();
+      clearTimeout(timer);
+    };
+  }, [targetId, focused, list]);
 
   // Which ring a row wears: the quote's or the edit's.
   const targetOf = useCallback(

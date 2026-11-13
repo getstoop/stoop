@@ -17,7 +17,6 @@ import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useAppActive } from "../../hooks/useAppActive";
-import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
@@ -97,7 +96,6 @@ export default function Thread({
   const headerHeight = useHeaderHeight();
   const router = useRouter();
   const focused = useIsFocused();
-  const keyboard = useKeyboardHeight();
   const status = useServerStatus(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId, rootId);
   const { log, header, outcome, token, threads } = state;
@@ -182,7 +180,6 @@ export default function Thread({
     gone: !!outcome,
     opened,
     engine,
-    keyboard,
     focused,
     composing: !closed,
     list,
@@ -239,8 +236,8 @@ export default function Thread({
   // Muted says a summary is there, so a change to either is a change here.
   const muted = summary?.muted;
   // The same options while nothing they read changed: new ones are a
-  // setOptions, and this renders on every event in the channel and every
-  // step of the keyboard. All the header draws comes from what is listed.
+  // setOptions, and this renders on every event in the channel. All the
+  // header draws comes from what is listed.
   const options = useMemo(() => {
     const mute =
       header && muted !== undefined
@@ -313,7 +310,6 @@ export default function Thread({
   return (
     <Screen title={title}>
       <ComposerDock
-        keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
           <MessageContexts links={links} previews={previews} view={viewer.open} audio={audio}>

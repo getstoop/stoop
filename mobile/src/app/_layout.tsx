@@ -2,6 +2,7 @@ import { DefaultTheme, Stack, ThemeProvider as NavigationTheme } from "expo-rout
 import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import AlertPrefsProvider from "../alertPrefs/AlertPrefsProvider";
 import AlertsProvider from "../alerts/AlertsProvider";
 import DndProvider from "../dnd/DndProvider";
@@ -20,27 +21,33 @@ import { ThemeProvider, useTheme } from "../theme";
 // icon. Do not disturb is held here as well (src/dnd): the phone's one
 // switch, and each server's account's; so are the kinds the phone
 // alerts about (src/alertPrefs), and the space each server's Spaces tab
-// last showed (src/lastSpace).
+// last showed (src/lastSpace). The keyboard's place is followed frame by
+// frame under KeyboardProvider (react-native-keyboard-controller), for
+// what rides up with it (the channel's composer); without its preload,
+// which raises a hidden keyboard at launch that the screens still
+// listening to the system's keyboard events would hear.
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <ThemeProvider>
-        <ServersProvider>
-          <RealtimeProvider>
-            <DndProvider>
-              <AlertPrefsProvider>
-                <LastSpaceProvider>
-                  <AlertsProvider>
-                    <NotificationsProvider>
-                      <RootStack />
-                    </NotificationsProvider>
-                  </AlertsProvider>
-                </LastSpaceProvider>
-              </AlertPrefsProvider>
-            </DndProvider>
-          </RealtimeProvider>
-        </ServersProvider>
-      </ThemeProvider>
+      <KeyboardProvider preload={false}>
+        <ThemeProvider>
+          <ServersProvider>
+            <RealtimeProvider>
+              <DndProvider>
+                <AlertPrefsProvider>
+                  <LastSpaceProvider>
+                    <AlertsProvider>
+                      <NotificationsProvider>
+                        <RootStack />
+                      </NotificationsProvider>
+                    </AlertsProvider>
+                  </LastSpaceProvider>
+                </AlertPrefsProvider>
+              </DndProvider>
+            </RealtimeProvider>
+          </ServersProvider>
+        </ThemeProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }
