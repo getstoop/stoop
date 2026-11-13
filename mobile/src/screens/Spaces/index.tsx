@@ -13,6 +13,7 @@ import TabNotice from "../../components/TabNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
+import { sessionKey } from "../../servers/sessionKey";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Pane, { type KeptPanes } from "./Pane";
 import PaneScroll from "./PaneScroll";
@@ -54,9 +55,11 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const spaces = list.state === "ready" ? list.spaces : undefined;
   const { settled, selected, select } = useSelectedSpace(server.id, spaces);
   const space = spaces?.find((one) => one.id === selected);
-  // What each space's pane last showed, while the tab shows this server.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new map per server.
-  const kept = useMemo<KeptPanes>(() => new Map(), [server.id]);
+  // What each space's pane last showed, while the tab shows this
+  // session: someone else signing in to the server starts afresh.
+  const session = sessionKey(server);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new map per session.
+  const kept = useMemo<KeptPanes>(() => new Map(), [session]);
 
   const load = useCallback(async () => {
     const token = await sessionToken(server.id).catch(() => null);

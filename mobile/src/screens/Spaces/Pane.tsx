@@ -49,7 +49,7 @@ import VoiceRoom from "./VoiceRoom";
 // picked: the first time each starts from its skeleton, under the name
 // the rail's list already has; picked again, it starts from the
 // channels it last showed (`kept`, the tab's, for as long as the tab
-// shows this server) and loads over them, so going back to a space
+// shows this session) and loads over them, so going back to a space
 // shows its channels at once, a moment out of date at worst.
 // Loaded on opening and on a pull, and again, while the tab is in
 // sight, on coming back to the app and whenever the realtime socket
@@ -142,13 +142,14 @@ export default function Pane({
       setView((shown) => afterLoad(shown, answer));
       return;
     }
-    // The rail's list is asked again, and without the space the tab
-    // takes this pane away. Still here after that, the list and the
+    // Gone, so not kept for a space that comes back. The rail's list is
+    // asked again, and without the space the tab takes this pane away. Still here after that, the list and the
     // space disagree: say so, with a way to ask again, rather than
     // leave what was shown.
+    kept.delete(spaceId);
     await told.current.onReloadSpaces();
     if (mine === latest.current) setView({ state: "failed" });
-  }, [load]);
+  }, [load, kept, spaceId]);
 
   const quiet = useQuietReload(refresh);
   useEffect(() => {
