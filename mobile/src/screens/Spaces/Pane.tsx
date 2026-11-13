@@ -46,8 +46,11 @@ import VoiceRoom from "./VoiceRoom";
 // the channel's topic in a sheet of its own (ChannelAbout) once the
 // menu has gone. What is muted with the space is read from the rail's
 // list, the only place that says so. The tab mounts one per space
-// picked, so each starts from its skeleton, under the name the rail's
-// list already has.
+// picked: the first time each starts from its skeleton, under the name
+// the rail's list already has; picked again, it starts from the
+// channels it last showed (`kept`, the tab's, for as long as the tab
+// shows this server) and loads over them, so going back to a space
+// shows its channels at once, a moment out of date at worst.
 // Loaded on opening and on a pull, and again, while the tab is in
 // sight, on coming back to the app and whenever the realtime socket
 // says something in the space changed (out of sight, once on return);
@@ -60,6 +63,9 @@ type State =
   | { state: "ready"; token: string; channels: SpaceChannels }
   | { state: "failed" };
 
+// A space's channels as its pane last showed them, by the space's id.
+export type KeptPanes = Map<string, Extract<State, { state: "ready" }>>;
+
 // What a load can also answer, which the tab acts on: the session over,
 // or the account no longer in the space (left, removed, or the space
 // deleted since the rail's list was loaded).
@@ -68,6 +74,7 @@ type Answer = State | "ended" | "gone";
 export default function Pane({
   server,
   space,
+  kept,
   onReloadSpaces,
   onSpaceChanged,
   onEnded,
@@ -75,6 +82,8 @@ export default function Pane({
   server: SavedServer;
   // The space as the rail's list has it.
   space: Space;
+  // What each space's pane last showed, to start from.
+  kept: KeptPanes;
   // Reloads the rail's list: on a pull, with the pane, and when the
   // pane's load says the space is gone, after which the tab moves on to
   // another space.
@@ -90,7 +99,13 @@ export default function Pane({
   const router = useRouter();
   const roster = useVoiceRoster(server.id);
   const spaceId = space.id;
-  const [view, setView] = useState<State>({ state: "loading" });
+  const [view, setView] = useState<State>(() => kept.get(spaceId) ?? { state: "loading" });
+  // Kept as shown, for the next time the space is picked; not once the
+  // server couldn't be asked for them afresh (Try again, the space gone).
+  useEffect(() => {
+    if (view.state === "ready") kept.set(spaceId, view);
+    else if (view.state === "failed") kept.delete(spaceId);
+  }, [view, kept, spaceId]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (): Promise<Answer> => {
