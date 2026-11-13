@@ -158,14 +158,16 @@ export default forwardRef<
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    // The room above the handle is the header's, so a drag may start
+    // there too.
     sheet: {
-      paddingTop: 8,
       paddingHorizontal: 8,
       borderTopLeftRadius: tokens.radiusLg,
       borderTopRightRadius: tokens.radiusLg,
       backgroundColor: theme.panel,
     },
     header: {
+      paddingTop: 8,
       paddingBottom: 8,
     },
     handle: {

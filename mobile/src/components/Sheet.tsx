@@ -4,8 +4,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { initialWindowMetrics, SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheet } from "../hooks/useSheet";
-import SheetFrame from "./SheetFrame";
 import { type Theme, tokens, useTheme } from "../theme";
+import SheetFrame from "./SheetFrame";
 
 // A sheet over the screen, in its own modal: a scrim, an optional card
 // above the sheet, and the sheet itself, with its handle, drawn up from
@@ -21,6 +21,9 @@ export type SheetControls = {
   dismiss: () => void;
   // Whether it is already on its way out, and should take no more presses.
   closing: () => boolean;
+  // Keeps a swipe down for what the sheet holds while true (a list
+  // scrolled away from its top), and gives it back to the sheet.
+  hold: (held: boolean) => void;
 };
 
 export default function Sheet({
@@ -44,7 +47,7 @@ export default function Sheet({
   const styles = makeStyles(useTheme());
   const shown = useSharedValue(0);
   const sheet = useSheet(shown, onClose);
-  const { dismiss, closing, fade } = sheet;
+  const { dismiss, closing, hold, fade } = sheet;
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
@@ -72,7 +75,7 @@ export default function Sheet({
             accessibilityLabel={label}
           >
             <View style={styles.handle} />
-            {typeof children === "function" ? children({ dismiss, closing }) : children}
+            {typeof children === "function" ? children({ dismiss, closing, hold }) : children}
             <SheetFoot />
           </SheetFrame>
         </GestureHandlerRootView>

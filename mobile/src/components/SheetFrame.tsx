@@ -32,7 +32,12 @@ export default function SheetFrame({
   return (
     <GestureDetector gesture={sheet.gesture}>
       <Animated.View style={[styles.frame, sheet.slide]} onLayout={sheet.onLayout}>
-        <Pressable style={styles.reach} onPress={sheet.dismiss} accessible={false} />
+        <Pressable
+          style={styles.reach}
+          onPress={sheet.dismiss}
+          accessible={false}
+          importantForAccessibility="no"
+        />
         <View style={style} accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel}>
           {children}
         </View>

@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { usePanGesture } from "react-native-gesture-handler";
 import {
@@ -20,9 +20,12 @@ import { scheduleOnRN } from "react-native-worklets";
 // scrim fades; onClose runs when it has gone. It starts gently, while
 // the modal is still being put up, and settles slowly; it goes out
 // quicker, gathering speed, or, let go mid-swipe, carries on at the
-// finger's speed. All of it runs off the JavaScript thread (Reanimated,
-// and the system's own pan recogniser through `gesture`), so the sheet
-// keeps to the finger whatever the app is doing; the modal's root must
+// finger's speed. The drag and the motion run off the JavaScript thread
+// (Reanimated, and the system's own pan recogniser through `gesture`),
+// so the sheet keeps to the finger whatever the app is doing; only the
+// start of the way out is JavaScript's. What the sheet holds can keep
+// the drag for itself (`hold`): a list scrolled away from its top,
+// which a swipe down should scroll back. The modal's root must
 // be a GestureHandlerRootView for the pan to be heard. A sheet on its
 // way out takes no more actions (`closing`): a second tap during the
 // slide-out would otherwise do the first one's work again. The message
@@ -44,13 +47,14 @@ const OUT = { duration: 220, easing: Easing.bezier(0.4, 0, 1, 1) };
 // The shortest way out a hard fling gets.
 const FLING_MS = 120;
 // Back to its place when let go short of closing, without a bounce.
-const SETTLE = { damping: 30, stiffness: 300 };
+const SETTLE = { damping: 30, stiffness: 300, overshootClamping: true };
 
 export function useSheet(shown: SharedValue<number>, onClose: () => void) {
   const offset = useSharedValue(OFF);
   const drag = useSharedValue(0);
   const height = useRef(0);
   const closing = useRef(false);
+  const [held, setHeld] = useState(false);
 
   // Out, from wherever a drag left it. Let go moving (`velocity`, points
   // a second), it leaves at that speed and slows, in no longer than the
@@ -81,6 +85,7 @@ export function useSheet(shown: SharedValue<number>, onClose: () => void) {
 
   // Downward only: a drag up, or sideways, is not the sheet's.
   const gesture = usePanGesture({
+    enabled: !held,
     maxPointers: 1,
     activeOffsetY: 8,
     failOffsetX: [-16, 16],
@@ -121,5 +126,5 @@ export function useSheet(shown: SharedValue<number>, onClose: () => void) {
 
   const isClosing = useCallback(() => closing.current, []);
 
-  return { dismiss, closing: isClosing, onLayout, slide, fade, gesture };
+  return { dismiss, closing: isClosing, hold: setHeld, onLayout, slide, fade, gesture };
 }
