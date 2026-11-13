@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { initialWindowMetrics, SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheet } from "../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../theme";
 
@@ -9,7 +9,9 @@ import { type Theme, tokens, useTheme } from "../theme";
 // the bottom over the safe area. A tap on the scrim, a swipe down or
 // Android's back closes it (useSheet), and onClose runs once it has
 // slid out. What it holds is the caller's: a menu's items (MenuSheet),
-// or something to read.
+// or something to read. The modal covers the whole window, the tab bar
+// included, so it measures its own safe area: the one around the
+// screen that opened it can count the tab bar in.
 
 export type SheetControls = {
   // Slides the sheet out, then onClose.
@@ -37,7 +39,6 @@ export default function Sheet({
   children: ReactNode | ((sheet: SheetControls) => ReactNode);
 }) {
   const styles = makeStyles(useTheme());
-  const insets = useSafeAreaInsets();
   const shown = useRef(new Animated.Value(0)).current;
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
 
@@ -47,35 +48,46 @@ export default function Sheet({
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.fill} onAccessibilityEscape={dismiss}>
-        <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
-        <View style={styles.above}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={dismiss}
-            testID={closeTestID}
-          />
-          {card && (
-            <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
-              {card}
-            </Animated.View>
-          )}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+        <View style={styles.fill} onAccessibilityEscape={dismiss}>
+          <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
+          <View style={styles.above}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              onPress={dismiss}
+              testID={closeTestID}
+            />
+            {card && (
+              <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
+                {card}
+              </Animated.View>
+            )}
+          </View>
+          <Animated.View
+            style={[styles.sheet, { transform: [{ translateY: slide }] }]}
+            accessibilityRole={menu ? "menu" : undefined}
+            accessibilityLabel={label}
+            onLayout={onLayout}
+            {...panHandlers}
+          >
+            <View style={styles.handle} />
+            {typeof children === "function" ? children({ dismiss, closing }) : children}
+            <SheetFoot />
+          </Animated.View>
         </View>
-        <Animated.View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
-          accessibilityRole={menu ? "menu" : undefined}
-          accessibilityLabel={label}
-          onLayout={onLayout}
-          {...panHandlers}
-        >
-          <View style={styles.handle} />
-          {typeof children === "function" ? children({ dismiss, closing }) : children}
-        </Animated.View>
-      </View>
+      </SafeAreaProvider>
     </Modal>
   );
+}
+
+// The room under what the sheet holds: what the window keeps clear at
+// its bottom (the home indicator, Android's navigation bar), and a
+// little more.
+function SheetFoot() {
+  const insets = useSafeAreaInsets();
+  return <View style={{ height: Math.max(insets.bottom, 8) + 8 }} />;
 }
 
 function makeStyles(theme: Theme) {
