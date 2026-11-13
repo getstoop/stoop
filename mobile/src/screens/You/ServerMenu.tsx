@@ -1,7 +1,9 @@
-import { useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TrashIcon } from "../../components/Icons";
+import SheetFrame from "../../components/SheetFrame";
 import { useSheet } from "../../hooks/useSheet";
 import type { SavedServer } from "../../servers";
 import type { Waiting } from "../../servers/useWaiting";
@@ -30,8 +32,9 @@ export default function ServerMenu({
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
-  const shown = useRef(new Animated.Value(0)).current;
-  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  const shown = useSharedValue(0);
+  const sheet = useSheet(shown, onClose);
+  const { dismiss, closing, fade } = sheet;
 
   const remove = () => {
     if (closing()) return;
@@ -43,8 +46,8 @@ export default function ServerMenu({
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.fill} onAccessibilityEscape={dismiss}>
-        <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
+      <GestureHandlerRootView style={styles.fill} onAccessibilityEscape={dismiss}>
+        <Animated.View style={[styles.scrim, fade]} pointerEvents="none" />
         <View style={styles.above}>
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -53,16 +56,15 @@ export default function ServerMenu({
             onPress={dismiss}
             testID="server-menu-close"
           />
-          <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
+          <Animated.View style={[styles.card, fade]} pointerEvents="none">
             <ServerEntry server={server} current={current} waiting={waiting} />
           </Animated.View>
         </View>
-        <Animated.View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
+        <SheetFrame
+          sheet={sheet}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8 }]}
           accessibilityRole="menu"
           accessibilityLabel="Server actions"
-          onLayout={onLayout}
-          {...panHandlers}
         >
           <View style={styles.handle} />
           <Pressable
@@ -74,8 +76,8 @@ export default function ServerMenu({
             <TrashIcon color={theme.danger} size={22} />
             <Text style={styles.label}>Remove from this phone</Text>
           </Pressable>
-        </Animated.View>
-      </View>
+        </SheetFrame>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

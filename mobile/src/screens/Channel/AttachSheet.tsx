@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraIcon, FileIcon, PhotoIcon } from "../../components/Icons";
+import SheetFrame from "../../components/SheetFrame";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
 
@@ -29,7 +32,7 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
-  const shown = useRef(new Animated.Value(0)).current;
+  const shown = useSharedValue(0);
   const picked = useRef<AttachSource | null>(null);
   const [visible, setVisible] = useState(true);
   // Handed over once, whichever of the two says it has gone.
@@ -54,7 +57,8 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
     },
     [],
   );
-  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, closed);
+  const sheet = useSheet(shown, closed);
+  const { dismiss, closing, fade } = sheet;
 
   const pick = (source: AttachSource) => {
     if (closing()) return;
@@ -72,8 +76,8 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
       statusBarTranslucent
       navigationBarTranslucent
     >
-      <View style={styles.fill} onAccessibilityEscape={dismiss}>
-        <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
+      <GestureHandlerRootView style={styles.fill} onAccessibilityEscape={dismiss}>
+        <Animated.View style={[styles.scrim, fade]} pointerEvents="none" />
         <Pressable
           style={styles.fill}
           accessibilityRole="button"
@@ -81,12 +85,11 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
           onPress={dismiss}
           testID="attach-sheet-close"
         />
-        <Animated.View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
+        <SheetFrame
+          sheet={sheet}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8 }]}
           accessibilityRole="menu"
           accessibilityLabel="Attach"
-          onLayout={onLayout}
-          {...panHandlers}
         >
           <View style={styles.handle} />
           {ITEMS.map(({ source, label, Icon }) => (
@@ -101,8 +104,8 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
               <Text style={styles.label}>{label}</Text>
             </Pressable>
           ))}
-        </Animated.View>
-      </View>
+        </SheetFrame>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
