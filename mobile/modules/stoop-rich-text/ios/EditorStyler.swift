@@ -89,6 +89,10 @@ final class EditorStyler {
           text.addAttributes([.foregroundColor: style.accentColor, .underlineStyle: NSUnderlineStyle.single.rawValue], range: address)
         }
       }
+      // The fonts set above are the system's, which has no emoji (nor
+      // every script): the storage swaps in a font that can draw each
+      // character, as it did before this styling replaced its choice.
+      text.fixAttributes(in: line)
     }
   }
 
