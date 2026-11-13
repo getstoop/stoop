@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useRef } from "react";
 import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
 import { initialWindowMetrics, SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheet } from "../hooks/useSheet";
@@ -41,10 +41,6 @@ export default function Sheet({
   const styles = makeStyles(useTheme());
   const shown = useRef(new Animated.Value(0)).current;
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
-
-  useEffect(() => {
-    Animated.timing(shown, { toValue: 1, duration: tokens.dur, useNativeDriver: true }).start();
-  }, [shown]);
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>

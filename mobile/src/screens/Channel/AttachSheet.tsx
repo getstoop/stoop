@@ -56,10 +56,6 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
   );
   const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, closed);
 
-  useEffect(() => {
-    Animated.timing(shown, { toValue: 1, duration: tokens.dur, useNativeDriver: true }).start();
-  }, [shown]);
-
   const pick = (source: AttachSource) => {
     if (closing()) return;
     picked.current = source;
