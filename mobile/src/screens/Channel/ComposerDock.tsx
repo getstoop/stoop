@@ -1,6 +1,7 @@
-import { type ComponentRef, type ReactElement, type ReactNode, useRef, useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -8,6 +9,7 @@ import { GAP, PILL } from "./Composer";
 import { ComposerAbove, ComposerOverlay } from "./composerAbove";
 import EdgeBlur from "./EdgeBlur";
 import EdgeFade from "./EdgeFade";
+import KeyboardDown from "./KeyboardDown";
 import type { Notice } from "./useMessageActions";
 
 // A list of messages with the composer floating over its foot, riding
@@ -21,15 +23,16 @@ import type { Notice } from "./useMessageActions";
 // its own at both ends: under the status bar, and under the home
 // indicator up past the composer. Where iOS has Liquid Glass the ends
 // blur (EdgeBlur), as the system's own bars do; elsewhere they fade
-// (EdgeFade).
+// (EdgeFade). The ride up is the avoiding view's
+// (react-native-keyboard-controller): it pads its bottom frame by
+// frame with the keyboard, a dragged one too, off the JavaScript
+// thread, and nothing here is drawn again for it but the foot's edge.
 export default function ComposerDock({
-  keyboard,
   list,
   composer,
   notice,
   corner,
 }: {
-  keyboard: number;
   list: (clearance: number) => ReactElement;
   composer: ReactNode;
   notice: Notice | null;
@@ -45,28 +48,28 @@ export default function ComposerDock({
   const [composerHeight, setComposerHeight] = useState(PILL);
   const [above, setAbove] = useState<ReactNode>(null);
   const [overlay, setOverlay] = useState<ReactNode>(null);
-  // Where the dock starts in the window (under the stack's header): the
-  // avoiding view measures itself against its parent and needs that
-  // offset to know how much of it the keyboard covers.
-  const [top, setTop] = useState(0);
-  const dock = useRef<ComponentRef<typeof View>>(null);
   // The composer sits FOOT above the home indicator (GAP above the edge
-  // of a screen without one), or GAP above the keyboard while that is up
-  // (the avoiding view's padding ends at its top edge).
-  const composerBottom = keyboard > 0 ? GAP : Math.max(insets.bottom + FOOT, GAP);
+  // of a screen without one), always: the avoiding view pads by that
+  // much less than the keyboard's height, which leaves the composer GAP
+  // above the keyboard once that is up, and the list as clear of the
+  // composer as it was.
+  const composerBottom = Math.max(insets.bottom + FOOT, GAP);
   // The foot's edge is for the home indicator, which the keyboard covers:
   // over the keyboard its solid end met the keys as a line, so it goes
   // while they are up. It is never resized (the glass does not survive
   // that), only shown or not.
-  const footEdge = Math.max(insets.bottom + FOOT, GAP) + PILL + FADE_IN;
+  const footEdge = composerBottom + PILL + FADE_IN;
 
   return (
-    <View
-      ref={dock}
-      style={styles.fill}
-      onLayout={() => dock.current?.measureInWindow((_windowX, windowY) => setTop(windowY))}
-    >
-      <KeyboardAvoidingView style={styles.fill} behavior="padding" keyboardVerticalOffset={top}>
+    <View style={styles.fill}>
+      {/* Measured in the window (automaticOffset): the dock starts under
+          the stack's header, not at the window's top. */}
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior="padding"
+        automaticOffset
+        keyboardVerticalOffset={GAP - composerBottom}
+      >
         {/* The avoiding view pads its bottom for the keyboard; the composer
             is placed from this view's bottom, which that padding moves. */}
         {/* Under an overlay (the link dialog on Android, which is no window
@@ -81,7 +84,9 @@ export default function ComposerDock({
             list(composerHeight + composerBottom)
           )}
           <Edge edge="top" height={insets.top + FADE_IN} />
-          {keyboard === 0 && <Edge edge="bottom" height={footEdge} />}
+          <KeyboardDown>
+            <Edge edge="bottom" height={footEdge} />
+          </KeyboardDown>
           <View
             style={[styles.composer, { bottom: composerBottom }]}
             onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}

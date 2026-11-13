@@ -17,7 +17,6 @@ import Viewer from "../../components/Viewer";
 import { itemKey } from "../../components/Viewer/items";
 import { useViewer } from "../../components/Viewer/useViewer";
 import { useAppActive } from "../../hooks/useAppActive";
-import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
@@ -114,7 +113,6 @@ export default function Channel({
   const headerHeight = useHeaderHeight();
   const router = useRouter();
   const focused = useIsFocused();
-  const keyboard = useKeyboardHeight();
   const status = useServerStatus(server.origin);
   const { state, engine } = useChannelLog(server, spaceId, channelId);
   const { older, newer, retry, send, edit } = engine;
@@ -224,7 +222,6 @@ export default function Channel({
     gone: !!outcome,
     opened: log.channel.generation > 0,
     engine,
-    keyboard,
     focused,
     composing: posting,
     list,
@@ -339,7 +336,6 @@ export default function Channel({
     <View style={styles.screen}>
       <Stack.Screen options={options} />
       <ComposerDock
-        keyboard={keyboard}
         notice={actions.notice}
         list={(clearance) => (
           <MessageContexts links={links} previews={previews} view={viewer.open} audio={audio}>
@@ -383,12 +379,10 @@ export default function Channel({
               onScroll={(event) => setAway(event.nativeEvent.contentOffset.y > AT_LATEST)}
               scrollEventThrottle={16}
               // Scrolling leaves the keyboard, and so the composer's card, in
-              // place. On iOS a drag down into the keyboard puts it away; the
-              // card follows the keyboard's hide event, which iOS posts only
-              // at the end of that drag, so it floats over an empty strip
-              // while the keyboard follows the finger. Following it needs
-              // react-native-keyboard-controller, a follow-up. Android has no
-              // such drag: the back gesture puts the keyboard away.
+              // place. On iOS a drag down into the keyboard puts it away,
+              // the card riding down on it (ComposerDock's avoiding view
+              // follows a dragged keyboard). Android has no such drag: the
+              // back gesture puts the keyboard away.
               keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
               // Drawn upside down, so the top padding is the bottom edge: the
               // list scrolls under the composer, and its newest message clears

@@ -191,10 +191,12 @@ import a screen; the screens themselves live in `src/screens`, so
   `focus`, which it jumps to once per value, without mounting again.
   Scrolling the list leaves
   the keyboard and the card in place; on iOS a drag down into the
-  keyboard puts it away (the card follows the keyboard's hide event,
-  which comes at the end of that drag; tracking the finger needs
-  `react-native-keyboard-controller`, a follow-up), and on Android the
-  back gesture does. A
+  keyboard puts it away, the card riding down on it, and on Android the
+  back gesture does. The card rides the keyboard frame by frame, off the
+  JavaScript thread (`react-native-keyboard-controller`'s avoiding view
+  in `ComposerDock.tsx`, under a `KeyboardProvider` at the app's root;
+  a native module, so a build on the phone needs `make mobile-ios`
+  again), and the screen is not drawn again as the keyboard moves. A
   message being quoted (Quote in reply, below) is the card's first line
   under any files (below), the reply strip: a small accent reply arrow,
   "Replying to NAME · " and the first words of the message
