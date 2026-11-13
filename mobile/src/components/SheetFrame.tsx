@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { type AccessibilityRole, Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
-import type { useSheet } from "../hooks/useSheet";
+import { REACH, type useSheet } from "../hooks/useSheet";
 
 // A sheet's moving part (useSheet): the sheet itself, and a strip of
 // the scrim just above it that is the sheet's to be dragged by, since a
@@ -11,9 +11,6 @@ import type { useSheet } from "../hooks/useSheet";
 // sheet; a tap on the strip closes it, as a tap on the scrim around it
 // does. The strip overlaps what is above the sheet, so it moves
 // nothing.
-
-// How far above the sheet's top edge a drag may start.
-const REACH = 32;
 
 export default function SheetFrame({
   sheet,

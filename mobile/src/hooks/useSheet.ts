@@ -4,6 +4,7 @@ import { usePanGesture } from "react-native-gesture-handler";
 import {
   Easing,
   type SharedValue,
+  type WithTimingConfig,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -24,8 +25,9 @@ import { scheduleOnRN } from "react-native-worklets";
 // (Reanimated, and the system's own pan recogniser through `gesture`),
 // so the sheet keeps to the finger whatever the app is doing; only the
 // start of the way out is JavaScript's. What the sheet holds can keep
-// the drag for itself (`hold`): a list scrolled away from its top,
-// which a swipe down should scroll back. The modal's root must
+// a swipe that starts on it for itself (`hold`): a list scrolled away
+// from its top, which a swipe down should scroll back, while the handle
+// and the strip above the sheet still drag it. The modal's root must
 // be a GestureHandlerRootView for the pan to be heard. A sheet on its
 // way out takes no more actions (`closing`): a second tap during the
 // slide-out would otherwise do the first one's work again. The message
@@ -34,6 +36,9 @@ import { scheduleOnRN } from "react-native-worklets";
 // have been cut short by the swap. Under Reduce Motion the sheet and
 // the scrim come and go at once (Reanimated's default).
 
+// How far above the sheet's top edge a drag may start (SheetFrame's
+// strip).
+export const REACH = 32;
 // Off screen until the sheet has been measured.
 const OFF = 2000;
 // How far, or how fast (points a second), a swipe down must go to close
@@ -54,27 +59,40 @@ export function useSheet(shown: SharedValue<number>, onClose: () => void) {
   const drag = useSharedValue(0);
   const height = useRef(0);
   const closing = useRef(false);
-  const [held, setHeld] = useState(false);
+  // Where what the sheet holds starts keeping swipes for itself, in
+  // points below the sheet's top edge; null while it keeps none.
+  const [heldFrom, setHeldFrom] = useState<number | null>(null);
 
-  // Out, from wherever a drag left it. Let go moving (`velocity`, points
-  // a second), it leaves at that speed and slows, in no longer than the
-  // plain way out takes.
+  // Out, from wherever a drag left it (the drag's share of its place is
+  // run down to nothing alongside, a spring back cut short included).
+  // Let go moving (`velocity`, points a second), it leaves at that
+  // speed, slowing if that gets it out sooner than the plain way out
+  // would and gathering speed if not, so the sheet never lurches as
+  // the finger lifts.
   const leave = useCallback(
     (velocity: number) => {
       if (closing.current) return;
       closing.current = true;
       const far = height.current || OFF;
-      const left = Math.max(far - drag.value, 0);
-      const out =
-        velocity > 0
-          ? {
-              duration: Math.min(Math.max((2000 * left) / velocity, FLING_MS), OUT.duration),
-              easing: Easing.out(Easing.quad),
-            }
-          : OUT;
+      const left = Math.max(far - drag.value, 1);
+      let out: WithTimingConfig = OUT;
+      if (velocity > 0) {
+        const duration = Math.min(Math.max((2000 * left) / velocity, FLING_MS), OUT.duration);
+        // The curve's slope at its start is the finger's speed: 2 is a
+        // plain slowing to a stop, under 1 gathers speed.
+        const slope = Math.min((velocity * duration) / (1000 * left), 2);
+        out = {
+          duration,
+          easing: (t: number) => {
+            "worklet";
+            return slope * t + (1 - slope) * t * t;
+          },
+        };
+      }
       shown.value = withTiming(0, out);
+      drag.value = withTiming(0, out);
       // Whether or not it ran to its end, the sheet is done with.
-      offset.value = withTiming(left, out, () => {
+      offset.value = withTiming(far, out, () => {
         scheduleOnRN(onClose);
       });
     },
@@ -83,9 +101,10 @@ export function useSheet(shown: SharedValue<number>, onClose: () => void) {
 
   const dismiss = useCallback(() => leave(0), [leave]);
 
-  // Downward only: a drag up, or sideways, is not the sheet's.
+  // Downward only: a drag up, or sideways, is not the sheet's; nor is
+  // one that starts on what is keeping swipes for itself.
   const gesture = usePanGesture({
-    enabled: !held,
+    hitSlop: heldFrom === null ? undefined : { top: 0, height: REACH + heldFrom },
     maxPointers: 1,
     activeOffsetY: 8,
     failOffsetX: [-16, 16],
@@ -126,5 +145,5 @@ export function useSheet(shown: SharedValue<number>, onClose: () => void) {
 
   const isClosing = useCallback(() => closing.current, []);
 
-  return { dismiss, closing: isClosing, hold: setHeld, onLayout, slide, fade, gesture };
+  return { dismiss, closing: isClosing, hold: setHeldFrom, onLayout, slide, fade, gesture };
 }

@@ -21,9 +21,11 @@ export type SheetControls = {
   dismiss: () => void;
   // Whether it is already on its way out, and should take no more presses.
   closing: () => boolean;
-  // Keeps a swipe down for what the sheet holds while true (a list
-  // scrolled away from its top), and gives it back to the sheet.
-  hold: (held: boolean) => void;
+  // Keeps swipes that start this many points or more below the sheet's
+  // top edge for what the sheet holds (a list scrolled away from its
+  // top, given where the list starts); null gives them back to the
+  // sheet. The handle and the room above stay the sheet's throughout.
+  hold: (from: number | null) => void;
 };
 
 export default function Sheet({
