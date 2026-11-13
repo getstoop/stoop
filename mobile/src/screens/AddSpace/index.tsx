@@ -44,7 +44,9 @@ import { inviteLink, pasted } from "./pasted";
 // session, and the app then swaps to that server, on the space. A link
 // to a server the phone isn't signed in to (saved or not) is checked as
 // the Invite screen checks one and handed to it, to sign in or make an
-// account.
+// account. The web's open-in-app page hands an invite to a saved server
+// here too (`initialLink`, links/OpenInviteLink.tsx), already in the
+// field and checked at once.
 
 // As the Invite screen: long enough not to ask about a half-pasted link.
 const SETTLE_MS = 600;
@@ -57,7 +59,7 @@ const LAND_MS = 5000;
 // Invite screen, which takes the link.
 type Place = { kind: "server"; server: SavedServer } | { kind: "outside"; link: string };
 
-export default function AddSpace({ server }: { server: SavedServer }) {
+export default function AddSpace({ server, initialLink = "" }: { server: SavedServer; initialLink?: string }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
@@ -67,7 +69,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   const pushOnce = usePushOnce();
   const store = useLastSpaceStore();
   const { servers, switchTo } = useServers();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialLink);
   const [focused, setFocused] = useState(false);
   const [check, setCheck] = useState<Check>({ state: "idle" });
   const [place, setPlace] = useState<Place>({ kind: "server", server });
@@ -152,7 +154,8 @@ export default function AddSpace({ server }: { server: SavedServer }) {
       const mine = await spaces;
       if (controller.signal.aborted) return;
       setMember(mine.some((space) => space.id === found.preview.spaceId));
-    }, SETTLE_MS);
+      // A link handed over by the app opens checked; one being typed waits.
+    }, text === initialLink ? 0 : SETTLE_MS);
     return () => {
       clearTimeout(timer);
       controller.abort();
@@ -160,7 +163,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
     // The server by what of it is used here, not its saved record, which
     // is rebuilt whenever the list is.
     // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
-  }, [text, server.id, server.origin, server.name]);
+  }, [text, initialLink, server.id, server.origin, server.name]);
 
   const found = check.state === "done" && check.result.kind === "found" ? check.result : null;
   const spaceName = found?.preview.spaceName;
@@ -288,7 +291,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
                 accessibilityLabelledBy="add-space-link"
                 placeholder="https://chat.example.org/join/…"
                 placeholderTextColor={theme.textMuted}
-                autoFocus
+                autoFocus={!initialLink}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"

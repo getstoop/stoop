@@ -1,5 +1,6 @@
 import * as Linking from "expo-linking";
 import { normalizeServerUrl } from "../api/probe";
+import { heardInvite } from "../links/pendingInvite";
 import { heardLink } from "../links/pendingLink";
 import { sharedLink } from "../links/sharedLink";
 
@@ -10,11 +11,12 @@ import { sharedLink } from "../links/sharedLink";
 //
 // The stoop://open the app follows is the web's open-in-app page
 // (web/src/components/LinkHandoff.tsx) handing a shared link over:
-// stoop://open?server=<origin>&path=<the web's path>. An invite
-// (/join/<code>) opens Invite with that link filled in. A space, a
-// channel, a message or a thread is not a route yet: which saved server
-// it belongs to isn't known here, so it is left for the app to open
-// once it is (links/OpenSharedLink.tsx), and the router is told nothing.
+// stoop://open?server=<origin>&path=<the web's path>. None of it is a
+// route yet: whether the phone has the server saved isn't known here,
+// so an invite (/join/<code>) is left for links/OpenInviteLink.tsx
+// (Add a space when it has, the Invite screen when not), and a space, a
+// channel, a message or a thread for links/OpenSharedLink.tsx, to open
+// once it is; the router is told nothing.
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string | null {
   if (/^stoop:\/\/open\b/.test(path)) return openRoute(path);
   if (/^stoop:\/\/auth\b/.test(path)) return null;
@@ -29,7 +31,10 @@ function openRoute(link: string): string | null {
   };
   const origin = normalizeServerUrl(param("server"));
   const target = param("path");
-  if (origin && /^\/join\/[^/?#]+/.test(target)) return `/invite?link=${encodeURIComponent(origin + target)}`;
+  if (origin && /^\/join\/[^/?#]+/.test(target)) {
+    heardInvite(origin + target);
+    return null;
+  }
   const shared = sharedLink(param("server"), target);
   if (shared) heardLink(shared);
   return null;
