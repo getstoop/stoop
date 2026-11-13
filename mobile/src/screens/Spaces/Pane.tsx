@@ -1,19 +1,33 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { type Channel, ChannelKind } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
-import { loadSpaceChannels, memberName, type SpaceChannels, touchesSpace } from "../../api/channels";
+import {
+  loadSpaceChannels,
+  memberName,
+  type SpaceChannels,
+  setChannelMuted,
+  touchesSpace,
+} from "../../api/channels";
+import { errorText } from "../../api/errors";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
+import { channelLink } from "../../api/shareLinks";
 import Skeleton from "../../components/Skeleton";
 import SkeletonPulse from "../../components/SkeletonPulse";
 import TabNotice from "../../components/TabNotice";
+import { useSheetNotice } from "../../hooks/useSheetNotice";
 import { useServerEvents, useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import ChannelMenu from "./ChannelMenu";
 import ChannelRow from "./ChannelRow";
+import type { ChannelAction } from "./channelMenuRules";
 import PaneHeader from "./PaneHeader";
 import PaneScroll from "./PaneScroll";
 import PaneSkeleton from "./PaneSkeleton";
@@ -24,7 +38,10 @@ import VoiceRoom from "./VoiceRoom";
 // The Spaces tab's pane: the selected space's name, how many are in it
 // and what it is, with the search of it, over its text channels with
 // what is waiting in each (each opens the channel) and its voice rooms
-// with who is in them. The tab mounts one per space picked, so each
+// with who is in them. A long press on either opens its menu
+// (ChannelMenu): a mute shows once the server has answered and the
+// pane has reloaded, and one refused is said. What is muted with the
+// space is read from the rail's list, the only place that says so. The tab mounts one per space picked, so each
 // starts from its skeleton, under the name the rail's list already has.
 // Loaded on opening and on a pull, and again, while the tab is in
 // sight, on coming back to the app and whenever the realtime socket
@@ -47,6 +64,7 @@ export default function Pane({
   server,
   space,
   onReloadSpaces,
+  onSpaceChanged,
   onEnded,
 }: {
   server: SavedServer;
@@ -56,6 +74,10 @@ export default function Pane({
   // pane's load says the space is gone, after which the tab moves on to
   // another space.
   onReloadSpaces: () => Promise<void>;
+  // Something the pane did changed what the rail shows of the space (a
+  // channel muted): the rail's list reloads after a moment's quiet, the
+  // reload the socket's event for it asks for too.
+  onSpaceChanged: () => void;
   // The server said the session is over: the whole tab says so.
   onEnded: () => void;
 }) {
@@ -81,8 +103,8 @@ export default function Pane({
   }, [server, spaceId]);
 
   // What the load's answer is passed to, as they are on the latest draw.
-  const told = useRef({ onReloadSpaces, onEnded });
-  told.current = { onReloadSpaces, onEnded };
+  const told = useRef({ onReloadSpaces, onSpaceChanged, onEnded });
+  told.current = { onReloadSpaces, onSpaceChanged, onEnded };
 
   // Loads can overlap (opening, a pull, coming back, an event), and an
   // older one finishing last must not undo a newer one: only the latest
@@ -121,6 +143,35 @@ export default function Pane({
     if (touchesSpace(event, spaceId)) quiet.soon();
   });
 
+  // The channel whose menu is up; a refusal is said once its sheet has
+  // gone.
+  const [menuFor, setMenuFor] = useState<Channel | null>(null);
+  const { say, opened, closed } = useSheetNotice();
+  const openMenu = (channel: Channel) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    opened();
+    setMenuFor(channel);
+  };
+  const closeMenu = useCallback(() => {
+    setMenuFor(null);
+    closed();
+  }, [closed]);
+  // The menu goes with the channels: a pane that stops showing them
+  // (a retry, the space gone) must not bring the sheet back later.
+  const showing = view.state === "ready";
+  useEffect(() => {
+    if (!showing) closeMenu();
+  }, [showing, closeMenu]);
+
+  // An action's answer can come after the pane has gone.
+  const left = useRef(false);
+  useEffect(() => {
+    left.current = false;
+    return () => {
+      left.current = true;
+    };
+  }, []);
+
   const pull = async () => {
     setRefreshing(true);
     await Promise.all([refresh(), onReloadSpaces()]);
@@ -133,6 +184,9 @@ export default function Pane({
   };
 
   const ready = view.state === "ready" ? view : undefined;
+  // The space as its own load has it, but for the caller's mute of it,
+  // which only the rail's list carries (ListSpaces; GetSpace leaves it
+  // unset): `space.muted` is the one to read.
   const shown = ready?.channels.space ?? space;
   const about =
     ready &&
@@ -181,6 +235,47 @@ export default function Pane({
 
   const { text, voice, members } = ready.channels;
 
+  const people = (channel: Channel) =>
+    roster &&
+    inRoom(roster, channel.id).map((participant) => {
+      const member = members[participant.userId];
+      // Someone the member list doesn't have yet: joined since it loaded.
+      return member
+        ? { userId: participant.userId, name: memberName(member), avatarFileId: member.avatarFileId }
+        : { userId: participant.userId, name: "Someone", avatarFileId: "" };
+    });
+
+  const act = (channel: Channel, action: ChannelAction) => {
+    if (action === "copyLink") {
+      Clipboard.setStringAsync(channelLink(server.origin, spaceId, channel.id)).then(
+        () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}),
+        () => say("Couldn't copy the link"),
+      );
+      return;
+    }
+    // The reloads, the pane's and the rail's, are the ones the socket's
+    // ChannelMuted asks for, asked here too so the row and the space's
+    // mark are right with the socket down: the two make one request
+    // each (quiet.soon).
+    const muted = !channel.muted;
+    setChannelMuted(server.origin, ready.token, channel.id, muted).then(
+      () => {
+        if (left.current) return;
+        quiet.soon();
+        told.current.onSpaceChanged();
+      },
+      (err) => {
+        if (!left.current) say(muted ? "Couldn't mute the channel" : "Couldn't unmute the channel", errorText(err));
+      },
+    );
+  };
+
+  // The menu's channel as the pane now draws it, so a mute or a reload
+  // under it shows; once off the list (deleted), as it was when the
+  // menu opened, so the sheet can slide out over it.
+  const menuChannel =
+    menuFor && ([...text, ...voice].find((channel) => channel.id === menuFor.id) ?? menuFor);
+
   return (
     <>
       {header}
@@ -194,8 +289,10 @@ export default function Pane({
           <ChannelRow
             key={channel.id}
             channel={channel}
-            spaceMuted={shown.muted}
+            spaceMuted={space.muted}
             onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
+            onLongPress={() => openMenu(channel)}
+            onAction={(action) => act(channel, action)}
           />
         ))}
         {voice.length > 0 && (
@@ -207,22 +304,37 @@ export default function Pane({
           <VoiceRoom
             key={channel.id}
             channel={channel}
-            people={
-              roster &&
-              inRoom(roster, channel.id).map((participant) => {
-                const member = members[participant.userId];
-                // Someone the member list doesn't have yet: joined since it loaded.
-                return member
-                  ? { userId: participant.userId, name: memberName(member), avatarFileId: member.avatarFileId }
-                  : { userId: participant.userId, name: "Someone", avatarFileId: "" };
-              })
-            }
+            spaceMuted={space.muted}
+            people={people(channel)}
             origin={server.origin}
             token={ready.token}
+            onLongPress={() => openMenu(channel)}
+            onAction={(action) => act(channel, action)}
           />
         ))}
         {text.length === 0 && voice.length === 0 && <Text style={styles.empty}>No channels here yet.</Text>}
       </PaneScroll>
+      {menuChannel && (
+        <ChannelMenu
+          channel={menuChannel}
+          spaceMuted={space.muted}
+          card={
+            menuChannel.kind === ChannelKind.VOICE ? (
+              <VoiceRoom
+                channel={menuChannel}
+                spaceMuted={space.muted}
+                people={people(menuChannel)}
+                origin={server.origin}
+                token={ready.token}
+              />
+            ) : (
+              <ChannelRow channel={menuChannel} spaceMuted={space.muted} />
+            )
+          }
+          onAction={(action) => act(menuChannel, action)}
+          onClose={closeMenu}
+        />
+      )}
     </>
   );
 }

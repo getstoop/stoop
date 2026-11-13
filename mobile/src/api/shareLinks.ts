@@ -25,8 +25,13 @@ export function threadMessageLink(origin: string, spaceId: string, message: Mess
   return origin.replace(/\/+$/, "") + threadPath(spaceId, channelId, threadRootId, id);
 }
 
-// A conversation's link, web's /dm/ path for Copy link in its menu, on
-// the same address as a message's.
+// A channel's link, web's path for Copy link in its menu, on the same
+// address as a message's.
+export function channelLink(origin: string, spaceId: string, channelId: string): string {
+  return origin.replace(/\/+$/, "") + channelPath(spaceId, channelId);
+}
+
+// A conversation's: a channel with no space, web's /dm/ path.
 export function conversationLink(origin: string, channelId: string): string {
-  return origin.replace(/\/+$/, "") + channelPath("", channelId);
+  return channelLink(origin, "", channelId);
 }

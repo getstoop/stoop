@@ -30,6 +30,7 @@ executionOrder:
     - "Add a server, sign in, see Spaces, change the theme, sign out"
     - "See who you are on You, refreshed by a pull, and think better of signing out"
     - "Pick a space on the rail and see its channels, with what is waiting in each, kept live"
+    - "Long-press a channel on Spaces, mute and unmute it, and copy its link"
     - "Open a thread from its replies line and from Reply in thread, and read it, kept live"
     - "Reply in a thread, also to the channel, and edit, react and delete there"
     - "Mute a thread, see a reply in it counted as nothing new, and unmute it"
