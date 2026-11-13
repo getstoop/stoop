@@ -1,5 +1,5 @@
 import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Sheet from "../../components/Sheet";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -24,27 +24,39 @@ export default function ChannelAbout({
   const styles = makeStyles(useTheme());
   const most = useWindowDimensions().height * TOPIC_HEIGHT;
   // The topic's height as drawn. One that fits does not scroll, which
-  // leaves a swipe down on it to the sheet.
+  // leaves a swipe down on it to the sheet; one that scrolls keeps the
+  // swipe while it is away from its top, to scroll back by.
   const [height, setHeight] = useState(0);
+  // Where the topic starts, below the sheet's top edge.
+  const top = useRef(0);
 
   return (
     <Sheet label={`About ${channel.name}`} closeTestID="channel-about-close" onClose={onClose}>
-      <View style={styles.title}>
-        <ChannelMark channel={channel} />
-        <Text style={styles.name} numberOfLines={1} accessibilityRole="header">
-          {channel.name}
-        </Text>
-      </View>
-      <ScrollView
-        style={{ maxHeight: most }}
-        contentContainerStyle={styles.body}
-        scrollEnabled={height > most}
-        onContentSizeChange={(_width, drawn) => setHeight(drawn)}
-      >
-        <Text style={styles.topic} selectable>
-          {topic}
-        </Text>
-      </ScrollView>
+      {({ hold }) => (
+        <>
+          <View style={styles.title}>
+            <ChannelMark channel={channel} />
+            <Text style={styles.name} numberOfLines={1} accessibilityRole="header">
+              {channel.name}
+            </Text>
+          </View>
+          <ScrollView
+            style={{ maxHeight: most }}
+            contentContainerStyle={styles.body}
+            scrollEnabled={height > most}
+            onContentSizeChange={(_width, drawn) => setHeight(drawn)}
+            onLayout={(event) => {
+              top.current = event.nativeEvent.layout.y;
+            }}
+            onScroll={(event) => hold(event.nativeEvent.contentOffset.y > 0 ? top.current : null)}
+            scrollEventThrottle={16}
+          >
+            <Text style={styles.topic} selectable>
+              {topic}
+            </Text>
+          </ScrollView>
+        </>
+      )}
     </Sheet>
   );
 }

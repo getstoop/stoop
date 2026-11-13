@@ -4,7 +4,9 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { type ReactNode, useRef, useState } from "react";
-import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { recentEmoji } from "../../api/emoji";
 import {
@@ -17,6 +19,7 @@ import {
   ThreadIcon,
   TrashIcon,
 } from "../../components/Icons";
+import SheetFrame from "../../components/SheetFrame";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
 import EmojiPicker, { type EmojiPickerHandle } from "./EmojiPicker";
@@ -97,8 +100,9 @@ export default function MessageMenu({
   const insets = useSafeAreaInsets();
   // The scrim and the card fade in with the sheet (useSheet), and out
   // with whichever sheet is up.
-  const shown = useRef(new Animated.Value(0)).current;
-  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  const shown = useSharedValue(0);
+  const sheet = useSheet(shown, onClose);
+  const { dismiss, closing, fade } = sheet;
   // The picker in the menu's place, with the recent emoji it opens on.
   const [picking, setPicking] = useState<string[] | null>(null);
   const picker = useRef<EmojiPickerHandle>(null);
@@ -215,8 +219,8 @@ export default function MessageMenu({
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={close} statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.fill} onAccessibilityEscape={close}>
-        <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
+      <GestureHandlerRootView style={styles.fill} onAccessibilityEscape={close}>
+        <Animated.View style={[styles.scrim, fade]} pointerEvents="none" />
         <View style={styles.above}>
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -225,19 +229,18 @@ export default function MessageMenu({
             onPress={close}
             testID="message-menu-close"
           />
-          <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
+          <Animated.View style={[styles.card, fade]} pointerEvents="none">
             <MessageRow message={message} continued={false} myUserId={myUserId} origin={origin} token={token} card />
           </Animated.View>
         </View>
         {picking ? (
           <EmojiPicker ref={picker} shown={shown} recent={picking} reacted={reacted} onPick={onReact} onClose={onClose} />
         ) : (
-          <Animated.View
-            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8, transform: [{ translateY: slide }] }]}
+          <SheetFrame
+            sheet={sheet}
+            style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 8) + 8 }]}
             accessibilityRole="menu"
             accessibilityLabel="Message actions"
-            onLayout={onLayout}
-            {...panHandlers}
           >
             <View style={styles.handle} />
             <View style={styles.reactions}>
@@ -279,9 +282,9 @@ export default function MessageMenu({
                 {item.note && <Text style={styles.note}>{item.note}</Text>}
               </Pressable>
             ))}
-          </Animated.View>
+          </SheetFrame>
         )}
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

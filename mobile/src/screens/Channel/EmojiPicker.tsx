@@ -1,7 +1,9 @@
 import { COMMON_EMOJI, emojiName, searchEmoji } from "@stoop/core/emoji";
 import { EMOJI_GROUPS } from "@stoop/core/emojiData";
 import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
-import { Animated, FlatList, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import Animated, { type SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { rememberEmoji } from "../../api/emoji";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
@@ -37,7 +39,7 @@ type Row =
 export default forwardRef<
   EmojiPickerHandle,
   {
-    shown: Animated.Value;
+    shown: SharedValue<number>;
     recent: string[];
     reacted: (emoji: string) => boolean;
     onPick: (emoji: string) => void;
@@ -49,7 +51,7 @@ export default forwardRef<
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardHeight();
   const window = useWindowDimensions();
-  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  const { dismiss, closing, onLayout, slide, gesture } = useSheet(shown, onClose);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   useImperativeHandle(ref, () => ({ dismiss }), [dismiss]);
@@ -95,28 +97,30 @@ export default forwardRef<
 
   return (
     <Animated.View
-      style={[styles.sheet, { height, marginBottom: keyboard, paddingBottom: bottom, transform: [{ translateY: slide }] }]}
+      style={[styles.sheet, { height, marginBottom: keyboard, paddingBottom: bottom }, slide]}
       accessibilityLabel="Add reaction"
       onLayout={onLayout}
     >
-      <View style={styles.header} {...panHandlers}>
-        <View style={styles.handle} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          placeholder="Search emoji"
-          placeholderTextColor={theme.textMuted}
-          accessibilityLabel="Search emoji"
-          testID="emoji-search"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          style={[styles.search, focused && styles.searchFocused]}
-        />
-      </View>
+      <GestureDetector gesture={gesture}>
+        <View style={styles.header}>
+          <View style={styles.handle} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="Search emoji"
+            placeholderTextColor={theme.textMuted}
+            accessibilityLabel="Search emoji"
+            testID="emoji-search"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            style={[styles.search, focused && styles.searchFocused]}
+          />
+        </View>
+      </GestureDetector>
       <FlatList
         data={rows}
         keyExtractor={(row) => row.key}
@@ -154,14 +158,16 @@ export default forwardRef<
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    // The room above the handle is the header's, so a drag may start
+    // there too.
     sheet: {
-      paddingTop: 8,
       paddingHorizontal: 8,
       borderTopLeftRadius: tokens.radiusLg,
       borderTopRightRadius: tokens.radiusLg,
       backgroundColor: theme.panel,
     },
     header: {
+      paddingTop: 8,
       paddingBottom: 8,
     },
     handle: {

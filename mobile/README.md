@@ -339,7 +339,8 @@ import a screen; the screens themselves live in `src/screens`, so
   again, and is tried afresh next time. The gestures are
   `react-native-gesture-handler` and `react-native-reanimated` (native
   modules, so a build on the phone needs `make mobile-ios` again),
-  under a `GestureHandlerRootView` at the app's root;
+  under a `GestureHandlerRootView` at the app's root, and one of
+  their own in each modal (the viewer, the sheets);
   `babel-preset-expo` adds the worklets plugin on its own.
   An audio file plays in the row (`Attachments/AudioPlayer.tsx`): a
   round Play in the accent, the track and the time, its length at rest

@@ -1,8 +1,11 @@
-import { type ReactNode, useRef } from "react";
-import { Animated, Modal, Pressable, StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useSharedValue } from "react-native-reanimated";
 import { initialWindowMetrics, SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSheet } from "../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../theme";
+import SheetFrame from "./SheetFrame";
 
 // A sheet over the screen, in its own modal: a scrim, an optional card
 // above the sheet, and the sheet itself, with its handle, drawn up from
@@ -18,6 +21,11 @@ export type SheetControls = {
   dismiss: () => void;
   // Whether it is already on its way out, and should take no more presses.
   closing: () => boolean;
+  // Keeps swipes that start this many points or more below the sheet's
+  // top edge for what the sheet holds (a list scrolled away from its
+  // top, given where the list starts); null gives them back to the
+  // sheet. The handle and the room above stay the sheet's throughout.
+  hold: (from: number | null) => void;
 };
 
 export default function Sheet({
@@ -39,14 +47,15 @@ export default function Sheet({
   children: ReactNode | ((sheet: SheetControls) => ReactNode);
 }) {
   const styles = makeStyles(useTheme());
-  const shown = useRef(new Animated.Value(0)).current;
-  const { dismiss, closing, onLayout, slide, panHandlers } = useSheet(shown, onClose);
+  const shown = useSharedValue(0);
+  const sheet = useSheet(shown, onClose);
+  const { dismiss, closing, hold, fade } = sheet;
 
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <View style={styles.fill} onAccessibilityEscape={dismiss}>
-          <Animated.View style={[styles.scrim, { opacity: shown }]} pointerEvents="none" />
+        <GestureHandlerRootView style={styles.fill} onAccessibilityEscape={dismiss}>
+          <Animated.View style={[styles.scrim, fade]} pointerEvents="none" />
           <View style={styles.above}>
             <Pressable
               style={StyleSheet.absoluteFill}
@@ -56,23 +65,22 @@ export default function Sheet({
               testID={closeTestID}
             />
             {card && (
-              <Animated.View style={[styles.card, { opacity: shown }]} pointerEvents="none">
+              <Animated.View style={[styles.card, fade]} pointerEvents="none">
                 {card}
               </Animated.View>
             )}
           </View>
-          <Animated.View
-            style={[styles.sheet, { transform: [{ translateY: slide }] }]}
+          <SheetFrame
+            sheet={sheet}
+            style={styles.sheet}
             accessibilityRole={menu ? "menu" : undefined}
             accessibilityLabel={label}
-            onLayout={onLayout}
-            {...panHandlers}
           >
             <View style={styles.handle} />
-            {typeof children === "function" ? children({ dismiss, closing }) : children}
+            {typeof children === "function" ? children({ dismiss, closing, hold }) : children}
             <SheetFoot />
-          </Animated.View>
-        </View>
+          </SheetFrame>
+        </GestureHandlerRootView>
       </SafeAreaProvider>
     </Modal>
   );
