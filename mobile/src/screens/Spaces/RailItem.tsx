@@ -1,6 +1,7 @@
 import { badgeCount } from "@stoop/core/unreads";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { useReducedMotion } from "react-native-reanimated";
 import SpaceIcon from "../../components/SpaceIcon";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { RAIL_ITEM_HEIGHT, railItem } from "./railRules";
@@ -13,7 +14,10 @@ const RING = 2;
 // icon, while it is the space shown; on any other a small tab while
 // something in it is unread), and its mention count on the icon's
 // bottom-right corner (./railRules.ts has the rules). Nothing is drawn
-// at the left edge. Pressed, the pane shows its channels.
+// at the left edge. Pressed, the pane shows its channels. The mark is
+// one shape that changes: the tab grows into the bar as its space is
+// picked and shrinks back as another is, the ring fading with it, or
+// both change at once under Reduce Motion.
 export default function RailItem({
   space,
   selected,
@@ -29,6 +33,7 @@ export default function RailItem({
 }) {
   const styles = makeStyles(useTheme());
   const view = railItem(space, selected);
+  const motion = { ...MOTION, transitionDuration: useReducedMotion() ? 0 : tokens.dur };
 
   return (
     <Pressable
@@ -38,10 +43,10 @@ export default function RailItem({
       onPress={onPress}
       style={({ pressed }) => [styles.item, pressed && styles.pressed]}
     >
-      {view.mark !== "none" && <View style={[styles.mark, view.mark === "selected" ? styles.bar : styles.unread]} />}
-      <View style={[styles.ring, selected && styles.ringed, view.dimmed && styles.dimmed]}>
+      <Animated.View style={[styles.mark, styles[view.mark], motion]} />
+      <Animated.View style={[styles.ring, selected && styles.ringed, view.dimmed && styles.dimmed, motion]}>
         <SpaceIcon name={space.name} fileId={space.iconFileId} origin={origin} token={token} size={ICON} />
-      </View>
+      </Animated.View>
       {view.mentions > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badgeCount(view.mentions)}</Text>
@@ -50,6 +55,13 @@ export default function RailItem({
     </Pressable>
   );
 }
+
+// What changes between a button's states, and how: the mark's place,
+// size and colour, and the ring's colour.
+const MOTION = {
+  transitionProperty: ["top", "height", "backgroundColor", "borderColor"],
+  transitionTimingFunction: "ease-out" as const,
+};
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
@@ -71,8 +83,9 @@ function makeStyles(theme: Theme) {
       borderTopLeftRadius: tokens.radiusSm,
       borderBottomLeftRadius: tokens.radiusSm,
     },
-    // Each centred on the button's 56.
-    bar: {
+    // Each centred on the button's 56; no mark is one shrunk to nothing
+    // there, fading in whichever colour it had.
+    selected: {
       top: 12,
       height: 32,
       backgroundColor: theme.accent,
@@ -81,6 +94,11 @@ function makeStyles(theme: Theme) {
       top: 24,
       height: 8,
       backgroundColor: theme.text,
+    },
+    none: {
+      top: 28,
+      height: 0,
+      backgroundColor: "transparent",
     },
     // The ring's room is always kept, so picking a space moves nothing.
     ring: {
