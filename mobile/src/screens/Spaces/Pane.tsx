@@ -250,15 +250,19 @@ export default function Pane({
     return (
       <>
         {header}
-        <PaneScroll refreshing={refreshing} onRefresh={pull}>
-          <View style={styles.notice}>
-            <TabNotice
-              flush
-              message={`Couldn't reach ${hostOf(server.origin)}.`}
-              action={{ label: "Try again", onPress: retry }}
-            />
-          </View>
-        </PaneScroll>
+        {/* Wrapped as the channels are below, so a pull that reaches the
+            server keeps this one list, and its spinner, for them. */}
+        <Animated.View entering={FadeIn.duration(tokens.dur)} style={styles.fill}>
+          <PaneScroll refreshing={refreshing} onRefresh={pull}>
+            <View style={styles.notice}>
+              <TabNotice
+                flush
+                message={`Couldn't reach ${hostOf(server.origin)}.`}
+                action={{ label: "Try again", onPress: retry }}
+              />
+            </View>
+          </PaneScroll>
+        </Animated.View>
       </>
     );
   }
