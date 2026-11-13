@@ -13,8 +13,9 @@ import { sharedLink } from "../links/sharedLink";
 // (web/src/components/LinkHandoff.tsx) handing a shared link over:
 // stoop://open?server=<origin>&path=<the web's path>. None of it is a
 // route yet: whether the phone has the server saved isn't known here,
-// so an invite (/join/<code>) is left for links/OpenInviteLink.tsx
-// (Add a space when it has, the Invite screen when not), and a space, a
+// so an invite (/join/<code>) is left for links/OpenInviteHere.tsx
+// (Add a space, when it has) or links/OpenInviteLink.tsx (the Invite
+// screen, when not), and a space, a
 // channel, a message or a thread for links/OpenSharedLink.tsx, to open
 // once it is; the router is told nothing.
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string | null {

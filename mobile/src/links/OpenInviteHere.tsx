@@ -1,5 +1,5 @@
 import { useNavigation, useRouter, useSegments } from "expo-router";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { parseInviteLink } from "../api/invites";
 import { type SavedServer, useServers } from "../servers";
 import { backToServer, type ServerNavigation } from "../servers/swapServer";
@@ -48,6 +48,7 @@ export default function OpenInviteHere({ server }: { server: SavedServer }) {
   // message), once that one has gone: iOS drops a sheet presented while
   // another is still on its way out.
   const front = segments[0] === "s" ? (segments[2] ?? "") : null;
+  const dismissing = useRef(false);
   useEffect(() => {
     if (!invite || front === null) return;
     if (front === "add-space") {
@@ -56,11 +57,16 @@ export default function OpenInviteHere({ server }: { server: SavedServer }) {
       return;
     }
     if (front === "new-message") {
+      // Once: the sheet is still in front for a render or two after it
+      // is told to go.
+      if (dismissing.current) return;
+      dismissing.current = true;
       setInvite({ link: invite.link, closing: true });
       router.dismiss();
       return;
     }
     const push = () => {
+      dismissing.current = false;
       setInvite(null);
       router.push({ pathname: "/s/[id]/add-space", params: { id: server.id, link: invite.link } });
     };
