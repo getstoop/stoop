@@ -18,7 +18,8 @@ So far it is the welcome screen, Add a server, which checks a typed
 address, and Sign in, by password, a login provider, or a new account
 where the server takes them without an invite, with Forgot password
 asking the server for a reset link, and joining from an invite link,
-pasted or handed over by the web's open-in-app page. A signed-in server opens
+pasted or handed over by the web's open-in-app page, which also hands
+over links to a space, a channel, a conversation, a message or a thread. A signed-in server opens
 on four tabs: Spaces, one screen with the server's spaces down a rail
 at the left, each with its mention badge, unread mark or mute, and the
 selected space's channels beside it (text channels with what is waiting
@@ -878,6 +879,27 @@ badge stays as it was when the app left the front.
   back to the channel. Data that isn't ours, or a server forgotten
   since, does nothing more than open the app, and a tap not opened
   within ten seconds is dropped.
+- A shared link the web's open-in-app page hands over
+  (`stoop://open?server=<origin>&path=<web's path>`) is opened the same
+  way. `app/+native-intent.tsx` hears it before anything has rendered:
+  an invite goes to Invite, and a space, a channel, a direct message, a
+  message or a thread is read from web's path (`links/sharedLink.ts`;
+  web's `/s/<id>` is a space, the app's a server) and left in a store
+  (`links/pendingLink.ts`) with the router told nothing. Beside the root
+  stack, once the saved servers are known, `links/OpenSharedLink.tsx`
+  finds the server by the address the link was opened at and leaves the
+  place as a tap for that server's layout, with no item to mark read: so
+  the same swap of servers, the same closing of what is in the way, the
+  channel at the message or the thread at the reply, whether the link
+  launched the app or found it running. A link to a space closes
+  whatever is over the tabs and asks the Spaces tab for it
+  (`src/lastSpace`), which picks it on its rail if the account is in
+  it, reloading its list once for a space joined since, and otherwise
+  stays on the space it had. A link nobody takes within ten seconds
+  (the saved servers couldn't be read) is dropped. A server the phone
+  isn't signed in to opens Sign in for that address (once the launch has reached the saved server's screen, if
+  there is one), and the link goes no further; one saved under another
+  address (the LAN's) counts as not signed in to.
 - A notification stays in the list only while what it points at is
   unread (`clear.ts` for which, `dismiss.ts` for the taking out, by the
   data each presented notification carries). A channel or a
@@ -1057,8 +1079,8 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
 `alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
-`notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts` and
-`shouldAsk.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
+`shouldAsk.ts`, and `links/sharedLink.ts` and `pendingLink.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
