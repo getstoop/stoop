@@ -62,14 +62,9 @@ export default function ComposerDock({
 
   return (
     <View style={styles.fill}>
-      {/* Measured in the window (automaticOffset): the dock starts under
-          the stack's header, not at the window's top. */}
-      <KeyboardAvoidingView
-        style={styles.fill}
-        behavior="padding"
-        automaticOffset
-        keyboardVerticalOffset={GAP - composerBottom}
-      >
+      {/* The dock starts at the window's top (the stack's header floats
+          over it), so the avoiding view needs no offset for that. */}
+      <KeyboardAvoidingView style={styles.fill} behavior="padding" keyboardVerticalOffset={GAP - composerBottom}>
         {/* The avoiding view pads its bottom for the keyboard; the composer
             is placed from this view's bottom, which that padding moves. */}
         {/* Under an overlay (the link dialog on Android, which is no window

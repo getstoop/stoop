@@ -300,9 +300,8 @@ export default function Channel({
   }, [items.length, newIndex, focusId]);
 
   // The same options while nothing they read changed: new ones are a
-  // setOptions, and this renders on every event in the channel and every
-  // step of the keyboard, under a thread too. All the header draws comes
-  // from what is listed.
+  // setOptions, and this renders on every event in the channel, under a
+  // thread too. All the header draws comes from what is listed.
   const options = useMemo(() => {
     if (!header) return undefined;
     const { space, dm, channel, memberCount, myUserId } = header;

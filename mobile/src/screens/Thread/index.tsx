@@ -236,8 +236,8 @@ export default function Thread({
   // Muted says a summary is there, so a change to either is a change here.
   const muted = summary?.muted;
   // The same options while nothing they read changed: new ones are a
-  // setOptions, and this renders on every event in the channel and every
-  // step of the keyboard. All the header draws comes from what is listed.
+  // setOptions, and this renders on every event in the channel. All the
+  // header draws comes from what is listed.
   const options = useMemo(() => {
     const mute =
       header && muted !== undefined

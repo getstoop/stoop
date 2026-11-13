@@ -23,11 +23,13 @@ import { ThemeProvider, useTheme } from "../theme";
 // alerts about (src/alertPrefs), and the space each server's Spaces tab
 // last showed (src/lastSpace). The keyboard's place is followed frame by
 // frame under KeyboardProvider (react-native-keyboard-controller), for
-// what rides up with it (the channel's composer).
+// what rides up with it (the channel's composer); without its preload,
+// which raises a hidden keyboard at launch that the screens still
+// listening to the system's keyboard events would hear.
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
-      <KeyboardProvider>
+      <KeyboardProvider preload={false}>
         <ThemeProvider>
           <ServersProvider>
             <RealtimeProvider>
