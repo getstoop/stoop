@@ -1,4 +1,4 @@
-.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro mobile-sim mobile-e2e
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro mobile-ios-release mobile-sim mobile-e2e
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -156,6 +156,12 @@ mobile-theme:
 mobile-typecheck:
 	cd web && pnpm install --frozen-lockfile --silent
 	cd mobile && pnpm install --frozen-lockfile --silent && pnpm exec tsc --noEmit
+
+## mobile-ios-release: a release build onto a connected iPhone, with its
+## JavaScript inside and no Metro, to judge speed and motion as shipped. It
+## replaces the development build on the phone; make mobile-ios puts that back
+mobile-ios-release:
+	cd mobile && pnpm install --frozen-lockfile && pnpm exec expo run:ios --configuration Release --device --no-bundler
 
 ## mobile-sim: a release build onto the iPhone simulator, for the flows
 mobile-sim:

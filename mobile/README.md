@@ -1004,6 +1004,7 @@ From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
 | `make mobile-prebuild` | Regenerates `ios/` and `android/` from `app.json` |
 | `make mobile-theme` | Regenerates `src/theme/generated.ts` from the web themes |
 | `make mobile-typecheck` | `tsc --noEmit` over `mobile/` and the web code it shares |
+| `make mobile-ios-release` | A release build onto a connected iPhone, no Metro, to judge speed and motion as shipped; replaces the development build until `make mobile-ios` |
 | `make mobile-sim` | A release build onto the iPhone simulator (`sim="iPhone 16 Pro"` for another) |
 | `make mobile-e2e` | The Maestro flows on a throwaway server (below) |
 
