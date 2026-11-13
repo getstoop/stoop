@@ -111,7 +111,8 @@ import a screen; the screens themselves live in `src/screens`, so
   screen (on iOS the tab bar and home indicator, measured by a
   `SafeAreaProvider` around the tab's body, `useBottomObstruction.ts`;
   nothing on Android, whose bar is below the screen), so their last
-  rows always come clear. A
+  rows always come clear. The server chip, when it shows, is counted
+  the same way (below). A
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer; back returns to the tab.
@@ -613,6 +614,21 @@ import a screen; the screens themselves live in `src/screens`, so
   it has icons of its own. A screen reached by pressing a tab gets none
   of the layout's route params, so everything under a server reads it
   from `CurrentServer`.
+- With more than one server saved, the server chip sits by the tab bar
+  on all four tabs (`src/components/ServerChip.tsx`): the current
+  server's tile and name, a badge for what waits on the other servers
+  added up (the app icon's number less this server's, `src/alerts`), and
+  a chevron up. It opens the server switcher, whose sheet rises from
+  the same end of the screen. With one server there is no chip, and the
+  screens take its room. Where it is drawn depends on the tab bar
+  (`src/hooks/useServerChipRoom.ts`): from iOS 26 in the system tab
+  bar's own slot over it (`NativeTabs.BottomAccessory`), on glass, and
+  the system counts it into each tab's safe area; on an older iOS, which
+  has no slot, each tab's screen draws it as a row over its own foot, on
+  top of the tab bar (`ServerChipOverlay.tsx`), and pads its lists by
+  the row's height; on Android as a row on top of the drawn tab bar,
+  part of it, below the screen. The system tab bar is told never to
+  shrink on a scroll, which would shrink the slot into it.
 - The app tells the system it is light or dark as the theme is
   (`Appearance.setColorScheme`), so what the system draws matches. The
   navigator is told as well (its own theme, set in `src/app/_layout.tsx`):

@@ -90,3 +90,16 @@ export function waitingEverywhere(servers: { id: string }[], total: (serverId: s
   for (const server of servers) sum += total(server.id);
   return sum;
 }
+
+// The number on the server chip by the tab bar: what waits on the saved
+// servers other than the one on screen, added up the same way.
+export function waitingElsewhere(
+  servers: { id: string }[],
+  current: string,
+  total: (serverId: string) => number,
+): number {
+  return waitingEverywhere(
+    servers.filter((server) => server.id !== current),
+    total,
+  );
+}

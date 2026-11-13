@@ -16,9 +16,11 @@ import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { conversationLink } from "../../api/shareLinks";
 import { PencilIcon } from "../../components/Icons";
+import ServerChipOverlay from "../../components/ServerChipOverlay";
 import ServerHeader from "../../components/ServerHeader";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useServerChipRoom } from "../../hooks/useServerChipRoom";
 import { useSheetNotice } from "../../hooks/useSheetNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
@@ -53,6 +55,7 @@ type State =
 export default function Messages({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const chipRoom = useServerChipRoom();
   const styles = makeStyles(theme);
   const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
@@ -258,7 +261,7 @@ export default function Messages({ server }: { server: SavedServer }) {
               />
             </SwipeToClose>
           )}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: LIST_PADDING + chipRoom }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
           ListEmptyComponent={<Text style={styles.empty}>No conversations yet.</Text>}
         />
@@ -274,9 +277,14 @@ export default function Messages({ server }: { server: SavedServer }) {
           onClose={closeMenu}
         />
       )}
+      <ServerChipOverlay />
     </View>
   );
 }
+
+// Under the last of the list, before the room the server chip takes
+// (hooks/useServerChipRoom.ts).
+const LIST_PADDING = 16;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
@@ -308,7 +316,6 @@ function makeStyles(theme: Theme) {
     },
     list: {
       paddingHorizontal: 8,
-      paddingBottom: 16,
     },
     empty: {
       marginVertical: 24,

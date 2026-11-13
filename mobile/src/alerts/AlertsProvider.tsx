@@ -15,7 +15,7 @@ import { useServerEvents } from "../realtime/RealtimeProvider";
 import { type SavedServer, useCurrentServer, useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
 import { type AlertsLoader, alertsLoader } from "./loader";
-import { type AlertsStore, alertsStore, waitingEverywhere } from "./store";
+import { type AlertsStore, alertsStore, waitingElsewhere, waitingEverywhere } from "./store";
 
 // Every saved server's badges, kept at the root of the app, inside the
 // realtime provider: one loader per session (loader.ts, which says
@@ -89,4 +89,13 @@ export function useWaitingEverywhere(): number {
   const store = useAlertsStore();
   const { servers } = useServers();
   return useSyncExternalStore(store.subscribe, () => waitingEverywhere(servers, (id) => store.badges(id).total));
+}
+
+// What waits on the saved servers other than the current one, added up
+// (store.ts): the server chip's badge.
+export function useWaitingElsewhere(): number {
+  const store = useAlertsStore();
+  const { servers } = useServers();
+  const { id } = useCurrentServer();
+  return useSyncExternalStore(store.subscribe, () => waitingElsewhere(servers, id, (other) => store.badges(other).total));
 }

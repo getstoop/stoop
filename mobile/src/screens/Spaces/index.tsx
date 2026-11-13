@@ -7,6 +7,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { loadSpaces, touchesSpaces } from "../../api/spaces";
+import ServerChipOverlay from "../../components/ServerChipOverlay";
 import ServerHeader from "../../components/ServerHeader";
 import Skeleton from "../../components/Skeleton";
 import TabNotice from "../../components/TabNotice";
@@ -193,6 +194,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
           </View>
         </SafeAreaProvider>
       )}
+      <ServerChipOverlay />
     </View>
   );
 }

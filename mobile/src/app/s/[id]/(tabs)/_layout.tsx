@@ -1,7 +1,11 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { Tabs } from "expo-router";
+import { BottomTabBar } from "expo-router/tabs";
+import { View } from "react-native";
 import { useAlerts } from "../../../../alerts/AlertsProvider";
 import { BellIcon, MessagesIcon, PersonIcon, SpacesIcon } from "../../../../components/Icons";
+import ServerChip from "../../../../components/ServerChip";
+import { useServerChipShown } from "../../../../hooks/useServerChipRoom";
 import { useTheme } from "../../../../theme";
 
 // A server's four tabs, at the bottom of its stack (../_layout.tsx). This
@@ -10,6 +14,8 @@ import { useTheme } from "../../../../theme";
 // no header. Activity's badge is the server's count of what is addressed
 // to you in the spaces past your markers, and Messages' the unread
 // messages in your conversations (src/alerts), each hidden at none.
+// With more than one server saved the server chip is docked on the bar,
+// part of it, so the screens end above both.
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
@@ -19,9 +25,16 @@ export default function TabsLayout() {
   const theme = useTheme();
   const { activity: alerting, messages: unread } = useAlerts();
   const badgeStyle = { backgroundColor: theme.danger, color: theme.onAccent };
+  const chip = useServerChipShown();
 
   return (
     <Tabs
+      tabBar={(props) => (
+        <View>
+          {chip && <ServerChip />}
+          <BottomTabBar {...props} />
+        </View>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
