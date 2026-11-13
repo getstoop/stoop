@@ -72,6 +72,25 @@ describe("lastSpaceStore", () => {
     expect(save).toHaveBeenCalledWith({ club: "chess", work: "standup" });
   });
 
+  it("holds a space asked for until it is answered, telling the listeners and saving nothing", () => {
+    const save = vi.fn();
+    const store = lastSpaceStore(save);
+    store.loaded({ home: "books" });
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.ask("home", "garden");
+    expect(store.asked("home")).toBe("garden");
+    expect(store.asked("work")).toBeUndefined();
+    expect(store.current()).toEqual({ home: "books" });
+    expect(listener).toHaveBeenCalledTimes(1);
+    store.answered("home");
+    expect(store.asked("home")).toBeUndefined();
+    expect(listener).toHaveBeenCalledTimes(2);
+    store.answered("home");
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("stops telling a listener that unsubscribed", () => {
     const store = lastSpaceStore(vi.fn());
     store.loaded({});

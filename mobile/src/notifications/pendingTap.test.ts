@@ -19,6 +19,18 @@ const key = () => `key-${n++}`;
 describe("the pending tap", () => {
   beforeEach(dropTap);
 
+  it("takes a shared link with no key, every time, and keeps the last notification's key", () => {
+    acceptTap("seen", tap("a"), 0);
+    dropTap();
+    const link = tap("a");
+    acceptTap(null, link, 1);
+    expect(takeTap("a", 2)).toBe(link);
+    acceptTap(null, link, 3);
+    expect(takeTap("a", 4)).toBe(link);
+    acceptTap("seen", tap("a"), 5);
+    expect(pendingTap(6)).toBeNull();
+  });
+
   it("is taken once, by its own server", () => {
     const data = tap("a");
     acceptTap(key(), data, 0);

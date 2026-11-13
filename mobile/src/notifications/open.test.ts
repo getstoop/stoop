@@ -149,6 +149,30 @@ describe("what a tap does", () => {
     expect(tapAction(other, scene({ mounting: true }))).toEqual({ do: "swap", serverId: "b" });
   });
 
+  it("opens a channel with no message named where it stands, and has no item", () => {
+    const link = { serverId: "a", spaceId: "space", channelId: "general", threadRootId: "", messageId: "" };
+    expect(tapAction(link, scene())).toEqual({
+      do: "open",
+      route: {
+        pathname: "/s/[id]/space/[spaceId]/channel/[channelId]",
+        params: { id: "a", spaceId: "space", channelId: "general" },
+      },
+      how: "push",
+    });
+  });
+
+  it("shows a space with no channel named on the Spaces tab, there already as the layout mounts", () => {
+    const space = { serverId: "a", spaceId: "space", channelId: "", threadRootId: "", messageId: "" };
+    expect(tapAction(space, scene())).toEqual({ do: "space", spaceId: "space", shown: false });
+    expect(tapAction(space, scene({ segments: channel, params: onChannel }))).toEqual({
+      do: "space",
+      spaceId: "space",
+      shown: false,
+    });
+    expect(tapAction(space, scene({ mounting: true }))).toEqual({ do: "space", spaceId: "space", shown: true });
+    expect(tapAction({ ...space, serverId: "b" }, scene())).toEqual({ do: "swap", serverId: "b" });
+  });
+
   it("drops a tap for a server forgotten since", () => {
     expect(tapAction({ ...mention, serverId: "gone" }, scene())).toEqual({ do: "drop" });
   });

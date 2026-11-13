@@ -7,6 +7,7 @@ import AlertPrefsProvider from "../alertPrefs/AlertPrefsProvider";
 import AlertsProvider from "../alerts/AlertsProvider";
 import DndProvider from "../dnd/DndProvider";
 import LastSpaceProvider from "../lastSpace/LastSpaceProvider";
+import OpenSharedLink from "../links/OpenSharedLink";
 import NotificationsProvider from "../notifications/NotificationsProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
@@ -58,6 +59,9 @@ const styles = StyleSheet.create({
   },
 });
 
+// A shared link handed over by the web's open-in-app page is opened
+// from beside the stack (src/links).
+//
 // One stack for now, with the platform's own back button and gesture.
 // The header carries no title: each screen puts its heading in its body.
 // The server switcher is a sheet, as tall as its list.
@@ -110,6 +114,7 @@ function RootStack() {
           }}
         />
       </Stack>
+      <OpenSharedLink />
     </NavigationTheme>
   );
 }

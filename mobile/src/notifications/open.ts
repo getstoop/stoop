@@ -1,5 +1,5 @@
 import { channelRoute, threadRoute } from "../screens/Channel/routes";
-import type { NotificationData } from "./content";
+import type { Tap } from "./pendingTap";
 
 // What a tapped notification opens, and how: the route its data names,
 // as an Activity row's (its thread at the reply when it has a thread,
@@ -9,7 +9,7 @@ import type { NotificationData } from "./content";
 
 export type NotificationRoute = ReturnType<typeof channelRoute> | ReturnType<typeof threadRoute>;
 
-export function notificationRoute(data: NotificationData): NotificationRoute {
+export function notificationRoute(data: Tap): NotificationRoute {
   const { serverId, spaceId, channelId, threadRootId, messageId } = data;
   return threadRootId
     ? threadRoute(serverId, spaceId, channelId, threadRootId, messageId)
@@ -50,6 +50,11 @@ export type TapAction =
   | { do: "drop" }
   // Another saved server's: swap to it, whose layout then finds the tap.
   | { do: "swap"; serverId: string }
+  // This server's, and a space with no channel named (a shared link to
+  // the space): the Spaces tab, with that space picked on its rail. A
+  // layout only now mounting is on that tab already (`shown`);
+  // otherwise everything over the tabs is closed to reach it.
+  | { do: "space"; spaceId: string; shown: boolean }
   // This server's. What is in the way is closed first, so the screen
   // doesn't open inside a sheet: whatever the root stack holds over the
   // server (the switcher's sheet, a sign-in), or New message. Then the
@@ -62,10 +67,11 @@ export type TapAction =
 // pushed without a look at it. What lies under a closed sheet isn't
 // looked at either: there the screen is pushed even if it is the one
 // beneath.
-export function tapAction(tap: NotificationData, scene: TapScene): TapAction {
+export function tapAction(tap: Tap, scene: TapScene): TapAction {
   if (tap.serverId !== scene.serverId) {
     return scene.saved.includes(tap.serverId) ? { do: "swap", serverId: tap.serverId } : { do: "drop" };
   }
+  if (!tap.channelId) return { do: "space", spaceId: tap.spaceId, shown: scene.mounting };
   const route = notificationRoute(tap);
   if (scene.mounting || scene.segments[0] !== "s") return { do: "open", route, close: "over", how: "push" };
   if (scene.segments[2] === "new-message") return { do: "open", route, close: "newMessage", how: "push" };

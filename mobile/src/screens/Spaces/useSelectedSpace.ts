@@ -13,6 +13,9 @@ import { pickSpace } from "./railRules";
 // so the old one coming back does not take the selection with it. A
 // server with no spaces keeps what was remembered. Opening a channel
 // from elsewhere (search, Activity, a notification) picks nothing here.
+// A shared link to a space asks for it (the store's `ask`): it is
+// picked if the account is in it, and the selection is left alone if
+// not.
 export function useSelectedSpace(
   serverId: string,
   spaces: readonly Space[] | undefined,
@@ -29,6 +32,12 @@ export function useSelectedSpace(
   useEffect(() => {
     if (selected !== undefined && selected !== wanted) store.remember(serverId, selected);
   }, [store, serverId, selected, wanted]);
+  const asked = useSyncExternalStore(store.subscribe, () => store.asked(serverId));
+  useEffect(() => {
+    if (asked === undefined || spaces === undefined) return;
+    if (spaces.some((space) => space.id === asked)) store.remember(serverId, asked);
+    store.answered(serverId);
+  }, [store, serverId, spaces, asked]);
   const select = useCallback((spaceId: string) => store.remember(serverId, spaceId), [store, serverId]);
   return { settled, selected, select };
 }

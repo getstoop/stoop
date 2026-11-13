@@ -15,6 +15,12 @@ export type LastSpaceStore = {
   remember: (serverId: string, spaceId: string) => void;
   // A removed server's space goes with it.
   forgetServer: (serverId: string) => void;
+  // A space asked for from outside the tab (a shared link to it), held
+  // until the tab, which knows the server's spaces, answers: it is
+  // remembered only if the account is in it. Not saved.
+  ask: (serverId: string, spaceId: string) => void;
+  asked: (serverId: string) => string | undefined;
+  answered: (serverId: string) => void;
 };
 
 type Change = (spaces: LastSpaces) => LastSpaces;
@@ -22,6 +28,7 @@ type Change = (spaces: LastSpaces) => LastSpaces;
 export function lastSpaceStore(save: (next: LastSpaces) => void): LastSpaceStore {
   let spaces: LastSpaces | undefined;
   let waiting: Change[] = [];
+  const asked = new Map<string, string>();
   const listeners = new Set<() => void>();
   const notify = () => {
     for (const listener of listeners) listener();
@@ -55,5 +62,13 @@ export function lastSpaceStore(save: (next: LastSpaces) => void): LastSpaceStore
     },
     remember: (serverId, spaceId) => apply((before) => withSpace(before, serverId, spaceId)),
     forgetServer: (serverId) => apply((before) => withoutServer(before, serverId)),
+    ask: (serverId, spaceId) => {
+      asked.set(serverId, spaceId);
+      notify();
+    },
+    asked: (serverId) => asked.get(serverId),
+    answered: (serverId) => {
+      if (asked.delete(serverId)) notify();
+    },
   };
 }
