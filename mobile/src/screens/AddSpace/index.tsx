@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { findInvite, joinSpace } from "../../api/invites";
+import { findInvite, joinSpace, sentence, stopped } from "../../api/invites";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import TabNotice from "../../components/TabNotice";
@@ -22,9 +22,9 @@ import { useLastSpaceStore } from "../../lastSpace/LastSpaceProvider";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import type { Check } from "../Invite";
-import InviteCard, { sentence } from "../Invite/InviteCard";
+import InviteCard from "../Invite/InviteCard";
 import InviteNotice from "../Invite/InviteNotice";
-import { landOn } from "./landed";
+import { landOn, withdraw } from "./landed";
 import { pasted } from "./pasted";
 
 // Add a space, a sheet over the Spaces tab: joining one on this server
@@ -33,8 +33,9 @@ import { pasted } from "./pasted";
 // Join commits anything, as the Invite screen does for someone not yet
 // on the server; a join the server then refuses is said in its own
 // words. Once joined, the sheet stays up ("Joining…") until the tab
-// under it holds the space, and closes on it. A link to another server
-// is only named for now.
+// under it holds the space, and closes on it; a tab that takes too long
+// picks the space when it does answer. A link to another server is only
+// named for now.
 
 // As the Invite screen: long enough not to ask about a half-pasted link.
 const SETTLE_MS = 600;
@@ -64,15 +65,19 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   // sends nothing), and whether the sheet is still up: closed while one
   // is out (Cancel, a swipe down, Android's back), the join still
   // happens and the space turns up on the rail, but nothing is picked
-  // and nothing on top by then is closed.
+  // and nothing on top by then is closed. `landing` is the space the
+  // tab has been asked for and not yet answered about: closing the
+  // sheet then takes the question back.
   const joiningNow = useRef(false);
   const open = useRef(true);
+  const landing = useRef<string | null>(null);
   useEffect(() => {
     open.current = true;
     return () => {
       open.current = false;
+      if (landing.current) withdraw(store, server.id, landing.current);
     };
-  }, []);
+  }, [store, server.id]);
 
   useEffect(() => {
     const what = pasted(text, server.origin);
@@ -87,7 +92,6 @@ export default function AddSpace({ server }: { server: SavedServer }) {
       if (!token) return setEnded(true);
       const found = await findInvite(server.origin, token, what.code, controller.signal);
       if (controller.signal.aborted) return;
-      if (found.kind === "ended") return setEnded(true);
       setCheck({
         state: "done",
         result:
@@ -107,7 +111,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [text, server]);
+  }, [text, server.id, server.origin, server.name]);
 
   const found = check.state === "done" && check.result.kind === "found" ? check.result : null;
   const spaceName = found?.preview.spaceName;
@@ -128,14 +132,19 @@ export default function AddSpace({ server }: { server: SavedServer }) {
     const outcome = token ? await joinSpace(server.origin, token, found.code) : ({ kind: "ended" } as const);
     if (!open.current) return;
     if (outcome.kind === "joined") {
-      await landOn(store, server.id, outcome.spaceId, LAND_MS);
-      if (open.current) router.dismiss();
+      landing.current = outcome.spaceId;
+      const how = await landOn(store, server.id, outcome.spaceId, LAND_MS);
+      // Whatever asked for another space meanwhile closes the sheet itself.
+      if (!open.current || how === "replaced") return;
+      landing.current = null;
+      router.dismiss();
       return;
     }
     joiningNow.current = false;
     setJoining(false);
     if (outcome.kind === "ended") setEnded(true);
-    else setRefusal(outcome.kind === "refused" ? `${sentence(outcome.message)}.` : `Couldn't reach ${hostOf(server.origin)}.`);
+    else if (outcome.kind === "refused") setRefusal(stopped(sentence(outcome.message)));
+    else setRefusal(`Couldn't reach ${hostOf(server.origin)}.`);
   };
 
   const canJoin = !!found && !joining;

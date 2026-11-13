@@ -75,14 +75,13 @@ export async function joinWithInvite(origin: string, token: string, code: string
 
 // What an invite is for, asked by an account already signed in to its
 // server (Add a space): the lookup alone, the server being one the app
-// is already using.
+// is already using. The lookup is open to anyone, so it says nothing
+// about the session: one that has ended is found out by the join.
 export type InviteFinding =
   | { kind: "found"; preview: InvitePreview }
   // Unknown, revoked, expired or used up, in the server's words.
   | { kind: "gone"; message: string }
-  | { kind: "failed"; message: string }
-  // The server says the session is over.
-  | { kind: "ended" };
+  | { kind: "failed"; message: string };
 
 export async function findInvite(
   origin: string,
@@ -95,7 +94,6 @@ export async function findInvite(
     if (!res.preview) return { kind: "failed", message: "The server didn't describe the invite." };
     return { kind: "found", preview: res.preview };
   } catch (err) {
-    if (sessionOver(err)) return { kind: "ended" };
     const message = err instanceof ConnectError ? err.rawMessage : String(err);
     return inviteGone(err) ? { kind: "gone", message } : { kind: "failed", message };
   }
@@ -139,8 +137,15 @@ const REFUSALS = new Set([
   Code.AlreadyExists,
 ]);
 
-function sessionOver(err: unknown): boolean {
-  return err instanceof ConnectError && err.code === Code.Unauthenticated;
+// The server's messages are lower case with no stop ("this invite has
+// expired"); on their own they read as a sentence, and `stopped` ends
+// one that is a card's body rather than its heading.
+export function sentence(message: string): string {
+  return message.charAt(0).toUpperCase() + message.slice(1);
+}
+
+export function stopped(message: string): string {
+  return /[.!?…]$/.test(message.trim()) ? message.trim() : `${message.trim()}.`;
 }
 
 // As the server's own check: an invite admits a new account unless

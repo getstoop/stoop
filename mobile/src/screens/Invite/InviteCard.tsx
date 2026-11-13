@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { fileUrl } from "../../api/files";
-import type { InviteCheck } from "../../api/invites";
+import { type InviteCheck, sentence } from "../../api/invites";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ProbeCard from "../AddServer/ProbeCard";
 import type { Check } from "./index";
@@ -95,12 +95,6 @@ function SpaceTile({
       <Text style={styles.tileLetter}>{name.trim().charAt(0).toUpperCase()}</Text>
     </View>
   );
-}
-
-// The server's messages are lower case with no stop ("this invite has
-// expired"); on their own they read as a sentence.
-export function sentence(message: string): string {
-  return message.charAt(0).toUpperCase() + message.slice(1);
 }
 
 function makeStyles(theme: Theme) {

@@ -122,8 +122,9 @@ import a screen; the screens themselves live in `src/screens`, so
   another server is only named for now (`pasted.ts`). Once joined, the
   sheet asks the tab under it for the space (the last-space store's
   `ask`, `landed.ts`) and stays up, saying "Joining…", until the tab
-  holds it, then closes on it selected. Closed mid-join, the space
-  still turns up on the rail, unselected. A
+  holds it, then closes on it selected; after five seconds it closes
+  anyway, and the tab picks the space when its list arrives. Closed by
+  hand before that, the space still turns up on the rail, unselected. A
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer; back returns to the tab.
@@ -1112,8 +1113,8 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
 `alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
-`shouldAsk.ts`, `links/sharedLink.ts` and `pendingLink.ts`, and Add a
-space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`shouldAsk.ts`, `links/sharedLink.ts` and `pendingLink.ts`, `api/invites.ts`,
+and Add a space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,
