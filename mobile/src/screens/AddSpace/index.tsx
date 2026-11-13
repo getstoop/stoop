@@ -116,7 +116,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
       const token = on ? await sessionToken(on.id).catch(() => null) : null;
       if (controller.signal.aborted) return;
       if (!on || !token) {
-        if (here) return setEnded({ server });
+        if (here) return setEnded({ server, code: what.code });
         // Not a server the phone is signed in to: asked as a stranger
         // would, which also says whether it is a server the app can use.
         const link = { origin: what.origin, code: what.code };
@@ -179,7 +179,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   useEffect(() => {
     if (spaceName && Platform.OS === "ios") {
       AccessibilityInfo.announceForAccessibility(
-        `${member ? "You're already in" : "You're invited to"} ${spaceName}. ${action} is ready.`,
+        member ? `You're already in ${spaceName}.` : `You're invited to ${spaceName}. ${action} is ready.`,
       );
     }
   }, [spaceName, member, action]);
@@ -255,10 +255,8 @@ export default function AddSpace({ server }: { server: SavedServer }) {
                 router.dismiss();
                 // Signing in with the invite joins its space on the way
                 // (SignIn's finish), so the link isn't asked for twice.
-                router.push({
-                  pathname: "/sign-in",
-                  params: ended.code ? { server: ended.server.origin, invite: ended.code } : { server: ended.server.origin },
-                });
+                const invite = ended.code ? { invite: ended.code } : {};
+                router.push({ pathname: "/sign-in", params: { server: ended.server.origin, ...invite } });
               }),
           }}
         />
@@ -299,7 +297,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
                 style={[styles.input, focused && styles.inputFocused]}
               />
             </View>
-            <InviteCard check={check} member={member} aside={outside ? "not signed in" : undefined} />
+            <InviteCard check={check} member={member} aside={outside ? "Not signed in to" : undefined} />
             {refusal && <InviteNotice heading="Couldn't join the space" body={refusal} />}
           </ScrollView>
           <View style={styles.footer}>

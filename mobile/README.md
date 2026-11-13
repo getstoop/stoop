@@ -115,7 +115,7 @@ import a screen; the screens themselves live in `src/screens`, so
   the spaces (`RailAdd.tsx`), and a button in the pane of a server with
   no spaces yet, open Add a space (`s/[id]/add-space`,
   `src/screens/AddSpace`): a sheet over the tabs, as New message is,
-  for joining a space on this server with an invite link. A pasted
+  for joining a space with an invite link. A pasted
   link is looked up (`api/invites.ts` `findInvite`) and shown on the
   Invite screen's card before Join commits anything; a link that isn't
   one, an invite that can't be used and a join the server refuses are
@@ -125,7 +125,9 @@ import a screen; the screens themselves live in `src/screens`, so
   A link to another server the phone is signed in to (`pasted.ts`;
   matched by its exact address) is looked up and joined with that
   server's session, the button saying "Join on" it, and the app then
-  swaps to that server as the switcher does, on the space; a link to a
+  swaps to that server as the switcher does, on the space (a sign-in
+  there that has ended is said, and signing in again carries the
+  invite); a link to a
   server the phone isn't signed in to is checked as the Invite screen
   checks one and handed to that screen. Once joined on this server, the
   sheet asks the tab under it for the space (the last-space store's

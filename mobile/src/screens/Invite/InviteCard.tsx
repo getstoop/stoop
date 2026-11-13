@@ -12,8 +12,9 @@ import InviteNotice from "./InviteNotice";
 // `member` is for an account already in the space the invite is to
 // (Add a space knows; the Invite screen, with nobody signed in, never
 // does): the card then says so in place of inviting. `aside` is a few
-// words for the line under the space's name, in place of how many are
-// in it: the line is one line, and a server's name can be long.
+// words to go before the server's name on the line under the space's
+// ("Not signed in to"), in place of how many are in it: the line is one
+// line, and what a long name cuts short should be the name.
 export default function InviteCard({
   check,
   member = false,
@@ -80,7 +81,7 @@ function Result({
               {preview.spaceName}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {result.serverName} · {aside ?? members}
+              {aside ? `${aside} ${result.serverName}` : `${result.serverName} · ${members}`}
             </Text>
           </View>
         </View>
