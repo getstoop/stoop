@@ -6,11 +6,11 @@ import { chatClient } from "./clients";
 
 // A space's channels, the Spaces tab's pane: the space, its text and
 // voice channels in the space's order, each text channel carrying what
-// is waiting in it
-// (`unreadCount`, `alertCount`, `muted`, the caller's own), and its
-// members, for the count under the name and the faces in voice rooms. A
-// snapshot, fetched again on pull and on coming back to the app; who is
-// in voice arrives over the realtime socket instead.
+// is waiting in it (`unreadCount`, `alertCount`) and every channel the
+// caller's own `muted`, and its members, for the count under the name
+// and the faces in voice rooms. A snapshot, fetched again on pull and on
+// coming back to the app; who is in voice arrives over the realtime
+// socket instead.
 
 export type SpaceChannels = {
   space: Space;
@@ -64,9 +64,9 @@ export function voiceNames(names: string[]): string {
   return `${names[0]} and ${names[1]} + ${names.length - 2} more`;
 }
 
-// What a screen reader is told of a voice room: its name, that it is
-// voice, the reader's own mute where a text channel's row says it, then
-// who is in it (inIt, "" for an empty room).
+// What a screen reader is told of a voice room: its name and "voice",
+// then who is in it (inIt, "" for an empty room). "muted", for a room
+// the reader has muted, comes after the kind and before who is in it.
 export function voiceRoomLabel(channel: Pick<Channel, "name" | "muted">, inIt: string): string {
   return [channel.name, "voice", channel.muted ? "muted" : null, inIt].filter(Boolean).join(", ");
 }

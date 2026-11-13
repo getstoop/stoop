@@ -17,10 +17,10 @@ const JOIN_NOTE = "Join voice from the web or desktop app for now.";
 // more"). people is undefined while the realtime socket isn't connected,
 // and the room shows just its name. A muted room is dimmed and marked
 // as a muted text channel is (ChannelRow), for the channel's own mute
-// and not its space's. The phone can't join yet, so a
-// press does nothing but show it is held; a long press opens its menu (ChannelMenu), whose
-// items a screen reader is given as the room's own actions. Drawn as
-// that menu's card, it takes neither.
+// and not its space's. The phone can't join yet, so a press does
+// nothing but show it is held; a long press opens its menu
+// (ChannelMenu), whose items a screen reader is given as the room's own
+// actions. Drawn as that menu's card, it takes neither.
 export default function VoiceRoom({
   channel,
   spaceMuted,
