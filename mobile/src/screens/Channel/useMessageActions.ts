@@ -225,20 +225,30 @@ export function useMessageActions({
   // screen is not drawn again as it comes up.
   useEffect(() => {
     if (!targetId || !focused) return;
+    const ios = Platform.OS === "ios";
     let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       if (!scrollOnce.current || timer) return;
       timer = setTimeout(() => {
+        timer = undefined;
         scrollOnce.current = false;
         const index = itemsRef.current.findIndex((item) => item.kind === "message" && item.message.id === targetId);
         if (index >= 0) list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
       }, KEYBOARD_SETTLE_MS);
     };
+    // Put away before it settled: the scroll is still owed to the next
+    // keyboard.
+    const unsettle = () => {
+      clearTimeout(timer);
+      timer = undefined;
+    };
     // Up already (a quote picked with the composer open), or on its way.
     if (Keyboard.isVisible()) settle();
-    const sub = Keyboard.addListener(Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow", settle);
+    const shown = Keyboard.addListener(ios ? "keyboardWillShow" : "keyboardDidShow", settle);
+    const hidden = Keyboard.addListener(ios ? "keyboardWillHide" : "keyboardDidHide", unsettle);
     return () => {
-      sub.remove();
+      shown.remove();
+      hidden.remove();
       clearTimeout(timer);
     };
   }, [targetId, focused, list]);
