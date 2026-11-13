@@ -16,9 +16,10 @@ import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { conversationLink } from "../../api/shareLinks";
 import { PencilIcon } from "../../components/Icons";
-import ServerHeader from "../../components/ServerHeader";
+import ServerChipOverlay from "../../components/ServerChipOverlay";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useServerChipRoom } from "../../hooks/useServerChipRoom";
 import { useSheetNotice } from "../../hooks/useSheetNotice";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
@@ -53,6 +54,7 @@ type State =
 export default function Messages({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const chipRoom = useServerChipRoom();
   const styles = makeStyles(theme);
   const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
@@ -207,23 +209,22 @@ export default function Messages({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ServerHeader
-        server={server}
-        action={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="New message"
-            testID="new-message"
-            onPress={() => pushOnce(() => router.push({ pathname: "/s/[id]/new-message", params: { id: server.id } }))}
-            style={({ pressed }) => [styles.compose, pressed && styles.composePressed]}
-          >
-            <PencilIcon color={theme.accent} />
-          </Pressable>
-        }
-      />
-      <Text style={styles.title} accessibilityRole="header">
-        Messages
-      </Text>
+      {/* The tab's title and, at the other end of its row, its one
+          button. */}
+      <View style={styles.head}>
+        <Text style={styles.title} accessibilityRole="header">
+          Messages
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="New message"
+          testID="new-message"
+          onPress={() => pushOnce(() => router.push({ pathname: "/s/[id]/new-message", params: { id: server.id } }))}
+          style={({ pressed }) => [styles.compose, pressed && styles.composePressed]}
+        >
+          <PencilIcon color={theme.accent} />
+        </Pressable>
+      </View>
       {view.state === "loading" && <ActivityIndicator style={styles.center} color={theme.textMuted} />}
       {view.state === "ended" && (
         <TabNotice
@@ -258,7 +259,8 @@ export default function Messages({ server }: { server: SavedServer }) {
               />
             </SwipeToClose>
           )}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: LIST_PADDING + chipRoom }]}
+          scrollIndicatorInsets={{ bottom: chipRoom }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
           ListEmptyComponent={<Text style={styles.empty}>No conversations yet.</Text>}
         />
@@ -274,9 +276,14 @@ export default function Messages({ server }: { server: SavedServer }) {
           onClose={closeMenu}
         />
       )}
+      <ServerChipOverlay />
     </View>
   );
 }
+
+// Under the last of the list, before the room the server chip takes
+// (hooks/useServerChipRoom.ts).
+const LIST_PADDING = 16;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
@@ -288,16 +295,27 @@ function makeStyles(theme: Theme) {
       width: 44,
       height: 44,
       borderRadius: 22,
+      // The row is as tall as the title's line, as Activity's title
+      // is, so the two tabs' lists start at one height.
+      marginVertical: -5,
       alignItems: "center",
       justifyContent: "center",
     },
     composePressed: {
       backgroundColor: theme.hover,
     },
-    title: {
+    // The button's own 44pt square holds its icon off the edge.
+    head: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       marginTop: 12,
       marginBottom: 8,
-      marginHorizontal: 20,
+      paddingLeft: 20,
+      paddingRight: 8,
+    },
+    title: {
+      flexShrink: 1,
       color: theme.text,
       fontSize: tokens.textDisplay,
       lineHeight: tokens.textDisplay * tokens.leadingTight,
@@ -308,7 +326,6 @@ function makeStyles(theme: Theme) {
     },
     list: {
       paddingHorizontal: 8,
-      paddingBottom: 16,
     },
     empty: {
       marginVertical: 24,

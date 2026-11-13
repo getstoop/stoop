@@ -1,6 +1,8 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { NativeTabs } from "expo-router/native-tabs";
 import { useAlerts } from "../../../../alerts/AlertsProvider";
+import ServerChipSlot from "../../../../components/ServerChipSlot";
+import { serverChipPlace, useServerChipShown } from "../../../../hooks/useServerChipRoom";
 import { useTheme } from "../../../../theme";
 
 // On iOS the four tabs are the system's own tab bar (Liquid Glass from
@@ -10,6 +12,10 @@ import { useTheme } from "../../../../theme";
 // server's count of what is addressed to you in the spaces past your
 // markers, and Messages' the unread messages in your conversations
 // (src/alerts), each hidden at none.
+// With more than one server saved the server chip sits in the bar's own
+// slot over it, from iOS 26, which has one; an older iOS has each tab's
+// screen draw it (hooks/useServerChipRoom.ts). The bar never shrinks on
+// a scroll: the slot would shrink into it, and the chip with it.
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
@@ -22,9 +28,15 @@ export default function TabsLayout() {
   // its screen draws.
   const content = { backgroundColor: theme.surface };
   const { activity: alerting, messages: unread } = useAlerts();
+  const chip = useServerChipShown() && serverChipPlace === "slot";
 
   return (
-    <NativeTabs tintColor={theme.accent} badgeBackgroundColor={theme.danger}>
+    <NativeTabs tintColor={theme.accent} badgeBackgroundColor={theme.danger} minimizeBehavior="never">
+      {chip && (
+        <NativeTabs.BottomAccessory>
+          <ServerChipSlot />
+        </NativeTabs.BottomAccessory>
+      )}
       <NativeTabs.Trigger name="(spaces)" testID="tab-spaces" contentStyle={content}>
         <NativeTabs.Trigger.Label>Spaces</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

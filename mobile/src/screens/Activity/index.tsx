@@ -6,9 +6,10 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } f
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useActivity } from "../../activity/ActivityProvider";
 import { hostOf } from "../../api/probe";
-import ServerHeader from "../../components/ServerHeader";
+import ServerChipOverlay from "../../components/ServerChipOverlay";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useServerChipRoom } from "../../hooks/useServerChipRoom";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { channelRoute, threadRoute } from "../Channel/routes";
@@ -33,6 +34,7 @@ import { usePlaces } from "./usePlaces";
 export default function Activity({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const chipRoom = useServerChipRoom();
   const styles = makeStyles(theme);
   const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
@@ -117,7 +119,6 @@ export default function Activity({ server }: { server: SavedServer }) {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ServerHeader server={server} />
       <Text style={styles.title} accessibilityRole="header">
         Activity
       </Text>
@@ -139,7 +140,8 @@ export default function Activity({ server }: { server: SavedServer }) {
           data={rows}
           keyExtractor={(row) => row.key}
           renderItem={renderRow}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: LIST_PADDING + chipRoom }]}
+          scrollIndicatorInsets={{ bottom: chipRoom }}
           onEndReached={exhausted ? undefined : more}
           onEndReachedThreshold={0.5}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
@@ -156,9 +158,14 @@ export default function Activity({ server }: { server: SavedServer }) {
           }
         />
       )}
+      <ServerChipOverlay />
     </View>
   );
 }
+
+// Under the last of the list, before the room the server chip takes
+// (hooks/useServerChipRoom.ts).
+const LIST_PADDING = 16;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
@@ -180,7 +187,6 @@ function makeStyles(theme: Theme) {
     },
     list: {
       paddingHorizontal: 12,
-      paddingBottom: 16,
     },
     card: {
       marginBottom: 4,

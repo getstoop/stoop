@@ -1,5 +1,5 @@
 appId: ${APP_ID}
-name: Add a second server from the switcher, see the first one's badge, switch back
+name: Add a second server, see the first one's badge on the chip and in the switcher, switch back
 ---
 - clearKeychain
 - launchApp:
@@ -25,12 +25,12 @@ name: Add a second server from the switcher, see the first one's badge, switch b
 - extendedWaitUntil:
     visible: "${SPACE}, selected, 1 mention"
     timeout: 15000
-# One server so far: the switcher ticks it.
-- tapOn:
+# One server so far: no chip by the tab bar, and the second is added
+# from You.
+- assertNotVisible:
     id: "server-switcher"
-- extendedWaitUntil:
-    visible: ".*, localhost:\\d+, current server"
-    timeout: 5000
+- tapOn:
+    id: "tab-you"
 - tapOn: "Add a server"
 - tapOn:
     id: "server-address"
@@ -52,7 +52,11 @@ name: Add a second server from the switcher, see the first one's badge, switch b
 - extendedWaitUntil:
     visible: "${SPACE}, selected, 1 mention"
     timeout: 15000
-# Now on the second: the first carries Book club's mention.
+# Now on the second: the first carries Book club's mention, on the chip
+# and in the switcher it opens.
+- extendedWaitUntil:
+    visible: ".*\\. Switch server, 1 new on other servers"
+    timeout: 15000
 - tapOn:
     id: "server-switcher"
 - extendedWaitUntil:

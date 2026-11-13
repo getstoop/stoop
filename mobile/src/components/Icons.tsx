@@ -149,7 +149,7 @@ export function ChevronRightIcon({ color, size = 16 }: IconProps) {
   );
 }
 
-export function ChevronDownIcon({ color, size = 16 }: IconProps) {
+export function ChevronUpIcon({ color, size = 16 }: IconProps) {
   return (
     <Svg
       width={size}
@@ -161,7 +161,7 @@ export function ChevronDownIcon({ color, size = 16 }: IconProps) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <Path d="M6 9l6 6 6-6" />
+      <Path d="M6 15l6-6 6 6" />
     </Svg>
   );
 }

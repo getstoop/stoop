@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
 import Section from "../../components/Section";
+import ServerChipOverlay from "../../components/ServerChipOverlay";
 import TabNotice from "../../components/TabNotice";
 import { useDndSwitch } from "../../dnd/DndProvider";
 import { usePushOnce } from "../../hooks/usePushOnce";
+import { useServerChipRoom } from "../../hooks/useServerChipRoom";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useRefused } from "../../notifications/useRefused";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
@@ -37,6 +39,7 @@ type State = { state: "loading" } | SignedInMe;
 export default function You({ server }: { server: SavedServer }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const chipRoom = useServerChipRoom();
   const styles = makeStyles(theme);
   const router = useRouter();
   const signInAgain = useSignInAgain(server.origin);
@@ -123,7 +126,8 @@ export default function You({ server }: { server: SavedServer }) {
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: CONTENT_PADDING + chipRoom }]}
+        scrollIndicatorInsets={{ bottom: chipRoom }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
       >
         {view.state === "loading" && <ActivityIndicator style={styles.loading} color={theme.textMuted} />}
@@ -173,9 +177,14 @@ export default function You({ server }: { server: SavedServer }) {
         </Section>
         <SignOutButton server={server} />
       </ScrollView>
+      <ServerChipOverlay />
     </View>
   );
 }
+
+// Under the last of the content, before the room the server chip takes
+// (hooks/useServerChipRoom.ts).
+const CONTENT_PADDING = 16;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
@@ -191,7 +200,6 @@ function makeStyles(theme: Theme) {
       gap: 16,
       paddingTop: 8,
       paddingHorizontal: 16,
-      paddingBottom: 16,
     },
   });
 }

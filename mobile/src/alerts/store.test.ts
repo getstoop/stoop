@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { alertsStore, NO_BADGES, type ServerBadges, serverBadges, waitingEverywhere } from "./store";
+import {
+  alertsStore,
+  NO_BADGES,
+  type ServerBadges,
+  serverBadges,
+  waitingElsewhere,
+  waitingEverywhere,
+} from "./store";
 
 // Badges whose total is `total`, all of it in the spaces.
 const of = (total: number): ServerBadges => ({ activity: total, messages: 0, total });
@@ -120,5 +127,18 @@ describe("waitingEverywhere", () => {
     expect(waitingEverywhere([{ id: "a" }], (id) => store.badges(id).total)).toBe(2);
     store.set("c", of(4));
     expect(waitingEverywhere([{ id: "a" }, { id: "c" }], (id) => store.badges(id).total)).toBe(6);
+  });
+});
+
+describe("waitingElsewhere", () => {
+  const totals = (by: Record<string, number>) => (id: string) => by[id] ?? 0;
+
+  it("adds up every saved server but the one on screen", () => {
+    expect(waitingElsewhere([{ id: "a" }, { id: "b" }, { id: "c" }], "a", totals({ a: 9, b: 2, c: 1 }))).toBe(3);
+  });
+
+  it("is none with one server, or nothing waiting on the others", () => {
+    expect(waitingElsewhere([{ id: "a" }], "a", totals({ a: 4 }))).toBe(0);
+    expect(waitingElsewhere([{ id: "a" }, { id: "b" }], "a", totals({ a: 4 }))).toBe(0);
   });
 });
