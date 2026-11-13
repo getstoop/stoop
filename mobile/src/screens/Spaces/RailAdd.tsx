@@ -3,12 +3,14 @@ import { SpacesAddIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { RAIL_ITEM_HEIGHT, RAIL_RULE_HEIGHT } from "./railRules";
 
-const TILE = 44;
+const ICON = 30;
 
 // Add a space, the rail's last button: under a hairline that sets it
-// apart from the spaces (none when there are no spaces), a dashed tile
-// the size of a space's icon. It opens the sheet and is never the
-// selected one, so it carries no bar, ring or badge.
+// apart from the spaces (none when there are no spaces), the Spaces
+// icon with a plus, in the accent colour and with no tile round it, so
+// it reads as something to press and not as a space. It opens the
+// sheet and is never the selected one, so it carries no bar, ring or
+// badge.
 export default function RailAdd({ ruled, onPress }: { ruled: boolean; onPress: () => void }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -26,9 +28,7 @@ export default function RailAdd({ ruled, onPress }: { ruled: boolean; onPress: (
         onPress={onPress}
         style={({ pressed }) => [styles.item, pressed && styles.pressed]}
       >
-        <View style={styles.tile}>
-          <SpacesAddIcon color={theme.textMuted} />
-        </View>
+        <SpacesAddIcon color={theme.accent} size={ICON} />
       </Pressable>
     </>
   );
@@ -55,16 +55,6 @@ function makeStyles(theme: Theme) {
     },
     pressed: {
       opacity: 0.6,
-    },
-    tile: {
-      width: TILE,
-      height: TILE,
-      borderRadius: tokens.radiusLg,
-      borderWidth: 1.5,
-      borderStyle: "dashed",
-      borderColor: theme.textMuted,
-      alignItems: "center",
-      justifyContent: "center",
     },
   });
 }
