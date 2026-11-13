@@ -2,6 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeIn, LayoutAnimationConfig } from "react-native-reanimated";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
@@ -147,15 +148,22 @@ export default function Spaces({ server }: { server: SavedServer }) {
           <View style={styles.pane}>
             {space ? (
               // One pane per space, so a space picked starts from its
-              // own loading state, never the last one's channels.
-              <Pane
-                key={space.id}
-                server={server}
-                space={space}
-                onReloadSpaces={refresh}
-                onSpaceChanged={quiet.soon}
-                onEnded={end}
-              />
+              // own loading state, never the last one's channels. It
+              // fades in over the pane's surface, which softens the
+              // change of space (at once under Reduce Motion); not the
+              // first one, which takes the tab's skeleton's place as it
+              // is.
+              <LayoutAnimationConfig skipEntering>
+                <Animated.View key={space.id} entering={FadeIn.duration(tokens.dur)} style={styles.fill}>
+                  <Pane
+                    server={server}
+                    space={space}
+                    onReloadSpaces={refresh}
+                    onSpaceChanged={quiet.soon}
+                    onEnded={end}
+                  />
+                </Animated.View>
+              </LayoutAnimationConfig>
             ) : (
               <PaneScroll refreshing={refreshing} onRefresh={pull}>
                 <Text style={styles.empty}>You're not in any spaces here yet.</Text>
@@ -170,6 +178,9 @@ export default function Spaces({ server }: { server: SavedServer }) {
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    fill: {
+      flex: 1,
+    },
     // The server's bar and the rail sit on the canvas; the pane is a
     // surface laid over its corner.
     screen: {

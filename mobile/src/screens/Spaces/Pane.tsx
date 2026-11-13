@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import {
   loadSpaceChannels,
   memberName,
@@ -249,15 +250,19 @@ export default function Pane({
     return (
       <>
         {header}
-        <PaneScroll refreshing={refreshing} onRefresh={pull}>
-          <View style={styles.notice}>
-            <TabNotice
-              flush
-              message={`Couldn't reach ${hostOf(server.origin)}.`}
-              action={{ label: "Try again", onPress: retry }}
-            />
-          </View>
-        </PaneScroll>
+        {/* Wrapped as the channels are below, so a pull that reaches the
+            server keeps this one list, and its spinner, for them. */}
+        <Animated.View entering={FadeIn.duration(tokens.dur)} style={styles.fill}>
+          <PaneScroll refreshing={refreshing} onRefresh={pull}>
+            <View style={styles.notice}>
+              <TabNotice
+                flush
+                message={`Couldn't reach ${hostOf(server.origin)}.`}
+                action={{ label: "Try again", onPress: retry }}
+              />
+            </View>
+          </PaneScroll>
+        </Animated.View>
       </>
     );
   }
@@ -318,41 +323,45 @@ export default function Pane({
   return (
     <>
       {header}
-      <PaneScroll refreshing={refreshing} onRefresh={pull}>
-        {text.length > 0 && (
-          <Text style={styles.section} accessibilityRole="header">
-            Text channels
-          </Text>
-        )}
-        {text.map((channel) => (
-          <ChannelRow
-            key={channel.id}
-            channel={channel}
-            spaceMuted={space.muted}
-            onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
-            onLongPress={() => openMenu(channel)}
-            onAction={(action) => act(channel, action)}
-          />
-        ))}
-        {voice.length > 0 && (
-          <Text style={[styles.section, styles.later]} accessibilityRole="header">
-            Voice
-          </Text>
-        )}
-        {voice.map((channel) => (
-          <VoiceRoom
-            key={channel.id}
-            channel={channel}
-            spaceMuted={space.muted}
-            people={people(channel)}
-            origin={server.origin}
-            token={ready.token}
-            onLongPress={() => openMenu(channel)}
-            onAction={(action) => act(channel, action)}
-          />
-        ))}
-        {text.length === 0 && voice.length === 0 && <Text style={styles.empty}>No channels here yet.</Text>}
-      </PaneScroll>
+      {/* The channels fade in where the skeleton stood (at once under
+          Reduce Motion); a reload after that changes them in place. */}
+      <Animated.View entering={FadeIn.duration(tokens.dur)} style={styles.fill}>
+        <PaneScroll refreshing={refreshing} onRefresh={pull}>
+          {text.length > 0 && (
+            <Text style={styles.section} accessibilityRole="header">
+              Text channels
+            </Text>
+          )}
+          {text.map((channel) => (
+            <ChannelRow
+              key={channel.id}
+              channel={channel}
+              spaceMuted={space.muted}
+              onPress={() => router.push(`/s/${server.id}/space/${spaceId}/channel/${channel.id}`)}
+              onLongPress={() => openMenu(channel)}
+              onAction={(action) => act(channel, action)}
+            />
+          ))}
+          {voice.length > 0 && (
+            <Text style={[styles.section, styles.later]} accessibilityRole="header">
+              Voice
+            </Text>
+          )}
+          {voice.map((channel) => (
+            <VoiceRoom
+              key={channel.id}
+              channel={channel}
+              spaceMuted={space.muted}
+              people={people(channel)}
+              origin={server.origin}
+              token={ready.token}
+              onLongPress={() => openMenu(channel)}
+              onAction={(action) => act(channel, action)}
+            />
+          ))}
+          {text.length === 0 && voice.length === 0 && <Text style={styles.empty}>No channels here yet.</Text>}
+        </PaneScroll>
+      </Animated.View>
       {menuChannel && (
         <ChannelMenu
           channel={menuChannel}
@@ -387,6 +396,9 @@ export default function Pane({
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    fill: {
+      flex: 1,
+    },
     // With the scroll's own 8, the pane's 20 at the sides.
     notice: {
       marginTop: 4,
