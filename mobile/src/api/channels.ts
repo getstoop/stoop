@@ -64,6 +64,13 @@ export function voiceNames(names: string[]): string {
   return `${names[0]} and ${names[1]} + ${names.length - 2} more`;
 }
 
+// What a screen reader is told of a voice room: its name, that it is
+// voice, the reader's own mute where a text channel's row says it, then
+// who is in it (inIt, "" for an empty room).
+export function voiceRoomLabel(channel: Pick<Channel, "name" | "muted">, inIt: string): string {
+  return [channel.name, "voice", channel.muted ? "muted" : null, inIt].filter(Boolean).join(", ");
+}
+
 // Whether an event could change what a space's channels show: its
 // channels and their order, mutes, unreads and alert counts (a message
 // created can be addressed to the reader; one deleted or edited can take
