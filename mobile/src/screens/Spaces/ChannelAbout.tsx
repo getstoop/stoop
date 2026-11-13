@@ -23,8 +23,9 @@ export default function ChannelAbout({
 }) {
   const styles = makeStyles(useTheme());
   const most = useWindowDimensions().height * TOPIC_HEIGHT;
-  // A topic that fits leaves a swipe down on it to the sheet.
-  const [scrolls, setScrolls] = useState(false);
+  // The topic's height as drawn. One that fits does not scroll, which
+  // leaves a swipe down on it to the sheet.
+  const [height, setHeight] = useState(0);
 
   return (
     <Sheet label={`About ${channel.name}`} closeTestID="channel-about-close" onClose={onClose}>
@@ -37,8 +38,8 @@ export default function ChannelAbout({
       <ScrollView
         style={{ maxHeight: most }}
         contentContainerStyle={styles.body}
-        scrollEnabled={scrolls}
-        onContentSizeChange={(_width, height) => setScrolls(height > most)}
+        scrollEnabled={height > most}
+        onContentSizeChange={(_width, drawn) => setHeight(drawn)}
       >
         <Text style={styles.topic} selectable>
           {topic}
