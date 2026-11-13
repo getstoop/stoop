@@ -40,8 +40,8 @@ export default function Rail({
   // The rail's height and how far it is scrolled, as last told.
   const height = useRef(0);
   const scrolled = useRef(0);
-  // Once, at the rail's first usable size: a later reload, pick or
-  // resize leaves the scroll where it is.
+  // Once, at the rail's first usable size: a later reload or resize
+  // leaves the scroll where it is.
   const place = (event: LayoutChangeEvent) => {
     height.current = event.nativeEvent.layout.height;
     if (placed.current || height.current <= 0) return;
@@ -53,14 +53,17 @@ export default function Rail({
       rail.current?.scrollTo({ y: offset, animated: false });
     }
   };
-  // The selected space's place in the list: when it changes (another
-  // space picked, or the list grown round it), the rail shows it.
-  const index = spaces.findIndex((space) => space.id === selected);
+  // When another space becomes the selected one, the rail shows it. Only
+  // then: a reload that moves the selected space, or the server chip
+  // coming or going, leaves a rail scrolled by hand where it is.
+  const latest = useRef({ spaces, obstruction });
+  latest.current = { spaces, obstruction };
   useEffect(() => {
     if (!placed.current) return;
-    const offset = railReveal(index, height.current, obstruction, scrolled.current);
+    const index = latest.current.spaces.findIndex((space) => space.id === selected);
+    const offset = railReveal(index, height.current, latest.current.obstruction, scrolled.current);
     if (offset !== null) rail.current?.scrollTo({ y: offset, animated: true });
-  }, [index, obstruction]);
+  }, [selected]);
   return (
     <ScrollView
       ref={rail}
@@ -68,7 +71,7 @@ export default function Rail({
       onScroll={(event) => {
         scrolled.current = event.nativeEvent.contentOffset.y;
       }}
-      scrollEventThrottle={64}
+      scrollEventThrottle={16}
       accessibilityLabel="Spaces"
       style={styles.rail}
       contentContainerStyle={[styles.content, { paddingBottom: RAIL_PADDING + obstruction }]}

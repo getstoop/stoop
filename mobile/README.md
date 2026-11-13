@@ -101,8 +101,8 @@ import a screen; the screens themselves live in `src/screens`, so
   the first (which is then the one remembered), and opening a channel
   from search, Activity or a notification leaves it alone. The rail
   first shows scrolled to the selected space (`railRules.ts`
-  `railOffset`), and scrolls again only to bring a newly selected space
-  into sight (`railReveal`). While the spaces load, and until the remembered space
+  `railOffset`), and scrolls again only when another space becomes the
+  selected one out of sight, to bring it into view (`railReveal`). While the spaces load, and until the remembered space
   is read, the rail and the pane are skeletons
   (`src/components/Skeleton.tsx`), and the pane is again while a
   picked space's channels load. The rail and the channel list each

@@ -41,8 +41,8 @@ import { pasted } from "./pasted";
 
 // As the Invite screen: long enough not to ask about a half-pasted link.
 const SETTLE_MS = 600;
-// How long the sheet waits for the tab to show the joined space before
-// closing anyway.
+// How long the sheet waits for the tab to show the space (joined, or
+// already in) before closing anyway.
 const LAND_MS = 5000;
 
 export default function AddSpace({ server }: { server: SavedServer }) {
@@ -91,18 +91,17 @@ export default function AddSpace({ server }: { server: SavedServer }) {
       if (what.kind === "not-link") return setCheck({ state: "not-link" });
       if (what.kind === "elsewhere") return setElsewhere(hostOf(what.origin));
       setCheck({ state: "checking" });
+      setMember(false);
       const token = await sessionToken(server.id).catch(() => null);
       if (controller.signal.aborted) return;
       if (!token) return setEnded(true);
       // The account's spaces are asked for beside the invite, to say when
-      // it is already in the one invited to. Not knowing (the list didn't
-      // load) is taken for not being in it: Join then lands there anyway.
-      const [found, mine] = await Promise.all([
-        findInvite(server.origin, token, what.code, controller.signal),
-        loadSpaces(server.origin, token, controller.signal).catch(() => []),
-      ]);
+      // it is already in the one invited to; the card doesn't wait for
+      // them. Not knowing (the list didn't load) is taken for not being
+      // in it: Join then lands there anyway.
+      const spaces = loadSpaces(server.origin, token, controller.signal).catch(() => []);
+      const found = await findInvite(server.origin, token, what.code, controller.signal);
       if (controller.signal.aborted) return;
-      setMember(found.kind === "found" && mine.some((space) => space.id === found.preview.spaceId));
       setCheck({
         state: "done",
         result:
@@ -117,6 +116,10 @@ export default function AddSpace({ server }: { server: SavedServer }) {
               }
             : found,
       });
+      if (found.kind !== "found") return;
+      const mine = await spaces;
+      if (controller.signal.aborted) return;
+      setMember(mine.some((space) => space.id === found.preview.spaceId));
     }, SETTLE_MS);
     return () => {
       clearTimeout(timer);
@@ -131,7 +134,9 @@ export default function AddSpace({ server }: { server: SavedServer }) {
   useEffect(() => {
     if (spaceName && Platform.OS === "ios") {
       AccessibilityInfo.announceForAccessibility(
-        member ? `You're already in ${spaceName}.` : `You're invited to ${spaceName}. Join is ready.`,
+        member
+          ? `You're already in ${spaceName}. Go to it is ready.`
+          : `You're invited to ${spaceName}. Join is ready.`,
       );
     }
   }, [spaceName, member]);
@@ -244,7 +249,7 @@ export default function AddSpace({ server }: { server: SavedServer }) {
               testID="add-space-join"
               style={({ pressed }) => [styles.button, !found && styles.disabled, pressed && styles.pressed]}
             >
-              {joining && !member && <ActivityIndicator color={theme.onAccent} />}
+              {joining && <ActivityIndicator color={theme.onAccent} />}
               <Text style={styles.buttonLabel} numberOfLines={1}>
                 {member ? goTo : joining ? "Joining…" : "Join"}
               </Text>

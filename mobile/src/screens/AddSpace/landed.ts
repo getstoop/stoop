@@ -6,8 +6,8 @@ import type { LastSpaceStore } from "../../lastSpace/store";
 // themselves), or nothing answered in time.
 export type Landing = "answered" | "replaced" | "gave-up";
 
-// Asks the Spaces tab under the sheet for the space just joined and
-// waits until it has answered: the tab reloads its spaces for a space
+// Asks the Spaces tab under the sheet for a space (the one just joined,
+// or one the account was already in) and waits until it has answered: the tab reloads its spaces for a space
 // it doesn't hold yet, and picks it once it does (useSelectedSpace.ts).
 // The wait ends on its own after `giveUpMs`, should the tab be slow or
 // not there; what was asked stays asked, so the tab picks the space
