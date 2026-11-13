@@ -73,11 +73,23 @@ export default function Spaces({ server }: { server: SavedServer }) {
 
   // As the Messages tab: only the latest load started is shown, and
   // leaving the screen makes none the latest.
+  // A load overtaken by a later one is done only when that one is, so
+  // whoever waits on it (a linked space, ./useSelectedSpace.ts) reads
+  // the list the latest load left.
   const latest = useRef(0);
-  const refresh = useCallback(async () => {
+  const newest = useRef<Promise<void> | null>(null);
+  const refresh = useCallback(() => {
     const mine = ++latest.current;
-    const next = await load();
-    if (mine === latest.current) setList((shown) => afterLoad(shown, next));
+    const run: Promise<void> = load().then((next) => {
+      if (mine === latest.current) {
+        setList((shown) => afterLoad(shown, next));
+        return;
+      }
+      const newer = newest.current;
+      if (newer && newer !== run) return newer;
+    });
+    newest.current = run;
+    return run;
   }, [load]);
 
   const { settled, selected, select } = useSelectedSpace(server.id, spaces, refresh);
