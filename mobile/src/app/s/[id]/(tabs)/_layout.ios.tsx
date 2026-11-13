@@ -1,7 +1,7 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { NativeTabs } from "expo-router/native-tabs";
 import { useAlerts } from "../../../../alerts/AlertsProvider";
-import ServerChip from "../../../../components/ServerChip";
+import ServerChipSlot from "../../../../components/ServerChipSlot";
 import { serverChipPlace, useServerChipShown } from "../../../../hooks/useServerChipRoom";
 import { useTheme } from "../../../../theme";
 
@@ -34,7 +34,7 @@ export default function TabsLayout() {
     <NativeTabs tintColor={theme.accent} badgeBackgroundColor={theme.danger} minimizeBehavior="never">
       {chip && (
         <NativeTabs.BottomAccessory>
-          <ServerChip bare />
+          <ServerChipSlot />
         </NativeTabs.BottomAccessory>
       )}
       <NativeTabs.Trigger name="(spaces)" testID="tab-spaces" contentStyle={content}>

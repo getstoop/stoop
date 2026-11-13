@@ -622,7 +622,8 @@ import a screen; the screens themselves live in `src/screens`, so
   the same end of the screen. With one server there is no chip, and the
   screens take its room. Where it is drawn depends on the tab bar
   (`src/hooks/useServerChipRoom.ts`): from iOS 26 in the system tab
-  bar's own slot over it (`NativeTabs.BottomAccessory`), on glass, and
+  bar's own slot over it (`NativeTabs.BottomAccessory`,
+  `ServerChipSlot.tsx`), on glass, and
   the system counts it into each tab's safe area; on an older iOS, which
   has no slot, each tab's screen draws it as a row over its own foot, on
   top of the tab bar (`ServerChipOverlay.tsx`), and pads its lists by

@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useWaitingElsewhere } from "../alerts/AlertsProvider";
 import { usePushOnce } from "../hooks/usePushOnce";
+import { SERVER_CHIP_HEIGHT } from "../hooks/useServerChipRoom";
 import { useCurrentServer } from "../servers";
 import { type Theme, tokens, useTheme } from "../theme";
 import { ChevronUpIcon } from "./Icons";
@@ -13,8 +14,9 @@ import { ChevronUpIcon } from "./Icons";
 // it opens, the server switcher, which rises from the same end of the
 // screen. Drawn only with more than one server saved
 // (hooks/useServerChipRoom.ts): with one there is nothing to switch to.
-// `bare` is the row in the system tab bar's own slot (iOS 26), which
-// draws the glass under it: no panel, no line.
+// `bare` is the row in the system tab bar's own slot (iOS 26,
+// ServerChipSlot.tsx), which draws the glass under it: no panel, no
+// line.
 export default function ServerChip({ bare = false }: { bare?: boolean }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -50,8 +52,6 @@ export default function ServerChip({ bare = false }: { bare?: boolean }) {
     </Pressable>
   );
 }
-
-export const SERVER_CHIP_HEIGHT = 48;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({

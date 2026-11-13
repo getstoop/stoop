@@ -127,6 +127,7 @@ export default function You({ server }: { server: SavedServer }) {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: CONTENT_PADDING + chipRoom }]}
+        scrollIndicatorInsets={{ bottom: chipRoom }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
       >
         {view.state === "loading" && <ActivityIndicator style={styles.loading} color={theme.textMuted} />}

@@ -262,6 +262,7 @@ export default function Messages({ server }: { server: SavedServer }) {
             </SwipeToClose>
           )}
           contentContainerStyle={[styles.list, { paddingBottom: LIST_PADDING + chipRoom }]}
+          scrollIndicatorInsets={{ bottom: chipRoom }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
           ListEmptyComponent={<Text style={styles.empty}>No conversations yet.</Text>}
         />

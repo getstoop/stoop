@@ -143,6 +143,7 @@ export default function Activity({ server }: { server: SavedServer }) {
           keyExtractor={(row) => row.key}
           renderItem={renderRow}
           contentContainerStyle={[styles.list, { paddingBottom: LIST_PADDING + chipRoom }]}
+          scrollIndicatorInsets={{ bottom: chipRoom }}
           onEndReached={exhausted ? undefined : more}
           onEndReachedThreshold={0.5}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} tintColor={theme.textMuted} />}
