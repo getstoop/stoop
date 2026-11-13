@@ -1,7 +1,8 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, LayoutAnimationConfig } from "react-native-reanimated";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { hostOf } from "../../api/probe";
@@ -10,6 +11,7 @@ import { loadSpaces, touchesSpaces } from "../../api/spaces";
 import ServerChipOverlay from "../../components/ServerChipOverlay";
 import Skeleton from "../../components/Skeleton";
 import TabNotice from "../../components/TabNotice";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
@@ -35,7 +37,9 @@ import { useSelectedSpace } from "./useSelectedSpace";
 // or one came or went; out of sight (under a channel, behind another
 // tab) a change is remembered and reloaded once on return. A reload
 // that fails keeps the list already shown: only the first load and Try
-// again say the server couldn't be reached.
+// again say the server couldn't be reached. The rail's last button, and
+// a button in the pane of a server with no spaces yet, open Add a space
+// (../AddSpace), which asks for the space it joins (the store's `ask`).
 
 type State =
   | { state: "loading" }
@@ -50,6 +54,10 @@ export default function Spaces({ server }: { server: SavedServer }) {
   const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const signInAgain = useSignInAgain(server.origin);
+  const router = useRouter();
+  const pushOnce = usePushOnce();
+  const addSpace = () =>
+    pushOnce(() => router.push({ pathname: "/s/[id]/add-space", params: { id: server.id } }));
   const [list, setList] = useState<State>({ state: "loading" });
   const [refreshing, setRefreshing] = useState(false);
   const spaces = list.state === "ready" ? list.spaces : undefined;
@@ -162,6 +170,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
             origin={server.origin}
             token={list.token}
             onSelect={select}
+            onAdd={addSpace}
           />
           <View style={styles.pane}>
             {space ? (
@@ -187,6 +196,14 @@ export default function Spaces({ server }: { server: SavedServer }) {
             ) : (
               <PaneScroll refreshing={refreshing} onRefresh={pull}>
                 <Text style={styles.empty}>You're not in any spaces here yet.</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={addSpace}
+                  testID="add-space-empty"
+                  style={({ pressed }) => [styles.add, pressed && styles.pressed]}
+                >
+                  <Text style={styles.addLabel}>Add a space</Text>
+                </Pressable>
               </PaneScroll>
             )}
           </View>
@@ -228,6 +245,24 @@ function makeStyles(theme: Theme) {
       color: theme.textMuted,
       fontSize: tokens.textBody,
       lineHeight: tokens.textBody * tokens.leadingBody,
+    },
+    // As a notice's button (components/TabNotice.tsx), under the line.
+    add: {
+      height: 50,
+      marginTop: 16,
+      marginHorizontal: 12,
+      borderRadius: tokens.radiusMd,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.accent,
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    addLabel: {
+      color: theme.onAccent,
+      fontSize: tokens.textBody,
+      fontWeight: "600",
     },
   });
 }

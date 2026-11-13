@@ -5,6 +5,7 @@ import type { InviteCheck } from "../../api/invites";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ProbeCard from "../AddServer/ProbeCard";
 import type { Check } from "./index";
+import InviteNotice from "./InviteNotice";
 
 // What the check of a pasted link found: still asking, the space it
 // invites to, or why it can't be used. Nothing until there is a link.
@@ -16,12 +17,10 @@ export default function InviteCard({ check }: { check: Check }) {
 
   if (check.state === "not-link") {
     return (
-      <View style={[styles.card, styles.danger]} accessibilityRole="alert">
-        <Text style={styles.heading}>That isn't an invite link</Text>
-        <Text style={styles.body}>
-          Paste the whole link, starting with https://. It says which server to join.
-        </Text>
-      </View>
+      <InviteNotice
+        heading="That isn't an invite link"
+        body="Paste the whole link, starting with https://. It says which server to join."
+      />
     );
   }
 
@@ -66,18 +65,10 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
     }
     case "gone":
       return (
-        <View style={[styles.card, styles.danger]} accessibilityRole="alert">
-          <Text style={styles.heading}>{sentence(result.message)}</Text>
-          <Text style={styles.body}>Ask whoever invited you for a fresh link.</Text>
-        </View>
+        <InviteNotice heading={sentence(result.message)} body="Ask whoever invited you for a fresh link." />
       );
     case "failed":
-      return (
-        <View style={[styles.card, styles.danger]} accessibilityRole="alert">
-          <Text style={styles.heading}>Couldn't check the invite</Text>
-          <Text style={styles.body}>{sentence(result.message)}</Text>
-        </View>
-      );
+      return <InviteNotice heading="Couldn't check the invite" body={sentence(result.message)} />;
     case "server":
       return <ProbeCard check={{ state: "done", probe: result.probe }} />;
   }
@@ -108,7 +99,7 @@ function SpaceTile({
 
 // The server's messages are lower case with no stop ("this invite has
 // expired"); on their own they read as a sentence.
-function sentence(message: string): string {
+export function sentence(message: string): string {
   return message.charAt(0).toUpperCase() + message.slice(1);
 }
 
@@ -126,10 +117,6 @@ function makeStyles(theme: Theme) {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-    },
-    danger: {
-      borderColor: theme.danger,
-      backgroundColor: theme.dangerSoft,
     },
     muted: {
       color: theme.textMuted,
@@ -168,16 +155,6 @@ function makeStyles(theme: Theme) {
     meta: {
       color: theme.textMuted,
       fontSize: tokens.textUi,
-    },
-    heading: {
-      color: theme.text,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
-    },
-    body: {
-      color: theme.text,
-      fontSize: tokens.textUi,
-      lineHeight: tokens.textUi * tokens.leadingUi,
     },
   });
 }

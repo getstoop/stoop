@@ -56,7 +56,7 @@ export default function OpenTappedNotification({ server }: { server: SavedServer
     }
     if (tap.itemId) markRead([tap.itemId]).catch(() => {});
     if (action.close === "over") backToServer(navigation);
-    else if (action.close === "newMessage") router.dismiss();
+    else if (action.close === "sheet") router.dismiss();
     // A channel jumps to the message; a thread lands only as it opens,
     // so one already in front stays where it is.
     // A link that names no message leaves the screen in front alone.

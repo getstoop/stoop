@@ -73,6 +73,76 @@ export async function joinWithInvite(origin: string, token: string, code: string
   await chatClient(origin, token).joinSpace({ code }, { timeoutMs: TIMEOUT_MS });
 }
 
+// What an invite is for, asked by an account already signed in to its
+// server (Add a space): the lookup alone, the server being one the app
+// is already using.
+export type InviteFinding =
+  | { kind: "found"; preview: InvitePreview }
+  // Unknown, revoked, expired or used up, in the server's words.
+  | { kind: "gone"; message: string }
+  | { kind: "failed"; message: string }
+  // The server says the session is over.
+  | { kind: "ended" };
+
+export async function findInvite(
+  origin: string,
+  token: string,
+  code: string,
+  signal: AbortSignal,
+): Promise<InviteFinding> {
+  try {
+    const res = await chatClient(origin, token).lookupInvite({ code }, { signal, timeoutMs: TIMEOUT_MS });
+    if (!res.preview) return { kind: "failed", message: "The server didn't describe the invite." };
+    return { kind: "found", preview: res.preview };
+  } catch (err) {
+    if (sessionOver(err)) return { kind: "ended" };
+    const message = err instanceof ConnectError ? err.rawMessage : String(err);
+    return inviteGone(err) ? { kind: "gone", message } : { kind: "failed", message };
+  }
+}
+
+// How a join from Add a space went: the space joined (or already in:
+// the server answers the same), the server's refusal in its own words
+// (removed from the space, an invite that ran out since it was looked
+// up), the server not reached, or the session over.
+export type JoinOutcome =
+  | { kind: "joined"; spaceId: string }
+  | { kind: "refused"; message: string }
+  | { kind: "unreachable" }
+  | { kind: "ended" };
+
+export async function joinSpace(origin: string, token: string, code: string): Promise<JoinOutcome> {
+  try {
+    const res = await chatClient(origin, token).joinSpace({ code }, { timeoutMs: TIMEOUT_MS });
+    if (!res.space) return { kind: "refused", message: "The server didn't say which space was joined." };
+    return { kind: "joined", spaceId: res.space.id };
+  } catch (err) {
+    return joinFailure(err);
+  }
+}
+
+// A refusal is the server answering no; anything else (no answer in
+// time, no network, a server that fell over) is it not being reached.
+export function joinFailure(err: unknown): Exclude<JoinOutcome, { kind: "joined" }> {
+  if (!(err instanceof ConnectError)) return { kind: "unreachable" };
+  if (err.code === Code.Unauthenticated) return { kind: "ended" };
+  if (REFUSALS.has(err.code)) return { kind: "refused", message: err.rawMessage };
+  return { kind: "unreachable" };
+}
+
+const REFUSALS = new Set([
+  Code.NotFound,
+  Code.FailedPrecondition,
+  Code.ResourceExhausted,
+  Code.PermissionDenied,
+  Code.InvalidArgument,
+  Code.AlreadyExists,
+]);
+
+function sessionOver(err: unknown): boolean {
+  return err instanceof ConnectError && err.code === Code.Unauthenticated;
+}
+
 // As the server's own check: an invite admits a new account unless
 // registration is closed, and the account is a password one only where
 // password sign-in is open to everyone. When the status can't be read,

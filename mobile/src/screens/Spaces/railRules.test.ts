@@ -40,9 +40,10 @@ describe("railOffset", () => {
   });
 
   it("stops at the end of the rail for the last spaces", () => {
-    // Content 8 + 30 × 56 + 8 + 80 = 1776, less the rail's 600.
-    expect(offset(29, 30)).toBe(1176);
-    expect(offset(28, 30)).toBe(1176);
+    // Content 8 + 30 × 56, the rule's 13 and Add a space's 56, then
+    // 8 + 80 = 1845, less the rail's 600.
+    expect(offset(29, 30)).toBe(1245);
+    expect(offset(28, 30)).toBe(1245);
   });
 
   it("stays at the top with no space selected or a rail not yet measured", () => {

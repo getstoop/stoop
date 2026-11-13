@@ -127,13 +127,15 @@ describe("what a tap does", () => {
     });
   });
 
-  it("closes New message and pushes", () => {
-    expect(tapAction(mention, scene({ segments: ["s", "[id]", "new-message"] }))).toEqual({
-      do: "open",
-      route,
-      close: "newMessage",
-      how: "push",
-    });
+  it("closes New message or Add a space and pushes", () => {
+    for (const sheet of ["new-message", "add-space"]) {
+      expect(tapAction(mention, scene({ segments: ["s", "[id]", sheet] }))).toEqual({
+        do: "open",
+        route,
+        close: "sheet",
+        how: "push",
+      });
+    }
   });
 
   it("pushes as the layout mounts, whatever the screen in front is said to be", () => {
