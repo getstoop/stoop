@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo, Platform, StyleSheet, Text, View } from "react-native";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // A card that says why an invite can't be used, or couldn't be: what
