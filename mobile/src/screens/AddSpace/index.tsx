@@ -237,7 +237,15 @@ export default function AddSpace({ server, initialLink = "" }: { server: SavedSe
   const waiting = joining && !member;
 
   return (
-    <View style={[styles.screen, { paddingBottom: (keyboard || insets.bottom) + 8 }]}>
+    <View
+      style={[
+        styles.screen,
+        { paddingBottom: (keyboard || insets.bottom) + 8 },
+        // iOS draws the sheet as a card, below the status bar; Android's
+        // is the whole window, and starts under it.
+        Platform.OS === "android" && { paddingTop: insets.top + 8 },
+      ]}
+    >
       <View style={styles.header}>
         <Pressable accessibilityRole="button" onPress={() => router.dismiss()} style={styles.headerButton}>
           <Text style={styles.cancel}>Cancel</Text>

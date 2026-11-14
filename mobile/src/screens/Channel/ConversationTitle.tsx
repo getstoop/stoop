@@ -34,7 +34,7 @@ export default function ConversationTitle({
   const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);
   const label = [title, under, status].filter(Boolean).join(", ");
   return (
-    <TitlePill label={label} beside={0}>
+    <TitlePill label={label} beside={0} lead={FACE_LEAD}>
       <View style={styles.row}>
         <ConversationFaces
           faces={dmFaces(dm, myUserId)}
@@ -61,17 +61,18 @@ export default function ConversationTitle({
 
 // Inside the pill's 44 points, with its padding.
 const FACE = 34;
+// The face starts 10 points in from the pill's end, not the 5 it has
+// above and below: at 8 the end's curve reaches the square's corners,
+// and nearer it cuts them. The pill's own padding, not a margin pulling
+// the face out of the title: Android cuts off what is drawn outside it.
+const FACE_LEAD = 10;
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
-    // The face starts 10 points in from the pill's end, not the 5 it
-    // has above and below: at 8 the end's curve reaches the square's
-    // corners, and nearer it cuts them.
     row: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      marginLeft: -6,
     },
     lines: {
       flexShrink: 1,
