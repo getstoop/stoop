@@ -4,10 +4,12 @@ import type { MessageAuthor } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loadCandidates, MAX_PARTICIPANTS, openConversation } from "../../api/conversations";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import TabNotice from "../../components/TabNotice";
+import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -22,6 +24,11 @@ import PickedChip from "./PickedChip";
 // already exists with them, or a new one, in place of this sheet. Two or
 // more make a group, which is for good, and the line under the list says
 // so. Once nine are picked the rest are dimmed.
+//
+// iOS draws the sheet as a card, below the status bar, and its list
+// makes room for the keyboard itself. Android's is the whole window: it
+// starts under the status bar and ends behind the keyboard, so there the
+// screen keeps clear of both.
 
 type State =
   | { state: "loading" }
@@ -34,6 +41,9 @@ export default function NewMessage({ server }: { server: SavedServer }) {
   const styles = makeStyles(theme);
   const router = useRouter();
   const pushOnce = usePushOnce();
+  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight();
+  const android = Platform.OS === "android";
   const [view, setView] = useState<State>({ state: "loading" });
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<MessageAuthor[]>([]);
@@ -113,7 +123,7 @@ export default function NewMessage({ server }: { server: SavedServer }) {
   if (full) note = `A conversation holds ${MAX_PARTICIPANTS} people at most. ${note}`;
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, android && { paddingTop: insets.top + 8, paddingBottom: keyboard }]}>
       <View style={styles.header}>
         <Pressable accessibilityRole="button" onPress={() => router.dismiss()} style={styles.headerButton}>
           <Text style={styles.cancel}>Cancel</Text>
@@ -289,6 +299,9 @@ function makeStyles(theme: Theme) {
       flexGrow: 1,
       minWidth: 120,
       height: 32,
+      // Android pads a field top and bottom, which cut the words' tops
+      // off at this height.
+      paddingVertical: 0,
       color: theme.text,
       fontSize: tokens.textBody,
     },
