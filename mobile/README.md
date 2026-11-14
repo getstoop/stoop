@@ -115,14 +115,21 @@ import a screen; the screens themselves live in `src/screens`, so
   the spaces (`RailAdd.tsx`), and a button in the pane of a server with
   no spaces yet, open Add a space (`s/[id]/add-space`,
   `src/screens/AddSpace`): a sheet over the tabs, as New message is,
-  for joining a space on this server with an invite link. A pasted
+  for joining a space with an invite link. A pasted
   link is looked up (`api/invites.ts` `findInvite`) and shown on the
   Invite screen's card before Join commits anything; a link that isn't
   one, an invite that can't be used and a join the server refuses are
-  each said on a card, the last two in the server's words; a link to
-  another server is only named for now (`pasted.ts`); an invite to a
+  each said on a card, the last two in the server's words;
+  an invite to a
   space the account is already in says so, and the button goes there.
-  Once joined, the
+  A link to another server the phone is signed in to (`pasted.ts`;
+  matched by its exact address) is looked up and joined with that
+  server's session, the button saying "Join on" it, and the app then
+  swaps to that server as the switcher does, on the space (a sign-in
+  there that has ended is said, and signing in again carries the
+  invite); a link to a
+  server the phone isn't signed in to is checked as the Invite screen
+  checks one and handed to that screen. Once joined on this server, the
   sheet asks the tab under it for the space (the last-space store's
   `ask`, `landed.ts`) and stays up, saying "Joining…", until the tab
   holds it, then closes on it selected; after five seconds it closes
@@ -918,10 +925,16 @@ badge stays as it was when the app left the front.
 - A shared link the web's open-in-app page hands over
   (`stoop://open?server=<origin>&path=<web's path>`) is opened the same
   way. `app/+native-intent.tsx` hears it before anything has rendered:
-  an invite goes to Invite, and a space, a channel, a direct message, a
+  an invite is left in a store of its own (`links/pendingInvite.ts`):
+  when the phone has that server saved, the layout of the server on
+  screen (`links/OpenInviteHere.tsx`) closes what is over it and opens
+  Add a space with the link, and when it hasn't,
+  `links/OpenInviteLink.tsx`, beside the root stack, opens the Invite
+  screen; one not opened within ten seconds (the saved servers
+  couldn't be read) is let go, as a shared link is; and a space, a channel, a direct message, a
   message or a thread is read from web's path (`links/sharedLink.ts`;
   web's `/s/<id>` is a space, the app's a server) and left in a store
-  (`links/pendingLink.ts`) with the router told nothing. Beside the root
+  (`links/pendingLink.ts`). The router is told nothing of either. Beside the root
   stack, once the saved servers are known, `links/OpenSharedLink.tsx`
   finds the server by the address the link was opened at and leaves the
   place as a tap for that server's layout, with no item to mark read: so
@@ -1116,7 +1129,8 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
 `alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
-`shouldAsk.ts`, `links/sharedLink.ts` and `pendingLink.ts`, `api/invites.ts`,
+`shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
+`pendingInvite.ts`, `api/invites.ts`,
 and Add a space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 

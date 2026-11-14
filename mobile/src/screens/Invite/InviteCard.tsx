@@ -11,8 +11,19 @@ import InviteNotice from "./InviteNotice";
 // invites to, or why it can't be used. Nothing until there is a link.
 // `member` is for an account already in the space the invite is to
 // (Add a space knows; the Invite screen, with nobody signed in, never
-// does): the card then says so in place of inviting.
-export default function InviteCard({ check, member = false }: { check: Check; member?: boolean }) {
+// does): the card then says so in place of inviting. `aside` is a few
+// words to go before the server's name on the line under the space's
+// ("Not signed in to"), in place of how many are in it: the line is one
+// line, and what a long name cuts short should be the name.
+export default function InviteCard({
+  check,
+  member = false,
+  aside,
+}: {
+  check: Check;
+  member?: boolean;
+  aside?: string;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -36,16 +47,18 @@ export default function InviteCard({ check, member = false }: { check: Check; me
     );
   }
 
-  return <Result result={check.result} member={member} styles={styles} />;
+  return <Result result={check.result} member={member} aside={aside} styles={styles} />;
 }
 
 function Result({
   result,
   member,
+  aside,
   styles,
 }: {
   result: InviteCheck;
   member: boolean;
+  aside: string | undefined;
   styles: ReturnType<typeof makeStyles>;
 }) {
   switch (result.kind) {
@@ -68,7 +81,7 @@ function Result({
               {preview.spaceName}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {result.serverName} · {members}
+              {aside ? `${aside} ${result.serverName}` : `${result.serverName} · ${members}`}
             </Text>
           </View>
         </View>
