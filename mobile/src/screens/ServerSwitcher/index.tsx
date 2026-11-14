@@ -83,6 +83,10 @@ function makeStyles(theme: Theme) {
     sheet: {
       paddingTop: 20,
       paddingHorizontal: 8,
+      // Rounded as the sheet is (app/_layout.tsx), so this fill doesn't
+      // square Android's corners off again.
+      borderTopLeftRadius: tokens.radiusLg,
+      borderTopRightRadius: tokens.radiusLg,
       backgroundColor: theme.panel,
     },
     title: {

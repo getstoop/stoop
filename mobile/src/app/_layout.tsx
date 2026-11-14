@@ -1,6 +1,6 @@
 import { DefaultTheme, Stack, ThemeProvider as NavigationTheme } from "expo-router";
 import { useMemo } from "react";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import AlertPrefsProvider from "../alertPrefs/AlertPrefsProvider";
@@ -12,7 +12,7 @@ import OpenSharedLink from "../links/OpenSharedLink";
 import NotificationsProvider from "../notifications/NotificationsProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
-import { ThemeProvider, useTheme } from "../theme";
+import { ThemeProvider, tokens, useTheme } from "../theme";
 
 // The root of the app. Files under src/app are routes and layouts only,
 // a few lines each; the screens they show live in src/screens. Gestures
@@ -111,6 +111,8 @@ function RootStack() {
             presentation: "formSheet",
             sheetAllowedDetents: "fitToContents",
             sheetGrabberVisible: true,
+            // iOS rounds a sheet's top itself; Android's is square unless told.
+            sheetCornerRadius: Platform.OS === "android" ? tokens.radiusLg : undefined,
             contentStyle: { backgroundColor: theme.panel },
           }}
         />
