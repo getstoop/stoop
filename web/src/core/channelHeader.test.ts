@@ -209,6 +209,25 @@ describe("withHeaderEvent", () => {
     ).toBe(held);
   });
 
+  it("follows the reader's mute of the space, and not of another", () => {
+    const muted = withHeaderEvent(
+      header(),
+      event({ case: "spaceMuted", value: { spaceId: "s1", muted: true } }),
+    );
+    expect(muted.space?.muted).toBe(true);
+    const unmuted = withHeaderEvent(
+      muted,
+      event({ case: "spaceMuted", value: { spaceId: "s1", muted: false } }),
+    );
+    expect(unmuted.space?.muted).toBe(false);
+    expect(
+      withHeaderEvent(
+        unmuted,
+        event({ case: "spaceMuted", value: { spaceId: "s2", muted: true } }),
+      ),
+    ).toBe(unmuted);
+  });
+
   it("takes the reader's new role, and nobody else's", () => {
     const demoted = withHeaderEvent(
       header(),

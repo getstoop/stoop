@@ -191,6 +191,16 @@ export function withHeaderEvent(
       )
         return header;
       return { ...header, space: { ...space, myRole: payload.value.role } };
+    // The reader's own mute of the space, from another device: a muted
+    // space mutes its channels.
+    case "spaceMuted":
+      if (
+        !space ||
+        payload.value.spaceId !== space.id ||
+        payload.value.muted === space.muted
+      )
+        return header;
+      return { ...header, space: { ...space, muted: payload.value.muted } };
     case "channelMuted":
       if (
         payload.value.channelId !== channel.id ||
