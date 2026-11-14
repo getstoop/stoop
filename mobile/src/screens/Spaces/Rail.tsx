@@ -1,6 +1,7 @@
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { type ComponentRef, useEffect, useRef } from "react";
 import { type LayoutChangeEvent, ScrollView, StyleSheet } from "react-native";
+import { useReducedMotion } from "react-native-reanimated";
 import { tokens } from "../../theme";
 import RailAdd from "./RailAdd";
 import RailItem from "./RailItem";
@@ -17,8 +18,8 @@ import { useBottomObstruction } from "./useBottomObstruction";
 // far down), without animation; after that it is scrolled by hand, and
 // on its own only when another space becomes the selected one out of
 // sight (one joined from a link, or asked for from outside the tab),
-// which it brings just into view. A tap on the status bar is left to
-// the pane's list.
+// which it brings just into view (at once under Reduce Motion). A tap
+// on the status bar is left to the pane's list.
 export default function Rail({
   spaces,
   selected,
@@ -56,13 +57,14 @@ export default function Rail({
   // When another space becomes the selected one, the rail shows it. Only
   // then: a reload that moves the selected space, or the server chip
   // coming or going, leaves a rail scrolled by hand where it is.
-  const latest = useRef({ spaces, obstruction });
-  latest.current = { spaces, obstruction };
+  const reduced = useReducedMotion();
+  const latest = useRef({ spaces, obstruction, reduced });
+  latest.current = { spaces, obstruction, reduced };
   useEffect(() => {
     if (!placed.current) return;
     const index = latest.current.spaces.findIndex((space) => space.id === selected);
     const offset = railReveal(index, height.current, latest.current.obstruction, scrolled.current);
-    if (offset !== null) rail.current?.scrollTo({ y: offset, animated: true });
+    if (offset !== null) rail.current?.scrollTo({ y: offset, animated: !latest.current.reduced });
   }, [selected]);
   return (
     <ScrollView
