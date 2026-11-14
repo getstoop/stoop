@@ -1,8 +1,9 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { useRouter } from "expo-router";
-import type { ReactNode } from "react";
+import { useIsFocused, useRouter } from "expo-router";
+import { type ReactNode, useEffect, useRef } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePushOnce } from "../../hooks/usePushOnce";
 import { BackIcon, BellIcon, MutedIcon, SearchIcon } from "../../components/Icons";
 import { tokens, useTheme } from "../../theme";
 import { type HeaderMute, type HeaderSearch, searchLabel } from "./headerActions";
@@ -29,6 +30,10 @@ const BAR = 44;
 const OVER = 6;
 const UNDER = 8;
 
+// How long after its screen comes to the front a header's Back does
+// nothing: about the stack's own transition.
+const SETTLE_MS = 400;
+
 // How far down the screen the header reaches.
 export function useHeaderClearance(): number {
   return useSafeAreaInsets().top + OVER + BAR + UNDER;
@@ -47,13 +52,28 @@ export default function ScreenHeader({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // One screen back for a tap, however many land before it has gone.
+  // A second tap in the same place can also land on the screen
+  // underneath as it comes back (the channel's, under a thread), and
+  // would take that with it: a header takes no Back until its screen
+  // has been in front for a moment.
+  const once = usePushOnce();
+  const focused = useIsFocused();
+  const inFront = useRef(0);
+  useEffect(() => {
+    if (focused) inFront.current = Date.now();
+  }, [focused]);
+  const back = () => {
+    if (Date.now() - inFront.current < SETTLE_MS) return;
+    once(() => router.back());
+  };
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
   return (
     <View style={[styles.header, { paddingTop: insets.top + OVER }]} pointerEvents="box-none">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"
-        onPress={() => router.back()}
+        onPress={back}
         style={({ pressed }) => pressed && styles.down}
       >
         <Surface glass={glass} style={styles.round}>

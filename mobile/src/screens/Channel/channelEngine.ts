@@ -773,6 +773,8 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       }
       const { header } = state;
       if (mine.ended || !header || header.channel.muted === muted) return;
+      // A header read that left before this is out of date now.
+      life.headerChanges++;
       dispatch({ type: "header", header: { ...header, channel: { ...header.channel, muted } } });
     },
 

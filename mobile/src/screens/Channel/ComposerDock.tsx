@@ -62,7 +62,7 @@ export default function ComposerDock({
 
   return (
     <View style={styles.fill}>
-      {/* The dock starts at the window's top (the stack's header floats
+      {/* The dock starts at the window's top (the screen's header floats
           over it), so the avoiding view needs no offset for that. */}
       <KeyboardAvoidingView style={styles.fill} behavior="padding" keyboardVerticalOffset={GAP - composerBottom}>
         {/* The avoiding view pads its bottom for the keyboard; the composer

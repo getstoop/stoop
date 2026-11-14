@@ -169,6 +169,7 @@ describe("withHeaderEvent", () => {
         name: "The Porch",
         myRole: SpaceRole.ADMIN,
         myPermissions: [Permission.MESSAGES_MODERATE],
+        muted: true,
       }),
     });
     // A broadcast space says nothing about who is reading.
@@ -184,6 +185,7 @@ describe("withHeaderEvent", () => {
     expect(updated.space?.myPermissions).toEqual([
       Permission.MESSAGES_MODERATE,
     ]);
+    expect(updated.space?.muted).toBe(true);
   });
 
   it("follows the reader's mute of the channel, and not another's", () => {
