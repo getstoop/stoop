@@ -6,26 +6,14 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // went wrong over what to do about it. Read out as it appears, and as
 // its words change: the alert role alone says nothing while the focus
 // is on the field or the button, so Android gets a live region and iOS
-// is told. "plain" is for something to know that isn't a failure.
-export default function InviteNotice({
-  heading,
-  body,
-  tone = "danger",
-}: {
-  heading: string;
-  body: string;
-  tone?: "danger" | "plain";
-}) {
+// is told.
+export default function InviteNotice({ heading, body }: { heading: string; body: string }) {
   const styles = makeStyles(useTheme());
   useEffect(() => {
     if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(`${heading}. ${body}`);
   }, [heading, body]);
   return (
-    <View
-      style={[styles.card, tone === "danger" && styles.danger]}
-      accessibilityRole="alert"
-      accessibilityLiveRegion="assertive"
-    >
+    <View style={styles.card} accessibilityRole="alert" accessibilityLiveRegion="assertive">
       <Text style={styles.heading}>{heading}</Text>
       <Text style={styles.body}>{body}</Text>
     </View>
@@ -39,10 +27,6 @@ function makeStyles(theme: Theme) {
       gap: 6,
       borderRadius: tokens.radiusLg,
       borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.panel,
-    },
-    danger: {
       borderColor: theme.danger,
       backgroundColor: theme.dangerSoft,
     },

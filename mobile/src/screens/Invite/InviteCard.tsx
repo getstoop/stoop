@@ -9,7 +9,21 @@ import InviteNotice from "./InviteNotice";
 
 // What the check of a pasted link found: still asking, the space it
 // invites to, or why it can't be used. Nothing until there is a link.
-export default function InviteCard({ check }: { check: Check }) {
+// `member` is for an account already in the space the invite is to
+// (Add a space knows; the Invite screen, with nobody signed in, never
+// does): the card then says so in place of inviting. `aside` is a few
+// words to go before the server's name on the line under the space's
+// ("Not signed in to"), in place of how many are in it: the line is one
+// line, and what a long name cuts short should be the name.
+export default function InviteCard({
+  check,
+  member = false,
+  aside,
+}: {
+  check: Check;
+  member?: boolean;
+  aside?: string;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -33,10 +47,20 @@ export default function InviteCard({ check }: { check: Check }) {
     );
   }
 
-  return <Result result={check.result} styles={styles} />;
+  return <Result result={check.result} member={member} aside={aside} styles={styles} />;
 }
 
-function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<typeof makeStyles> }) {
+function Result({
+  result,
+  member,
+  aside,
+  styles,
+}: {
+  result: InviteCheck;
+  member: boolean;
+  aside: string | undefined;
+  styles: ReturnType<typeof makeStyles>;
+}) {
   switch (result.kind) {
     case "found": {
       const { preview } = result;
@@ -52,12 +76,12 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
             styles={styles}
           />
           <View style={styles.space}>
-            <Text style={styles.eyebrow}>You're invited to</Text>
+            <Text style={styles.eyebrow}>{member ? "You're already in" : "You're invited to"}</Text>
             <Text style={styles.name} numberOfLines={1}>
               {preview.spaceName}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {result.serverName} · {members}
+              {aside ? `${aside} ${result.serverName}` : `${result.serverName} · ${members}`}
             </Text>
           </View>
         </View>

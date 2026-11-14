@@ -41,6 +41,21 @@ export function railOffset(index: number, count: number, height: number, obstruc
   return Math.round(Math.max(0, Math.min(middle, content - height)));
 }
 
+// Where the rail should scroll to bring the space at `index` into
+// sight, from where it is now (`offset`), or null when its button is
+// already whole between the rail's top and what lies over its bottom:
+// the least that shows it whole, so a space just below comes up to the
+// bottom edge and one above comes down to the top.
+export function railReveal(index: number, height: number, obstruction: number, offset: number): number | null {
+  if (index < 0 || height <= 0) return null;
+  const top = RAIL_PADDING + index * RAIL_ITEM_HEIGHT;
+  const bottom = top + RAIL_ITEM_HEIGHT;
+  const clear = height - obstruction;
+  if (top < offset) return Math.max(0, top - RAIL_PADDING);
+  if (bottom > offset + clear) return bottom + RAIL_PADDING - clear;
+  return null;
+}
+
 export type RailItemView = {
   // The mark at the rail's right edge, where the pane meets it: the
   // selected space's bar, else a small tab while something in the space

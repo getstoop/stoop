@@ -1,5 +1,6 @@
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import ActivityProvider from "../../../activity/ActivityProvider";
+import OpenInviteHere from "../../../links/OpenInviteHere";
 import OpenTappedNotification from "../../../notifications/OpenTappedNotification";
 import { useAskToNotify } from "../../../notifications/permission";
 import { CurrentServer, useServer } from "../../../servers";
@@ -46,6 +47,7 @@ export default function ServerLayout() {
     <CurrentServer server={server}>
       <ActivityProvider key={sessionKey(server)} server={server}>
         <OpenTappedNotification server={server} />
+        <OpenInviteHere server={server} />
         <Stack
           screenOptions={{
             title: "",

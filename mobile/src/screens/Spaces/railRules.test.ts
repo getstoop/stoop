@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickSpace, railItem, railOffset } from "./railRules";
+import { pickSpace, railItem, railOffset, railReveal } from "./railRules";
 
 const spaces = [{ id: "books" }, { id: "climbing" }, { id: "garden" }];
 
@@ -49,6 +49,33 @@ describe("railOffset", () => {
   it("stays at the top with no space selected or a rail not yet measured", () => {
     expect(offset(-1, 30)).toBe(0);
     expect(railOffset(3, 4, 0, 0)).toBe(0);
+  });
+});
+
+describe("railReveal", () => {
+  // The same rail: 600 tall, 520 of it clear.
+  const reveal = (index: number, offset: number) => railReveal(index, 600, 80, offset);
+
+  it("leaves the rail alone while the space is whole in sight", () => {
+    expect(reveal(0, 0)).toBeNull();
+    expect(reveal(8, 0)).toBeNull();
+    expect(reveal(12, 300)).toBeNull();
+  });
+
+  it("brings a space below up to the bottom of what is clear", () => {
+    // Its bottom at 8 + 10 × 56 = 568, the padding's 8 under it, less 520.
+    expect(reveal(9, 0)).toBe(56);
+    expect(reveal(20, 0)).toBe(672);
+  });
+
+  it("brings a space above down to the top", () => {
+    expect(reveal(3, 400)).toBe(168);
+    expect(reveal(0, 400)).toBe(0);
+  });
+
+  it("does nothing with no space or a rail not yet measured", () => {
+    expect(reveal(-1, 0)).toBeNull();
+    expect(railReveal(3, 0, 0, 0)).toBeNull();
   });
 });
 
