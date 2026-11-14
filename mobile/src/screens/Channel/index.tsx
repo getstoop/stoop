@@ -3,10 +3,10 @@ import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { Stack, useIsFocused, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/react-navigation";
+import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { errorText } from "../../api/errors";
 import { useServerStatus } from "../../api/instance";
 import { markRead } from "../../api/messages";
 import { messageLink } from "../../api/shareLinks";
@@ -32,11 +32,11 @@ import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
-import SearchButton from "./SearchButton";
+import ScreenHeader, { useHeaderClearance } from "./ScreenHeader";
 import type { ChannelEngine } from "./channelEngine";
+import { channelMute } from "./headerActions";
 import { readShown } from "./readPass";
 import { threadRoute } from "./routes";
-import { searchItem } from "./searchItem";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
 import { useFlash } from "./useFlash";
@@ -76,9 +76,11 @@ import { useScrollRetry } from "./useScrollRetry";
 // (screens/Thread), which shares this screen's log, as does the line on
 // a reply also sent to the channel, which opens its thread on it. A tap
 // on a picture opens the viewer over the channel (components/Viewer),
-// stepping through the pictures it has loaded. Search at the header's
-// right (searchItem, SearchButton) pushes the space's search screen
-// (screens/Search) narrowed to this channel. The
+// stepping through the pictures it has loaded. The header floats over
+// the list's head (ScreenHeader): Search in it pushes the space's
+// search screen (screens/Search) narrowed to this channel, and the bell
+// mutes the channel, or unmutes it, as its row's menu on the Spaces tab
+// does (shown muted, and inert, in a muted space). The
 // menu, the quote, the edit and the refusals are useMessageActions',
 // shared with the thread; the layout is ComposerDock's. What is held and
 // what each answer and event does to it is the channel log's
@@ -92,7 +94,8 @@ import { useScrollRetry } from "./useScrollRetry";
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with
-// no Search and no pins, as on web, and nobody's messages to moderate.
+// no Search and no pins, as on web, and nobody's messages to moderate;
+// its bell mutes the conversation.
 
 export default function Channel({
   server,
@@ -108,9 +111,9 @@ export default function Channel({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  // The header floats over the list (the server's layout), so the list
-  // and what stands in for it clear it by this much.
-  const headerHeight = useHeaderHeight();
+  // The header floats over the list (ScreenHeader), so the list and what
+  // stands in for it clear it by this much.
+  const headerHeight = useHeaderClearance();
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -299,30 +302,70 @@ export default function Channel({
     if (newIndex > 0) list.current?.scrollToIndex({ index: newIndex, viewPosition: 0.5, animated: false });
   }, [items.length, newIndex, focusId]);
 
-  // The same options while nothing they read changed: new ones are a
-  // setOptions, and this renders on every event in the channel, under a
-  // thread too. All the header draws comes from what is listed.
-  const options = useMemo(() => {
-    if (!header) return undefined;
-    const { space, dm, channel, memberCount, myUserId } = header;
-    const search = space && { spaceName: space.name, onPress: openSearch };
-    return {
-      headerTitle: () =>
-        dm ? (
-          <ConversationTitle dm={dm} myUserId={myUserId} serverId={server.id} origin={server.origin} token={token} />
-        ) : (
-          <ChannelTitle channel={channel} spaceName={space?.name ?? ""} memberCount={memberCount} beside={search ? 1 : 0} />
-        ),
-      ...(Platform.OS === "ios"
-        ? { unstable_headerRightItems: () => (search ? [searchItem(search)] : []) }
-        : { headerRight: search ? () => <SearchButton {...search} /> : undefined }),
-    };
-  }, [header, server.id, server.origin, token, openSearch]);
+  // A mute asked for: the bell waits for the server's answer, and a
+  // second tap meanwhile does nothing. Each tap turns over what the
+  // header holds as it lands, not what it was drawn with.
+  const [muting, setMuting] = useState(false);
+  const mutingNow = useRef(false);
+  const toggleMute = useCallback(() => {
+    const held = engine.current().header;
+    if (mutingNow.current || !held) return;
+    const muted = !held.channel.muted;
+    const what = held.dm ? "conversation" : "channel";
+    mutingNow.current = true;
+    setMuting(true);
+    engine
+      .muteChannel(muted)
+      .catch((err) => notify(muted ? `Couldn't mute the ${what}` : `Couldn't unmute the ${what}`, errorText(err)))
+      .finally(() => {
+        mutingNow.current = false;
+        setMuting(false);
+      });
+  }, [engine, notify]);
 
-  if (outcome) return <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retry} />;
+  // The header in every state: the way back alone until the channel is
+  // known, then its title, Search where there is a space to search (a
+  // direct message has none, as on web), and the bell.
+  const top = (
+    <ScreenHeader
+      title={
+        !header ? undefined : header.dm ? (
+          <ConversationTitle
+            dm={header.dm}
+            myUserId={header.myUserId}
+            serverId={server.id}
+            origin={server.origin}
+            token={token}
+          />
+        ) : (
+          <ChannelTitle channel={header.channel} spaceName={header.space?.name ?? ""} memberCount={header.memberCount} />
+        )
+      }
+      search={header?.space && !outcome ? { spaceName: header.space.name, onPress: openSearch } : undefined}
+      mute={
+        header && !outcome
+          ? {
+              ...channelMute(header.dm ? "conversation" : "channel", header.channel.muted, !!header.space?.muted),
+              pending: muting,
+              onPress: toggleMute,
+            }
+          : undefined
+      }
+    />
+  );
+
+  if (outcome) {
+    return (
+      <View style={styles.screen}>
+        {top}
+        <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retry} />
+      </View>
+    );
+  }
   if (!header) {
     return (
       <View style={styles.screen}>
+        {top}
         <ActivityIndicator style={[styles.center, { marginTop: 24 + headerHeight }]} color={theme.textMuted} />
       </View>
     );
@@ -333,7 +376,7 @@ export default function Channel({
 
   return (
     <View style={styles.screen}>
-      <Stack.Screen options={options} />
+      {top}
       <ComposerDock
         notice={actions.notice}
         list={(clearance) => (

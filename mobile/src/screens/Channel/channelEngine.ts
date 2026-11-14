@@ -19,6 +19,7 @@ import type { ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { AppState } from "react-native";
+import { setChannelMuted } from "../../api/channels";
 import { type LocalFile, uploadAttachment } from "../../api/files";
 import {
   ChannelGone,
@@ -754,6 +755,25 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       const mine = life;
       await markThreadRead(server.origin, await token(), rootId);
       if (!mine.ended) dispatch({ type: "threadRead", rootId });
+    },
+
+    // The reader's own mute of the channel (a conversation's too), or its
+    // end: SetChannelMuted, then the header's channel muted or not (the
+    // ChannelMuted event that follows says the same, where the socket is
+    // up). Nothing changes before the server answers; a refusal is the
+    // caller's to show, as the thread's below.
+    async muteChannel(muted: boolean) {
+      const mine = life;
+      try {
+        await setChannelMuted(server.origin, await token(), channelId, muted);
+      } catch (err) {
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      const { header } = state;
+      if (mine.ended || !header || header.channel.muted === muted) return;
+      dispatch({ type: "header", header: { ...header, channel: { ...header.channel, muted } } });
     },
 
     // The reader's own mute of the thread, or its end, as web sets it:

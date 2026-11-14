@@ -17,7 +17,7 @@ import type { Notice } from "./useMessageActions";
 // the composer shows over itself (ComposerAbove): the channel's layout,
 // and a thread's. The list is drawn by the screen, given how far its
 // newest row must stay clear of the composer. The header floats over
-// the list's head the same way (the server's layout); on iOS 26 the
+// the list's head the same way (ScreenHeader); on iOS 26 the
 // system would fade a list under a bar, which on this upside-down list
 // dims it whole, so the list is marked to have no such fade, and gets
 // its own at both ends: under the status bar, and under the home

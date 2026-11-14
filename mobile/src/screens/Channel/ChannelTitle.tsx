@@ -11,19 +11,16 @@ export default function ChannelTitle({
   channel,
   spaceName,
   memberCount,
-  beside,
 }: {
   channel: Channel;
   spaceName: string;
   memberCount: number;
-  // How many buttons the header has at the right, which the pill stops at.
-  beside: number;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const people = memberCount === 1 ? "1 member" : `${memberCount} members`;
   return (
-    <TitlePill label={`${channel.name}, ${spaceName}, ${people}`} beside={beside}>
+    <TitlePill label={`${channel.name}, ${spaceName}, ${people}`}>
       <View style={styles.row}>
         {channel.private ? <LockIcon color={theme.textMuted} size={24} /> : <Text style={styles.mark}>#</Text>}
         <View style={styles.lines}>
