@@ -16,7 +16,9 @@ export function useKeyboardHeight(): number {
   useEffect(() => {
     const ios = Platform.OS === "ios";
     const show = Keyboard.addListener(ios ? "keyboardWillShow" : "keyboardDidShow", (e) =>
-      setHeight(e.endCoordinates.height),
+      // Never under 0: Android's figure can be, for a keyboard no taller
+      // than the bar (a hardware keyboard's strip).
+      setHeight(Math.max(0, e.endCoordinates.height)),
     );
     const hide = Keyboard.addListener(ios ? "keyboardWillHide" : "keyboardDidHide", () =>
       setHeight(0),
