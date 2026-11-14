@@ -1,4 +1,4 @@
-.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro mobile-ios-release mobile-sim mobile-e2e
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro mobile-ios-release mobile-android-release mobile-sim mobile-e2e
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -162,6 +162,15 @@ mobile-typecheck:
 ## replaces the development build on the phone; make mobile-ios puts that back
 mobile-ios-release:
 	cd mobile && pnpm install --frozen-lockfile && pnpm exec expo run:ios --configuration Release --device --no-bundler
+
+## mobile-android-release: the same for a connected Android phone (USB
+## debugging on). An Android release build refuses plain HTTP, so this one
+## is generated with STOOP_ANDROID_CLEARTEXT=1 (mobile/app.config.js) to
+## reach the dev server; make mobile-prebuild takes that out again
+mobile-android-release:
+	cd mobile && pnpm install --frozen-lockfile && \
+		STOOP_ANDROID_CLEARTEXT=1 pnpm exec expo prebuild --platform android --no-install && \
+		pnpm exec expo run:android --variant release --device --no-bundler
 
 ## mobile-sim: a release build onto the iPhone simulator, for the flows
 mobile-sim:
