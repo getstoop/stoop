@@ -401,7 +401,10 @@ function makeStyles(theme: Theme) {
     pressed: {
       opacity: 0.85,
     },
+    // Shrinks, so a long space or server name is cut short inside the
+    // button and not run past its edges.
     buttonLabel: {
+      flexShrink: 1,
       color: theme.onAccent,
       fontSize: tokens.textBody,
       fontWeight: "600",
