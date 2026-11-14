@@ -764,6 +764,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     // caller's to show, as the thread's below.
     async muteChannel(muted: boolean) {
       const mine = life;
+      const changes = mine.headerChanges;
       try {
         await setChannelMuted(server.origin, await token(), channelId, muted);
       } catch (err) {
@@ -773,6 +774,9 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       }
       const { header } = state;
       if (mine.ended || !header || header.channel.muted === muted) return;
+      // An event that changed the header meanwhile is the newer word (this
+      // mute's own, or another device's after it): the answer adds nothing.
+      if (mine.headerChanges !== changes) return;
       // A header read that left before this is out of date now.
       life.headerChanges++;
       dispatch({ type: "header", header: { ...header, channel: { ...header.channel, muted } } });

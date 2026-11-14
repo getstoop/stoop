@@ -186,7 +186,14 @@ func (s *Service) GetSpace(ctx context.Context, req *connect.Request[chatv1.GetS
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "space")
 	}
-	return connect.NewResponse(&chatv1.GetSpaceResponse{Space: toProtoSpace(space, a, callerCredential(ctx))}), nil
+	out := toProtoSpace(space, a, callerCredential(ctx))
+	// The caller's own mute, as ListSpaces says it: a screen that asks
+	// for one space (a channel's header) reads it from here.
+	out.Muted, err = s.q.SpaceMutedBy(ctx, dbgen.SpaceMutedByParams{UserID: authctx.UserID(ctx), SpaceID: space.ID})
+	if err != nil {
+		return nil, fmt.Errorf("space mute: %w", err)
+	}
+	return connect.NewResponse(&chatv1.GetSpaceResponse{Space: out}), nil
 }
 
 // publishSpaceJoined tells the joiner's live connections about their new
