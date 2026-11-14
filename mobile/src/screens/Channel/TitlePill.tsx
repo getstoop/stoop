@@ -13,6 +13,13 @@ import Surface from "./Surface";
 // `lead` is the pill's padding at the left, for a title that starts
 // with a face (ConversationTitle), which sits nearer the pill's end
 // than words do.
+// How far the title's words grow with the system's text size (their
+// `maxFontSizeMultiplier`). The header is one bar's height and the list
+// clears it by a set amount (ScreenHeader), with 12 points to spare:
+// up to here the pill grows into that, and past it would cover the
+// list's first rows. A navigation bar's own title doesn't grow at all.
+export const TITLE_SCALE = 1.3;
+
 export default function TitlePill({
   label,
   lead,

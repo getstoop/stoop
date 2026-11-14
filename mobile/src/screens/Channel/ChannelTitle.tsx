@@ -2,7 +2,7 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { StyleSheet, Text, View } from "react-native";
 import { LockIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
-import TitlePill from "./TitlePill";
+import TitlePill, { TITLE_SCALE } from "./TitlePill";
 
 // The header's title, in its pill: a tall # at the left (a lock, as on
 // the space's screen, for a private one), and beside it the channel's
@@ -22,12 +22,12 @@ export default function ChannelTitle({
   return (
     <TitlePill label={`${channel.name}, ${spaceName}, ${people}`}>
       <View style={styles.row}>
-        {channel.private ? <LockIcon color={theme.textMuted} size={24} /> : <Text style={styles.mark}>#</Text>}
+        {channel.private ? <LockIcon color={theme.textMuted} size={24} /> : <Text style={styles.mark} maxFontSizeMultiplier={TITLE_SCALE}>#</Text>}
         <View style={styles.lines}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={styles.name} maxFontSizeMultiplier={TITLE_SCALE} numberOfLines={1}>
             {channel.name}
           </Text>
-          <Text style={styles.about} numberOfLines={1}>
+          <Text style={styles.about} maxFontSizeMultiplier={TITLE_SCALE} numberOfLines={1}>
             {spaceName} · {people}
           </Text>
         </View>
