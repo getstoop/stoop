@@ -22,7 +22,7 @@ export type SharedLink = {
   messageId: string;
 };
 
-// Null for anything else: an invite (+native-intent.tsx opens those),
+// Null for anything else: an invite (pendingInvite.ts holds those),
 // the provider sign-in's hand-back (/login, /profile), a path nobody
 // shares.
 export function sharedLink(server: string, path: string): SharedLink | null {

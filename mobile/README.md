@@ -925,10 +925,16 @@ badge stays as it was when the app left the front.
 - A shared link the web's open-in-app page hands over
   (`stoop://open?server=<origin>&path=<web's path>`) is opened the same
   way. `app/+native-intent.tsx` hears it before anything has rendered:
-  an invite goes to Invite, and a space, a channel, a direct message, a
+  an invite is left in a store of its own (`links/pendingInvite.ts`):
+  when the phone has that server saved, the layout of the server on
+  screen (`links/OpenInviteHere.tsx`) closes what is over it and opens
+  Add a space with the link, and when it hasn't,
+  `links/OpenInviteLink.tsx`, beside the root stack, opens the Invite
+  screen; one not opened within ten seconds (the saved servers
+  couldn't be read) is let go, as a shared link is; and a space, a channel, a direct message, a
   message or a thread is read from web's path (`links/sharedLink.ts`;
   web's `/s/<id>` is a space, the app's a server) and left in a store
-  (`links/pendingLink.ts`) with the router told nothing. Beside the root
+  (`links/pendingLink.ts`). The router is told nothing of either. Beside the root
   stack, once the saved servers are known, `links/OpenSharedLink.tsx`
   finds the server by the address the link was opened at and leaves the
   place as a tap for that server's layout, with no item to mark read: so
@@ -1123,7 +1129,8 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
 `alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
-`shouldAsk.ts`, `links/sharedLink.ts` and `pendingLink.ts`, `api/invites.ts`,
+`shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
+`pendingInvite.ts`, `api/invites.ts`,
 and Add a space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
