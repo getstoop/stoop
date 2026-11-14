@@ -1079,6 +1079,7 @@ From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
 | `make mobile-theme` | Regenerates `src/theme/generated.ts` from the web themes |
 | `make mobile-typecheck` | `tsc --noEmit` over `mobile/` and the web code it shares |
 | `make mobile-ios-release` | A release build onto a connected iPhone, no Metro, to judge speed and motion as shipped; replaces the development build until `make mobile-ios` |
+| `make mobile-android-release` | The same for a connected Android phone, generated to allow plain HTTP (below); `make mobile-android` puts the development build back |
 | `make mobile-sim` | A release build onto the iPhone simulator (`sim="iPhone 16 Pro"` for another) |
 | `make mobile-e2e` | The Maestro flows on a throwaway server (below) |
 
@@ -1239,6 +1240,10 @@ already allows that in development, so nothing in `app.json` adds it:
   carries it as well; the release work removes it or accepts it.
 - **Android:** cleartext is allowed only in the debug manifest
   (`src/debug/AndroidManifest.xml`); a release build refuses it.
+  `make mobile-android-release` generates `android/` with
+  `STOOP_ANDROID_CLEARTEXT=1`, which has `app.config.js` allow it in
+  the main manifest too, so that build reaches the dev server. It stays
+  in the generated folder until `make mobile-prebuild`.
 
 ## Code shared with web
 
