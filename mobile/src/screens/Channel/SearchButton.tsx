@@ -16,7 +16,7 @@ export default function SearchButton({ spaceName, onPress }: SearchProps) {
       onPress={onPress}
       style={({ pressed }) => pressed && styles.down}
     >
-      <Surface glass={false} style={styles.round}>
+      <Surface glass={false} flat style={styles.round}>
         <SearchIcon color={theme.text} size={22} />
       </Surface>
     </Pressable>

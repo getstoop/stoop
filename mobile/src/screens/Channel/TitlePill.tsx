@@ -13,12 +13,13 @@ import Surface from "./Surface";
 //
 // The channel's and a conversation's fill the row between the back
 // button and the buttons at the right instead (`beside`, how many
-// there are). Neither platform's bar says how much room that is: iOS
-// hands a title only the room it asks for, and Android's row starts
-// after the back button but is as wide as the bar chooses (wider than
-// the screen has left, with no button at the right). So the pill is
-// given its width: the window's, less what the bar keeps at each side.
-// On Android it starts where its row does.
+// there are). iOS hands a title only the room it asks for, so there the
+// pill is given its width: the window's, less what the bar keeps at
+// each side. Android's row starts after the back button and is as wide
+// as what is in it asks for, up to the bar's own idea of its room, so
+// there the pill grows to fill it and a margin stops it short: of the
+// buttons at the right, under which the row runs, or, with none, of the
+// screen's edge, which the row then runs past.
 //
 // `lead` is the pill's padding at the left, for a title that starts
 // with a face (ConversationTitle), which sits nearer the pill's end
@@ -40,10 +41,12 @@ export default function TitlePill({
   const fill =
     beside === undefined
       ? undefined
-      : { width: width - (ios ? BACK_KEPT : ANDROID_BACK_KEPT) - beside * (ios ? BUTTON_KEPT : ANDROID_BUTTON_KEPT) };
+      : ios
+        ? { width: width - BACK_KEPT - beside * BUTTON_KEPT }
+        : { flexGrow: 1, marginRight: beside === 0 ? ANDROID_PAST_EDGE : beside * BUTTON_KEPT };
   return (
-    <View style={[styles.row, !ios && fill && styles.fromStart]}>
-      <Surface glass={glass} style={{ ...styles.pill, ...fill, ...(lead !== undefined && { paddingLeft: lead }) }}>
+    <View style={styles.row}>
+      <Surface glass={glass} flat={!ios} style={{ ...styles.pill, ...fill, ...(lead !== undefined && { paddingLeft: lead }) }}>
         <View style={styles.title} accessible accessibilityRole="header" accessibilityLabel={label}>
           {children}
         </View>
@@ -55,21 +58,19 @@ export default function TitlePill({
 // What iOS's bar keeps for the back button and the screen's far inset
 // (the button's inset, its 44 and a gap, the inset, and a little to
 // spare: a title wider than the bar's room for it is cut off), and what
-// each button at the right takes there (its 44 and a gap).
+// each button at the right takes on either platform (its 44 and a gap).
 const BACK_KEPT = 96;
 const BUTTON_KEPT = 56;
-// Android's: the back button's 56 and the screen's far inset, and each
-// button at the right's 44 with the gap the bar leaves before it.
-const ANDROID_BACK_KEPT = 72;
-const ANDROID_BUTTON_KEPT = 60;
+// How far Android's row runs past the screen's edge with no button at
+// the right (24: the bar counts its room from its 16 insets, and puts
+// the row after the back button's 56), and the 16 the pill keeps from
+// that edge.
+const ANDROID_PAST_EDGE = 40;
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     justifyContent: "center",
-  },
-  fromStart: {
-    justifyContent: "flex-start",
   },
   pill: {
     flexShrink: 1,
