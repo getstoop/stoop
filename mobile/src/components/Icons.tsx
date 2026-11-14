@@ -55,6 +55,18 @@ export function SpacesIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// The Spaces icon with a plus where its fourth square goes: Add a space.
+export function SpacesAddIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={3.5} y={3.5} width={7} height={7} rx={2} />
+      <Rect x={13.5} y={3.5} width={7} height={7} rx={2} />
+      <Rect x={3.5} y={13.5} width={7} height={7} rx={2} />
+      <Path d="M17 13.5v7M13.5 17h7" />
+    </Stroke>
+  );
+}
+
 export function BellIcon({ color, size = 24 }: IconProps) {
   return (
     <Stroke color={color} size={size}>

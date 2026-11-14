@@ -7,6 +7,7 @@ import AlertPrefsProvider from "../alertPrefs/AlertPrefsProvider";
 import AlertsProvider from "../alerts/AlertsProvider";
 import DndProvider from "../dnd/DndProvider";
 import LastSpaceProvider from "../lastSpace/LastSpaceProvider";
+import OpenInviteLink from "../links/OpenInviteLink";
 import OpenSharedLink from "../links/OpenSharedLink";
 import NotificationsProvider from "../notifications/NotificationsProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
@@ -115,6 +116,7 @@ function RootStack() {
         />
       </Stack>
       <OpenSharedLink />
+      <OpenInviteLink />
     </NavigationTheme>
   );
 }

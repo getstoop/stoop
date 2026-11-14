@@ -101,7 +101,8 @@ import a screen; the screens themselves live in `src/screens`, so
   the first (which is then the one remembered), and opening a channel
   from search, Activity or a notification leaves it alone. The rail
   first shows scrolled to the selected space (`railRules.ts`
-  `railOffset`). While the spaces load, and until the remembered space
+  `railOffset`), and scrolls again only when another space becomes the
+  selected one out of sight, to bring it into view (`railReveal`). While the spaces load, and until the remembered space
   is read, the rail and the pane are skeletons
   (`src/components/Skeleton.tsx`), and the pane is again while a
   picked space's channels load. The rail and the channel list each
@@ -110,7 +111,30 @@ import a screen; the screens themselves live in `src/screens`, so
   `SafeAreaProvider` around the tab's body, `useBottomObstruction.ts`;
   nothing on Android, whose bar is below the screen), so their last
   rows always come clear. The server chip, when it shows, is counted
-  the same way (below). A
+  the same way (below). The rail's last button, under a hairline after
+  the spaces (`RailAdd.tsx`), and a button in the pane of a server with
+  no spaces yet, open Add a space (`s/[id]/add-space`,
+  `src/screens/AddSpace`): a sheet over the tabs, as New message is,
+  for joining a space with an invite link. A pasted
+  link is looked up (`api/invites.ts` `findInvite`) and shown on the
+  Invite screen's card before Join commits anything; a link that isn't
+  one, an invite that can't be used and a join the server refuses are
+  each said on a card, the last two in the server's words;
+  an invite to a
+  space the account is already in says so, and the button goes there.
+  A link to another server the phone is signed in to (`pasted.ts`;
+  matched by its exact address) is looked up and joined with that
+  server's session, the button saying "Join on" it, and the app then
+  swaps to that server as the switcher does, on the space (a sign-in
+  there that has ended is said, and signing in again carries the
+  invite); a link to a
+  server the phone isn't signed in to is checked as the Invite screen
+  checks one and handed to that screen. Once joined on this server, the
+  sheet asks the tab under it for the space (the last-space store's
+  `ask`, `landed.ts`) and stays up, saying "Joining…", until the tab
+  holds it, then closes on it selected; after five seconds it closes
+  anyway, and the tab picks the space when its list arrives. Closed by
+  hand before that, the space still turns up on the rail, unselected. A
   channel (`s/[id]/space/[spaceId]/channel/[channelId]`) pushes over the
   tabs, as a conversation does in the system's own apps, leaving
   the bottom of the screen for its composer; back returns to the tab.
@@ -889,7 +913,8 @@ badge stays as it was when the app left the front.
   swaps to it as the switcher does (`swapServer`, then first in the
   list) and that server's layout opens it as it mounts; if its sign-in
   has ended, the channel opens all the same and says so. A sheet or
-  screen over the server (the switcher, a sign-in, New message) is
+  screen over the server (the switcher, a sign-in, New message, Add a
+  space) is
   closed first, and the screen is then pushed even if it was the one
   beneath. On the screen it points at nothing is pushed: a channel
   jumps to the message, and a thread, which lands only as it opens,
@@ -900,10 +925,16 @@ badge stays as it was when the app left the front.
 - A shared link the web's open-in-app page hands over
   (`stoop://open?server=<origin>&path=<web's path>`) is opened the same
   way. `app/+native-intent.tsx` hears it before anything has rendered:
-  an invite goes to Invite, and a space, a channel, a direct message, a
+  an invite is left in a store of its own (`links/pendingInvite.ts`):
+  when the phone has that server saved, the layout of the server on
+  screen (`links/OpenInviteHere.tsx`) closes what is over it and opens
+  Add a space with the link, and when it hasn't,
+  `links/OpenInviteLink.tsx`, beside the root stack, opens the Invite
+  screen; one not opened within ten seconds (the saved servers
+  couldn't be read) is let go, as a shared link is; and a space, a channel, a direct message, a
   message or a thread is read from web's path (`links/sharedLink.ts`;
   web's `/s/<id>` is a space, the app's a server) and left in a store
-  (`links/pendingLink.ts`) with the router told nothing. Beside the root
+  (`links/pendingLink.ts`). The router is told nothing of either. Beside the root
   stack, once the saved servers are known, `links/OpenSharedLink.tsx`
   finds the server by the address the link was opened at and leaves the
   place as a tap for that server's layout, with no item to mark read: so
@@ -1098,7 +1129,9 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
 `alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
-`shouldAsk.ts`, and `links/sharedLink.ts` and `pendingLink.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
+`shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
+`pendingInvite.ts`, `api/invites.ts`,
+and Add a space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 
 The happy paths are [Maestro](https://maestro.dev) flows in `mobile/e2e/`,

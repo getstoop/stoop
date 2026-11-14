@@ -1,14 +1,29 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { fileUrl } from "../../api/files";
-import type { InviteCheck } from "../../api/invites";
+import { type InviteCheck, sentence } from "../../api/invites";
 import { type Theme, tokens, useTheme } from "../../theme";
 import ProbeCard from "../AddServer/ProbeCard";
 import type { Check } from "./index";
+import InviteNotice from "./InviteNotice";
 
 // What the check of a pasted link found: still asking, the space it
 // invites to, or why it can't be used. Nothing until there is a link.
-export default function InviteCard({ check }: { check: Check }) {
+// `member` is for an account already in the space the invite is to
+// (Add a space knows; the Invite screen, with nobody signed in, never
+// does): the card then says so in place of inviting. `aside` is a few
+// words to go before the server's name on the line under the space's
+// ("Not signed in to"), in place of how many are in it: the line is one
+// line, and what a long name cuts short should be the name.
+export default function InviteCard({
+  check,
+  member = false,
+  aside,
+}: {
+  check: Check;
+  member?: boolean;
+  aside?: string;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
 
@@ -16,12 +31,10 @@ export default function InviteCard({ check }: { check: Check }) {
 
   if (check.state === "not-link") {
     return (
-      <View style={[styles.card, styles.danger]} accessibilityRole="alert">
-        <Text style={styles.heading}>That isn't an invite link</Text>
-        <Text style={styles.body}>
-          Paste the whole link, starting with https://. It says which server to join.
-        </Text>
-      </View>
+      <InviteNotice
+        heading="That isn't an invite link"
+        body="Paste the whole link, starting with https://. It says which server to join."
+      />
     );
   }
 
@@ -34,10 +47,20 @@ export default function InviteCard({ check }: { check: Check }) {
     );
   }
 
-  return <Result result={check.result} styles={styles} />;
+  return <Result result={check.result} member={member} aside={aside} styles={styles} />;
 }
 
-function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<typeof makeStyles> }) {
+function Result({
+  result,
+  member,
+  aside,
+  styles,
+}: {
+  result: InviteCheck;
+  member: boolean;
+  aside: string | undefined;
+  styles: ReturnType<typeof makeStyles>;
+}) {
   switch (result.kind) {
     case "found": {
       const { preview } = result;
@@ -53,12 +76,12 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
             styles={styles}
           />
           <View style={styles.space}>
-            <Text style={styles.eyebrow}>You're invited to</Text>
+            <Text style={styles.eyebrow}>{member ? "You're already in" : "You're invited to"}</Text>
             <Text style={styles.name} numberOfLines={1}>
               {preview.spaceName}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              {result.serverName} · {members}
+              {aside ? `${aside} ${result.serverName}` : `${result.serverName} · ${members}`}
             </Text>
           </View>
         </View>
@@ -66,18 +89,10 @@ function Result({ result, styles }: { result: InviteCheck; styles: ReturnType<ty
     }
     case "gone":
       return (
-        <View style={[styles.card, styles.danger]} accessibilityRole="alert">
-          <Text style={styles.heading}>{sentence(result.message)}</Text>
-          <Text style={styles.body}>Ask whoever invited you for a fresh link.</Text>
-        </View>
+        <InviteNotice heading={sentence(result.message)} body="Ask whoever invited you for a fresh link." />
       );
     case "failed":
-      return (
-        <View style={[styles.card, styles.danger]} accessibilityRole="alert">
-          <Text style={styles.heading}>Couldn't check the invite</Text>
-          <Text style={styles.body}>{sentence(result.message)}</Text>
-        </View>
-      );
+      return <InviteNotice heading="Couldn't check the invite" body={sentence(result.message)} />;
     case "server":
       return <ProbeCard check={{ state: "done", probe: result.probe }} />;
   }
@@ -106,12 +121,6 @@ function SpaceTile({
   );
 }
 
-// The server's messages are lower case with no stop ("this invite has
-// expired"); on their own they read as a sentence.
-function sentence(message: string): string {
-  return message.charAt(0).toUpperCase() + message.slice(1);
-}
-
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
     card: {
@@ -126,10 +135,6 @@ function makeStyles(theme: Theme) {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-    },
-    danger: {
-      borderColor: theme.danger,
-      backgroundColor: theme.dangerSoft,
     },
     muted: {
       color: theme.textMuted,
@@ -168,16 +173,6 @@ function makeStyles(theme: Theme) {
     meta: {
       color: theme.textMuted,
       fontSize: tokens.textUi,
-    },
-    heading: {
-      color: theme.text,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
-    },
-    body: {
-      color: theme.text,
-      fontSize: tokens.textUi,
-      lineHeight: tokens.textUi * tokens.leadingUi,
     },
   });
 }

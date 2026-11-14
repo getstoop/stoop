@@ -57,10 +57,14 @@ export type TapAction =
   | { do: "space"; spaceId: string; shown: boolean }
   // This server's. What is in the way is closed first, so the screen
   // doesn't open inside a sheet: whatever the root stack holds over the
-  // server (the switcher's sheet, a sign-in), or New message. Then the
+  // server (the switcher's sheet, a sign-in), or a sheet over the tabs
+  // (New message, Add a space). Then the
   // screen in front goes to the message ("focus"), the app goes back to
   // the channel under its thread ("back"), or the route is pushed.
-  | { do: "open"; route: NotificationRoute; close?: "over" | "newMessage"; how: "focus" | "back" | "push" };
+  | { do: "open"; route: NotificationRoute; close?: "over" | "sheet"; how: "focus" | "back" | "push" };
+
+// The server's own sheets over its tabs, by their route segment.
+const SHEETS = new Set(["new-message", "add-space"]);
 
 // As the layout mounts its stack holds nothing yet, and the screen in
 // front may still be said as the one before a swap, so the route is
@@ -74,7 +78,7 @@ export function tapAction(tap: Tap, scene: TapScene): TapAction {
   if (!tap.channelId) return { do: "space", spaceId: tap.spaceId, shown: scene.mounting };
   const route = notificationRoute(tap);
   if (scene.mounting || scene.segments[0] !== "s") return { do: "open", route, close: "over", how: "push" };
-  if (scene.segments[2] === "new-message") return { do: "open", route, close: "newMessage", how: "push" };
+  if (SHEETS.has(scene.segments[2])) return { do: "open", route, close: "sheet", how: "push" };
   const place = placeOf(route, scene.segments, scene.params);
   return { do: "open", route, how: place === "here" ? "focus" : place === "under" ? "back" : "push" };
 }
