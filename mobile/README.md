@@ -1001,10 +1001,54 @@ badge stays as it was when the app left the front.
 
 ## Voice
 
-Nothing joins a voice room yet; the build only carries what one needs.
+A voice room's screen (`src/screens/VoiceRoom`) joins its call: Join,
+then Mute and Leave in its place, and a ring on whoever is speaking.
 The LiveKit packages are in (`@livekit/react-native`, its WebRTC build,
 its Expo plugin and `livekit-client`, at the version web uses), so a
-change here needs a native rebuild, not only Metro.
+change to them needs a native rebuild, not only Metro.
+
+- **The call is held above the router**, in `src/call`: `CallProvider`
+  beside the other app-wide providers, so leaving the room's screen
+  keeps the call and coming back finds it. `useCall()` gives what a
+  screen draws (the server, space and room, connecting, connected or
+  failed, muted, who is speaking) and `useCallActions()` what it can
+  do. One call at a time: joining a second room leaves the first, then
+  joins.
+- **`call.ts` is the call's rules and nothing else**: plain state with
+  the microphone prompt, the connection and the report to the server
+  handed in, so it has unit tests (`call.test.ts`, `make test`).
+  `livekit.ts` is the LiveKit side, as web's `api/voice.ts`: the
+  microphone is asked for first (a refusal joins nothing), then
+  `JoinVoiceChannel`, signalling at the server's own `/livekit` with
+  the ICE servers it names, and the microphone published as signalling
+  comes up. A join starts unmuted.
+- **Where the call is goes to the server over the realtime socket**
+  (`VoiceState`, as web sends it): on connecting, on each mute, as
+  "left" on leaving, and again after every reconnect, since the server
+  forgets with the socket. That report is what makes this account a
+  tile, here and for everyone else, through the roster.
+- **Going to the background leaves the call**, silently: the realtime
+  sockets close there, and a call whose presence has gone must not stay
+  connected. Android's permission prompt reads as the background too,
+  so the first Join's prompt is let through. Signing out of the call's
+  server, or its session ending, leaves it as well.
+- **Sound comes out of the loudspeaker** unless a wired or Bluetooth
+  headset is connected, which takes over. On iOS that is LiveKit's own
+  audio session handling, which `registerGlobals()` turns on (play and
+  record, video chat mode, default to speaker, Bluetooth and AirPlay
+  allowed), with `defaultOutput: "speaker"`; on Android it is the
+  communication preset with outputs preferred in the order Bluetooth,
+  wired headset, loudspeaker, earpiece. There is no way to choose
+  another output yet.
+- **Bluetooth headsets need no `BLUETOOTH_CONNECT`.** LiveKit routes
+  through the audio switch that reads devices from Android's
+  `AudioManager`; the one that asks for that permission (through the
+  Bluetooth headset profile) is the legacy one, which it does not use.
+  Not yet tried with a real headset.
+- **The iPhone simulator has no microphone to publish** (LiveKit's own
+  note): a join there connects, hears the room and is seen in it, and
+  sends nothing. The Android emulator sends, silence when started with
+  `-no-audio`, which a headless one on a Mac needs.
 
 - **`index.js` is the app's entry**, not `expo-router/entry` directly.
   It calls LiveKit's `registerGlobals()`, which installs the WebRTC
@@ -1018,7 +1062,8 @@ change here needs a native rebuild, not only Metro.
   config plugin: bitcode off on iOS, and on Android the network state,
   Bluetooth, audio settings, record audio and wake lock permissions.
   The app sets no background mode and starts no foreground service: a
-  call does not outlive the app going to the background yet. The LiveKit
+  call does not outlive the app going to the background yet (it is
+  left, above). The LiveKit
   libraries' own Android manifests still merge in two more permissions
   (`BLUETOOTH_ADMIN`, `FOREGROUND_SERVICE`) and declare a screen-capture
   service that nothing starts.
@@ -1177,7 +1222,7 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
-`alerts/loader.ts`, `alerts/store.ts`, `dnd/switch.ts`, `dnd/store.ts`,
+`alerts/loader.ts`, `alerts/store.ts`, `call/call.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
 `shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
 `pendingInvite.ts`, `api/invites.ts`,

@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import AlertPrefsProvider from "../alertPrefs/AlertPrefsProvider";
 import AlertsProvider from "../alerts/AlertsProvider";
+import CallProvider from "../call/CallProvider";
 import DndProvider from "../dnd/DndProvider";
 import LastSpaceProvider from "../lastSpace/LastSpaceProvider";
 import OpenInviteLink from "../links/OpenInviteLink";
@@ -23,7 +24,8 @@ import { ThemeProvider, tokens, useTheme } from "../theme";
 // icon. Do not disturb is held here as well (src/dnd): the phone's one
 // switch, and each server's account's; so are the kinds the phone
 // alerts about (src/alertPrefs), and the space each server's Spaces tab
-// last showed (src/lastSpace). The keyboard's place is followed frame by
+// last showed (src/lastSpace). The voice call is held here too (src/call),
+// so it outlives the room's screen. The keyboard's place is followed frame by
 // frame under KeyboardProvider (react-native-keyboard-controller), for
 // what rides up with it (the channel's composer); without its preload,
 // which raises a hidden keyboard at launch that the screens still
@@ -35,17 +37,19 @@ export default function RootLayout() {
         <ThemeProvider>
           <ServersProvider>
             <RealtimeProvider>
-              <DndProvider>
-                <AlertPrefsProvider>
-                  <LastSpaceProvider>
-                    <AlertsProvider>
-                      <NotificationsProvider>
-                        <RootStack />
-                      </NotificationsProvider>
-                    </AlertsProvider>
-                  </LastSpaceProvider>
-                </AlertPrefsProvider>
-              </DndProvider>
+              <CallProvider>
+                <DndProvider>
+                  <AlertPrefsProvider>
+                    <LastSpaceProvider>
+                      <AlertsProvider>
+                        <NotificationsProvider>
+                          <RootStack />
+                        </NotificationsProvider>
+                      </AlertsProvider>
+                    </LastSpaceProvider>
+                  </AlertPrefsProvider>
+                </DndProvider>
+              </CallProvider>
             </RealtimeProvider>
           </ServersProvider>
         </ThemeProvider>

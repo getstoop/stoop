@@ -1,5 +1,6 @@
-import { create, fromBinary } from "@bufbuild/protobuf";
+import { create, fromBinary, type MessageInitShape, toBinary } from "@bufbuild/protobuf";
 import {
+  ClientEventSchema,
   CredentialRevokedSchema,
   type ServerEvent,
   ServerEventSchema,
@@ -40,7 +41,14 @@ const NativeWebSocket = WebSocket as unknown as new (
   options: { headers: Record<string, string> },
 ) => WebSocket;
 
-export type Realtime = { close: () => void };
+export type ClientEventInit = MessageInitShape<typeof ClientEventSchema>;
+
+export type Realtime = {
+  close: () => void;
+  // Best effort, as web's sendClientEvent: dropped while the socket is
+  // not open.
+  send: (event: ClientEventInit) => void;
+};
 
 export function openRealtime(
   origin: string,
@@ -119,6 +127,11 @@ export function openRealtime(
     };
   };
 
+  const send = (event: ClientEventInit) => {
+    if (closed || socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(toBinary(ClientEventSchema, create(ClientEventSchema, event)));
+  };
+
   connect();
-  return { close: stop };
+  return { close: stop, send };
 }

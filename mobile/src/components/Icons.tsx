@@ -156,6 +156,26 @@ export function MicOffIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+// An open microphone: the same without the bar.
+export function MicIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={9} y={3} width={6} height={11} rx={3} />
+      <Path d="M5 11a7 7 0 0 0 14 0" />
+      <Path d="M12 18v3" />
+    </Stroke>
+  );
+}
+
+// A handset laid down: leaving a call.
+export function HangUpIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M3 15c5-5 13-5 18 0l-2.5 2.5-3-1.5v-3a12 12 0 0 0-7 0v3l-3 1.5z" />
+    </Stroke>
+  );
+}
+
 export function ChevronRightIcon({ color, size = 16 }: IconProps) {
   return (
     <Svg

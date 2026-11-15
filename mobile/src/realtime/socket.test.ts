@@ -1,3 +1,5 @@
+import { fromBinary } from "@bufbuild/protobuf";
+import { ClientEventSchema } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../api/servers", () => ({ sessionToken: vi.fn() }));
@@ -18,6 +20,12 @@ class FakeSocket {
   closes = 0;
   close() {
     this.closes += 1;
+  }
+  static OPEN = 1;
+  readyState = 0;
+  sent: Uint8Array[] = [];
+  send(frame: Uint8Array) {
+    this.sent.push(frame);
   }
 }
 vi.stubGlobal("WebSocket", FakeSocket);
@@ -244,6 +252,24 @@ describe("openRealtime", () => {
     expect(onEvent).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(FakeSocket.opened).toHaveLength(1);
+  });
+
+  it("sends a client event only while the socket is open", async () => {
+    const socket = openRealtime("https://a.example", () => Promise.resolve("first"), () => {}, () => {});
+    const voiceState = { payload: { case: "voiceState", value: { channelId: "porch", muted: true } } } as const;
+    socket.send(voiceState);
+    await wait(0);
+    const dialled = FakeSocket.opened[0];
+    socket.send(voiceState);
+    expect(dialled.sent).toHaveLength(0);
+    dialled.readyState = FakeSocket.OPEN;
+    socket.send(voiceState);
+    expect(dialled.sent).toHaveLength(1);
+    const said = fromBinary(ClientEventSchema, dialled.sent[0]);
+    expect(said.payload).toMatchObject({ case: "voiceState", value: { channelId: "porch", muted: true } });
+    socket.close();
+    socket.send(voiceState);
+    expect(dialled.sent).toHaveLength(1);
   });
 
   it("dials nothing when closed while the token is still being read", async () => {
