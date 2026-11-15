@@ -1,11 +1,13 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { setChannelMuted } from "../../api/channels";
 import { errorText } from "../../api/errors";
+import { useCall, useCallActions } from "../../call/CallProvider";
+import { failureLine, footState } from "../../call/call";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
@@ -26,8 +28,11 @@ import VoiceTitle from "./VoiceTitle";
 // tab opens it): the Stage, a tile for everyone in the room, live from
 // the socket's roster, under a channel's floating header (ScreenHeader)
 // titled with the room, its space and how many are here, and over a
-// foot that names them above Join. The app can't join a call yet
-// (STOOPMOBIL-48), so Join is inert and nobody here is ever "you".
+// foot that names them above Join. Join puts the phone in the room's
+// call, which the app holds above this screen (src/call): the foot then
+// offers Mute and Leave, this account is a tile like anyone, through
+// the roster, and whoever is speaking wears a ring. Leaving the screen
+// keeps the call, and coming back finds it.
 // Search in the header searches the room's space; the bell mutes the
 // room, or unmutes it, as its row's menu does. The room and its space
 // are useVoiceRoom's.
@@ -49,6 +54,13 @@ export default function VoiceRoom({
   const roster = useVoiceRoster(server.id);
   const { view, reload, retry } = useVoiceRoom(server, spaceId, channelId);
   const [footHeight, setFootHeight] = useState(0);
+
+  const call = useCall();
+  const { join, leave, toggleMute: toggleMic, dismiss } = useCallActions();
+  const room = useMemo(() => ({ serverId: server.id, spaceId, channelId }), [server.id, spaceId, channelId]);
+  const foot = footState(call, room);
+  // A failed join is this visit's news: gone on leaving the screen.
+  useEffect(() => dismiss, [dismiss]);
 
   const openSearch = useCallback(
     () => pushOnce(() => router.push({ pathname: "/s/[id]/space/[spaceId]/search", params: { id: server.id, spaceId } })),
@@ -117,7 +129,14 @@ export default function VoiceRoom({
   }
 
   const stage = (
-    <Stage people={people} origin={server.origin} token={view.token} top={headerHeight} bottom={footHeight} />
+    <Stage
+      people={people}
+      speaking={foot === "joined" && call ? call.speaking : NOBODY}
+      origin={server.origin}
+      token={view.token}
+      top={headerHeight}
+      bottom={footHeight}
+    />
   );
   const Edge = Platform.OS === "ios" && isLiquidGlassAvailable() ? EdgeBlur : EdgeFade;
 
@@ -134,12 +153,23 @@ export default function VoiceRoom({
         stage
       )}
       <Edge edge="top" height={insets.top + FADE_IN} />
-      <StageFoot line={hereLine(people?.map((person) => person.name) ?? [])} onHeight={setFootHeight} />
+      <StageFoot
+        line={hereLine(people?.map((person) => person.name) ?? [])}
+        failure={failureLine(call, room)}
+        state={foot}
+        muted={foot === "joined" && !!call?.muted}
+        onJoin={() => void join(room)}
+        onToggleMute={() => void toggleMic()}
+        onLeave={() => void leave()}
+        onHeight={setFootHeight}
+      />
     </View>
   );
 }
 
-const noFade = { top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
+const NOBODY: string[] = [];
+
+const noFade ={ top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
 
 // How far past the status bar the top edge reaches, as a channel's.
 const FADE_IN = 20;

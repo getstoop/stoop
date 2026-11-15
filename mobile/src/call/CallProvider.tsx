@@ -1,0 +1,98 @@
+import { permissions } from "@livekit/react-native-webrtc";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { AppState } from "react-native";
+import { useEventSubscription, useSendClientEvent } from "../realtime/RealtimeProvider";
+import { useServers } from "../servers";
+import { sessionKey } from "../servers/sessionKey";
+import { type Call, type CallHolder, type CallRoom, createCall } from "./call";
+import { openConnection } from "./livekit";
+
+const CallContext = createContext<CallHolder | null>(null);
+
+// Holds the app's one voice call above the router, so it outlives the
+// room's screen: leaving that screen keeps the call, and coming back
+// finds it. The call itself is call.ts and its LiveKit side livekit.ts;
+// this hands them the phone. Where the call is goes to its server over
+// the realtime socket, as web reports it (VoiceState), and again after
+// each reconnect, since the server forgets with the socket. Going to the
+// background leaves the call: the sockets close there, and a call whose
+// presence has gone must not stay connected. So does the end of the
+// session the call was joined under.
+export default function CallProvider({ children }: { children: ReactNode }) {
+  const { servers } = useServers();
+  const send = useSendClientEvent();
+  const subscribe = useEventSubscription();
+  const phone = useRef({ servers, send });
+  phone.current = { servers, send };
+
+  // Android's permission prompt is another activity, and the app reads
+  // as in the background while it is up.
+  const asking = useRef(false);
+  const [holder] = useState(() =>
+    createCall({
+      askForMicrophone: async () => {
+        asking.current = true;
+        try {
+          return (await permissions.request({ name: "microphone" })) === true;
+        } finally {
+          asking.current = false;
+        }
+      },
+      open: (room, events) => {
+        const server = phone.current.servers.find((saved) => saved.id === room.serverId);
+        if (!server) return { ready: Promise.reject(new Error("no server")), setMuted: async () => {}, close: async () => {} };
+        return openConnection(server.origin, room, events);
+      },
+      report: (serverId, { channelId, muted }) =>
+        phone.current.send(serverId, { payload: { case: "voiceState", value: { channelId, muted } } }),
+    }),
+  );
+  const call = useSyncExternalStore(holder.subscribe, holder.get);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "background" && !asking.current) void holder.leave();
+    });
+    return () => sub.remove();
+  }, [holder]);
+
+  const room = call && call.status !== "failed" ? call.room : undefined;
+  const serverId = room?.serverId;
+  useEffect(() => {
+    if (!serverId) return;
+    return subscribe(serverId, (event) => {
+      if (event.payload.case === "ready") holder.report();
+      else if (event.payload.case === "credentialRevoked") void holder.leave();
+    });
+  }, [serverId, subscribe, holder]);
+
+  // The session the call was joined under: signing out, or in again as
+  // someone else, ends the call.
+  const server = servers.find((saved) => saved.id === serverId);
+  const session = server && sessionKey(server);
+  const joined = useRef<{ room: CallRoom; session: string | undefined }>(undefined);
+  useEffect(() => {
+    if (!room) joined.current = undefined;
+    else if (joined.current?.room !== room) joined.current = { room, session };
+    else if (joined.current.session !== session) void holder.leave();
+  }, [room, session, holder]);
+
+  return <CallContext.Provider value={holder}>{children}</CallContext.Provider>;
+}
+
+function useHolder(): CallHolder {
+  const holder = useContext(CallContext);
+  if (!holder) throw new Error("the call needs a CallProvider above it");
+  return holder;
+}
+
+// The call the app is in, joining, or failed to join, or null.
+export function useCall(): Call | null {
+  const holder = useHolder();
+  return useSyncExternalStore(holder.subscribe, holder.get);
+}
+
+// What can be done with the call: join, leave, toggleMute, dismiss.
+export function useCallActions(): Pick<CallHolder, "join" | "leave" | "toggleMute" | "dismiss"> {
+  return useHolder();
+}

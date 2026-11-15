@@ -15,7 +15,7 @@ import { type SavedServer, useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
 import { applyPresenceEvent, type Presence, presenceOf, type PresenceRoster } from "./presence";
 import { type RosterStore, rosterStore } from "./rosterStore";
-import { openRealtime } from "./socket";
+import { type ClientEventInit, openRealtime, type Realtime } from "./socket";
 import { applyVoiceEvent, type VoiceRoster } from "./voice";
 
 // Who is in voice on each server.
@@ -28,6 +28,9 @@ export type Subscribe = (serverId: string, listener: Listener) => () => void;
 // By server ID: what each screen listening there is handed, every event.
 type Listeners = Map<string, Set<Listener>>;
 const ListenersContext = createContext<Listeners>(new Map());
+// By server ID: the socket open to it, for what the app tells the server.
+type Sockets = Map<string, Realtime>;
+const SocketsContext = createContext<Sockets>(new Map());
 
 // Holds a realtime socket to every server on the phone while the app is
 // in the foreground, so the person shows online, on mobile, everywhere
@@ -51,6 +54,7 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
     for (const session of voiceBefore.keys()) if (!current.has(session)) voiceBefore.delete(session);
   }, [servers, voiceBefore]);
   const listeners = useRef<Listeners>(new Map()).current;
+  const sockets = useRef<Sockets>(new Map()).current;
 
   // "inactive" is a moment between (the app switcher, a system sheet):
   // only going to the background closes the sockets.
@@ -64,22 +68,25 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
 
   return (
     <ListenersContext.Provider value={listeners}>
-      <VoiceContext.Provider value={voice}>
-        <PresenceContext.Provider value={presence}>
-          {active &&
-            servers.map((server) => (
-              <ServerSocket
-                key={sessionKey(server)}
-                server={server}
-                listeners={listeners}
-                voice={voice}
-                voiceBefore={voiceBefore}
-                presence={presence}
-              />
-            ))}
-          {children}
-        </PresenceContext.Provider>
-      </VoiceContext.Provider>
+      <SocketsContext.Provider value={sockets}>
+        <VoiceContext.Provider value={voice}>
+          <PresenceContext.Provider value={presence}>
+            {active &&
+              servers.map((server) => (
+                <ServerSocket
+                  key={sessionKey(server)}
+                  server={server}
+                  listeners={listeners}
+                  sockets={sockets}
+                  voice={voice}
+                  voiceBefore={voiceBefore}
+                  presence={presence}
+                />
+              ))}
+            {children}
+          </PresenceContext.Provider>
+        </VoiceContext.Provider>
+      </SocketsContext.Provider>
     </ListenersContext.Provider>
   );
 }
@@ -94,12 +101,14 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
 function ServerSocket({
   server,
   listeners,
+  sockets,
   voice,
   voiceBefore,
   presence,
 }: {
   server: SavedServer;
   listeners: Listeners;
+  sockets: Sockets;
   voice: RosterStore<VoiceRoster>;
   voiceBefore: Map<string, VoiceRoster>;
   presence: RosterStore<PresenceRoster>;
@@ -123,12 +132,14 @@ function ServerSocket({
       },
       clear,
     );
+    sockets.set(id, socket);
     return () => {
+      if (sockets.get(id) === socket) sockets.delete(id);
       socket.close();
       // A closed socket says nothing more, so its rosters are cleared here.
       clear();
     };
-  }, [id, origin, session, listeners, voice, voiceBefore, presence]);
+  }, [id, origin, session, listeners, sockets, voice, voiceBefore, presence]);
   return null;
 }
 
@@ -159,6 +170,13 @@ export function useEventSubscription(): Subscribe {
     },
     [listeners],
   );
+}
+
+// Tells a server something over its socket (voice state), best effort:
+// dropped while that socket is not open.
+export function useSendClientEvent(): (serverId: string, event: ClientEventInit) => void {
+  const sockets = useContext(SocketsContext);
+  return useCallback((serverId: string, event: ClientEventInit) => sockets.get(serverId)?.send(event), [sockets]);
 }
 
 // Who is in voice on a server, or undefined while that isn't known.

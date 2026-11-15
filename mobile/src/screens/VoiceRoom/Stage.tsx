@@ -8,17 +8,21 @@ const GAP = 12;
 
 // The Stage: a tile for everyone in the room, one or two stacked full
 // width, more in two columns (stageRules), scrolling under the floating
-// header and the foot, which `top` and `bottom` clear. An empty room
+// header and the foot, which `top` and `bottom` clear, with a ring on
+// whoever is speaking. An empty room
 // says so; while the roster isn't known (the socket not connected)
 // there is nothing to say.
 export default function Stage({
   people,
+  speaking,
   origin,
   token,
   top,
   bottom,
 }: {
   people: StagePerson[] | undefined;
+  // The user IDs of whoever is speaking, known only while in the call.
+  speaking: string[];
   origin: string;
   token: string;
   top: number;
@@ -39,7 +43,15 @@ export default function Stage({
     >
       {people?.length === 0 && <Text style={styles.empty}>Nobody's here yet</Text>}
       {people?.map((person) => (
-        <Tile key={person.userId} person={person} size={size} width={tileWidth} origin={origin} token={token} />
+        <Tile
+          key={person.userId}
+          person={person}
+          speaking={speaking.includes(person.userId)}
+          size={size}
+          width={tileWidth}
+          origin={origin}
+          token={token}
+        />
       ))}
     </ScrollView>
   );

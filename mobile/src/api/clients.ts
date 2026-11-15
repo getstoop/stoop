@@ -4,6 +4,7 @@ import { AuthService } from "@stoop/gen/stoop/auth/v1/auth_pb";
 import { ChatService } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import { FileService } from "@stoop/gen/stoop/files/v1/files_pb";
 import { InstanceService } from "@stoop/gen/stoop/instance/v1/instance_pb";
+import { VoiceService } from "@stoop/gen/stoop/voice/v1/voice_pb";
 import { fetchWithoutCookies } from "./fetch";
 
 // Unlike web's transport (web/src/api/clients.ts) there is no cookie: a
@@ -42,4 +43,8 @@ export function chatClient(origin: string, token?: string): Client<typeof ChatSe
 
 export function filesClient(origin: string, token: string): Client<typeof FileService> {
   return createClient(FileService, transport(origin, token));
+}
+
+export function voiceClient(origin: string, token: string): Client<typeof VoiceService> {
+  return createClient(VoiceService, transport(origin, token));
 }
