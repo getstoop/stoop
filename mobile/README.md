@@ -998,6 +998,44 @@ badge stays as it was when the app left the front.
   tinted Brownstone's accent (`app.json`). On iOS the plugin is told to
   add no push entitlement (`enableRemoteNotifications: false`).
 
+## Voice
+
+Nothing joins a voice room yet; the build only carries what one needs.
+The LiveKit packages are in (`@livekit/react-native`, its WebRTC build,
+its Expo plugin and `livekit-client`, at the version web uses), so a
+change here needs a native rebuild, not only Metro.
+
+- **`index.js` is the app's entry**, not `expo-router/entry` directly.
+  It calls LiveKit's `registerGlobals()`, which installs the WebRTC
+  globals and also swaps the app-wide `URL` and `URLSearchParams` for a
+  polyfill, then puts Expo's two back before Expo Router loads. The rest
+  of the app keeps the `URL` it always had.
+- **Import `livekit-client` with `import`, never `require`.** The two
+  resolve to different files in the package, and the bundle would carry
+  the client twice.
+- **The native settings are set by hand in `app.json`**, with no WebRTC
+  config plugin: bitcode off on iOS, and on Android the network state,
+  Bluetooth, audio settings, record audio and wake lock permissions.
+  The app sets no background mode and starts no foreground service: a
+  call does not outlive the app going to the background yet. The LiveKit
+  libraries' own Android manifests still merge in two more permissions
+  (`BLUETOOTH_ADMIN`, `FOREGROUND_SERVICE`) and declare a screen-capture
+  service that nothing starts.
+- **The microphone sentence iOS shows** is `microphonePermission` in the
+  `expo-image-picker` settings in `app.json`, which wins over any other
+  place it could be set. It covers both voice calls and recording a
+  video for a message.
+- **Don't import `@livekit/protocol` or `@livekit/components-core`
+  directly.** Neither is in the bundle today (the packages the app does
+  load carry their own copies). `@livekit/protocol` needs version 1 of
+  the protobuf runtime, kept in a `node_modules` of its own, and
+  `metro.config.js` resolves every package from the top one only, so it
+  would be handed the app's version 2 and throw as it loads. If a screen
+  ever needs either, Metro needs a rule for that one package first.
+- **One pre-release rides in**: `whatwg-url-without-unicode@8.0.0-3`,
+  which `react-native-url-polyfill` depends on and has no stable
+  release of. Any other pre-release still needs a yes first.
+
 ## Themes
 
 The app wears the web app's themes. `src/theme/generated.ts` is written
