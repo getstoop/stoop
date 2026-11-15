@@ -151,6 +151,45 @@ describe("joining", () => {
     expect(holder.get()?.status).toBe("connected");
   });
 
+  it("joins no second room when a leave lands while the first is closing", async () => {
+    const { holder, opened } = setup();
+    const first = holder.join(porch);
+    await settle();
+    opened[0].land();
+    await first;
+    let closed = () => {};
+    opened[0].close = () => new Promise<void>((resolve) => (closed = resolve));
+    const switching = holder.join(attic);
+    // The app went to the background.
+    const leaving = holder.leave();
+    await settle();
+    closed();
+    await Promise.all([switching, leaving]);
+    await settle();
+    expect(opened).toHaveLength(1);
+    expect(holder.get()).toBeNull();
+  });
+
+  it("opens nothing until a failed join has closed", async () => {
+    const { holder, opened } = setup();
+    const first = holder.join(porch);
+    await settle();
+    let closed = () => {};
+    opened[0].close = () => new Promise<void>((resolve) => (closed = resolve));
+    opened[0].fail();
+    await settle();
+    const second = holder.join(attic);
+    await settle();
+    expect(opened).toHaveLength(1);
+    closed();
+    await first;
+    await settle();
+    expect(opened).toHaveLength(2);
+    opened[1].land();
+    await second;
+    expect(holder.get()).toMatchObject({ room: attic, status: "connected" });
+  });
+
   it("keeps one call when two joins overlap a leave", async () => {
     const { holder, opened } = setup();
     const first = holder.join(porch);

@@ -94,6 +94,11 @@ export function createCall(deps: CallDeps): CallHolder {
     deps.report(call.room.serverId, { channelId: call.room.channelId, muted: call.muted });
   };
 
+  const close = (open: Connection) => {
+    closing = closing.then(() => open.close().catch(() => {}));
+    return closing;
+  };
+
   // Ends the call, whoever ended it.
   const end = async () => {
     attempt += 1;
@@ -102,15 +107,19 @@ export function createCall(deps: CallDeps): CallHolder {
     connection = null;
     set(null);
     if (was?.status === "connected") deps.report(was.room.serverId, { channelId: "", muted: was.muted });
-    if (open) closing = closing.then(() => open.close().catch(() => {}));
-    await closing;
+    if (open) await close(open);
+    else await closing;
   };
 
   const join = async (room: CallRoom) => {
-    // Again after each leave: another join may have started meanwhile.
-    while (call && call.status !== "failed") {
+    // Leaving the room it was in comes first. Anything that happened
+    // meanwhile (a leave, the background, another join) overtook this.
+    if (call && call.status !== "failed") {
       if (sameRoom(call.room, room)) return;
-      await end();
+      const left = end();
+      const then = attempt;
+      await left;
+      if (attempt !== then) return;
     }
     attempt += 1;
     const mine = attempt;
@@ -140,7 +149,7 @@ export function createCall(deps: CallDeps): CallHolder {
       // Left meanwhile: the leave closed it and said so.
       if (connection !== opened) return;
       connection = null;
-      await opened.close().catch(() => {});
+      await close(opened);
       if (mine === attempt) fail("connection");
       return;
     }
