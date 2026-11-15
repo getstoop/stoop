@@ -6,7 +6,8 @@ import { useBottomObstruction } from "./useBottomObstruction";
 // What scrolls in the pane: a space's channels, or what stands in for
 // them (the server unreachable, no spaces here), each of which a pull
 // reloads. Its content is padded by what lies over the bottom of the
-// screen (the tab bar on iOS), and its scroll bar stops there, so the
+// screen (the tab bar on iOS, its rounded top on Android), and its
+// scroll bar stops there, so the
 // last row always comes clear, however the scroll got there.
 export default function PaneScroll({
   refreshing,

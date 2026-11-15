@@ -16,8 +16,9 @@ import { ChevronUpIcon } from "./Icons";
 // (hooks/useServerChipRoom.ts): with one there is nothing to switch to.
 // `bare` is the row in the system tab bar's own slot (iOS 26,
 // ServerChipSlot.tsx), which draws the glass under it: no panel, no
-// line.
-export default function ServerChip({ bare = false }: { bare?: boolean }) {
+// line. `lined` off is the row at the top of Android's tab bar, whose
+// rounded top draws the line itself ((tabs)/_layout.tsx).
+export default function ServerChip({ bare = false, lined = true }: { bare?: boolean; lined?: boolean }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function ServerChip({ bare = false }: { bare?: boolean }) {
       }
       testID="server-switcher"
       onPress={() => pushOnce(() => router.push({ pathname: "/servers", params: { current: server.id } }))}
-      style={({ pressed }) => [styles.chip, bare ? pressed && styles.barePressed : [styles.docked, pressed && styles.pressed]]}
+      style={({ pressed }) => [styles.chip, bare ? pressed && styles.barePressed : [styles.docked, lined && styles.lined, pressed && styles.pressed]]}
     >
       <View style={styles.tile}>
         <Text style={styles.tileLetter}>{server.name.trim().charAt(0).toUpperCase()}</Text>
@@ -63,9 +64,11 @@ function makeStyles(theme: Theme) {
       paddingHorizontal: 16,
     },
     docked: {
+      backgroundColor: theme.panel,
+    },
+    lined: {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: theme.border,
-      backgroundColor: theme.panel,
     },
     pressed: {
       backgroundColor: theme.raised,
