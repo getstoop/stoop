@@ -40,8 +40,8 @@ import VoiceRoom from "./VoiceRoom";
 // The Spaces tab's pane: the selected space's name, how many are in it
 // and what it is, with the search of it, over its text channels with
 // what is waiting in each (each opens the channel) and its voice rooms
-// with who is in them. A long press on either opens its menu
-// (ChannelMenu): a mute shows once the server has answered and the
+// with who is in them (each opens the room, screens/VoiceRoom). A long
+// press on either opens its menu (ChannelMenu): a mute shows once the server has answered and the
 // pane has reloaded, and one refused is said; About this channel opens
 // the channel's topic in a sheet of its own (ChannelAbout) once the
 // menu has gone. What is muted with the space is read from the rail's
@@ -371,6 +371,12 @@ export default function Pane({
               people={people(channel)}
               origin={server.origin}
               token={ready.token}
+              onPress={() =>
+                router.push({
+                  pathname: "/s/[id]/space/[spaceId]/voice/[channelId]",
+                  params: { id: server.id, spaceId, channelId: channel.id },
+                })
+              }
               onLongPress={() => openMenu(channel)}
               onAction={(action) => act(channel, action)}
             />

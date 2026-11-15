@@ -24,9 +24,9 @@ import { useTheme } from "../../../theme";
 // (src/notifications/OpenTappedNotification.tsx).
 export const unstable_settings = { anchor: "(tabs)" };
 
-// A channel, a conversation and a thread draw their own header, with no
-// navigation bar: a back button, the title's pill and the screen's
-// buttons floating over the list, as the composer floats over its foot
+// A channel, a voice room, a conversation and a thread draw their own
+// header, with no navigation bar: a back button, the title's pill and
+// the screen's buttons floating over the list, as the composer floats over its foot
 // (screens/Channel/ScreenHeader). The stack's own way back still works:
 // the swipe from the edge on iOS, the system's back on Android.
 const floating = { headerShown: false };
@@ -56,6 +56,7 @@ export default function ServerLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="space/[spaceId]/channel/[channelId]/index" options={floating} />
           <Stack.Screen name="space/[spaceId]/channel/[channelId]/thread/[rootId]" options={floating} />
+          <Stack.Screen name="space/[spaceId]/voice/[channelId]" options={floating} />
           <Stack.Screen name="dm/[channelId]/index" options={floating} />
           <Stack.Screen name="dm/[channelId]/thread/[rootId]" options={floating} />
           {/* Search draws its own header row too: the back button and the
