@@ -163,8 +163,8 @@ export default function Activity({ server }: { server: SavedServer }) {
   );
 }
 
-// Under the last of the list, before the room the server chip takes
-// (hooks/useServerChipRoom.ts).
+// Under the last of the list, before the room the server chip or the
+// tab bar's rounded top takes (hooks/useServerChipRoom.ts).
 const LIST_PADDING = 16;
 
 function makeStyles(theme: Theme) {

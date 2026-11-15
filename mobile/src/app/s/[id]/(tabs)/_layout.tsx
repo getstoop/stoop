@@ -1,12 +1,13 @@
 import { badgeCount } from "@stoop/core/unreads";
 import { Tabs } from "expo-router";
 import { BottomTabBar } from "expo-router/tabs";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlerts } from "../../../../alerts/AlertsProvider";
 import { BellIcon, MessagesIcon, PersonIcon, SpacesIcon } from "../../../../components/Icons";
 import ServerChip from "../../../../components/ServerChip";
-import { useServerChipShown } from "../../../../hooks/useServerChipRoom";
-import { useTheme } from "../../../../theme";
+import { TAB_BAR_OVERLAP, useServerChipShown } from "../../../../hooks/useServerChipRoom";
+import { tokens, useTheme } from "../../../../theme";
 
 // A server's four tabs, at the bottom of its stack (../_layout.tsx). This
 // drawn tab bar is Android's; iOS uses the system's own (_layout.ios.tsx).
@@ -15,23 +16,44 @@ import { useTheme } from "../../../../theme";
 // to you in the spaces past your markers, and Messages' the unread
 // messages in your conversations (src/alerts), each hidden at none.
 // With more than one server saved the server chip is docked on the bar,
-// part of it, so the screens end above both.
+// part of it. The top of the bar (the chip's, when it shows) is rounded
+// as a sheet's is: the bar is pulled up over the foot of the screen by
+// the radius, so the screen shows in the corners, and the screens' lists
+// pad by as much (hooks/useServerChipRoom.ts).
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
 export const unstable_settings = { anchor: "(spaces)" };
+
+// The bar's own height is iOS's (49), which leaves the icons 5 under its
+// top line while the system's gesture area gives the labels air below:
+// this much more goes above the icons, so the bar reads even.
+const TAB_BAR_HEIGHT = 49;
+const TAB_BAR_TOP_ROOM = 8;
 
 export default function TabsLayout() {
   const theme = useTheme();
   const { activity: alerting, messages: unread } = useAlerts();
   const badgeStyle = { backgroundColor: theme.danger, color: theme.onAccent };
   const chip = useServerChipShown();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       tabBar={(props) => (
-        <View>
-          {chip && <ServerChip />}
+        <View
+          style={{
+            marginTop: -TAB_BAR_OVERLAP,
+            borderTopLeftRadius: tokens.radiusLg,
+            borderTopRightRadius: tokens.radiusLg,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderBottomWidth: 0,
+            borderColor: theme.border,
+            backgroundColor: theme.panel,
+            overflow: "hidden",
+          }}
+        >
+          {chip && <ServerChip lined={false} />}
           <BottomTabBar {...props} />
         </View>
       )}
@@ -39,7 +61,15 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textMuted,
-        tabBarStyle: { backgroundColor: theme.panel, borderTopColor: theme.border },
+        tabBarStyle: {
+          backgroundColor: theme.panel,
+          // The line over the tabs is the chip's foot; with no chip the
+          // rounded top draws its own.
+          borderTopColor: theme.border,
+          borderTopWidth: chip ? StyleSheet.hairlineWidth : 0,
+          height: TAB_BAR_HEIGHT + TAB_BAR_TOP_ROOM + insets.bottom,
+          paddingTop: TAB_BAR_TOP_ROOM,
+        },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         sceneStyle: { backgroundColor: theme.surface },
       }}

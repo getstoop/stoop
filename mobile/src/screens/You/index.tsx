@@ -182,8 +182,8 @@ export default function You({ server }: { server: SavedServer }) {
   );
 }
 
-// Under the last of the content, before the room the server chip takes
-// (hooks/useServerChipRoom.ts).
+// Under the last of the content, before the room the server chip or
+// the tab bar's rounded top takes (hooks/useServerChipRoom.ts).
 const CONTENT_PADDING = 16;
 
 function makeStyles(theme: Theme) {
