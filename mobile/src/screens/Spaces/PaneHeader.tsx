@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SearchIcon } from "../../components/Icons";
+import Skeleton from "../../components/Skeleton";
 import SkeletonBlock from "../../components/SkeletonBlock";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { searchLabel } from "../Channel/headerActions";
@@ -40,9 +41,9 @@ export default function PaneHeader({
             {about}
           </Text>
         ) : pending ? (
-          <View style={styles.pending}>
+          <Skeleton silent style={styles.pending}>
             <SkeletonBlock width="70%" height={tokens.textUi} />
-          </View>
+          </Skeleton>
         ) : null}
       </View>
       <Pressable

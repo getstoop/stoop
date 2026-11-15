@@ -1,4 +1,5 @@
 import { useNavigation, useRouter } from "expo-router";
+import { useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PlusIcon } from "../../components/Icons";
@@ -14,6 +15,11 @@ import ServerRow from "./ServerRow";
 // what is waiting there or a note that its sign-in has ended. Each is
 // asked once, when the sheet opens.
 
+// How long Android's sheet takes to slide out (the system's own length
+// for an animation, which the sheet is left at), which a switch of
+// server waits for.
+const ANDROID_SHEET_OUT_MS = 300;
+
 export default function ServerSwitcher({ current }: { current?: string }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -22,16 +28,33 @@ export default function ServerSwitcher({ current }: { current?: string }) {
   const { servers, switchTo } = useServers();
   const navigation = useNavigation<ServerNavigation>();
   const { waiting } = useWaiting(servers, current);
+  const going = useRef(false);
 
   // The sheet closes before the app moves on: a screen pushed from inside
-  // a sheet would open inside it. Another server instead replaces the
+  // a sheet would open inside it. On iOS another server replaces the
   // screen under the sheet first, so the sheet closes onto it, swapped in
   // place. Replaced after, the old server went blank behind the closing
-  // sheet. The server is put first only once the sheet is going, so the
-  // list doesn't reorder in view.
+  // sheet. Android can't do both at once: with the screen under it
+  // replaced, its sheet is gone in an instant, so there the sheet slides
+  // out over the old server and the swap waits for it. The server is put
+  // first only once the sheet is going, so the list doesn't reorder in
+  // view.
   const open = (server: SavedServer) => {
     const ended = waiting[server.id]?.state === "ended";
     if (server.id !== current && !ended) {
+      const swap = () => {
+        swapServer(navigation, server.id);
+        switchTo(server.id);
+      };
+      if (Platform.OS === "android") {
+        // Once: a second row pressed as the sheet goes would close the
+        // server under it and swap twice.
+        if (going.current) return;
+        going.current = true;
+        router.back();
+        setTimeout(swap, ANDROID_SHEET_OUT_MS);
+        return;
+      }
       swapServer(navigation, server.id);
       router.back();
       switchTo(server.id);

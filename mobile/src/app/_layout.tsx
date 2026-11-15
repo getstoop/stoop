@@ -103,7 +103,17 @@ function RootStack() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="s/[id]" options={{ headerShown: false }} />
+        {/* A server arrives with no motion of the stack's on Android,
+            the first one or one swapped for another (the switcher, the
+            You tab, a link or a notification for another server): its
+            own motion for a swap slides the two across each other, and
+            its fade dips to the window behind. The server's channels
+            fade in by themselves. On iOS the switcher's swap happens
+            under its closing sheet. */}
+        <Stack.Screen
+          name="s/[id]"
+          options={{ headerShown: false, animation: Platform.OS === "android" ? "none" : undefined }}
+        />
         <Stack.Screen
           name="servers"
           options={{

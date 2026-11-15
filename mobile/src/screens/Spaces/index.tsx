@@ -10,6 +10,7 @@ import { sessionToken } from "../../api/servers";
 import { loadSpaces, touchesSpaces } from "../../api/spaces";
 import ServerChipOverlay from "../../components/ServerChipOverlay";
 import Skeleton from "../../components/Skeleton";
+import SkeletonPulse from "../../components/SkeletonPulse";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useSignInAgain } from "../../hooks/useSignInAgain";
@@ -138,12 +139,22 @@ export default function Spaces({ server }: { server: SavedServer }) {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Until the remembered space is read too: no space is picked without it. */}
       {(list.state === "loading" || (list.state === "ready" && !settled)) && (
-        <Skeleton style={styles.body}>
-          <RailSkeleton />
-          <View style={styles.pane}>
-            <PaneSkeleton header />
+        // The pane's surface is there from the start, around its
+        // skeleton, which draws only after a moment (components/Skeleton):
+        // a quick load goes from the bare pane to its channels. One pulse
+        // for the rail's blocks and the pane's, and one "Loading" said.
+        <SkeletonPulse>
+          <View style={styles.body}>
+            <Skeleton silent>
+              <RailSkeleton />
+            </Skeleton>
+            <View style={styles.pane}>
+              <Skeleton style={styles.fill}>
+                <PaneSkeleton header />
+              </Skeleton>
+            </View>
           </View>
-        </Skeleton>
+        </SkeletonPulse>
       )}
       {list.state === "ended" && (
         <TabNotice
@@ -180,7 +191,7 @@ export default function Spaces({ server }: { server: SavedServer }) {
               // fades in over the pane's surface, which softens the
               // change of space (at once under Reduce Motion); not the
               // first one, which takes the tab's skeleton's place as it
-              // is.
+              // is (its own skeleton drawn at once if the tab's was).
               <LayoutAnimationConfig skipEntering>
                 <Animated.View key={space.id} entering={FadeIn.duration(tokens.dur)} style={styles.fill}>
                   <Pane
