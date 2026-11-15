@@ -1,5 +1,16 @@
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import { ChannelSchema } from "@stoop/gen/stoop/chat/v1/channel_pb";
+import { MessageSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
+import {
+  ChannelDeletedSchema,
+  ChannelMutedSchema,
+  ChannelReadSchema,
+  MemberUpdatedSchema,
+  ServerEventSchema,
+  SpaceMutedSchema,
+} from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { describe, expect, it } from "vitest";
-import { hereLine, roomAbout, stageLayout, stagePeople, tileLabel } from "./stageRules";
+import { hereLine, roomAbout, stageLayout, stagePeople, tileLabel, touchesRoom } from "./stageRules";
 
 describe("stagePeople", () => {
   const members = {
@@ -26,6 +37,32 @@ describe("stagePeople", () => {
     expect(stagePeople([{ userId: "u9", muted: false }], members)).toEqual([
       { userId: "u9", name: "Someone", avatarFileId: "", muted: false },
     ]);
+  });
+});
+
+describe("touchesRoom", () => {
+  const event = (payload: MessageInitShape<typeof ServerEventSchema>["payload"]) =>
+    create(ServerEventSchema, { payload });
+
+  it.each([
+    ["the room renamed", { case: "channelUpdated", value: create(ChannelSchema, { spaceId: "s1" }) }],
+    ["a channel deleted", { case: "channelDeleted", value: create(ChannelDeletedSchema, { spaceId: "s1" }) }],
+    ["a channel muted", { case: "channelMuted", value: create(ChannelMutedSchema, { spaceId: "s1" }) }],
+    ["the space muted", { case: "spaceMuted", value: create(SpaceMutedSchema, { spaceId: "s1" }) }],
+    ["the space renamed", { case: "spaceUpdated", value: { space: { id: "s1" } } }],
+    ["a member's name changed", { case: "memberUpdated", value: create(MemberUpdatedSchema, { spaceId: "s1" }) }],
+    ["a reconnect", { case: "ready", value: {} }],
+  ] as const)("reloads on %s", (_name, payload) => {
+    expect(touchesRoom(event(payload), "s1")).toBe(true);
+  });
+
+  it.each([
+    ["a message", { case: "messageCreated", value: create(MessageSchema, { spaceId: "s1" }) }],
+    ["a channel read", { case: "channelRead", value: create(ChannelReadSchema, { spaceId: "s1" }) }],
+    ["another space's channel", { case: "channelUpdated", value: create(ChannelSchema, { spaceId: "s2" }) }],
+    ["another space", { case: "spaceUpdated", value: { space: { id: "s2" } } }],
+  ] as const)("leaves %s", (_name, payload) => {
+    expect(touchesRoom(event(payload), "s1")).toBe(false);
   });
 });
 

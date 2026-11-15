@@ -5,12 +5,13 @@ import type { Member } from "@stoop/gen/stoop/chat/v1/member_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { loadSpaceChannels, touchesSpace } from "../../api/channels";
+import { loadSpaceChannels } from "../../api/channels";
 import { sessionToken } from "../../api/servers";
 import { useServerEvents } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
 import { afterLoad } from "../Spaces/reloads";
 import { useQuietReload } from "../Spaces/useQuietReload";
+import { touchesRoom } from "./stageRules";
 
 export type RoomView =
   | { state: "loading" }
@@ -27,8 +28,8 @@ export type RoomView =
 // What a voice room's screen shows besides who is in it (the roster's,
 // live from the socket): the room, its space and the space's members,
 // loaded as the Spaces tab's pane loads them, and again, after a
-// moment's quiet, when the socket says something in the space changed
-// or the app comes back. A reload that fails keeps what is shown; a
+// moment's quiet, when the socket says one of them changed
+// (stageRules touchesRoom) or the app comes back. A reload that fails keeps what is shown; a
 // room no longer among the space's voice channels is gone.
 export function useVoiceRoom(
   server: SavedServer,
@@ -76,7 +77,7 @@ export function useVoiceRoom(
     if (event.payload.case === "credentialRevoked") {
       latest.current++;
       setView({ state: "ended" });
-    } else if (touchesSpace(event, spaceId)) quiet.soon();
+    } else if (touchesRoom(event, spaceId)) quiet.soon();
   });
 
   const retry = useCallback(() => {

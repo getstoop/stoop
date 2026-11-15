@@ -1,5 +1,5 @@
 import type { Member } from "@stoop/gen/stoop/chat/v1/member_pb";
-import type { VoiceParticipant } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
+import type { ServerEvent, VoiceParticipant } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { memberName } from "../../api/channels";
 
 // The rules of a voice room's Stage: who is on it, how its tiles are
@@ -31,7 +31,36 @@ export function stagePeople(
   });
 }
 
-export type TileSize = "tall" | "regular" | "small";
+// Whether an event could change what the room's screen loads: the room
+// itself (renamed, deleted, muted, who may be in a private one), its
+// space (renamed, muted, deleted) or the space's members, for their
+// names and faces. Ready follows a reconnect, when anything may have
+// been missed. Messages and read markers change nothing here, and who
+// is in the room is the roster's.
+export function touchesRoom(event: ServerEvent, spaceId: string): boolean {
+  const payload = event.payload;
+  switch (payload.case) {
+    case "ready":
+      return true;
+    case "channelUpdated":
+    case "channelDeleted":
+    case "channelMuted":
+    case "channelMemberJoined":
+    case "channelMemberLeft":
+    case "spaceMuted":
+    case "spaceDeleted":
+    case "memberJoined":
+    case "memberRemoved":
+    case "memberUpdated":
+      return payload.value.spaceId === spaceId;
+    case "spaceUpdated":
+      return payload.value.space?.id === spaceId;
+    default:
+      return false;
+  }
+}
+
+export type TileSize ="tall" | "regular" | "small";
 
 // One or two people stack full width in tall tiles; more form two
 // columns, in smaller tiles from five.
