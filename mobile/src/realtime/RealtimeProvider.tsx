@@ -41,6 +41,10 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
   const [active, setActive] = useState(AppState.currentState === "active");
   const [voice] = useState(() => rosterStore<VoiceRoster>());
   const [presence] = useState(() => rosterStore<PresenceRoster>());
+  // Each session's voice roster as it last was, which outlives its
+  // socket: the next Ready is put in its order (applyVoiceEvent), so
+  // nobody in a room changes place over a reconnect.
+  const voiceBefore = useRef(new Map<string, VoiceRoster>()).current;
   const listeners = useRef<Listeners>(new Map()).current;
 
   // "inactive" is a moment between (the app switcher, a system sheet):
@@ -64,6 +68,7 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
                 server={server}
                 listeners={listeners}
                 voice={voice}
+                voiceBefore={voiceBefore}
                 presence={presence}
               />
             ))}
@@ -85,14 +90,17 @@ function ServerSocket({
   server,
   listeners,
   voice,
+  voiceBefore,
   presence,
 }: {
   server: SavedServer;
   listeners: Listeners;
   voice: RosterStore<VoiceRoster>;
+  voiceBefore: Map<string, VoiceRoster>;
   presence: RosterStore<PresenceRoster>;
 }) {
   const { id, origin } = server;
+  const session = sessionKey(server);
   useEffect(() => {
     const clear = () => {
       voice.set(id, undefined);
@@ -102,7 +110,9 @@ function ServerSocket({
       origin,
       () => sessionToken(id),
       (event) => {
-        voice.set(id, applyVoiceEvent(voice.get(id), event));
+        const roster = applyVoiceEvent(voice.get(id), event, voiceBefore.get(session));
+        if (roster) voiceBefore.set(session, roster);
+        voice.set(id, roster);
         presence.set(id, applyPresenceEvent(presence.get(id), event));
         for (const listener of listeners.get(id) ?? []) listener(event);
       },
@@ -113,7 +123,7 @@ function ServerSocket({
       // A closed socket says nothing more, so its rosters are cleared here.
       clear();
     };
-  }, [id, origin, listeners, voice, presence]);
+  }, [id, origin, session, listeners, voice, voiceBefore, presence]);
   return null;
 }
 
