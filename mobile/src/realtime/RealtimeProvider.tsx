@@ -45,6 +45,11 @@ export default function RealtimeProvider({ children }: { children: ReactNode }) 
   // socket: the next Ready is put in its order (applyVoiceEvent), so
   // nobody in a room changes place over a reconnect.
   const voiceBefore = useRef(new Map<string, VoiceRoster>()).current;
+  // A session that is over (signed out, signed in again) is forgotten.
+  useEffect(() => {
+    const current = new Set(servers.map(sessionKey));
+    for (const session of voiceBefore.keys()) if (!current.has(session)) voiceBefore.delete(session);
+  }, [servers, voiceBefore]);
   const listeners = useRef<Listeners>(new Map()).current;
 
   // "inactive" is a moment between (the app switcher, a system sheet):
