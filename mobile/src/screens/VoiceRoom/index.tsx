@@ -7,7 +7,7 @@ import { ScrollViewMarker } from "react-native-screens/experimental";
 import { setChannelMuted } from "../../api/channels";
 import { errorText } from "../../api/errors";
 import { useCall, useCallActions } from "../../call/CallProvider";
-import { failureLine, footState } from "../../call/call";
+import { failureLine, footState, speakerState } from "../../call/call";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
@@ -30,7 +30,7 @@ import VoiceTitle from "./VoiceTitle";
 // titled with the room, its space and how many are here, and over a
 // foot that names them above Join. Join puts the phone in the room's
 // call, which the app holds above this screen (src/call): the foot then
-// offers Mute and Leave, this account is a tile like anyone, through
+// offers Mute, Speaker and Leave, this account is a tile like anyone, through
 // the roster, and whoever is speaking wears a ring. Leaving the screen
 // keeps the call, and coming back finds it.
 // Search in the header searches the room's space; the bell mutes the
@@ -56,7 +56,7 @@ export default function VoiceRoom({
   const [footHeight, setFootHeight] = useState(0);
 
   const call = useCall();
-  const { join, leave, toggleMute: toggleMic, dismiss } = useCallActions();
+  const { join, leave, toggleMute: toggleMic, toggleSpeaker, dismiss } = useCallActions();
   const room = useMemo(() => ({ serverId: server.id, spaceId, channelId }), [server.id, spaceId, channelId]);
   const foot = footState(call, room);
   // A failed join is this visit's news: gone on leaving the screen.
@@ -159,7 +159,9 @@ export default function VoiceRoom({
         state={foot}
         muted={foot === "joined" && !!call?.muted}
         onJoin={() => void join(room)}
+        speaker={speakerState(call)}
         onToggleMute={() => void toggleMic()}
+        onToggleSpeaker={() => void toggleSpeaker()}
         onLeave={() => void leave()}
         onHeight={setFootHeight}
       />

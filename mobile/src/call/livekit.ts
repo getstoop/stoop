@@ -1,8 +1,15 @@
-import { AndroidAudioTypePresets, type AudioConfiguration, AudioSession } from "@livekit/react-native";
+import {
+  AndroidAudioTypePresets,
+  type AppleAudioCategoryOption,
+  type AudioConfiguration,
+  AudioSession,
+  setupIOSAudioManagement,
+} from "@livekit/react-native";
 import { type Participant, Room, RoomEvent } from "livekit-client";
+import { Platform } from "react-native";
 import { voiceClient } from "../api/clients";
 import { sessionToken } from "../api/servers";
-import type { CallRoom, Connection, ConnectionEvents } from "./call";
+import { androidOutput, type CallRoom, type Connection, type ConnectionEvents } from "./call";
 
 // The LiveKit side of a call, as web's (web/src/api/voice.ts): a token
 // from JoinVoiceChannel, signalling at the server's own /livekit, the
@@ -12,10 +19,10 @@ import type { CallRoom, Connection, ConnectionEvents } from "./call";
 // As web's: a join that neither lands nor fails by then has failed.
 const JOIN_TIMEOUT_MS = 30_000;
 
-// Where sound goes (mobile/README.md → Voice). Android: LiveKit picks
-// the first of these that is there, so the loudspeaker unless a headset
-// is, in call mode. iOS: the loudspeaker rather than the earpiece when
-// nothing else is connected.
+// Where sound goes as a call starts (mobile/README.md → Voice).
+// Android: LiveKit picks the first of these that is there, so the
+// loudspeaker unless a headset is, in call mode. iOS: the loudspeaker
+// rather than the earpiece when nothing else is connected.
 const AUDIO: AudioConfiguration = {
   android: {
     preferredOutputList: ["bluetooth", "headset", "speaker", "earpiece"],
@@ -23,6 +30,34 @@ const AUDIO: AudioConfiguration = {
   },
   ios: { defaultOutput: "speaker" },
 };
+
+// iOS: the loudspeaker or the earpiece as the session's default, which
+// headphones override either way. LiveKit sets the session again from
+// its policy whenever the audio engine changes, so the policy is told
+// too; the session is set here for the change to be heard now. The
+// options and modes are LiveKit's own for the two.
+const IOS_OPTIONS: AppleAudioCategoryOption[] = ["mixWithOthers", "allowBluetooth", "allowBluetoothA2DP", "allowAirPlay"];
+
+async function setIosSpeaker(speaker: boolean) {
+  setupIOSAudioManagement(speaker);
+  try {
+    await AudioSession.setAppleAudioConfiguration({
+      audioCategory: "playAndRecord",
+      audioCategoryOptions: speaker ? [...IOS_OPTIONS, "defaultToSpeaker"] : IOS_OPTIONS,
+      audioMode: speaker ? "videoChat" : "voiceChat",
+    });
+  } catch (err) {
+    // The session didn't follow, so the policy goes back with it.
+    setupIOSAudioManagement(!speaker);
+    throw err;
+  }
+}
+
+// Android has no event for a headset coming or going, so the outputs
+// are read this often while in a call. Until the next reading after a
+// headset goes, the sound is where LiveKit's own order puts it: the
+// loudspeaker.
+const OUTPUTS_EVERY_MS = 1000;
 
 // The response's address is a path on the server's origin; ws follows
 // http and wss follows https.
@@ -44,6 +79,29 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
   // Whether the join has landed: only then is a disconnect a drop.
   let live = false;
   let audioStarted = false;
+  let speaker = true;
+  // Android: whether Speaker has been pressed, and the output chosen
+  // last since. LiveKit moves the sound to a headset by itself only
+  // until an output is chosen by hand: a chosen one stays whatever
+  // connects later. So from the first press on, a headset is chosen
+  // here when one appears, and the phone's own output when it goes.
+  let chosen = false;
+  let output = "";
+  let watching: ReturnType<typeof setInterval> | undefined;
+
+  // Puts Android's sound where it belongs, and says whether that is a
+  // headset.
+  const routeAndroid = async (): Promise<boolean> => {
+    const outputs = await AudioSession.getAudioOutputs();
+    if (closed) return false;
+    const wanted = androidOutput(outputs, speaker);
+    const headset = wanted !== "speaker" && wanted !== "earpiece";
+    events.onHeadphones(headset);
+    if (!chosen || wanted === output) return headset;
+    output = wanted;
+    await AudioSession.selectAudioOutput(wanted);
+    return headset;
+  };
 
   lk.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
     events.onSpeaking(speakers.map((speaker) => speaker.identity)),
@@ -62,6 +120,8 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     const joined = await voiceClient(origin, session).joinVoiceChannel({ channelId: room.channelId });
     stopIfClosed();
     await AudioSession.configureAudio(AUDIO);
+    // The last call may have left the earpiece as iOS's default.
+    if (Platform.OS === "ios") setupIOSAudioManagement(true);
     stopIfClosed();
     audioStarted = true;
     await AudioSession.startAudioSession();
@@ -85,6 +145,10 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     await published;
     stopIfClosed();
     live = true;
+    if (Platform.OS === "android") {
+      watching = setInterval(() => void routeAndroid().catch(() => {}), OUTPUTS_EVERY_MS);
+      void routeAndroid().catch(() => {});
+    }
   };
 
   return {
@@ -92,9 +156,27 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     setMuted: async (muted) => {
       await lk.localParticipant.setMicrophoneEnabled(!muted);
     },
+    // Rejects, with the choice as it was, when the sound didn't move:
+    // also when a headset turned out to have it (Android), which the
+    // last reading hadn't seen yet.
+    setSpeaker: async (on) => {
+      const was = speaker;
+      speaker = on;
+      try {
+        if (Platform.OS === "ios") await setIosSpeaker(on);
+        else {
+          chosen = true;
+          if (await routeAndroid()) throw new Error("headphones have the sound");
+        }
+      } catch (err) {
+        speaker = was;
+        throw err;
+      }
+    },
     close: async () => {
       if (closed) return;
       closed = true;
+      clearInterval(watching);
       await lk.disconnect().catch(() => {});
       if (audioStarted) await AudioSession.stopAudioSession().catch(() => {});
     },

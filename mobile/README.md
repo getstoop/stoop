@@ -1002,7 +1002,8 @@ badge stays as it was when the app left the front.
 ## Voice
 
 A voice room's screen (`src/screens/VoiceRoom`) joins its call: Join,
-then Mute and Leave in its place, and a ring on whoever is speaking.
+then Mute, Speaker and Leave in its place, and a ring on whoever is
+speaking.
 The LiveKit packages are in (`@livekit/react-native`, its WebRTC build,
 its Expo plugin and `livekit-client`, at the version web uses), so a
 change to them needs a native rebuild, not only Metro.
@@ -1011,9 +1012,10 @@ change to them needs a native rebuild, not only Metro.
   beside the other app-wide providers, so leaving the room's screen
   keeps the call and coming back finds it. `useCall()` gives what a
   screen draws (the server, space and room, connecting, connected or
-  failed, muted, who is speaking) and `useCallActions()` what it can
-  do. One call at a time: joining a second room leaves the first, then
-  joins.
+  failed, muted, the loudspeaker on or off, whether headphones have the
+  sound, who is speaking) and `useCallActions()` what it can do. One
+  call at a time, across every server: joining a second room leaves
+  the first, then joins.
 - **`call.ts` is the call's rules and nothing else**: plain state with
   the microphone prompt, the connection and the report to the server
   handed in, so it has unit tests (`call.test.ts`, `make test`).
@@ -1032,14 +1034,49 @@ change to them needs a native rebuild, not only Metro.
   connected. Android's permission prompt reads as the background too,
   so the first Join's prompt is let through. Signing out of the call's
   server, or its session ending, leaves it as well.
-- **Sound comes out of the loudspeaker** unless a wired or Bluetooth
-  headset is connected, which takes over. On iOS that is LiveKit's own
-  audio session handling, which `registerGlobals()` turns on (play and
-  record, video chat mode, default to speaker, Bluetooth and AirPlay
-  allowed), with `defaultOutput: "speaker"`; on Android it is the
-  communication preset with outputs preferred in the order Bluetooth,
-  wired headset, loudspeaker, earpiece. There is no way to choose
-  another output yet.
+- **Sound comes out of the loudspeaker** as a call starts, unless a
+  wired or Bluetooth headset is connected, which takes over. On iOS
+  that is LiveKit's own audio session handling, which
+  `registerGlobals()` turns on (play and record, video chat mode,
+  default to speaker, Bluetooth and AirPlay allowed), with
+  `defaultOutput: "speaker"`; on Android it is the communication preset
+  with outputs preferred in the order Bluetooth, wired headset,
+  loudspeaker, earpiece.
+- **Speaker switches between the loudspeaker and the earpiece**, and
+  is on again at the start of every call. It is the choice for when no
+  headphones are connected: headphones have the sound whichever way it
+  is set, and the choice holds again when they go. The choice is the
+  call's (`speaker` in `call.ts`), for the call bar to show later.
+  There is no picker of outputs.
+  - **iOS** switches the audio session's default: with the loudspeaker
+    as the default and video chat mode, or without it and voice chat
+    mode (LiveKit's own two settings). It is set on the session at once
+    and in LiveKit's policy, which sets the session again whenever the
+    audio engine changes. iOS itself sends the sound to headphones
+    either way. LiveKit's own "force speaker" output is not used: it
+    takes the sound from headphones. LiveKit gives the app no way to
+    learn what is connected on iOS, so there the control never knows of
+    headphones: it stays as it was set, and switching it while they
+    have the sound changes only where the sound goes once they are
+    gone.
+  - **Android** chooses the loudspeaker or the earpiece by hand
+    (`selectAudioOutput`). LiveKit's audio switch moves the sound to a
+    headset by itself only until an output has been chosen by hand,
+    after which the chosen one stays whatever connects. It has no event
+    for a headset coming or going either, so while in a call the app
+    reads the outputs every second (`livekit.ts`): the control is
+    disabled and shows off while a headset is among them, and from the
+    first press of Speaker the app chooses the headset itself when one
+    appears and the loudspeaker or earpiece again when it goes. Up to
+    then LiveKit's own order does it, at once. Two things follow from
+    reading rather than being told. After a press, a headset that
+    connects has the sound up to a second late. And when a headset
+    goes, LiveKit falls back to the loudspeaker until the next reading,
+    so with Speaker off the call is out loud for up to a second before
+    it reaches the earpiece. A press that finds a headset the last
+    reading hadn't seen changes nothing.
+    A phone with no earpiece (the emulator has none) is not told apart:
+    Speaker switches there and the sound stays on the loudspeaker.
 - **Bluetooth headsets need no `BLUETOOTH_CONNECT`.** LiveKit routes
   through the audio switch that reads devices from Android's
   `AudioManager`; the one that asks for that permission (through the

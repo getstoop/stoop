@@ -2,7 +2,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HangUpIcon, MicIcon, MicOffIcon } from "../../components/Icons";
+import { HangUpIcon, LoudspeakerIcon, MicIcon, MicOffIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Surface from "../Channel/Surface";
 
@@ -13,7 +13,9 @@ const CONTROL = 60;
 const BUBBLE_PAD = 12;
 
 // The foot of the Stage: who is here, in a line, over Join; once in the
-// call, Mute and Leave in Join's place. A join that failed says so in
+// call, Mute, Speaker and Leave in Join's place. Speaker is the
+// loudspeaker rather than the earpiece, and has nothing to switch while
+// headphones have the sound. A join that failed says so in
 // the line's place. Where iOS has Liquid Glass it is a bubble of it
 // floating over the tiles, as the composer floats over a channel;
 // elsewhere a solid band across the bottom. `onHeight` says how much of
@@ -23,8 +25,10 @@ export default function StageFoot({
   failure,
   state,
   muted,
+  speaker,
   onJoin,
   onToggleMute,
+  onToggleSpeaker,
   onLeave,
   onHeight,
 }: {
@@ -33,8 +37,12 @@ export default function StageFoot({
   // Before the join, while it connects, or in the call (call footState).
   state: "join" | "connecting" | "joined";
   muted: boolean;
+  // The loudspeaker on or off, or headphones have the sound (call
+  // speakerState).
+  speaker: "on" | "off" | "headphones";
   onJoin: () => void;
   onToggleMute: () => void;
+  onToggleSpeaker: () => void;
   onLeave: () => void;
   onHeight: (height: number) => void;
 }) {
@@ -61,6 +69,16 @@ export default function StageFoot({
         <View style={styles.controls}>
           <Control label={muted ? "Unmute" : "Mute"} on={muted} onPress={onToggleMute}>
             {muted ? <MicOffIcon color={theme.surface} size={26} /> : <MicIcon color={theme.text} size={26} />}
+          </Control>
+          <Control
+            label="Speaker"
+            toggle
+            on={speaker === "on"}
+            disabled={speaker === "headphones"}
+            hint={speaker === "headphones" ? "Sound is going to headphones" : undefined}
+            onPress={onToggleSpeaker}
+          >
+            <LoudspeakerIcon color={speaker === "on" ? theme.surface : theme.text} size={26} />
           </Control>
           <Control label="Leave" end onPress={onLeave}>
             <HangUpIcon color={theme.onAccent} size={26} />
@@ -104,18 +122,25 @@ export default function StageFoot({
   );
 }
 
-// One of the call's controls: a round button over its name. `on` is a
-// switch that is on (muted); `end` is the one that ends the call.
+// One of the call's controls: a round button over its name. `on` fills
+// it (muted, the loudspeaker on); `toggle` is one whose name stays and
+// whose state is said as on or off; `end` is the one that ends the call.
 function Control({
   label,
   on,
+  toggle,
   end,
+  disabled,
+  hint,
   onPress,
   children,
 }: {
   label: string;
   on?: boolean;
+  toggle?: boolean;
   end?: boolean;
+  disabled?: boolean;
+  hint?: string;
   onPress: () => void;
   children: ReactNode;
 }) {
@@ -123,10 +148,13 @@ function Control({
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       hitSlop={6}
-      accessibilityRole="button"
+      accessibilityRole={toggle ? "switch" : "button"}
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.control, pressed && styles.dim]}
+      accessibilityHint={hint}
+      accessibilityState={toggle ? { checked: !!on, disabled: !!disabled } : undefined}
+      style={({ pressed }) => [styles.control, (pressed || disabled) && styles.dim]}
     >
       <View style={[styles.round, on && styles.roundOn, end && styles.roundEnd]}>{children}</View>
       <Text style={styles.controlLabel} numberOfLines={1}>

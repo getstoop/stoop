@@ -4,7 +4,7 @@ import { AppState } from "react-native";
 import { useEventSubscription, useSendClientEvent } from "../realtime/RealtimeProvider";
 import { useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
-import { type Call, type CallHolder, type CallRoom, createCall } from "./call";
+import { type Call, type CallHolder, type CallRoom, type Connection, createCall, leavesCall } from "./call";
 import { openConnection } from "./livekit";
 
 const CallContext = createContext<CallHolder | null>(null);
@@ -40,7 +40,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
       },
       open: (room, events) => {
         const server = phone.current.servers.find((saved) => saved.id === room.serverId);
-        if (!server) return { ready: Promise.reject(new Error("no server")), setMuted: async () => {}, close: async () => {} };
+        if (!server) return noConnection();
         return openConnection(server.origin, room, events);
       },
       report: (serverId, { channelId, muted }) =>
@@ -51,7 +51,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "background" && !asking.current) void holder.leave();
+      if (leavesCall(state, asking.current)) void holder.leave();
     });
     return () => sub.remove();
   }, [holder]);
@@ -80,6 +80,14 @@ export default function CallProvider({ children }: { children: ReactNode }) {
   return <CallContext.Provider value={holder}>{children}</CallContext.Provider>;
 }
 
+// The connection to a server the app no longer has: a join that fails.
+const noConnection = (): Connection => ({
+  ready: Promise.reject(new Error("no server")),
+  setMuted: async () => {},
+  setSpeaker: async () => {},
+  close: async () => {},
+});
+
 function useHolder(): CallHolder {
   const holder = useContext(CallContext);
   if (!holder) throw new Error("the call needs a CallProvider above it");
@@ -92,7 +100,8 @@ export function useCall(): Call | null {
   return useSyncExternalStore(holder.subscribe, holder.get);
 }
 
-// What can be done with the call: join, leave, toggleMute, dismiss.
-export function useCallActions(): Pick<CallHolder, "join" | "leave" | "toggleMute" | "dismiss"> {
+// What can be done with the call: join, leave, toggleMute, toggleSpeaker,
+// dismiss.
+export function useCallActions(): Pick<CallHolder, "join" | "leave" | "toggleMute" | "toggleSpeaker" | "dismiss"> {
   return useHolder();
 }
