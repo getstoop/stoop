@@ -1033,6 +1033,16 @@ change here needs a native rebuild, not only Metro.
   `metro.config.js` resolves every package from the top one only, so it
   would be handed the app's version 2 and throw as it loads. If a screen
   ever needs either, Metro needs a rule for that one package first.
+- **An Android release build needs one R8 rule**, which
+  `app.config.js` writes into the generated `proguard-rules.pro` on
+  every prebuild. LiveKit's WebRTC library names a class it does not
+  ship, and R8, which only release builds run, stops on it. A rule added
+  to the generated file by hand is lost at the next prebuild, so add any
+  further one to the list in `app.config.js`.
+- **After pulling a change to the native settings, regenerate** with
+  `make mobile-prebuild`. `expo run:ios` reuses an `ios` folder that is
+  already there, and a Podfile from before LiveKit has no source for
+  its pods.
 - **One pre-release rides in**: `whatwg-url-without-unicode@8.0.0-3`,
   which `react-native-url-polyfill` depends on and has no stable
   release of. Any other pre-release still needs a yes first.
