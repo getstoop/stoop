@@ -56,7 +56,7 @@ describe("touchesSpace", () => {
 });
 
 describe("voiceRoomLabel", () => {
-  const inIt = "Priya and Theo in it. Join voice from the web or desktop app for now.";
+  const inIt = "Priya and Theo in it";
 
   it("says the name and that it is voice for an empty room", () => {
     expect(voiceRoomLabel({ name: "Lounge", muted: false }, "")).toBe("Lounge, voice");

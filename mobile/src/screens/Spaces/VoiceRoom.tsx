@@ -10,23 +10,22 @@ import Face, { type Person } from "./Face";
 // Faces shown before the names say the rest.
 const MAX_FACES = 3;
 
-const JOIN_NOTE = "Join voice from the web or desktop app for now.";
-
 // One voice room: its name, and while anyone is in it a Live mark, up to
 // three of their faces and who they are in one line ("Priya and Theo + 5
 // more"). people is undefined while the realtime socket isn't connected,
 // and the room shows just its name. A muted room is dimmed and marked
 // as a muted text channel is (ChannelRow), for the channel's own mute
-// and not its space's. The phone can't join yet, so a press does
-// nothing but show it is held; a long press opens its menu
-// (ChannelMenu), whose items a screen reader is given as the room's own
-// actions. Drawn as that menu's card, it takes neither.
+// and not its space's. Pressing it opens the room (screens/VoiceRoom)
+// and a long press its menu (ChannelMenu), whose items a screen reader
+// is given as the room's own actions. Drawn as that menu's card, it
+// takes neither.
 export default function VoiceRoom({
   channel,
   spaceMuted,
   people,
   origin,
   token,
+  onPress,
   onLongPress,
   onAction,
 }: {
@@ -35,6 +34,7 @@ export default function VoiceRoom({
   people: Person[] | undefined;
   origin: string;
   token: string;
+  onPress?: () => void;
   onLongPress?: () => void;
   onAction?: (action: ChannelAction) => void;
 }) {
@@ -45,11 +45,13 @@ export default function VoiceRoom({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.room, channel.muted && styles.muted, pressed && onLongPress && styles.pressed]}
+      style={({ pressed }) => [styles.room, channel.muted && styles.muted, pressed && onPress && styles.pressed]}
       accessible
-      accessibilityLabel={voiceRoomLabel(channel, live ? `${names} in it. ${JOIN_NOTE}` : "")}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={voiceRoomLabel(channel, live ? `${names} in it` : "")}
       accessibilityActions={onAction && channelRowActions(channel, spaceMuted)}
       onAccessibilityAction={(event) => onAction?.(event.nativeEvent.actionName as ChannelAction)}
+      onPress={onPress}
       onLongPress={onLongPress}
     >
       <View style={styles.line}>
@@ -66,19 +68,16 @@ export default function VoiceRoom({
         {channel.muted && <MutedIcon color={theme.textMuted} />}
       </View>
       {live && (
-        <>
-          <View style={styles.people}>
-            <View style={styles.faces}>
-              {people.slice(0, MAX_FACES).map((person, index) => (
-                <Face key={person.userId} person={person} origin={origin} token={token} first={index === 0} />
-              ))}
-            </View>
-            <Text style={styles.names} numberOfLines={1}>
-              {names}
-            </Text>
+        <View style={styles.people}>
+          <View style={styles.faces}>
+            {people.slice(0, MAX_FACES).map((person, index) => (
+              <Face key={person.userId} person={person} origin={origin} token={token} first={index === 0} />
+            ))}
           </View>
-          <Text style={styles.note}>{JOIN_NOTE}</Text>
-        </>
+          <Text style={styles.names} numberOfLines={1}>
+            {names}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -138,11 +137,6 @@ function makeStyles(theme: Theme) {
       flex: 1,
       color: theme.textMuted,
       fontSize: tokens.textUi,
-    },
-    note: {
-      paddingLeft: 32,
-      color: theme.textMuted,
-      fontSize: tokens.textSm,
     },
   });
 }

@@ -144,6 +144,18 @@ export function SpeakerIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+// A muted microphone, as web's MicIcon draws it off (VoiceIcons.tsx).
+export function MicOffIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={9} y={3} width={6} height={11} rx={3} />
+      <Path d="M5 11a7 7 0 0 0 14 0" />
+      <Path d="M12 18v3" />
+      <Path d="M4 4l16 16" />
+    </Stroke>
+  );
+}
+
 export function ChevronRightIcon({ color, size = 16 }: IconProps) {
   return (
     <Svg

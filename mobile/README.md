@@ -23,8 +23,9 @@ over links to a space, a channel, a conversation, a message or a thread. A signe
 on four tabs: Spaces, one screen with the server's spaces down a rail
 at the left, each with its mention badge, unread mark or mute, and the
 selected space's channels beside it (text channels with what is waiting
-in each, voice rooms with who is in them; a long press on either opens
-its menu, Mute or Unmute, Copy link and, for a channel with a topic,
+in each, voice rooms with who is in them, each opening its room: a tile
+for everyone in it, live, over a Join that does nothing yet; a long
+press on either opens its menu, Mute or Unmute, Copy link and, for a channel with a topic,
 About this channel, which opens the topic in a sheet); Activity, what
 has happened to you there (mentions, replies, thread replies and direct
 messages), new above read, with the server's count of what is addressed
