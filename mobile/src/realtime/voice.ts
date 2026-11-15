@@ -6,17 +6,41 @@ import type { ServerEvent, VoiceParticipant } from "@stoop/gen/stoop/realtime/v1
 export type VoiceRoster = Record<string, VoiceParticipant>;
 
 // The roster after one event; the same object when the event changes
-// nothing in it.
-export function applyVoiceEvent(roster: VoiceRoster | undefined, event: ServerEvent): VoiceRoster | undefined {
+// nothing in it. A room's people are in the order they joined, as far
+// as this app has seen: the server keeps no join time and its Ready
+// lists them in no order, so that is the order of whoever was already
+// there, and whoever joins after goes last. `before` is the roster as
+// it last was on this server, so a reconnect's Ready moves nobody who
+// stayed.
+export function applyVoiceEvent(
+  roster: VoiceRoster | undefined,
+  event: ServerEvent,
+  before?: VoiceRoster,
+): VoiceRoster | undefined {
   const payload = event.payload;
   switch (payload.case) {
-    case "ready":
-      return Object.fromEntries(payload.value.voiceParticipants.map((participant) => [participant.userId, participant]));
+    case "ready": {
+      // Whoever was in a room before the socket dropped and still is
+      // keeps their place; the rest follow in the server's order.
+      const now = new Map(payload.value.voiceParticipants.map((participant) => [participant.userId, participant]));
+      const kept = Object.values(before ?? {}).flatMap((held) => {
+        const same = now.get(held.userId);
+        return same?.channelId === held.channelId ? [same] : [];
+      });
+      const keptIds = new Set(kept.map((participant) => participant.userId));
+      const rest = payload.value.voiceParticipants.filter((participant) => !keptIds.has(participant.userId));
+      return Object.fromEntries([...kept, ...rest].map((participant) => [participant.userId, participant]));
+    }
     case "voiceStateChanged": {
       const { participant, joined } = payload.value;
       if (!roster || !participant) return roster;
       const next = { ...roster };
-      if (joined) next[participant.userId] = participant;
+      if (joined) {
+        // Someone coming from another room is new to this one: they go
+        // last, as anyone joining does. A change of state keeps its place.
+        if (next[participant.userId]?.channelId !== participant.channelId) delete next[participant.userId];
+        next[participant.userId] = participant;
+      }
       else if (next[participant.userId]?.channelId === participant.channelId) delete next[participant.userId];
       return next;
     }

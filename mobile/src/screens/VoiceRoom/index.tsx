@@ -82,7 +82,9 @@ export default function VoiceRoom({
       });
   };
 
-  // Who is in the room, or undefined while the socket hasn't said.
+  // Who is in the room, or undefined while the socket hasn't said, in
+  // the roster's order: as they joined, as far as the app has seen
+  // (realtime/voice).
   const people = ready && roster ? stagePeople(inRoom(roster, channelId), ready.members) : undefined;
 
   const top = (
