@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import ConversationFaces from "../../components/ConversationFaces";
 import { usePresence } from "../../realtime/RealtimeProvider";
 import { type Theme, tokens, useTheme } from "../../theme";
-import TitlePill from "./TitlePill";
+import TitlePill, { TITLE_SCALE } from "./TitlePill";
 
 // A direct message's title, in the channel's pill: the other person's
 // face with their presence, their name over their handle; or a group's
@@ -34,7 +34,7 @@ export default function ConversationTitle({
   const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);
   const label = [title, under, status].filter(Boolean).join(", ");
   return (
-    <TitlePill label={label} beside={0} lead={FACE_LEAD}>
+    <TitlePill label={label} lead={FACE_LEAD}>
       <View style={styles.row}>
         <ConversationFaces
           faces={dmFaces(dm, myUserId)}
@@ -45,11 +45,11 @@ export default function ConversationTitle({
           cutout={theme.panel}
         />
         <View style={styles.lines}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={styles.name} maxFontSizeMultiplier={TITLE_SCALE} numberOfLines={1}>
             {title}
           </Text>
           {under !== "" && (
-            <Text style={styles.about} numberOfLines={1}>
+            <Text style={styles.about} maxFontSizeMultiplier={TITLE_SCALE} numberOfLines={1}>
               {under}
             </Text>
           )}

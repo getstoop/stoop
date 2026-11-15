@@ -88,6 +88,22 @@ func (q *Queries) MutedAmong(ctx context.Context, arg MutedAmongParams) ([]strin
 	return items, nil
 }
 
+const spaceMutedBy = `-- name: SpaceMutedBy :one
+SELECT EXISTS (SELECT 1 FROM space_mutes WHERE user_id = $1 AND space_id = $2)
+`
+
+type SpaceMutedByParams struct {
+	UserID  string
+	SpaceID string
+}
+
+func (q *Queries) SpaceMutedBy(ctx context.Context, arg SpaceMutedByParams) (bool, error) {
+	row := q.db.QueryRow(ctx, spaceMutedBy, arg.UserID, arg.SpaceID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const unmuteChannel = `-- name: UnmuteChannel :exec
 DELETE FROM channel_mutes WHERE user_id = $1 AND channel_id = $2
 `

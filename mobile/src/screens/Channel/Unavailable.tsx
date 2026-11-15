@@ -1,6 +1,6 @@
-import { useHeaderHeight } from "expo-router/react-navigation";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type Theme, tokens, useTheme } from "../../theme";
+import { useHeaderClearance } from "./ScreenHeader";
 
 // What a channel or a thread screen says in place of its messages when it
 // can't show them, with the one thing to do about it, if any. Under
@@ -13,7 +13,7 @@ export default function Unavailable({
   action?: { label: string; onPress: () => void };
 }) {
   const styles = makeStyles(useTheme());
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useHeaderClearance();
   return (
     <View style={[styles.screen, { paddingTop: headerHeight }]}>
       <View style={styles.notice} accessibilityRole="alert">

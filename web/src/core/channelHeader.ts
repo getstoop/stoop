@@ -168,14 +168,16 @@ export function withHeaderEvent(
     case "spaceUpdated": {
       const updated = payload.value.space;
       if (!space || !updated || updated.id !== space.id) return header;
-      // A broadcast space carries nobody's role or permissions
-      // (realtime.proto SpaceUpdated), so the held ones stay.
+      // A broadcast space carries nobody's role or permissions, nor
+      // their mute of it (realtime.proto SpaceUpdated), so the held
+      // ones stay.
       return {
         ...header,
         space: {
           ...updated,
           myRole: space.myRole,
           myPermissions: space.myPermissions,
+          muted: space.muted,
         },
       };
     }
@@ -189,6 +191,16 @@ export function withHeaderEvent(
       )
         return header;
       return { ...header, space: { ...space, myRole: payload.value.role } };
+    // The reader's own mute of the space, from another device: a muted
+    // space mutes its channels.
+    case "spaceMuted":
+      if (
+        !space ||
+        payload.value.spaceId !== space.id ||
+        payload.value.muted === space.muted
+      )
+        return header;
+      return { ...header, space: { ...space, muted: payload.value.muted } };
     case "channelMuted":
       if (
         payload.value.channelId !== channel.id ||

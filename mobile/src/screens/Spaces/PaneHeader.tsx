@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SearchIcon } from "../../components/Icons";
 import SkeletonBlock from "../../components/SkeletonBlock";
 import { type Theme, tokens, useTheme } from "../../theme";
-import { searchLabel } from "../Channel/searchItem";
+import { searchLabel } from "../Channel/headerActions";
 
 // The top of the pane: the space's name over how many are in it and
 // what it is, and the button that searches it. The name is there as

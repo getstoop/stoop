@@ -19,6 +19,7 @@ import type { ListMessagesResponse } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { AppState } from "react-native";
+import { setChannelMuted } from "../../api/channels";
 import { type LocalFile, uploadAttachment } from "../../api/files";
 import {
   ChannelGone,
@@ -161,6 +162,8 @@ type Lifetime = {
   // How many events have changed the header, so a load they overtook is
   // made again rather than put over them.
   headerChanges: number;
+  // How many events have changed the reader's mute of the channel.
+  muteChanges: number;
   // A jump asked for before the header: the open out, or the next one (a
   // Ready opening again, a retry), asks for the page around it.
   focus: PendingJump | null;
@@ -176,6 +179,7 @@ const newLifetime = (): Lifetime => ({
   renaming: false,
   renameAgain: false,
   headerChanges: 0,
+  muteChanges: 0,
   focus: null,
   jumpingLatest: false,
 });
@@ -473,6 +477,7 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       const before = state.header;
       dispatch({ type: "event", event });
       if (before && state.header !== before) life.headerChanges++;
+      if (before && state.header && state.header.channel.muted !== before.channel.muted) life.muteChanges++;
       if (state.log.needsCatchUp) void catchUp();
       // A new role for the reader says nothing about what it permits; the
       // header fetched again carries the space's my_permissions.
@@ -754,6 +759,32 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       const mine = life;
       await markThreadRead(server.origin, await token(), rootId);
       if (!mine.ended) dispatch({ type: "threadRead", rootId });
+    },
+
+    // The reader's own mute of the channel (a conversation's too), or its
+    // end: SetChannelMuted, then the header's channel muted or not (the
+    // ChannelMuted event that follows says the same, where the socket is
+    // up). Nothing changes before the server answers; a refusal is the
+    // caller's to show, as the thread's below.
+    async muteChannel(muted: boolean) {
+      const mine = life;
+      const changes = mine.muteChanges;
+      try {
+        await setChannelMuted(server.origin, await token(), channelId, muted);
+      } catch (err) {
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      const { header } = state;
+      if (mine.ended || !header || header.channel.muted === muted) return;
+      // An event that changed the mute meanwhile is the newer word (another
+      // device's, after this one): the answer gives way to it. Any other
+      // event (a rename, say) leaves the answer standing.
+      if (mine.muteChanges !== changes) return;
+      // A header read that left before this is out of date now.
+      life.headerChanges++;
+      dispatch({ type: "header", header: { ...header, channel: { ...header.channel, muted } } });
     },
 
     // The reader's own mute of the thread, or its end, as web sets it:

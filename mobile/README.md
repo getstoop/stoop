@@ -164,13 +164,13 @@ import a screen; the screens themselves live in `src/screens`, so
   the surface is Liquid Glass
   (`expo-glass-effect`); older iOS and Android draw it with the theme's
   panel and border under a light shadow. The channel's header, and the
-  thread's, is the same kind of surface (`src/app/s/[id]/_layout.tsx`):
-  the bar is transparent, the title sits in a pill of the same make
-  (`src/screens/Channel/TitlePill.tsx`) beside the system's back button
-  (the channel's and a conversation's filling the row as far as Search,
-  the thread's as wide as its words in the middle), and the list scrolls
+  thread's, is the same kind of surface, drawn by the screen with no
+  navigation bar (`src/screens/Channel/ScreenHeader.tsx`), the same on
+  both platforms: a round back button, the title in a pill of the same
+  make taking the room between (`TitlePill.tsx`), and one capsule
+  holding Search and the bell. The list scrolls
   under all of it, padded by the
-  header's height at its head, and fading out at both ends, under the
+  header's reach at its head, and fading out at both ends, under the
   status bar so the time stays readable and under the home indicator up
   to the composer's foot (`EdgeFade.tsx`). On iOS 26 the list is marked
   to have none of the system's own fade under the bar
@@ -571,9 +571,7 @@ import a screen; the screens themselves live in `src/screens`, so
   words, as web's row has it, which pushes the thread landing on that
   reply when it is among the newest replies loaded (otherwise the
   thread opens as usual). The bell at the right of the thread's header
-  mutes it (Mute thread, then Unmute thread under the slashed bell; on
-  iOS a bar button item with the system's `bell` and `bell.slash`, drawn
-  as the back button is, Liquid Glass from iOS 26), as
+  mutes it (Mute thread, then Unmute thread under the slashed bell), as
   web's thread panel does: `SetThreadMuted`, awaited with the bell
   dimmed, then the root's summary muted with its count cleared
   (`core/threadUnread` `mutedOverlay`, which web runs too), so a reply
@@ -582,11 +580,13 @@ import a screen; the screens themselves live in `src/screens`, so
   Another device's mute arrives as ThreadMuted and lands the same way.
   As on web the bell shows once the thread has replies, and under a
   muted channel it shows the thread muted by its channel and does
-  nothing (the header follows ChannelMuted for that).
+  nothing (the header follows ChannelMuted for that). A channel's
+  header and a conversation's have the bell too (Mute channel, Mute
+  conversation): `SetChannelMuted` through the channel's engine
+  (`muteChannel`), awaited the same way; in a muted space it shows the
+  channel muted by its space and does nothing.
 - Search, at the right of the channel's header and before the thread's
-  bell (`src/screens/Channel/searchItem.ts`, a bar button item on iOS
-  with the system's `magnifyingglass`, and `SearchButton.tsx`, a round
-  bubble of the composer's panel, elsewhere), pushes the space's search
+  bell (in the header's capsule, `ScreenHeader.tsx`), pushes the space's search
   (`s/[id]/space/[spaceId]/search`, `src/screens/Search`): web's search
   page on the phone, with a header row of its own floating over the list
   (the native one is hidden), a round back button and the field in a

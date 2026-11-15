@@ -5,21 +5,8 @@ import { useTheme } from "../../theme";
 
 // The composer's surface, and the mention list's over it: Liquid Glass
 // where iOS has it, else drawn with the theme's panel and border under
-// a light shadow, as the composing mockup for Android draws it. `flat`
-// leaves the shadow off, for a surface in Android's navigation bar: the
-// bar cuts a shadow off at the surface's own box, which left it showing
-// as dark corners outside the rounded ends and nowhere else.
-export default function Surface({
-  glass,
-  flat = false,
-  children,
-  style,
-}: {
-  glass: boolean;
-  flat?: boolean;
-  children: ReactNode;
-  style: ViewStyle;
-}) {
+// a light shadow, as the composing mockup for Android draws it.
+export default function Surface({ glass, children, style }: { glass: boolean; children: ReactNode; style: ViewStyle }) {
   const theme = useTheme();
   if (glass) {
     return (
@@ -36,8 +23,6 @@ export default function Surface({
           backgroundColor: theme.panel,
           borderWidth: StyleSheet.hairlineWidth,
           borderColor: theme.border,
-        },
-        !flat && {
           boxShadow: theme.scheme === "dark" ? "0 6px 20px rgba(0, 0, 0, 0.35)" : "0 6px 20px rgba(30, 25, 20, 0.16)",
         },
       ]}

@@ -3,8 +3,7 @@ import { isShown, threadItems } from "@stoop/core/channelLog";
 import { firstUnreadReplyId, type GroupedRow, threadRows } from "@stoop/core/grouping";
 import { canDeleteAnyMessage } from "@stoop/core/permissions";
 import { threadRepliesClosed } from "@stoop/core/threadReplies";
-import { Stack, useIsFocused, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/react-navigation";
+import { useIsFocused, useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { errorText } from "../../api/errors";
@@ -29,8 +28,8 @@ import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
 import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
-import SearchButton from "../Channel/SearchButton";
-import { searchItem } from "../Channel/searchItem";
+import ScreenHeader, { useHeaderClearance } from "../Channel/ScreenHeader";
+import { threadMute } from "../Channel/headerActions";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
 import { useChannelLog } from "../Channel/useChannelLog";
@@ -39,8 +38,6 @@ import { useFollowSend } from "../Channel/useFollowSend";
 import { useMentionNames } from "../Channel/useMentionNames";
 import { useMessageActions } from "../Channel/useMessageActions";
 import { useScrollRetry } from "../Channel/useScrollRetry";
-import MuteButton from "./MuteButton";
-import { muteItem } from "./muteItem";
 import ThreadHead from "./ThreadHead";
 import ThreadTitle from "./ThreadTitle";
 import { threadReadDue } from "./threadReadDue";
@@ -91,9 +88,9 @@ export default function Thread({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  // The header floats over the list (the server's layout), so the list
+  // The header floats over the list (ScreenHeader), so the list
   // and the spinner in its place clear it by this much.
-  const headerHeight = useHeaderHeight();
+  const headerHeight = useHeaderClearance();
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -235,39 +232,24 @@ export default function Thread({
   );
   // Muted says a summary is there, so a change to either is a change here.
   const muted = summary?.muted;
-  // The same options while nothing they read changed: new ones are a
-  // setOptions, and this renders on every event in the channel. All the
-  // header draws comes from what is listed.
-  const options = useMemo(() => {
-    const mute =
-      header && muted !== undefined
-        ? { muted, channelMuted: header.channel.muted, pending: muting, onPress: toggleMute }
-        : undefined;
-    // A direct message has no space to search, as on web.
-    const search = header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined;
-    const conversation = header?.dm ? headerPlace(header) : undefined;
-    return {
-      headerTitle: () => (
-        <ThreadTitle channel={header?.channel} spaceName={header?.space?.name ?? ""} conversation={conversation} />
-      ),
-      ...(Platform.OS === "ios"
-        ? {
-            unstable_headerRightItems: () => [
-              ...(search ? [searchItem(search)] : []),
-              ...(mute ? [muteItem(mute)] : []),
-            ],
-          }
-        : {
-            headerRight: () => (
-              <View style={headerStyles.items}>
-                {search && <SearchButton {...search} />}
-                {mute && <MuteButton {...mute} />}
-              </View>
-            ),
-          }),
-    };
-  }, [header, muted, muting, toggleMute, openSearch]);
-  const title = <Stack.Screen options={options} />;
+  const title = (
+    <ScreenHeader
+      title={
+        <ThreadTitle
+          channel={header?.channel}
+          spaceName={header?.space?.name ?? ""}
+          conversation={header?.dm ? headerPlace(header) : undefined}
+        />
+      }
+      // A direct message has no space to search, as on web.
+      search={header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined}
+      mute={
+        header && muted !== undefined
+          ? { ...threadMute(muted, header.channel.muted), pending: muting, onPress: toggleMute }
+          : undefined
+      }
+    />
+  );
   const retryOpen = () => {
     if (outcome === "failed") engine.retry();
     engine.retryThread(rootId);
@@ -434,15 +416,6 @@ function Screen({ title, children }: { title: ReactNode; children: ReactNode }) 
     </View>
   );
 }
-
-// Apart from the theme's: the header's options keep it.
-const headerStyles = StyleSheet.create({
-  items: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-});
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({

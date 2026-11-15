@@ -24,17 +24,12 @@ import { useTheme } from "../../../theme";
 // (src/notifications/OpenTappedNotification.tsx).
 export const unstable_settings = { anchor: "(tabs)" };
 
-// A channel's header, and a thread's, has no bar of its own: the list
-// scrolls under the back button and the title's pill, as it scrolls
-// under the composer at the foot (ComposerDock keeps iOS 26 from fading
-// it under the bar). The pill sits in the middle on both platforms
-// (Android's own titles start at the left). The screens pad their
-// lists by the header's height.
-const floating = {
-  headerTransparent: true,
-  headerTitleAlign: "center" as const,
-  headerStyle: { backgroundColor: "transparent" },
-};
+// A channel, a conversation and a thread draw their own header, with no
+// navigation bar: a back button, the title's pill and the screen's
+// buttons floating over the list, as the composer floats over its foot
+// (screens/Channel/ScreenHeader). The stack's own way back still works:
+// the swipe from the edge on iOS, the system's back on Android.
+const floating = { headerShown: false };
 
 export default function ServerLayout() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -63,8 +58,8 @@ export default function ServerLayout() {
           <Stack.Screen name="space/[spaceId]/channel/[channelId]/thread/[rootId]" options={floating} />
           <Stack.Screen name="dm/[channelId]/index" options={floating} />
           <Stack.Screen name="dm/[channelId]/thread/[rootId]" options={floating} />
-          {/* Search draws its own header row: the back button and the field's
-              pill, floating as the channel's do. */}
+          {/* Search draws its own header row too: the back button and the
+              field's pill. */}
           <Stack.Screen name="space/[spaceId]/search" options={{ headerShown: false }} />
           {/* New message is a sheet over the tabs, with its own Cancel and
               Start row. */}

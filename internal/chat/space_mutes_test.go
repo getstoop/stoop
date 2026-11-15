@@ -37,11 +37,18 @@ func TestSetSpaceMuted(t *testing.T) {
 	if !spaceMuted(t, svc, owner, spaceID) {
 		t.Errorf("ListSpaces doesn't show the mute")
 	}
+	// And in the space asked for by itself, which a channel's header reads.
+	if got, err := svc.GetSpace(owner, connect.NewRequest(&chatv1.GetSpaceRequest{SpaceId: spaceID})); err != nil || !got.Msg.Space.Muted {
+		t.Errorf("GetSpace doesn't show the mute: %v %v", got, err)
+	}
 	if _, err := svc.SetSpaceMuted(owner, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: spaceID, Muted: false})); err != nil {
 		t.Fatal(err)
 	}
 	if spaceMuted(t, svc, owner, spaceID) {
 		t.Errorf("ListSpaces still shows the mute after unmuting")
+	}
+	if got, err := svc.GetSpace(owner, connect.NewRequest(&chatv1.GetSpaceRequest{SpaceId: spaceID})); err != nil || got.Msg.Space.Muted {
+		t.Errorf("GetSpace still shows the mute after unmuting: %v %v", got, err)
 	}
 	if _, err := svc.SetSpaceMuted(outsider, connect.NewRequest(&chatv1.SetSpaceMutedRequest{SpaceId: spaceID, Muted: true})); code(err) != connect.CodePermissionDenied {
 		t.Errorf("outsider mute: want permission_denied, got %v", err)

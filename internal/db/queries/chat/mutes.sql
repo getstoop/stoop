@@ -15,6 +15,9 @@ ON CONFLICT DO NOTHING;
 -- name: UnmuteSpace :exec
 DELETE FROM space_mutes WHERE user_id = $1 AND space_id = $2;
 
+-- name: SpaceMutedBy :one
+SELECT EXISTS (SELECT 1 FROM space_mutes WHERE user_id = $1 AND space_id = $2);
+
 -- MutedAmong: which of these recipients have muted where something
 -- happened, by their own channel, space or thread row. space_id is NULL
 -- for a direct message, thread_root_id outside a thread.
