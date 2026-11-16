@@ -29,6 +29,9 @@ export type Call = {
 // while `ready` is pending, and more than once.
 export type Connection = {
   ready: Promise<void>;
+  // This account's user ID, which is its name in the room: known once
+  // `ready` has settled, "" before.
+  userId: () => string;
   setMuted: (muted: boolean) => Promise<void>;
   setSpeaker: (speaker: boolean) => Promise<void>;
   close: () => Promise<void>;
@@ -64,6 +67,15 @@ export type CallHolder = {
   // Says where the call is again: the server forgets when its socket
   // drops.
   report: () => void;
+  // What a server says, over its realtime socket, of someone's place in
+  // a voice room: in it (said again on each change of theirs), or out of
+  // it. This account out of the call's room has been removed (kicked,
+  // the room deleted, joined elsewhere on another device), and the call
+  // ends; but only once the server has said it is in, see `placed`.
+  voiceState: (serverId: string, state: { userId: string; channelId: string; joined: boolean }) => void;
+  // A server says a room is no more for this account: deleted, or a
+  // private one this account was taken out of. The call in it ends.
+  roomGone: (serverId: string, channelId: string) => void;
   // Forgets a failed join.
   dismiss: () => void;
 };
@@ -112,6 +124,13 @@ export function createCall(deps: CallDeps): CallHolder {
   // Every connection left so far, closed: the next is not opened before
   // then, or the last one's close would stop the audio the next started.
   let closing: Promise<void> = Promise.resolve();
+  // Whether the server has said this account is in the call's room since
+  // the call began, or since the socket last came back (the server
+  // forgets with the socket, and is told again). Only then is its saying
+  // otherwise a removal. Before, it is old news: a room just left and
+  // joined again, the socket before this one closing, or this account
+  // leaving the room on another device.
+  let placed = false;
   const listeners = new Set<() => void>();
 
   const set = (next: Call | null) => {
@@ -132,6 +151,7 @@ export function createCall(deps: CallDeps): CallHolder {
   // Ends the call, whoever ended it.
   const end = async () => {
     attempt += 1;
+    placed = false;
     const was = call;
     const open = connection;
     connection = null;
@@ -231,7 +251,20 @@ export function createCall(deps: CallDeps): CallHolder {
     leave: end,
     toggleMute,
     toggleSpeaker,
-    report,
+    report: () => {
+      placed = false;
+      report();
+    },
+    voiceState: (serverId, { userId, channelId, joined }) => {
+      if (call?.status !== "connected" || call.room.serverId !== serverId || call.room.channelId !== channelId) return;
+      if (userId !== connection?.userId()) return;
+      if (joined) placed = true;
+      else if (placed) void end();
+    },
+    roomGone: (serverId, channelId) => {
+      if (!call || call.status === "failed") return;
+      if (call.room.serverId === serverId && call.room.channelId === channelId) void end();
+    },
     dismiss: () => {
       if (call?.status === "failed") set(null);
     },

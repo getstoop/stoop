@@ -60,9 +60,13 @@ export default function CallProvider({ children }: { children: ReactNode }) {
   const serverId = room?.serverId;
   useEffect(() => {
     if (!serverId) return;
-    return subscribe(serverId, (event) => {
-      if (event.payload.case === "ready") holder.report();
-      else if (event.payload.case === "credentialRevoked") void holder.leave();
+    return subscribe(serverId, ({ payload }) => {
+      if (payload.case === "ready") holder.report();
+      else if (payload.case === "credentialRevoked") void holder.leave();
+      else if (payload.case === "voiceStateChanged" && payload.value.participant) {
+        const { userId, channelId } = payload.value.participant;
+        holder.voiceState(serverId, { userId, channelId, joined: payload.value.joined });
+      } else if (payload.case === "channelDeleted") holder.roomGone(serverId, payload.value.channelId);
     });
   }, [serverId, subscribe, holder]);
 
@@ -83,6 +87,7 @@ export default function CallProvider({ children }: { children: ReactNode }) {
 // The connection to a server the app no longer has: a join that fails.
 const noConnection = (): Connection => ({
   ready: Promise.reject(new Error("no server")),
+  userId: () => "",
   setMuted: async () => {},
   setSpeaker: async () => {},
   close: async () => {},
