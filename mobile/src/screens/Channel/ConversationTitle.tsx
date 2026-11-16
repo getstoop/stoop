@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import ConversationFaces from "../../components/ConversationFaces";
 import { usePresence } from "../../realtime/RealtimeProvider";
 import { type Theme, tokens, useTheme } from "../../theme";
-import TitlePill, { TITLE_SCALE } from "./TitlePill";
+import TitlePill, { TITLE_LINE, TITLE_SCALE } from "./TitlePill";
 
 // A direct message's title, in the channel's pill: the other person's
 // face with their presence, their name over their handle; or a group's
@@ -79,11 +79,13 @@ function makeStyles(theme: Theme) {
       gap: 1,
     },
     name: {
+      ...TITLE_LINE,
       color: theme.text,
       fontSize: 17,
       fontWeight: "700",
     },
     about: {
+      ...TITLE_LINE,
       color: theme.textMuted,
       fontSize: tokens.textSm,
     },

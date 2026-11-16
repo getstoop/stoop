@@ -2,7 +2,7 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { StyleSheet, Text, View } from "react-native";
 import { LockIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
-import TitlePill, { TITLE_SCALE } from "./TitlePill";
+import TitlePill, { TITLE_LINE, TITLE_SCALE } from "./TitlePill";
 
 // The header's title, in its pill: a tall # at the left (a lock, as on
 // the space's screen, for a private one), and beside it the channel's
@@ -44,6 +44,7 @@ function makeStyles(theme: Theme) {
       gap: 8,
     },
     mark: {
+      ...TITLE_LINE,
       color: theme.textMuted,
       fontSize: 28,
       fontWeight: "700",
@@ -53,11 +54,13 @@ function makeStyles(theme: Theme) {
       gap: 1,
     },
     name: {
+      ...TITLE_LINE,
       color: theme.text,
       fontSize: 17,
       fontWeight: "700",
     },
     about: {
+      ...TITLE_LINE,
       color: theme.textMuted,
       fontSize: tokens.textSm,
     },

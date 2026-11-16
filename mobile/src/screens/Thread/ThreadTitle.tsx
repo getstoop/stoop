@@ -2,7 +2,7 @@ import type { Channel } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import { StyleSheet, Text, View } from "react-native";
 import { LockIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
-import TitlePill, { TITLE_SCALE } from "../Channel/TitlePill";
+import TitlePill, { TITLE_LINE, TITLE_SCALE } from "../Channel/TitlePill";
 
 // The thread screen's title, in the channel's pill: "Thread", and under
 // it the channel (a lock for a private one, as the channel's own title
@@ -54,11 +54,13 @@ function makeStyles(theme: Theme) {
       gap: 2,
     },
     name: {
+      ...TITLE_LINE,
       color: theme.text,
       fontSize: 17,
       fontWeight: "700",
     },
     about: {
+      ...TITLE_LINE,
       flexShrink: 1,
       color: theme.textMuted,
       fontSize: tokens.textSm,

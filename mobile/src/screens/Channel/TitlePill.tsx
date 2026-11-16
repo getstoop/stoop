@@ -20,6 +20,14 @@ import Surface from "./Surface";
 // list's first rows. A navigation bar's own title doesn't grow at all.
 export const TITLE_SCALE = 1.3;
 
+// For every line of a title's words. Android pads a line of text above
+// and below for the tallest glyphs its font has, which made the two
+// lines taller than the bar and grew the pill past the buttons beside
+// it, into the room under the header. Without it the lines are the
+// height iOS gives them, and the pill is the bar's until the system's
+// text size grows them. iOS has no such padding.
+export const TITLE_LINE = { includeFontPadding: false } as const;
+
 export default function TitlePill({
   label,
   lead,
