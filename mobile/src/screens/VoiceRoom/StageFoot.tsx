@@ -2,7 +2,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HangUpIcon, LoudspeakerIcon, MicIcon, MicOffIcon } from "../../components/Icons";
+import { ExternalIcon, HangUpIcon, LoudspeakerIcon, MicIcon, MicOffIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Surface from "../Channel/Surface";
 
@@ -18,9 +18,10 @@ const BUBBLE_PAD = 12;
 // headphones have the sound. A join that failed, or a call that was
 // lost, says so in the line's place (`failure`), and so does a call
 // whose connection is being tried again (`notice`), with the controls
-// kept. A join refused the microphone has a button under its line to
+// kept. A join refused the microphone has a link under its line to
 // the app's page in the system's settings (`onOpenSettings`), where the
-// microphone is allowed once the system won't ask again. Where iOS has Liquid Glass it is a bubble of it
+// microphone is allowed once the system won't ask again: underlined,
+// with the mark of a link that leaves the app. Where iOS has Liquid Glass it is a bubble of it
 // floating over the tiles, as the composer floats over a channel;
 // elsewhere a solid band across the bottom. `onHeight` says how much of
 // the screen's foot it covers, for the tiles to clear.
@@ -72,11 +73,12 @@ export default function StageFoot({
           {onOpenSettings && (
             <Pressable
               onPress={onOpenSettings}
-              accessibilityRole="button"
+              accessibilityRole="link"
               testID="voice-open-settings"
               style={({ pressed }) => [styles.settingsButton, pressed && styles.dim]}
             >
               <Text style={styles.settings}>Open Settings</Text>
+              <ExternalIcon color={theme.accent} size={16} />
             </Pressable>
           )}
         </View>
@@ -232,12 +234,16 @@ function makeStyles(theme: Theme) {
     settingsButton: {
       minHeight: 44,
       paddingHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
       justifyContent: "center",
+      gap: 6,
     },
     settings: {
       color: theme.accent,
       fontSize: tokens.textUi,
       fontWeight: "600",
+      textDecorationLine: "underline",
     },
     join: {
       height: JOIN,

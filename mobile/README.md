@@ -1117,7 +1117,8 @@ change to them needs a native rebuild, not only Metro.
     that call may end as lost, with its line, rather than silently.
 - **A join that fails says "Couldn't join. Try again."**, whatever the
   cause, and a join refused the microphone "Allow the microphone to
-  join." over an Open Settings button, which opens the app's page in
+  join." over an Open Settings link, underlined and with the mark of a
+  link that leaves the app, which opens the app's page in
   the system's settings (`Linking.openSettings()`): iOS asks for the
   microphone once only, and Android stops asking after a second
   refusal. Going there is going to the background, which ends whatever
