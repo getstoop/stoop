@@ -26,6 +26,7 @@ function fakeConnection(room: CallRoom, events: ConnectionEvents) {
     room,
     events,
     ready,
+    userId: () => "me",
     land,
     fail: () => fail(new Error("no")),
     closed: 0,
@@ -507,5 +508,185 @@ describe("in a call", () => {
     expect(footState(holder.get(), porch)).toBe("joined");
     expect(footState(holder.get(), attic)).toBe("join");
     expect(footState(holder.get(), { ...porch, serverId: "other" })).toBe("join");
+  });
+});
+
+// What the server says, over its socket, of who is in the call's room.
+describe("when the server says where this account is", () => {
+  async function joined() {
+    const made = setup();
+    const joining = made.holder.join(porch);
+    await settle();
+    made.opened[0].land();
+    await joining;
+    return made;
+  }
+  const said = (room: CallRoom, joined: boolean, userId = "me") =>
+    [room.serverId, { userId, channelId: room.channelId, joined }] as const;
+
+  it("ends the call when it says this account has left the room", async () => {
+    const { holder, opened, reports } = await joined();
+    holder.voiceState(...said(porch, true));
+    expect(holder.get()?.status).toBe("connected");
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+    expect(footState(holder.get(), porch)).toBe("join");
+    expect(failureLine(holder.get(), porch)).toBe("");
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+  });
+
+  it("keeps the call until the server has said this account is in the room", async () => {
+    const { holder, opened } = await joined();
+    // Between the join and its report landing: this account leaving the
+    // same room on another device, say.
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()?.status).toBe("connected");
+    expect(opened[0].closed).toBe(0);
+  });
+
+  it("hears nothing of its own leave", async () => {
+    const { holder, opened, reports } = await joined();
+    holder.voiceState(...said(porch, true));
+    await holder.leave();
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(opened[0].closed).toBe(1);
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+  });
+
+  it("keeps the room it switched to when the one it left is said to be left", async () => {
+    const { holder, opened } = await joined();
+    holder.voiceState(...said(porch, true));
+    const moving = holder.join(attic);
+    await settle();
+    holder.voiceState(...said(porch, false));
+    expect(holder.get()).toMatchObject({ room: attic, status: "connecting" });
+    opened[1].land();
+    await moving;
+    holder.voiceState(...said(porch, false));
+    holder.voiceState(...said(attic, true));
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toMatchObject({ room: attic, status: "connected" });
+    expect(opened[1].closed).toBe(0);
+  });
+
+  it("keeps a room joined again when the leave before it is heard late", async () => {
+    const { holder, opened } = await joined();
+    holder.voiceState(...said(porch, true));
+    await holder.leave();
+    const again = holder.join(porch);
+    await settle();
+    opened[1].land();
+    await again;
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toMatchObject({ room: porch, status: "connected" });
+    holder.voiceState(...said(porch, true));
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toBeNull();
+    expect(opened[1].closed).toBe(1);
+  });
+
+  it("keeps the call over a reconnect, until the server has heard where it is again", async () => {
+    const { holder, opened, reports } = await joined();
+    holder.voiceState(...said(porch, true));
+    // The socket came back with a fresh Ready: the server forgot, and the
+    // socket before it closing there says this account left.
+    holder.report();
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()?.status).toBe("connected");
+    expect(reports).toEqual(["home:porch:open", "home:porch:open"]);
+    holder.voiceState(...said(porch, true));
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+  });
+
+  it("stays placed through its own mute", async () => {
+    const { holder } = await joined();
+    holder.voiceState(...said(porch, true));
+    await holder.toggleMute();
+    holder.voiceState(...said(porch, true));
+    expect(holder.get()).toMatchObject({ status: "connected", muted: true });
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toBeNull();
+  });
+
+  it("ignores anyone else, any other room and any other server", async () => {
+    const { holder } = await joined();
+    holder.voiceState(...said(porch, true));
+    holder.voiceState(...said(porch, false, "bea"));
+    holder.voiceState(...said(attic, false));
+    holder.voiceState(...said(attic, true));
+    holder.voiceState(...said({ ...porch, serverId: "away" }, false));
+    await settle();
+    expect(holder.get()?.status).toBe("connected");
+  });
+
+  it("is not placed by someone else, or while still connecting", async () => {
+    const { holder, opened } = setup();
+    const joining = holder.join(porch);
+    await settle();
+    // This account, in the room on another device, leaves it there.
+    holder.voiceState(...said(porch, true));
+    holder.voiceState(...said(porch, false));
+    expect(holder.get()?.status).toBe("connecting");
+    opened[0].land();
+    await joining;
+    holder.voiceState(...said(porch, true, "bea"));
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()?.status).toBe("connected");
+  });
+
+  it("says nothing twice when the connection dropped first", async () => {
+    const { holder, opened, reports } = await joined();
+    holder.voiceState(...said(porch, true));
+    opened[0].events.onDropped();
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+  });
+
+  it("ends the call when its room is gone, placed or not", async () => {
+    const { holder, opened, reports } = await joined();
+    holder.roomGone("away", porch.channelId);
+    holder.roomGone("home", attic.channelId);
+    expect(holder.get()?.status).toBe("connected");
+    holder.roomGone("home", porch.channelId);
+    await settle();
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+    expect(footState(holder.get(), porch)).toBe("join");
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+  });
+
+  it("stops a join into a room that is gone, and keeps a failed join's line", async () => {
+    const { holder, opened, reports } = setup();
+    const joining = holder.join(porch);
+    await settle();
+    holder.roomGone("home", porch.channelId);
+    opened[0].land();
+    await joining;
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+    expect(reports).toEqual([]);
+
+    const failing = holder.join(attic);
+    await settle();
+    opened[1].fail();
+    await failing;
+    holder.roomGone("home", attic.channelId);
+    expect(failureLine(holder.get(), attic)).toBe("Couldn't join. Try again.");
   });
 });

@@ -1034,6 +1034,18 @@ change to them needs a native rebuild, not only Metro.
   connected. Android's permission prompt reads as the background too,
   so the first Join's prompt is let through. Signing out of the call's
   server, or its session ending, leaves it as well.
+- **The server taking this account out of the room ends the call**,
+  whether or not LiveKit was told (it is told best effort,
+  `docs/architecture/voice.md` → Leaving, when it isn't your idea): a
+  kick, a ban, leaving the space on another device, the room or its
+  space deleted, being taken out of a private room, or this account
+  joining another room elsewhere, since an account is in one room at a
+  time. The call hears it on the realtime socket (`voiceState` and
+  `roomGone` in `call.ts`): `VoiceStateChanged` saying this account
+  left the call's room, or `ChannelDeleted` for it. A "left" counts
+  only once the server has said this account is in the room since the
+  call began or the socket last came back, so the call's own leave, a
+  switch of rooms and a reconnect are not removals. It ends silently.
 - **Sound comes out of the loudspeaker** as a call starts, unless a
   wired or Bluetooth headset is connected, which takes over. On iOS
   that is LiveKit's own audio session handling, which
