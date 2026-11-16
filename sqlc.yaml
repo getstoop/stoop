@@ -12,6 +12,7 @@ sql:
       - "internal/db/queries/files"
       - "internal/db/queries/integrations"
       - "internal/db/queries/jobs"
+      - "internal/db/queries/push"
     gen:
       go:
         package: "dbgen"

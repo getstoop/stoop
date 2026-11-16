@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package stoop.push.v1;
+
+import "stoop/chat/v1/activity.proto";
+
+// PushService registers a device for push notifications: one Web Push
+// subscription per signed-in session, which goes when the session does.
+// Every procedure needs a session; a token is refused. See
+// docs/architecture/contracts.md.
+service PushService {
+  // GetPushConfig is what a device needs before it subscribes.
+  rpc GetPushConfig(GetPushConfigRequest) returns (GetPushConfigResponse) {}
+  // RegisterPushSubscription stores the calling session's subscription,
+  // replacing any it had.
+  rpc RegisterPushSubscription(RegisterPushSubscriptionRequest) returns (RegisterPushSubscriptionResponse) {}
+  // UpdatePushSubscription changes which kinds the calling session's
+  // subscription wants. NotFound when it has none.
+  rpc UpdatePushSubscription(UpdatePushSubscriptionRequest) returns (UpdatePushSubscriptionResponse) {}
+  // DeletePushSubscription removes the calling session's subscription, if
+  // it has one.
+  rpc DeletePushSubscription(DeletePushSubscriptionRequest) returns (DeletePushSubscriptionResponse) {}
+}
+
+message GetPushConfigRequest {}
+
+message GetPushConfigResponse {
+  // Whether this server sends push notifications.
+  bool enabled = 1;
+  // The server's public signing key (RFC 8292 "applicationServerKey"):
+  // an uncompressed P-256 point, 65 bytes.
+  bytes application_server_key = 2;
+}
+
+message RegisterPushSubscriptionRequest {
+  // Where notifications are posted: an https URL, 2048 characters at most.
+  string endpoint = 1;
+  // The device's public key (RFC 8291 "p256dh"): an uncompressed P-256
+  // point, 65 bytes.
+  bytes p256dh = 2;
+  // The device's auth secret (RFC 8291 "auth"), 16 bytes.
+  bytes auth = 3;
+  // The device's own short name for this server, carried in each
+  // notification so the device knows which server sent it. 1 to 32
+  // characters.
+  string local_server_id = 4;
+  // The activity this device wants pushed. Empty means none: the
+  // subscription is kept and nothing is sent.
+  repeated stoop.chat.v1.ActivityKind kinds = 5;
+}
+
+message RegisterPushSubscriptionResponse {}
+
+message UpdatePushSubscriptionRequest {
+  // Replaces the kinds wholly; empty means none.
+  repeated stoop.chat.v1.ActivityKind kinds = 1;
+}
+
+message UpdatePushSubscriptionResponse {}
+
+message DeletePushSubscriptionRequest {}
+
+message DeletePushSubscriptionResponse {}

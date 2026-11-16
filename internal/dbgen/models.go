@@ -305,6 +305,27 @@ type OutgoingWebhook struct {
 	DisabledReason string
 }
 
+type PushKey struct {
+	ID         bool
+	PrivateKey []byte
+	PublicKey  []byte
+	CreatedAt  time.Time
+}
+
+type PushSubscription struct {
+	ID            string
+	CredentialID  string
+	UserID        string
+	Endpoint      string
+	P256dh        []byte
+	Auth          []byte
+	LocalServerID string
+	Kinds         []int32
+	CreatedAt     time.Time
+	LastSuccessAt *time.Time
+	Failures      int32
+}
+
 type SchemaFloor struct {
 	MinMigration int64
 }

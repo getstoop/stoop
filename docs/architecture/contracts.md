@@ -24,6 +24,7 @@ proto/stoop/
   files/v1/files.proto
   instance/v1/{instance,email,providers,reachability,user}.proto
   integrations/v1/{integrations,webhook,bot}.proto
+  push/v1/push.proto
   realtime/v1/realtime.proto
   voice/v1/voice.proto
 ```
@@ -35,7 +36,7 @@ and puts `Message`'s fields next to the code that owns messages.
 
 ## The RPC surface
 
-Six Connect services. Every procedure requires a credential — a session
+Seven Connect services. Every procedure requires a credential — a session
 or a token — unless it is listed as public below.
 
 ### `stoop.auth.v1.AuthService`
@@ -128,6 +129,19 @@ Webhooks and bots ([integrations.md](integrations.md)):
 `instance.integrations.manage`, except `ListWebhooks` per space, which
 any member may call and which never carries a token, a secret or more of
 a receiver's URL than its host.
+
+### `stoop.push.v1.PushService`
+
+A device's push notifications, one subscription per session. Every
+procedure needs a session: the gate asks for `preferences.manage` and
+the handler refuses any other credential, since a token has no device.
+
+| Procedure | Notes |
+| --------- | ----- |
+| `GetPushConfig` | The server's public signing key (RFC 8292 `applicationServerKey`, the uncompressed P-256 point) and `enabled`, always true for now. The key is made on first call. |
+| `RegisterPushSubscription` | Stores the calling session's subscription, replacing any it had: `endpoint` (https, 2048 characters at most), `p256dh` (an uncompressed P-256 point), `auth` (16 bytes), `local_server_id` (1 to 32 characters) and `kinds`. Kinds must be known `ActivityKind` values; empty means none wanted, and a client always sends its whole list. |
+| `UpdatePushSubscription` | Replaces the calling session's `kinds`. `NotFound` when it has no subscription. |
+| `DeletePushSubscription` | Removes the calling session's subscription; fine when there is none. Signing out removes it anyway. |
 
 ## The non-RPC surface
 
