@@ -132,6 +132,13 @@ func TestTokenCache(t *testing.T) {
 	if other, _ := cache.get(key, "https://two.example", "", now); other == first {
 		t.Error("two origins share a token")
 	}
+	// The cache keeps wall-clock time, which a sleeping host cannot stall.
+	if _, err := cache.get(key, "https://three.example", "", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if kept := cache.tokens["https://three.example"].reuseUntil; kept != kept.Round(0) {
+		t.Error("the cache kept a monotonic clock reading")
+	}
 	later := now.Add(tokenReuse)
 	renewed, _ := cache.get(key, "https://one.example", "", later)
 	if renewed == first {

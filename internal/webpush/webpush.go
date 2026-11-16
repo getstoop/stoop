@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/getstoop/stoop/internal/netguard"
@@ -93,8 +94,8 @@ type Sender struct {
 	tokens  tokenCache
 }
 
-// NewSender signs with key and posts through client, which decides what
-// addresses may be reached. subject is the contact a push service may use
+// NewSender signs with key and posts through a copy of client that follows
+// no redirects; client decides what addresses may be reached. subject is the contact a push service may use
 // about this server, a mailto: or https: URL; it may be empty.
 func NewSender(client *http.Client, key *ecdsa.PrivateKey, subject string) (*Sender, error) {
 	if client == nil || key == nil {
@@ -107,11 +108,17 @@ func NewSender(client *http.Client, key *ecdsa.PrivateKey, subject string) (*Sen
 	if err != nil {
 		return nil, err
 	}
-	return &Sender{client: client, key: key, public: public, subject: subject, now: time.Now}, nil
+	// A push is never redirected: a followed redirect would turn the POST
+	// into a GET or carry the signed request elsewhere.
+	guarded := *client
+	guarded.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return &Sender{client: &guarded, key: key, public: public, subject: subject, now: time.Now}, nil
 }
 
-// maxRetryAfterSeconds caps a Retry-After given in seconds at a day.
-const maxRetryAfterSeconds = 24 * 60 * 60
+// maxRetryAfter caps the wait a push service may ask for.
+const maxRetryAfter = 24 * time.Hour
 
 var topicPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
 
@@ -120,9 +127,10 @@ var topicPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
 // payload (ErrPayloadTooLarge), or a failed request, which may be retried.
 // Any answer from the push service is a Result.
 func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Result, error) {
+	// The endpoint is a capability URL, so no error carries it.
 	endpoint, err := url.Parse(sub.Endpoint)
 	if err != nil {
-		return Result{}, fmt.Errorf("%w: endpoint: %v", ErrBadSubscription, err)
+		return Result{}, fmt.Errorf("%w: endpoint is not a URL", ErrBadSubscription)
 	}
 	if err := netguard.CheckURL(endpoint); err != nil {
 		return Result{}, fmt.Errorf("%w: endpoint: %v", ErrBadSubscription, err)
@@ -144,7 +152,7 @@ func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Resul
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(body))
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("%w: endpoint cannot be requested", ErrBadSubscription)
 	}
 	req.Header.Set("Authorization", "vapid t="+token+", k="+s.public)
 	req.Header.Set("Content-Encoding", "aes128gcm")
@@ -158,6 +166,10 @@ func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Resul
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
+		var failed *url.Error
+		if errors.As(err, &failed) {
+			err = failed.Err
+		}
 		return Result{}, fmt.Errorf("webpush: post: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -186,16 +198,18 @@ func outcomeOf(status int) Outcome {
 }
 
 // retryAfter reads a Retry-After header, in either of its forms: a count
-// of seconds or an HTTP date.
+// of seconds or an HTTP date, capped at maxRetryAfter.
 func retryAfter(header string, now time.Time) time.Duration {
 	if header == "" {
 		return 0
 	}
-	if seconds, err := strconv.Atoi(header); err == nil {
-		return time.Duration(min(max(seconds, 0), maxRetryAfterSeconds)) * time.Second
+	if seconds, err := strconv.ParseInt(header, 10, 64); err == nil {
+		return time.Duration(min(max(seconds, 0), int64(maxRetryAfter/time.Second))) * time.Second
+	} else if errors.Is(err, strconv.ErrRange) && !strings.HasPrefix(header, "-") {
+		return maxRetryAfter
 	}
 	if when, err := http.ParseTime(header); err == nil {
-		return max(when.Sub(now), 0)
+		return min(max(when.Sub(now), 0), maxRetryAfter)
 	}
 	return 0
 }

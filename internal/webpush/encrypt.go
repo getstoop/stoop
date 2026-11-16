@@ -43,7 +43,7 @@ var (
 )
 
 // encrypt is the aes128gcm body for payload (RFC 8291), under a fresh key
-// pair and salt, padded so its length is a multiple of padBlock.
+// pair and salt, its record padded to a multiple of padBlock.
 func encrypt(payload, p256dh, auth []byte) ([]byte, error) {
 	if len(payload) > MaxPayloadBytes {
 		return nil, fmt.Errorf("%w: %d bytes, limit %d", ErrPayloadTooLarge, len(payload), MaxPayloadBytes)
@@ -97,7 +97,7 @@ func sealRecord(ikm, salt, keyID, record []byte) ([]byte, error) {
 	if len(salt) != saltBytes {
 		return nil, fmt.Errorf("webpush: salt is %d bytes, want %d", len(salt), saltBytes)
 	}
-	if len(keyID) > 255 || len(record)+tagBytes > recordSize {
+	if len(keyID) > 255 || len(record)+tagBytes >= recordSize {
 		return nil, errors.New("webpush: record does not fit")
 	}
 	aead, nonce, err := recordCipher(ikm, salt)

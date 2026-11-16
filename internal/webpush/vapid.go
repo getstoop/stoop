@@ -97,6 +97,9 @@ type cachedToken struct {
 }
 
 func (c *tokenCache) get(key *ecdsa.PrivateKey, audience, subject string, now time.Time) (string, error) {
+	// Wall-clock time only: exp is wall-clock, and the monotonic reading
+	// stops while the host sleeps.
+	now = now.Round(0)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if cached, ok := c.tokens[audience]; ok && now.Before(cached.reuseUntil) {

@@ -126,6 +126,9 @@ func TestSendReportsTheAnswer(t *testing.T) {
 		{http.StatusTooManyRequests, "", Retry, 0},
 		{http.StatusTooManyRequests, "soon", Retry, 0},
 		{http.StatusTooManyRequests, "-5", Retry, 0},
+		{http.StatusTooManyRequests, "999999", Retry, 24 * time.Hour},
+		{http.StatusTooManyRequests, "99999999999999999999999", Retry, 24 * time.Hour},
+		{http.StatusServiceUnavailable, "Fri, 15 Jan 2028 08:00:00 GMT", Retry, 24 * time.Hour},
 		{http.StatusInternalServerError, "", Retry, 0},
 		{http.StatusServiceUnavailable, "Fri, 15 Jan 2027 08:01:00 GMT", Retry, time.Minute},
 		{http.StatusServiceUnavailable, "Fri, 15 Jan 2027 07:00:00 GMT", Retry, 0},
@@ -134,15 +137,20 @@ func TestSendReportsTheAnswer(t *testing.T) {
 		{http.StatusRequestEntityTooLarge, "", Rejected, 0},
 		{http.StatusMovedPermanently, "", Rejected, 0},
 	}
+	accepting := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer accepting.Close()
 	for _, tc := range cases {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if tc.status == http.StatusMovedPermanently {
+				// A followed redirect would land on a 200.
+				w.Header().Set("Location", accepting.URL)
+			}
 			if tc.retryAfter != "" {
 				w.Header().Set("Retry-After", tc.retryAfter)
 			}
 			w.WriteHeader(tc.status)
 		}))
 		sender := newTestSender(t)
-		sender.client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 		sender.now = func() time.Time { return time.Date(2027, time.January, 15, 8, 0, 0, 0, time.UTC) }
 		result, err := sender.Send(context.Background(), Subscription{
 			Endpoint: server.URL, P256DH: receiver.PublicKey().Bytes(), Auth: auth,
@@ -199,13 +207,27 @@ func TestSendRefusesWithoutPosting(t *testing.T) {
 func TestSendReturnsARequestFailure(t *testing.T) {
 	receiver, auth := newReceiver(t)
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-	endpoint := server.URL
+	endpoint := server.URL + "/push/device-secret"
 	server.Close()
-	_, err := newTestSender(t).Send(context.Background(), Subscription{
+	sender := newTestSender(t)
+	_, err := sender.Send(context.Background(), Subscription{
 		Endpoint: endpoint, P256DH: receiver.PublicKey().Bytes(), Auth: auth,
 	}, Message{Payload: []byte("hi")})
 	if err == nil || errors.Is(err, ErrBadSubscription) || errors.Is(err, ErrPayloadTooLarge) {
 		t.Fatalf("err = %v, want a request failure", err)
+	}
+	if strings.Contains(err.Error(), "device-secret") {
+		t.Errorf("the error names the endpoint: %v", err)
+	}
+
+	// Nor does a refused endpoint appear in its error.
+	for _, bad := range []string{"https://push.example/device-secret\x7f", "ftp://push.example/device-secret", "https://push.example:port/device-secret"} {
+		_, err := sender.Send(context.Background(), Subscription{
+			Endpoint: bad, P256DH: receiver.PublicKey().Bytes(), Auth: auth,
+		}, Message{Payload: []byte("hi")})
+		if !errors.Is(err, ErrBadSubscription) || strings.Contains(err.Error(), "device-secret") {
+			t.Errorf("endpoint %q: err = %v", bad, err)
+		}
 	}
 }
 
