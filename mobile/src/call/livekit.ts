@@ -82,6 +82,10 @@ function withTimeout<Value>(work: Promise<Value>, ms: number): Promise<Value> {
   });
 }
 
+// How long after the phone says its outputs changed they are read a
+// second time (routeChanged).
+const READ_AGAIN_MS = 500;
+
 export function openConnection(origin: string, room: CallRoom, events: ConnectionEvents): Connection {
   const lk = new Room();
   let closed = false;
@@ -132,6 +136,16 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     if (closed) return;
     if (Platform.OS === "android") void routeAndroid().catch(() => {});
     else if (Platform.OS === "ios") routeIos();
+  };
+
+  // A change is read at once and once more a moment later: on Android
+  // the list read is LiveKit's own, kept from the same news, and nothing
+  // promises it has heard by the first reading.
+  let again: ReturnType<typeof setTimeout> | undefined;
+  const routeChanged = () => {
+    readRoute();
+    clearTimeout(again);
+    again = setTimeout(readRoute, READ_AGAIN_MS);
   };
 
   lk.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
@@ -191,7 +205,7 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     await published;
     stopIfClosed();
     live = true;
-    stopListening = audioRoute?.onChange(readRoute);
+    stopListening = audioRoute?.onChange(routeChanged);
     readRoute();
   };
 
@@ -225,6 +239,7 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
       if (closed) return;
       closed = true;
       stopListening?.();
+      clearTimeout(again);
       await lk.disconnect().catch(() => {});
       if (audioStarted) await AudioSession.stopAudioSession().catch(() => {});
     },

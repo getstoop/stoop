@@ -30,7 +30,8 @@ class StoopAudioRouteModule : Module() {
   // keeps its own list of outputs from a callback of its own on that
   // thread, the system queues every callback for a change before any
   // runs, in no promised order, and the listener reads LiveKit's list. So
-  // the event leaves after LiveKit has heard of the same change.
+  // the event most likely leaves after LiveKit has heard of the same
+  // change; nothing promises it, and the listener reads a second time.
   private fun changed(devices: Array<out AudioDeviceInfo>) {
     if (devices.none { it.isSink }) return
     main.post { if (watching) sendEvent("onRouteChange", emptyMap<String, Any>()) }

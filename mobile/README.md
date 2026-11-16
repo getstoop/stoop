@@ -1144,10 +1144,13 @@ change to them needs a native rebuild, not only Metro.
   (`modules/stoop-audio-route`): an event when the phone's outputs
   change, and on iOS the outputs the sound goes to. `livekit.ts`
   listens from the join landing until the connection closes, and reads
-  the outputs as it starts and at each event. While headphones have the
+  the outputs as it starts and at each event, and half a second after
+  an event once more, since on Android the list is LiveKit's own and may
+  not have the news yet. While headphones have the
   sound the control is disabled and shows off, on both phones, and a
   press does nothing. A build made before the module was added has no
-  such event: there the control never knows of headphones.
+  such event: there iOS never knows of headphones, and Android only of
+  those there as the join lands or at a press of Speaker.
   - **iOS** switches the audio session's default: with the loudspeaker
     as the default and video chat mode, or without it and voice chat
     mode (LiveKit's own two settings). It is set on the session at once
