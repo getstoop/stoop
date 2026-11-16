@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { SpeakerIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
-import TitlePill, { TITLE_SCALE } from "../Channel/TitlePill";
+import TitlePill, { TITLE_LINE, TITLE_SCALE } from "../Channel/TitlePill";
 import { roomAbout } from "./stageRules";
 
 // A voice room's title, in the header's pill as a channel's is
@@ -48,11 +48,13 @@ function makeStyles(theme: Theme) {
       gap: 1,
     },
     name: {
+      ...TITLE_LINE,
       color: theme.text,
       fontSize: 17,
       fontWeight: "700",
     },
     about: {
+      ...TITLE_LINE,
       color: theme.textMuted,
       fontSize: tokens.textSm,
     },
