@@ -1,0 +1,15 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'org.getstoop'
+version = '0.0.1'
+
+android {
+  namespace "org.getstoop.audioroute"
+  defaultConfig {
+    versionCode 1
+    versionName "0.0.1"
+  }
+}

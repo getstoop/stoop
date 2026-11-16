@@ -6,6 +6,7 @@ import {
   createCall,
   failureLine,
   footState,
+  iosHeadphones,
   leavesCall,
   offersSettings,
   reconnectingLine,
@@ -717,6 +718,16 @@ describe("in a call", () => {
     expect(androidOutput(["bluetooth", "speaker", "earpiece"], true)).toBe("bluetooth");
     expect(androidOutput(["headset", "bluetooth", "speaker"], true)).toBe("bluetooth");
     expect(androidOutput([], true)).toBe("speaker");
+  });
+
+  it("counts anything but the iPhone's own loudspeaker and earpiece as headphones", () => {
+    expect(iosHeadphones([{ kind: "speaker" }])).toBe(false);
+    expect(iosHeadphones([{ kind: "earpiece" }])).toBe(false);
+    expect(iosHeadphones([{ kind: "headphones" }])).toBe(true);
+    expect(iosHeadphones([{ kind: "bluetooth" }])).toBe(true);
+    expect(iosHeadphones([{ kind: "other" }])).toBe(true);
+    expect(iosHeadphones([{ kind: "speaker" }, { kind: "other" }])).toBe(true);
+    expect(iosHeadphones([])).toBe(false);
   });
 
   it("says where it is again when asked, and only while connected", async () => {
