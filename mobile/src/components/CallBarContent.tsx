@@ -32,8 +32,8 @@ import WaveBars from "./WaveBars";
 // chat), pressing goes back to it. It reads the call
 // itself, and draws nothing with no call; it needs a server's screen
 // around it (CurrentServer). `style` is for the surface's own padding.
-// The wave moves while the call is connected and the screen this is on
-// is the one in front (WaveBars): a bar on a covered screen, or on a
+// The wave moves while the call is connected, and not reconnecting, and
+// the screen this is on is the one in front (WaveBars): a bar on a covered screen, or on a
 // tab not shown, stays mounted and would otherwise animate unseen for
 // the whole call. `held` keeps
 // what it last said on show once the call has gone, for a surface that
@@ -98,7 +98,7 @@ export default function CallBarContent({ style, held }: { style?: StyleProp<View
           {elsewhere ? (
             <Text style={styles.tileLetter}>{serverName.trim().charAt(0).toUpperCase()}</Text>
           ) : (
-            <WaveBars color={theme.ok} moving={live && focused && call.status === "connected"} />
+            <WaveBars color={theme.ok} moving={live && focused && call.status === "connected" && !call.reconnecting} />
           )}
         </View>
         <View style={styles.lines}>

@@ -1,6 +1,7 @@
 // The app's one voice call: which room it is in, how far the join has
 // got, whether the microphone is muted, where its sound comes out and
-// who is speaking. Plain state
+// who is speaking, and how it holds up when the connection doesn't:
+// reconnecting, then back or lost. Plain state
 // and its rules, with the phone's parts (the microphone prompt, LiveKit,
 // the realtime socket) handed in, so it runs in a test without any of
 // them. CallProvider holds one above the router.
@@ -10,10 +11,15 @@ export type CallRoom = { serverId: string; spaceId: string; channelId: string };
 export type Call = {
   room: CallRoom;
   // A failed join stays, for its room's screen to say so, until it is
-  // dismissed or another join starts.
+  // dismissed or another join starts. So does a call that was lost.
   status: "connecting" | "connected" | "failed";
-  // Why a failed join failed: the microphone was refused, or anything else.
-  failure?: "microphone" | "connection";
+  // Why it failed: the microphone was refused, the join failed for any
+  // other cause, or the call was connected and its connection was lost
+  // for good.
+  failure?: "microphone" | "connection" | "lost";
+  // Connected, with the connection down and being tried again (LiveKit's
+  // own retrying). Nobody is known to be speaking meanwhile.
+  reconnecting: boolean;
   muted: boolean;
   // The loudspeaker rather than the earpiece, for when no headphones
   // are connected. Every call starts with it on.
@@ -41,8 +47,12 @@ export type ConnectionEvents = {
   onSpeaking: (userIds: string[]) => void;
   // Headphones took the sound, or gave it back.
   onHeadphones: (connected: boolean) => void;
-  // The connection ended and nobody here asked it to.
-  onDropped: () => void;
+  // The connection is down and being tried again, then back up.
+  onReconnecting: () => void;
+  onReconnected: () => void;
+  // The connection ended and nobody here asked it to. `reason` is why,
+  // as LiveKit names it (DisconnectReason), or "" when it didn't say.
+  onDropped: (reason: string) => void;
 };
 
 export type CallDeps = {
@@ -76,7 +86,7 @@ export type CallHolder = {
   // A server says a room is no more for this account: deleted, or a
   // private one this account was taken out of. The call in it ends.
   roomGone: (serverId: string, channelId: string) => void;
-  // Forgets a failed join.
+  // Forgets a failed join, or a lost call.
   dismiss: () => void;
 };
 
@@ -90,11 +100,35 @@ export function footState(call: Call | null, room: CallRoom): "join" | "connecti
   return call.status === "connecting" ? "connecting" : "joined";
 }
 
-// What a room's screen says of a join there that failed, or "".
+// What a room's screen says of a join there that failed, or of a call
+// there that was lost, or "".
 export function failureLine(call: Call | null, room: CallRoom): string {
   if (!call || !sameRoom(call.room, room) || call.status !== "failed") return "";
-  return call.failure === "microphone" ? "Allow the microphone to join." : "Couldn't join. Try again.";
+  if (call.failure === "microphone") return "Allow the microphone to join.";
+  return call.failure === "lost" ? "Call ended. Try again." : "Couldn't join. Try again.";
 }
+
+// Whether a room's screen offers the way to the app's page in the
+// system's settings: a join there was refused the microphone, which the
+// system may not ask for a second time.
+export function offersSettings(call: Call | null, room: CallRoom): boolean {
+  return !!call && sameRoom(call.room, room) && call.status === "failed" && call.failure === "microphone";
+}
+
+// What the call's room's screen and the call bar say while the call's
+// connection is being tried again, or "".
+export const reconnectingLine = (call: Call | null) =>
+  call?.status === "connected" && call.reconnecting ? "Reconnecting…" : "";
+
+// Whether a connection that ended by itself was ended by the server
+// taking this account out of the room, as LiveKit names why
+// (DisconnectReason): removed from it, the room deleted, or this account
+// joining it on another device. Those end the call silently, as the
+// same news over the realtime socket does (voiceState, roomGone). Any
+// other ending, LiveKit giving up on reconnecting included, is the call
+// lost.
+export const removedByServer = (reason: string) =>
+  reason === "PARTICIPANT_REMOVED" || reason === "ROOM_DELETED" || reason === "DUPLICATE_IDENTITY";
 
 // What the Speaker control shows: the loudspeaker on or off, or that
 // headphones have the sound and it has nothing to switch.
@@ -161,6 +195,20 @@ export function createCall(deps: CallDeps): CallHolder {
     else await closing;
   };
 
+  // The call's connection is lost for good: the call ends, and stays as
+  // failed for its room's screen to say so.
+  const lose = async () => {
+    const was = call;
+    const open = connection;
+    if (!was || !open) return;
+    attempt += 1;
+    placed = false;
+    connection = null;
+    set({ ...was, status: "failed", failure: "lost", reconnecting: false, speaking: [] });
+    deps.report(was.room.serverId, { channelId: "", muted: was.muted });
+    await close(open);
+  };
+
   const join = async (room: CallRoom) => {
     // Leaving the room it was in comes first. Anything that happened
     // meanwhile (a leave, the background, another join) overtook this.
@@ -173,7 +221,7 @@ export function createCall(deps: CallDeps): CallHolder {
     }
     attempt += 1;
     const mine = attempt;
-    const fresh = { room, muted: false, speaker: true, headphones: false, speaking: [] };
+    const fresh = { room, muted: false, speaker: true, headphones: false, speaking: [], reconnecting: false };
     set({ ...fresh, status: "connecting" });
     const fail = (failure: Call["failure"]) => set({ ...fresh, status: "failed", failure });
 
@@ -187,13 +235,21 @@ export function createCall(deps: CallDeps): CallHolder {
 
     const opened = deps.open(room, {
       onSpeaking: (userIds) => {
-        if (connection === opened && call) set({ ...call, speaking: userIds });
+        if (connection === opened && call && !call.reconnecting) set({ ...call, speaking: userIds });
       },
       onHeadphones: (connected) => {
         if (connection === opened && call && call.headphones !== connected) set({ ...call, headphones: connected });
       },
-      onDropped: () => {
-        if (connection === opened && call?.status === "connected") void end();
+      onReconnecting: () => {
+        if (connection !== opened || call?.status !== "connected" || call.reconnecting) return;
+        set({ ...call, reconnecting: true, speaking: [] });
+      },
+      onReconnected: () => {
+        if (connection === opened && call?.reconnecting) set({ ...call, reconnecting: false });
+      },
+      onDropped: (reason) => {
+        if (connection !== opened || call?.status !== "connected") return;
+        void (removedByServer(reason) ? end() : lose());
       },
     });
     connection = opened;

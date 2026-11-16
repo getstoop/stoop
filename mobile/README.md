@@ -1045,7 +1045,7 @@ change to them needs a native rebuild, not only Metro.
   beside the other app-wide providers, so leaving the room's screen
   keeps the call and coming back finds it. `useCall()` gives what a
   screen draws (the server, space and room, connecting, connected or
-  failed, muted, the loudspeaker on or off, whether headphones have the
+  failed, reconnecting, muted, the loudspeaker on or off, whether headphones have the
   sound, who is speaking) and `useCallActions()` what it can do. One
   call at a time, across every server: joining a second room leaves
   the first, then joins.
@@ -1079,6 +1079,44 @@ change to them needs a native rebuild, not only Metro.
   only once the server has said this account is in the room since the
   call began or the socket last came back, so the call's own leave, a
   switch of rooms and a reconnect are not removals. It ends silently.
+- **A connection that drops is LiveKit's to bring back**: the app adds
+  no timer and no retry of its own. `livekit.ts` passes on what the
+  room says (`Reconnecting` and `SignalReconnecting`, `Reconnected`,
+  and `Disconnected` with its reason), and `call.ts` holds the rules.
+  - **While LiveKit retries, the call says "Reconnecting…"**: on the
+    Stage's foot in the line's place, with Mute, Speaker and Leave
+    kept, and as the call bar's second line, on the tabs and in the
+    pill, whose wave holds still. The call stays `connected` with
+    `reconnecting` set. The Stage's tiles stay as the roster has them,
+    which is the realtime socket's and not LiveKit's (with the whole
+    network down the socket is down too, and the Stage is empty until
+    it is back, as it is whenever the roster isn't known), and nobody
+    wears a ring, since who is speaking is not known meanwhile. When it is
+    back, everything is as it was and nothing is said.
+  - **A call lost for good ends, and its room's screen says "Call
+    ended. Try again."** over Join: LiveKit gave up retrying, or
+    disconnected for any reason but the server's removal. The call
+    stays as `failed` with `failure: "lost"`, as a failed join stays,
+    so the line shows only on that room's screen, there or come to
+    later, and goes when Join is pressed, when a voice room's screen is
+    left, when any call is joined and when the app goes to the
+    background. Elsewhere the bar and the pill just go, the pill with
+    its fade. No alert.
+  - **LiveKit saying this account was removed ends the call silently**,
+    as the same news over the realtime socket does, whichever is heard
+    first: the reasons `PARTICIPANT_REMOVED`, `ROOM_DELETED` and
+    `DUPLICATE_IDENTITY` (`removedByServer` in `call.ts`). The call's
+    own leave, a switch of rooms and the background close the
+    connection themselves, and what it says after is not heard.
+- **A join that fails says "Couldn't join. Try again."**, whatever the
+  cause, and a join refused the microphone "Allow the microphone to
+  join." over an Open Settings button, which opens the app's page in
+  the system's settings (`Linking.openSettings()`): iOS asks for the
+  microphone once only, and Android stops asking after a second
+  refusal. Going there is going to the background, which ends whatever
+  the call holds, the line included; coming back finds Join, which asks
+  again and joins once the microphone is allowed. (iOS restarts the app
+  when the permission is changed in Settings.)
 - **Sound comes out of the loudspeaker** as a call starts, unless a
   wired or Bluetooth headset is connected, which takes over. On iOS
   that is LiveKit's own audio session handling, which
@@ -1128,7 +1166,8 @@ change to them needs a native rebuild, not only Metro.
   through `src/hooks/useServerChipRoom.ts`). It names the room and,
   under it, who is speaking besides you ("Priya is speaking", "Priya
   and Theo are speaking", "Priya and 2 others are speaking"), the
-  room's space while nobody is, and "Connecting…" on the way in.
+  room's space while nobody is, "Connecting…" on the way in and
+  "Reconnecting…" while a dropped connection is tried again.
   Pressing the names opens the room's screen; Mute shows an amber
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are
@@ -1140,7 +1179,7 @@ change to them needs a native rebuild, not only Metro.
     (`useIsFocused` in `CallBarContent`): a pill on a covered screen
     and a bar on a tab not shown stay mounted, and would otherwise
     animate unseen for the whole call. It is still while connecting,
-    while the pill fades out, and under Reduce Motion (Reanimated's
+    while reconnecting, while the pill fades out, and under Reduce Motion (Reanimated's
     `useReducedMotion`, read as the app starts; on Android that is the
     system's transition animation scale at 0, which "Remove
     animations" sets). The motion is a Reanimated CSS animation on the

@@ -15,18 +15,24 @@ const BUBBLE_PAD = 12;
 // The foot of the Stage: who is here, in a line, over Join; once in the
 // call, Mute, Speaker and Leave in Join's place. Speaker is the
 // loudspeaker rather than the earpiece, and has nothing to switch while
-// headphones have the sound. A join that failed says so in
-// the line's place. Where iOS has Liquid Glass it is a bubble of it
+// headphones have the sound. A join that failed, or a call that was
+// lost, says so in the line's place (`failure`), and so does a call
+// whose connection is being tried again (`notice`), with the controls
+// kept. A join refused the microphone has a button under its line to
+// the app's page in the system's settings (`onOpenSettings`), where the
+// microphone is allowed once the system won't ask again. Where iOS has Liquid Glass it is a bubble of it
 // floating over the tiles, as the composer floats over a channel;
 // elsewhere a solid band across the bottom. `onHeight` says how much of
 // the screen's foot it covers, for the tiles to clear.
 export default function StageFoot({
   line,
   failure,
+  notice,
   state,
   muted,
   speaker,
   onJoin,
+  onOpenSettings,
   onToggleMute,
   onToggleSpeaker,
   onLeave,
@@ -34,6 +40,10 @@ export default function StageFoot({
 }: {
   line: string;
   failure: string;
+  // "Reconnecting…" while the call's connection is tried again, or "".
+  notice: string;
+  // Given while the failure is the microphone refused.
+  onOpenSettings?: () => void;
   // Before the join, while it connects, or in the call (call footState).
   state: "join" | "connecting" | "joined";
   muted: boolean;
@@ -55,8 +65,25 @@ export default function StageFoot({
   const inside = (
     <>
       {failure ? (
-        <Text style={[styles.here, styles.failure]} numberOfLines={2} accessibilityRole="alert">
-          {failure}
+        <View style={styles.failed}>
+          <Text style={[styles.here, styles.failure]} numberOfLines={2} accessibilityRole="alert">
+            {failure}
+          </Text>
+          {onOpenSettings && (
+            <Pressable
+              onPress={onOpenSettings}
+              hitSlop={10}
+              accessibilityRole="button"
+              testID="voice-open-settings"
+              style={({ pressed }) => pressed && styles.dim}
+            >
+              <Text style={styles.settings}>Open Settings</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : notice ? (
+        <Text style={styles.here} numberOfLines={2} accessibilityRole="alert">
+          {notice}
         </Text>
       ) : (
         !!line && (
@@ -194,6 +221,15 @@ function makeStyles(theme: Theme) {
     },
     failure: {
       color: theme.danger,
+    },
+    failed: {
+      alignItems: "center",
+      gap: 8,
+    },
+    settings: {
+      color: theme.accent,
+      fontSize: tokens.textUi,
+      fontWeight: "600",
     },
     join: {
       height: JOIN,

@@ -5,7 +5,7 @@ import {
   AudioSession,
   setupIOSAudioManagement,
 } from "@livekit/react-native";
-import { type Participant, Room, RoomEvent } from "livekit-client";
+import { DisconnectReason, type Participant, Room, RoomEvent } from "livekit-client";
 import { Platform } from "react-native";
 import { voiceClient } from "../api/clients";
 import { sessionToken } from "../api/servers";
@@ -14,7 +14,11 @@ import { androidOutput, type CallRoom, type Connection, type ConnectionEvents } 
 // The LiveKit side of a call, as web's (web/src/api/voice.ts): a token
 // from JoinVoiceChannel, signalling at the server's own /livekit, the
 // ICE servers it names, and the microphone published as signalling comes
-// up. What the call is and does with this is call.ts.
+// up. A connection that goes down is LiveKit's to bring back, with its
+// own retries and none here: the room says when it starts trying (the
+// whole connection, or signalling only), when it is back, and, having
+// given up, that it is disconnected and why. What the call is and does
+// with this is call.ts.
 
 // As web's: a join that neither lands nor fails by then has failed.
 const JOIN_TIMEOUT_MS = 30_000;
@@ -105,9 +109,19 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
 
   lk.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
     events.onSpeaking(speakers.map((speaker) => speaker.identity)),
-  ).on(RoomEvent.Disconnected, () => {
-    if (live && !closed) events.onDropped();
-  });
+  )
+    .on(RoomEvent.Reconnecting, () => {
+      if (live && !closed) events.onReconnecting();
+    })
+    .on(RoomEvent.SignalReconnecting, () => {
+      if (live && !closed) events.onReconnecting();
+    })
+    .on(RoomEvent.Reconnected, () => {
+      if (live && !closed) events.onReconnected();
+    })
+    .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+      if (live && !closed) events.onDropped(reason === undefined ? "" : (DisconnectReason[reason] ?? ""));
+    });
 
   const stopIfClosed = () => {
     if (closed) throw new Error("closed");
