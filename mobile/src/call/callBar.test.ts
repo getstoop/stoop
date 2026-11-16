@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Call } from "./call";
 import {
+  CALL_BAR_HEIGHT,
   type CallPlace,
   callBarLabel,
   callBarName,
   callBarShown,
   callBarStatus,
+  callPillClearance,
   hereChannelId,
   speakingLine,
   speakingNames,
@@ -50,6 +52,18 @@ describe("when the call bar shows", () => {
     expect(tabRow(callBarShown(null), 2)).toBe("chip");
     expect(tabRow(callBarShown(null), 1)).toBe(null);
     expect(tabRow(callBarShown(call({ status: "failed" })), 2)).toBe("chip");
+  });
+});
+
+describe("the room the call pill takes under a header", () => {
+  it("is the bar's height and the gap under it, in a call and on the way in", () => {
+    expect(callPillClearance(call())).toBe(CALL_BAR_HEIGHT + 8);
+    expect(callPillClearance(call({ status: "connecting" }))).toBe(CALL_BAR_HEIGHT + 8);
+  });
+
+  it("is nothing with no call, or for a join that failed", () => {
+    expect(callPillClearance(null)).toBe(0);
+    expect(callPillClearance(call({ status: "failed", failure: "connection" }))).toBe(0);
   });
 });
 

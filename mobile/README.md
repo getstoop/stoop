@@ -169,9 +169,11 @@ import a screen; the screens themselves live in `src/screens`, so
   navigation bar (`src/screens/Channel/ScreenHeader.tsx`), the same on
   both platforms: a round back button, the title in a pill of the same
   make taking the room between (`TitlePill.tsx`), and one capsule
-  holding Search and the bell. The list scrolls
-  under all of it, padded by the
-  header's reach at its head, and fading out at both ends, under the
+  holding Search and the bell. While the app is in a call, the call
+  pill is a second row under it (`CallPill.tsx`, Voice below). The list
+  scrolls under all of it, padded by the
+  header's reach at its head (and the pill's, while it shows), and
+  fading out at both ends, under the
   status bar so the time stays readable and under the home indicator up
   to the composer's foot (`EdgeFade.tsx`). On iOS 26 the list is marked
   to have none of the system's own fade under the bar
@@ -1141,7 +1143,8 @@ change to them needs a native rebuild, not only Metro.
   - **What the bar says and does is `src/components/CallBarContent.tsx`**,
     which reads the call itself, draws no surface and takes a `style`:
     put it on any surface under a server's screen. `CallBar.tsx` is the
-    row docked on the tab bar. The room's and its space's names, the
+    row docked on the tab bar, `CallPill.tsx` the pill on pushed
+    screens (below). The room's and its space's names, the
     members' names and this account's ID come from
     `call/CallPlaceProvider.tsx`, inside `CallProvider`: one load for
     every bar, whichever server is on screen, when the call starts and
@@ -1156,6 +1159,25 @@ change to them needs a native rebuild, not only Metro.
     the slot yet (STOOPMOBIL-54): while in a call the slot is emptied
     and each tab's screen draws the bar as a bubble of Liquid Glass
     floating over the tab bar, where the slot was.
+  - **A channel, a conversation and a thread carry it as a pill under
+    their header** (`src/screens/Channel/CallPill.tsx`), since they
+    cover the tab bar: the same `CallBarContent` on the header's own
+    surface (`Surface.tsx`: Liquid Glass where iOS has it, the panel
+    elsewhere), as far from the sides as the header and 8 under it, as
+    the voice room's switch row is. The composer is not touched. The
+    screen's list, and whatever stands in for it, clears the pill by
+    `callPillClearance` (`callBar.ts`: the bar's height and the 8 under
+    it, nothing with no bar), added to the header's reach in the one
+    number each screen already places everything by, so the oldest
+    message, the thread's root and a spinner all start under the pill.
+    It fades in as a call starts and goes at once when it ends; rows in
+    view stay where they are unless the reader is at the oldest end,
+    where the list moves by the pill's height. A voice room's screen
+    never shows it, on either side and whichever room the call is in:
+    it has the switch row there, and its Chat is the channel screen
+    given `under`, which draws no header and no pill. A thread opened
+    from a room's Chat is a thread, and shows it. Search, settings and
+    other pushed screens don't.
   - **On the Spaces tab the room you are in is tinted and says "You're
     here"** where Live was (`screens/Spaces/VoiceRoom.tsx`), once the
     join has landed.

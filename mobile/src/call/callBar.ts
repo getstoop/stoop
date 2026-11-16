@@ -13,6 +13,16 @@ export function callBarShown(call: Call | null): call is Call {
   return !!call && call.status !== "failed";
 }
 
+// The room under the call pill, which is the bar under the header of a
+// channel, a conversation or a thread (screens/Channel/CallPill.tsx).
+export const CALL_PILL_UNDER = 8;
+
+// How far below its screen's header the pill reaches: what the screen's
+// list clears besides the header. Nothing while no bar shows.
+export function callPillClearance(call: Call | null): number {
+  return callBarShown(call) ? CALL_BAR_HEIGHT + CALL_PILL_UNDER : 0;
+}
+
 // The row by the tab bar: the call bar while it shows, with any number
 // of servers; else the server chip, with more than one server saved.
 export function tabRow(barShown: boolean, servers: number): "call" | "chip" | null {

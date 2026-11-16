@@ -20,6 +20,7 @@ import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import CallPill, { useCallPillClearance } from "../Channel/CallPill";
 import { olderFits } from "../Channel/channelEngine";
 import ChannelOutcome from "../Channel/ChannelOutcome";
 import PageRetry from "../Channel/PageRetry";
@@ -68,7 +69,8 @@ import { threadReadDue } from "./threadReadDue";
 // web's thread panel does: once it has replies, and only where its
 // channel isn't muted, which silences it already. Before the bell, Search
 // pushes the space's search screen narrowed to the thread's channel, as
-// the channel's header does.
+// the channel's header does. While the app is in a call, the call pill
+// floats under the header, as the channel's (CallPill).
 
 // How long after a failed read it is asked for again.
 const READ_RETRY_MS = 5000;
@@ -90,7 +92,9 @@ export default function Thread({
   const styles = makeStyles(theme);
   // The header floats over the list (ScreenHeader), so the list
   // and the spinner in its place clear it by this much.
-  const headerHeight = useHeaderClearance();
+  const ownHeader = useHeaderClearance();
+  const pill = useCallPillClearance();
+  const headerHeight = ownHeader + pill;
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -233,22 +237,25 @@ export default function Thread({
   // Muted says a summary is there, so a change to either is a change here.
   const muted = summary?.muted;
   const title = (
-    <ScreenHeader
-      title={
-        <ThreadTitle
-          channel={header?.channel}
-          spaceName={header?.space?.name ?? ""}
-          conversation={header?.dm ? headerPlace(header) : undefined}
-        />
-      }
-      // A direct message has no space to search, as on web.
-      search={header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined}
-      mute={
-        header && muted !== undefined
-          ? { ...threadMute(muted, header.channel.muted), pending: muting, onPress: toggleMute }
-          : undefined
-      }
-    />
+    <>
+      <ScreenHeader
+        title={
+          <ThreadTitle
+            channel={header?.channel}
+            spaceName={header?.space?.name ?? ""}
+            conversation={header?.dm ? headerPlace(header) : undefined}
+          />
+        }
+        // A direct message has no space to search, as on web.
+        search={header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined}
+        mute={
+          header && muted !== undefined
+            ? { ...threadMute(muted, header.channel.muted), pending: muting, onPress: toggleMute }
+            : undefined
+        }
+      />
+      <CallPill top={ownHeader} />
+    </>
   );
   const retryOpen = () => {
     if (outcome === "failed") engine.retry();
@@ -256,21 +263,21 @@ export default function Thread({
   };
   if (outcome === "ended" || outcome === "gone") {
     return (
-      <Screen title={title}>
+      <Screen title={title} clear={pill}>
         <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
   if (thread?.outcome === "gone" || (held && !root)) {
     return (
-      <Screen title={title}>
+      <Screen title={title} clear={pill}>
         <Unavailable message="This thread isn't available any more." />
       </Screen>
     );
   }
   if (outcome === "failed" || thread?.outcome === "failed") {
     return (
-      <Screen title={title}>
+      <Screen title={title} clear={pill}>
         <ChannelOutcome outcome="failed" server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
@@ -406,11 +413,12 @@ export default function Thread({
   );
 }
 
-// The screen's surface under its header.
-function Screen({ title, children }: { title: ReactNode; children: ReactNode }) {
+// The screen's surface under its header. `clear` is the call pill's
+// room, for what clears only the header by itself.
+function Screen({ title, clear, children }: { title: ReactNode; clear?: number; children: ReactNode }) {
   const styles = makeStyles(useTheme());
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: clear }]}>
       {title}
       {children}
     </View>
