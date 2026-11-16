@@ -340,7 +340,7 @@ per session: `credential_id` → `credentials(id) ON DELETE CASCADE`,
 code of their own. `user_id`, `endpoint` (https, 2048 characters at most),
 `p256dh` (65 bytes) and `auth` (16 bytes), the device's keys (RFC 8291),
 `local_server_id` (the device's own short name for this server, 1 to 32
-characters), `kinds` (`chat.v1.ActivityKind` numbers, sorted; empty means
+ASCII letters, digits, `-` or `_`), `kinds` (`chat.v1.ActivityKind` numbers, sorted; empty means
 none wanted), `created_at`, `last_success_at` and `failures`. Registering
 again replaces the row and clears its record. Indexed by `user_id`.
 

@@ -124,7 +124,7 @@ type RegisterPushSubscriptionRequest struct {
 	Auth []byte `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
 	// The device's own short name for this server, carried in each
 	// notification so the device knows which server sent it. 1 to 32
-	// characters.
+	// ASCII letters, digits, "-" or "_".
 	LocalServerId string `protobuf:"bytes,4,opt,name=local_server_id,json=localServerId,proto3" json:"local_server_id,omitempty"`
 	// The activity this device wants pushed. Empty means none: the
 	// subscription is kept and nothing is sent.

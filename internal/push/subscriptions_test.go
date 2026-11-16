@@ -152,8 +152,14 @@ func TestRegisterRefusesBadInput(t *testing.T) {
 		{"long local id", func(r *pushv1.RegisterPushSubscriptionRequest) { r.LocalServerId = strings.Repeat("x", 33) }, "local_server_id"},
 		{"unspecified kind", func(r *pushv1.RegisterPushSubscriptionRequest) {
 			r.Kinds = []chatv1.ActivityKind{chatv1.ActivityKind_ACTIVITY_KIND_UNSPECIFIED}
-		}, "kinds"},
-		{"unknown kind", func(r *pushv1.RegisterPushSubscriptionRequest) { r.Kinds = []chatv1.ActivityKind{99} }, "kinds"},
+		}, "kinds[0]"},
+		{"unknown kind", func(r *pushv1.RegisterPushSubscriptionRequest) {
+			r.Kinds = []chatv1.ActivityKind{chatv1.ActivityKind_ACTIVITY_KIND_MENTION, chatv1.ActivityKind_ACTIVITY_KIND_DM, 99}
+		}, "kinds[2]"},
+		{"NUL in local id", func(r *pushv1.RegisterPushSubscriptionRequest) { r.LocalServerId = "k3x\x00pq" }, "local_server_id"},
+		{"newline in local id", func(r *pushv1.RegisterPushSubscriptionRequest) { r.LocalServerId = "k3x\npq" }, "local_server_id"},
+		{"space in local id", func(r *pushv1.RegisterPushSubscriptionRequest) { r.LocalServerId = "k3x pq" }, "local_server_id"},
+		{"non-ASCII local id", func(r *pushv1.RegisterPushSubscriptionRequest) { r.LocalServerId = "kéxpq" }, "local_server_id"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -168,6 +174,13 @@ func TestRegisterRefusesBadInput(t *testing.T) {
 	}
 	if n := fix.subscriptions(t, session); n != 0 {
 		t.Errorf("%d subscriptions stored from refused requests", n)
+	}
+	for _, id := range []string{"k3x9pq", "Home_Server-2", strings.Repeat("z", maxLocalServerID)} {
+		req := validRegistration(t)
+		req.LocalServerId = id
+		if _, err := fix.svc.RegisterPushSubscription(ctx, connect.NewRequest(req)); err != nil {
+			t.Errorf("local server id %q refused: %v", id, err)
+		}
 	}
 	_, err := fix.svc.UpdatePushSubscription(ctx, connect.NewRequest(&pushv1.UpdatePushSubscriptionRequest{Kinds: []chatv1.ActivityKind{99}}))
 	apierrtest.ExpectCode(t, err, connect.CodeInvalidArgument, "update with an unknown kind")

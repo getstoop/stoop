@@ -83,7 +83,7 @@ export type RegisterPushSubscriptionRequest = Message<"stoop.push.v1.RegisterPus
   /**
    * The device's own short name for this server, carried in each
    * notification so the device knows which server sent it. 1 to 32
-   * characters.
+   * ASCII letters, digits, "-" or "_".
    *
    * @generated from field: string local_server_id = 4;
    */

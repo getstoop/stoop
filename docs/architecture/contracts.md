@@ -139,7 +139,7 @@ the handler refuses any other credential, since a token has no device.
 | Procedure | Notes |
 | --------- | ----- |
 | `GetPushConfig` | The server's public signing key (RFC 8292 `applicationServerKey`, the uncompressed P-256 point) and `enabled`, always true for now. The key is made on first call. |
-| `RegisterPushSubscription` | Stores the calling session's subscription, replacing any it had: `endpoint` (https, 2048 characters at most), `p256dh` (an uncompressed P-256 point), `auth` (16 bytes), `local_server_id` (1 to 32 characters) and `kinds`. Kinds must be known `ActivityKind` values; empty means none wanted, and a client always sends its whole list. |
+| `RegisterPushSubscription` | Stores the calling session's subscription, replacing any it had: `endpoint` (https, 2048 characters at most), `p256dh` (an uncompressed P-256 point), `auth` (16 bytes), `local_server_id` (1 to 32 ASCII letters, digits, `-` or `_`) and `kinds`. Kinds must be known `ActivityKind` values, and a refusal names the one at fault (`kinds[2]`); empty means none wanted, and a client always sends its whole list. |
 | `UpdatePushSubscription` | Replaces the calling session's `kinds`. `NotFound` when it has no subscription. |
 | `DeletePushSubscription` | Removes the calling session's subscription; fine when there is none. Signing out removes it anyway. |
 

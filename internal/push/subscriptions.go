@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
-	"unicode/utf8"
 
 	"connectrpc.com/connect"
 
@@ -46,9 +45,9 @@ func (s *Service) RegisterPushSubscription(ctx context.Context, req *connect.Req
 		return nil, apierr.Field(connect.CodeInvalidArgument, "auth",
 			fmt.Errorf("the auth secret must be %d bytes", authSecretBytes))
 	}
-	if n := utf8.RuneCountInString(msg.LocalServerId); n == 0 || n > maxLocalServerID {
+	if !validLocalServerID(msg.LocalServerId) {
 		return nil, apierr.Field(connect.CodeInvalidArgument, "local_server_id",
-			fmt.Errorf("the local server id must be 1 to %d characters", maxLocalServerID))
+			fmt.Errorf("the local server id must be 1 to %d letters, digits, - or _", maxLocalServerID))
 	}
 	kinds, err := checkKinds(msg.Kinds)
 	if err != nil {
@@ -113,6 +112,23 @@ func checkEndpoint(endpoint string) error {
 	return nil
 }
 
+// validLocalServerID reports whether id is 1 to maxLocalServerID ASCII
+// letters, digits, - or _: it is echoed to the device in every
+// notification.
+func validLocalServerID(id string) bool {
+	if id == "" || len(id) > maxLocalServerID {
+		return false
+	}
+	for _, char := range id {
+		switch {
+		case char >= 'a' && char <= 'z', char >= 'A' && char <= 'Z', char >= '0' && char <= '9', char == '-', char == '_':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // validDevicePoint reports whether point is an uncompressed P-256 point on the
 // curve.
 func validDevicePoint(point []byte) bool {
@@ -127,9 +143,9 @@ func validDevicePoint(point []byte) bool {
 // repeats. Empty is allowed: the device wants nothing for now.
 func checkKinds(kinds []chatv1.ActivityKind) ([]int32, error) {
 	out := make([]int32, 0, len(kinds))
-	for _, kind := range kinds {
+	for i, kind := range kinds {
 		if _, known := chatv1.ActivityKind_name[int32(kind)]; !known || kind == chatv1.ActivityKind_ACTIVITY_KIND_UNSPECIFIED {
-			return nil, apierr.Field(connect.CodeInvalidArgument, "kinds",
+			return nil, apierr.Field(connect.CodeInvalidArgument, fmt.Sprintf("kinds[%d]", i),
 				fmt.Errorf("unknown activity kind %d", kind))
 		}
 		out = append(out, int32(kind))
