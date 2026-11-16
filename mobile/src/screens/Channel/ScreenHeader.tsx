@@ -1,6 +1,6 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { useIsFocused, useRouter } from "expo-router";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePushOnce } from "../../hooks/usePushOnce";
@@ -39,15 +39,28 @@ export function useHeaderClearance(): number {
   return useSafeAreaInsets().top + OVER + BAR + UNDER;
 }
 
+// How far down the header reaches as drawn, for a second floating row
+// under it (the call pill, a voice room's switch): its clearance, or
+// more once the system's text size has grown the title's pill past the
+// bar (TitlePill). `onReach` is for the header.
+export function useHeaderReach(): { reach: number; onReach: (height: number) => void } {
+  const clearance = useHeaderClearance();
+  const [drawn, setDrawn] = useState(0);
+  return { reach: Math.max(clearance, drawn), onReach: setDrawn };
+}
+
 export default function ScreenHeader({
   title,
   search,
   mute,
+  onReach,
 }: {
   // The screen's title, in its TitlePill; none until it is known.
   title?: ReactNode;
   search?: HeaderSearch;
   mute?: HeaderMute;
+  // Told the header's height as laid out (useHeaderReach).
+  onReach?: (height: number) => void;
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -69,7 +82,11 @@ export default function ScreenHeader({
   };
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
   return (
-    <View style={[styles.header, { paddingTop: insets.top + OVER }]} pointerEvents="box-none">
+    <View
+      style={[styles.header, { paddingTop: insets.top + OVER }]}
+      pointerEvents="box-none"
+      onLayout={onReach && ((event) => onReach(event.nativeEvent.layout.height))}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"

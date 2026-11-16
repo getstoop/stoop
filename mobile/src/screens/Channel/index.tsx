@@ -33,7 +33,7 @@ import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
-import ScreenHeader, { useHeaderClearance } from "./ScreenHeader";
+import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
 import type { ChannelEngine } from "./channelEngine";
 import { channelMute } from "./headerActions";
 import { readShown } from "./readPass";
@@ -127,8 +127,11 @@ export default function Channel({
   // The header floats over the list (ScreenHeader), so the list and what
   // stands in for it clear it by this much.
   const ownHeader = useHeaderClearance();
+  // The call pill starts where the header ends as drawn, and takes its
+  // own room under that.
+  const { reach, onReach } = useHeaderReach();
   const pill = useCallPillClearance();
-  const headerHeight = under ?? ownHeader + pill;
+  const headerHeight = under ?? (pill ? reach + pill : ownHeader);
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -344,6 +347,7 @@ export default function Channel({
   const top = under === undefined && (
     <>
       <ScreenHeader
+        onReach={onReach}
         title={
           !header ? undefined : header.dm ? (
             <ConversationTitle
@@ -368,7 +372,7 @@ export default function Channel({
             : undefined
         }
       />
-      <CallPill top={ownHeader} />
+      <CallPill top={reach} />
     </>
   );
 

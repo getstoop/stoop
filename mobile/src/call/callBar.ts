@@ -1,4 +1,4 @@
-import type { Call } from "./call";
+import type { Call, CallRoom } from "./call";
 
 // The rules of the call bar, which says outside the room's screen that
 // the app is in a call (components/CallBarContent.tsx): when it shows,
@@ -18,9 +18,32 @@ export function callBarShown(call: Call | null): call is Call {
 export const CALL_PILL_UNDER = 8;
 
 // How far below its screen's header the pill reaches: what the screen's
-// list clears besides the header. Nothing while no bar shows.
-export function callPillClearance(call: Call | null): number {
-  return callBarShown(call) ? CALL_BAR_HEIGHT + CALL_PILL_UNDER : 0;
+// list clears besides the header. Nothing while no bar shows
+// (`barShown`, callBarShown).
+export function callPillClearance(barShown: boolean): number {
+  return barShown ? CALL_BAR_HEIGHT + CALL_PILL_UNDER : 0;
+}
+
+// The route of a voice room's screen in its server's stack.
+export const ROOM_ROUTE = "space/[spaceId]/voice/[channelId]";
+
+// How many screens of a stack lie over the call's room, the nearest
+// one to the front: what going back to the room pops, where pushing it
+// would put a second copy over the first (a thread opened from the
+// room's chat). Undefined with the room not in the stack, or already in
+// front. `index` is the screen in front.
+export function screensOverRoom(
+  routes: readonly { name: string; params?: object }[],
+  index: number,
+  room: CallRoom,
+): number | undefined {
+  for (let at = index - 1; at >= 0; at--) {
+    const { name, params } = routes[at];
+    if (name === ROOM_ROUTE && (params as { channelId?: string } | undefined)?.channelId === room.channelId) {
+      return index - at;
+    }
+  }
+  return undefined;
 }
 
 // The row by the tab bar: the call bar while it shows, with any number

@@ -1165,19 +1165,33 @@ change to them needs a native rebuild, not only Metro.
     surface (`Surface.tsx`: Liquid Glass where iOS has it, the panel
     elsewhere), as far from the sides as the header and 8 under it, as
     the voice room's switch row is. The composer is not touched. The
-    screen's list, and whatever stands in for it, clears the pill by
+    pill starts where the header ends as drawn (`useHeaderReach` in
+    `ScreenHeader.tsx`, which measures it): the header's set clearance,
+    or lower once the system's text size has grown the title's pill
+    past the bar. The voice room's switch row is placed the same way.
+    The screen's list, and whatever stands in for it, clears the pill by
     `callPillClearance` (`callBar.ts`: the bar's height and the 8 under
-    it, nothing with no bar), added to the header's reach in the one
-    number each screen already places everything by, so the oldest
-    message, the thread's root and a spinner all start under the pill.
-    It fades in as a call starts and goes at once when it ends; rows in
-    view stay where they are unless the reader is at the oldest end,
-    where the list moves by the pill's height. A voice room's screen
-    never shows it, on either side and whichever room the call is in:
-    it has the switch row there, and its Chat is the channel screen
+    it, nothing with no bar), added to that reach in the one number each
+    screen already places everything by, so the oldest message, the
+    thread's root and a spinner all start under the pill. The screens
+    read whether the bar shows (`useCallBarShown`), not the call, so
+    they are not drawn again each time someone speaks.
+    It fades in as a call starts and goes at once when it ends. Rows in
+    view stay where they are either way. The pill's room is added at
+    the list's oldest end, so for a reader at that end a call ending
+    moves the first rows up by the pill's height, and a call starting
+    leaves them under the pill until the reader scrolls up to them.
+    That takes a screen already open under the room's (a channel, then
+    the search, then the room), since a call starts on the room's
+    screen; nothing moves the list for it. A voice room's screen
+    never shows the pill, on either side and whichever room the call is
+    in: it has the switch row there, and its Chat is the channel screen
     given `under`, which draws no header and no pill. A thread opened
-    from a room's Chat is a thread, and shows it. Search, settings and
-    other pushed screens don't.
+    from a room's Chat is a thread, and shows it; pressing the pill
+    there goes back to the room under it rather than pushing a second
+    copy (`screensOverRoom` in `callBar.ts`: the bar pops to the call's
+    room when it is in the stack it is drawn in, and pushes it
+    otherwise). Search, settings and other pushed screens don't show it.
   - **On the Spaces tab the room you are in is tinted and says "You're
     here"** where Live was (`screens/Spaces/VoiceRoom.tsx`), once the
     join has landed.

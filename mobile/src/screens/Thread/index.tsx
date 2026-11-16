@@ -29,7 +29,7 @@ import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
 import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
-import ScreenHeader, { useHeaderClearance } from "../Channel/ScreenHeader";
+import ScreenHeader, { useHeaderClearance, useHeaderReach } from "../Channel/ScreenHeader";
 import { threadMute } from "../Channel/headerActions";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
@@ -93,8 +93,10 @@ export default function Thread({
   // The header floats over the list (ScreenHeader), so the list
   // and the spinner in its place clear it by this much.
   const ownHeader = useHeaderClearance();
+  // The call pill starts where the header ends as drawn.
+  const { reach, onReach } = useHeaderReach();
   const pill = useCallPillClearance();
-  const headerHeight = ownHeader + pill;
+  const headerHeight = pill ? reach + pill : ownHeader;
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -239,6 +241,7 @@ export default function Thread({
   const title = (
     <>
       <ScreenHeader
+        onReach={onReach}
         title={
           <ThreadTitle
             channel={header?.channel}
@@ -254,7 +257,7 @@ export default function Thread({
             : undefined
         }
       />
-      <CallPill top={ownHeader} />
+      <CallPill top={reach} />
     </>
   );
   const retryOpen = () => {
@@ -263,21 +266,21 @@ export default function Thread({
   };
   if (outcome === "ended" || outcome === "gone") {
     return (
-      <Screen title={title} clear={pill}>
+      <Screen title={title} clear={headerHeight - ownHeader}>
         <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
   if (thread?.outcome === "gone" || (held && !root)) {
     return (
-      <Screen title={title} clear={pill}>
+      <Screen title={title} clear={headerHeight - ownHeader}>
         <Unavailable message="This thread isn't available any more." />
       </Screen>
     );
   }
   if (outcome === "failed" || thread?.outcome === "failed") {
     return (
-      <Screen title={title} clear={pill}>
+      <Screen title={title} clear={headerHeight - ownHeader}>
         <ChannelOutcome outcome="failed" server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
@@ -413,8 +416,8 @@ export default function Thread({
   );
 }
 
-// The screen's surface under its header. `clear` is the call pill's
-// room, for what clears only the header by itself.
+// The screen's surface under its header. `clear` is what the call pill
+// adds to the header's clearance, for what clears only that by itself.
 function Screen({ title, clear, children }: { title: ReactNode; clear?: number; children: ReactNode }) {
   const styles = makeStyles(useTheme());
   return (

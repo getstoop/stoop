@@ -2,7 +2,14 @@ import { useNavigation, useRouter } from "expo-router";
 import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useCallPlace } from "../call/CallPlaceProvider";
 import { useCall, useCallActions } from "../call/CallProvider";
-import { CALL_BAR_HEIGHT, callBarLabel, callBarName, callBarShown, callBarStatus } from "../call/callBar";
+import {
+  CALL_BAR_HEIGHT,
+  callBarLabel,
+  callBarName,
+  callBarShown,
+  callBarStatus,
+  screensOverRoom,
+} from "../call/callBar";
 import { askForRoom } from "../call/pendingRoom";
 import { usePushOnce } from "../hooks/usePushOnce";
 import { useCurrentServer, useServers } from "../servers";
@@ -16,7 +23,9 @@ import { HangUpIcon, MicIcon, MicOffIcon, WaveIcon } from "./Icons";
 // names opens the room's screen. With another server on screen than the
 // call's, the second line names the call's server first, its letter
 // stands where the wave was, and pressing swaps to that server and
-// opens the room there (call/OpenCallRoom.tsx). It reads the call
+// opens the room there (call/OpenCallRoom.tsx). With the room already
+// in the stack under this screen (a thread opened from the room's
+// chat), pressing goes back to it. It reads the call
 // itself, and draws nothing with no call; it needs a server's screen
 // around it (CurrentServer). `style` is for the surface's own padding.
 export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -45,6 +54,13 @@ export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle>
         askForRoom(room);
         swapServer(navigation, room.serverId);
         switchTo(room.serverId).catch(() => {});
+        return;
+      }
+      // POP counts from `source`, the screen in front (swapServer.ts).
+      const { routes, index, key } = navigation.getState();
+      const over = screensOverRoom(routes, index, room);
+      if (over) {
+        navigation.dispatch({ type: "POP", payload: { count: over }, source: routes[index].key, target: key });
         return;
       }
       router.push({

@@ -1,16 +1,17 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { useEffect, useRef } from "react";
 import { Animated, Platform, StyleSheet } from "react-native";
-import { useCall } from "../../call/CallProvider";
-import { CALL_BAR_HEIGHT, callBarShown, callPillClearance } from "../../call/callBar";
+import { useCallBarShown } from "../../call/CallProvider";
+import { CALL_BAR_HEIGHT, callPillClearance } from "../../call/callBar";
 import CallBarContent from "../../components/CallBarContent";
 import { tokens } from "../../theme";
 import Surface from "./Surface";
 
 // How far below its header a screen's call pill reaches: nothing with
-// no call.
+// no call. Changes only as the pill comes and goes, not as who is
+// speaking does, so the screen is not drawn again for that.
 export function useCallPillClearance(): number {
-  return callPillClearance(useCall());
+  return callPillClearance(useCallBarShown());
 }
 
 // The call bar on a channel, a conversation and a thread, which have no
@@ -25,7 +26,7 @@ export default function CallPill({
   // Where the pill starts: the header's clearance.
   top: number;
 }) {
-  const shown = callBarShown(useCall());
+  const shown = useCallBarShown();
   const glass = Platform.OS === "ios" && isLiquidGlassAvailable();
   const opacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
