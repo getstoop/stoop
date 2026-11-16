@@ -5,6 +5,8 @@ import { useEventSubscription, useSendClientEvent } from "../realtime/RealtimePr
 import { useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
 import { type Call, type CallHolder, type CallRoom, type Connection, createCall, leavesCall } from "./call";
+import CallPlaceProvider from "./CallPlaceProvider";
+import { callBarShown, hereChannelId } from "./callBar";
 import { openConnection } from "./livekit";
 
 const CallContext = createContext<CallHolder | null>(null);
@@ -17,7 +19,8 @@ const CallContext = createContext<CallHolder | null>(null);
 // each reconnect, since the server forgets with the socket. Going to the
 // background leaves the call: the sockets close there, and a call whose
 // presence has gone must not stay connected. So does the end of the
-// session the call was joined under.
+// session the call was joined under. The names the call bar shows of
+// the call's room are loaded under it (CallPlaceProvider.tsx).
 export default function CallProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
   const send = useSendClientEvent();
@@ -81,7 +84,11 @@ export default function CallProvider({ children }: { children: ReactNode }) {
     else if (joined.current.session !== session) void holder.leave();
   }, [room, session, holder]);
 
-  return <CallContext.Provider value={holder}>{children}</CallContext.Provider>;
+  return (
+    <CallContext.Provider value={holder}>
+      <CallPlaceProvider room={room}>{children}</CallPlaceProvider>
+    </CallContext.Provider>
+  );
 }
 
 // The connection to a server the app no longer has: a join that fails.
@@ -103,6 +110,21 @@ function useHolder(): CallHolder {
 export function useCall(): Call | null {
   const holder = useHolder();
   return useSyncExternalStore(holder.subscribe, holder.get);
+}
+
+// Whether the call bar shows (callBar.ts callBarShown). Re-renders the
+// caller only when that changes.
+export function useCallBarShown(): boolean {
+  const holder = useHolder();
+  return useSyncExternalStore(holder.subscribe, () => callBarShown(holder.get()));
+}
+
+// The room on a server this account is in a call in (callBar.ts
+// hereChannelId). Re-renders the caller only when that changes, not as
+// who is speaking does.
+export function useHereChannelId(serverId: string): string | undefined {
+  const holder = useHolder();
+  return useSyncExternalStore(holder.subscribe, () => hereChannelId(holder.get(), serverId));
 }
 
 // What can be done with the call: join, leave, toggleMute, toggleSpeaker,

@@ -187,6 +187,15 @@ export function HangUpIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+// A sound wave: a call going on.
+export function WaveIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
+      <Path d="M5 10v4M9 6v12M13 9v6M17 4v16M21 10v4" />
+    </Svg>
+  );
+}
+
 export function ChevronRightIcon({ color, size = 16 }: IconProps) {
   return (
     <Svg

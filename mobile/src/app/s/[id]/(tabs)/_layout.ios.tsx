@@ -2,7 +2,7 @@ import { badgeCount } from "@stoop/core/unreads";
 import { NativeTabs } from "expo-router/native-tabs";
 import { useAlerts } from "../../../../alerts/AlertsProvider";
 import ServerChipSlot from "../../../../components/ServerChipSlot";
-import { serverChipPlace, useServerChipShown } from "../../../../hooks/useServerChipRoom";
+import { serverChipPlace, useTabRow } from "../../../../hooks/useServerChipRoom";
 import { useTheme } from "../../../../theme";
 
 // On iOS the four tabs are the system's own tab bar (Liquid Glass from
@@ -16,6 +16,9 @@ import { useTheme } from "../../../../theme";
 // slot over it, from iOS 26, which has one; an older iOS has each tab's
 // screen draw it (hooks/useServerChipRoom.ts). The bar never shrinks on
 // a scroll: the slot would shrink into it, and the chip with it.
+// In a call the call bar takes the chip's place, and has no drawing for
+// the slot yet: the slot is emptied and each tab's screen draws the bar
+// floating over the tab bar (components/TabRowOverlay.tsx).
 // The tab a server opens on when nothing in the URL names one, as when
 // the switcher swaps a server in: Spaces, which lives in its own folder
 // as a stack, so the tabs can't tell it is the first by its name.
@@ -28,7 +31,7 @@ export default function TabsLayout() {
   // its screen draws.
   const content = { backgroundColor: theme.surface };
   const { activity: alerting, messages: unread } = useAlerts();
-  const chip = useServerChipShown() && serverChipPlace === "slot";
+  const chip = useTabRow() === "chip" && serverChipPlace === "slot";
 
   return (
     <NativeTabs tintColor={theme.accent} badgeBackgroundColor={theme.danger} minimizeBehavior="never">

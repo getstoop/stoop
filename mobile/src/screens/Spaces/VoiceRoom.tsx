@@ -12,7 +12,8 @@ const MAX_FACES = 3;
 
 // One voice room: its name, and while anyone is in it a Live mark, up to
 // three of their faces and who they are in one line ("Priya and Theo + 5
-// more"). people is undefined while the realtime socket isn't connected,
+// more"). The room this account is in a call in (`here`) is tinted and
+// says "You're here" where Live was. people is undefined while the realtime socket isn't connected,
 // and the room shows just its name. A muted room is dimmed and marked
 // as a muted text channel is (ChannelRow), for the channel's own mute
 // and not its space's. Pressing it opens the room (screens/VoiceRoom)
@@ -23,6 +24,7 @@ export default function VoiceRoom({
   channel,
   spaceMuted,
   people,
+  here = false,
   origin,
   token,
   onPress,
@@ -32,6 +34,7 @@ export default function VoiceRoom({
   channel: Channel;
   spaceMuted: boolean;
   people: Person[] | undefined;
+  here?: boolean;
   origin: string;
   token: string;
   onPress?: () => void;
@@ -45,10 +48,18 @@ export default function VoiceRoom({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.room, channel.muted && styles.muted, pressed && onPress && styles.pressed]}
+      style={({ pressed }) => [
+        styles.room,
+        here && styles.here,
+        channel.muted && styles.muted,
+        pressed && onPress && styles.pressed,
+      ]}
       accessible
       accessibilityRole={onPress ? "button" : undefined}
-      accessibilityLabel={voiceRoomLabel(channel, live ? `${names} in it` : "")}
+      accessibilityLabel={voiceRoomLabel(
+        channel,
+        [here && "you're here", live && `${names} in it`].filter(Boolean).join(", "),
+      )}
       accessibilityActions={onAction && channelRowActions(channel, spaceMuted)}
       onAccessibilityAction={(event) => onAction?.(event.nativeEvent.actionName as ChannelAction)}
       onPress={onPress}
@@ -56,13 +67,13 @@ export default function VoiceRoom({
     >
       <View style={styles.line}>
         <ChannelMark channel={channel} />
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, here && styles.hereName]} numberOfLines={1}>
           {channel.name}
         </Text>
-        {live && (
+        {(live || here) && (
           <View style={styles.live}>
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Live</Text>
+            <Text style={styles.liveText}>{here ? "You're here" : "Live"}</Text>
           </View>
         )}
         {channel.muted && <MutedIcon color={theme.textMuted} />}
@@ -90,6 +101,12 @@ function makeStyles(theme: Theme) {
       paddingVertical: 12,
       paddingHorizontal: 12,
       borderRadius: tokens.radiusMd,
+    },
+    here: {
+      backgroundColor: theme.okSoft,
+    },
+    hereName: {
+      fontWeight: "600",
     },
     muted: {
       opacity: 0.5,

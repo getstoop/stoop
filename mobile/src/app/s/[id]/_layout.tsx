@@ -1,5 +1,6 @@
 import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import ActivityProvider from "../../../activity/ActivityProvider";
+import OpenCallRoom from "../../../call/OpenCallRoom";
 import OpenInviteHere from "../../../links/OpenInviteHere";
 import OpenTappedNotification from "../../../notifications/OpenTappedNotification";
 import { useAskToNotify } from "../../../notifications/permission";
@@ -21,7 +22,9 @@ import { useTheme } from "../../../theme";
 // asks to notify when the first server shows
 // (src/notifications/permission.ts), and a tapped notification is
 // opened from here, on this stack
-// (src/notifications/OpenTappedNotification.tsx).
+// (src/notifications/OpenTappedNotification.tsx). So is the call's
+// room, when the call bar asked for it from another server
+// (src/call/OpenCallRoom.tsx).
 export const unstable_settings = { anchor: "(tabs)" };
 
 // A channel, a voice room, a conversation and a thread draw their own
@@ -43,6 +46,7 @@ export default function ServerLayout() {
       <ActivityProvider key={sessionKey(server)} server={server}>
         <OpenTappedNotification server={server} />
         <OpenInviteHere server={server} />
+        <OpenCallRoom serverId={server.id} />
         <Stack
           screenOptions={{
             title: "",

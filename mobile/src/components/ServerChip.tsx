@@ -14,6 +14,7 @@ import { ChevronUpIcon } from "./Icons";
 // it opens, the server switcher, which rises from the same end of the
 // screen. Drawn only with more than one server saved
 // (hooks/useServerChipRoom.ts): with one there is nothing to switch to.
+// In a call the call bar has its place (CallBar.tsx).
 // `bare` is the row in the system tab bar's own slot (iOS 26,
 // ServerChipSlot.tsx), which draws the glass under it: no panel, no
 // line. `lined` off is the row at the top of Android's tab bar, whose

@@ -15,6 +15,7 @@ import {
   touchesSpace,
 } from "../../api/channels";
 import { errorText } from "../../api/errors";
+import { useHereChannelId } from "../../call/CallProvider";
 import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { channelLink } from "../../api/shareLinks";
@@ -98,6 +99,7 @@ export default function Pane({
   const styles = makeStyles(useTheme());
   const router = useRouter();
   const roster = useVoiceRoster(server.id);
+  const hereId = useHereChannelId(server.id);
   const spaceId = space.id;
   const [view, setView] = useState<State>(() => kept.get(spaceId) ?? { state: "loading" });
   // Kept as shown, for the next time the space is picked; not once the
@@ -369,6 +371,7 @@ export default function Pane({
               channel={channel}
               spaceMuted={space.muted}
               people={people(channel)}
+              here={channel.id === hereId}
               origin={server.origin}
               token={ready.token}
               onPress={() =>
@@ -394,6 +397,7 @@ export default function Pane({
                 channel={menuChannel}
                 spaceMuted={space.muted}
                 people={people(menuChannel)}
+                here={menuChannel.id === hereId}
                 origin={server.origin}
                 token={ready.token}
               />

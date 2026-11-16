@@ -5,8 +5,9 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlerts } from "../../../../alerts/AlertsProvider";
 import { BellIcon, MessagesIcon, PersonIcon, SpacesIcon } from "../../../../components/Icons";
+import CallBar from "../../../../components/CallBar";
 import ServerChip from "../../../../components/ServerChip";
-import { TAB_BAR_OVERLAP, useServerChipShown } from "../../../../hooks/useServerChipRoom";
+import { TAB_BAR_OVERLAP, useTabRow } from "../../../../hooks/useServerChipRoom";
 import { tokens, useTheme } from "../../../../theme";
 
 // A server's four tabs, at the bottom of its stack (../_layout.tsx). This
@@ -16,7 +17,8 @@ import { tokens, useTheme } from "../../../../theme";
 // to you in the spaces past your markers, and Messages' the unread
 // messages in your conversations (src/alerts), each hidden at none.
 // With more than one server saved the server chip is docked on the bar,
-// part of it. The top of the bar (the chip's, when it shows) is rounded
+// part of it; in a call the call bar is, in the chip's place, with any
+// number of servers. The top of the bar (the row's, when one shows) is rounded
 // as a sheet's is: the bar is pulled up over the foot of the screen by
 // the radius, so the screen shows in the corners, and the screens' lists
 // pad by as much (hooks/useServerChipRoom.ts).
@@ -35,7 +37,7 @@ export default function TabsLayout() {
   const theme = useTheme();
   const { activity: alerting, messages: unread } = useAlerts();
   const badgeStyle = { backgroundColor: theme.danger, color: theme.onAccent };
-  const chip = useServerChipShown();
+  const row = useTabRow();
   const insets = useSafeAreaInsets();
 
   return (
@@ -53,7 +55,7 @@ export default function TabsLayout() {
             overflow: "hidden",
           }}
         >
-          {chip && <ServerChip lined={false} />}
+          {row === "call" ? <CallBar lined={false} /> : row === "chip" && <ServerChip lined={false} />}
           <BottomTabBar {...props} />
         </View>
       )}
@@ -63,10 +65,10 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
           backgroundColor: theme.panel,
-          // The line over the tabs is the chip's foot; with no chip the
+          // The line over the tabs is the row's foot; with no row the
           // rounded top draws its own.
           borderTopColor: theme.border,
-          borderTopWidth: chip ? StyleSheet.hairlineWidth : 0,
+          borderTopWidth: row ? StyleSheet.hairlineWidth : 0,
           height: TAB_BAR_HEIGHT + TAB_BAR_TOP_ROOM + insets.bottom,
           paddingTop: TAB_BAR_TOP_ROOM,
         },

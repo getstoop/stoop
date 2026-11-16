@@ -16,7 +16,7 @@ import { hostOf } from "../../api/probe";
 import { sessionToken } from "../../api/servers";
 import { conversationLink } from "../../api/shareLinks";
 import { ComposeIcon } from "../../components/Icons";
-import ServerChipOverlay from "../../components/ServerChipOverlay";
+import TabRowOverlay from "../../components/TabRowOverlay";
 import TabNotice from "../../components/TabNotice";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useServerChipRoom } from "../../hooks/useServerChipRoom";
@@ -276,7 +276,7 @@ export default function Messages({ server }: { server: SavedServer }) {
           onClose={closeMenu}
         />
       )}
-      <ServerChipOverlay />
+      <TabRowOverlay />
     </View>
   );
 }
