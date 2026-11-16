@@ -1,4 +1,4 @@
-import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
+import { type Channel, ChannelKind } from "../gen/stoop/chat/v1/channel_pb";
 import type { DirectMessage } from "../gen/stoop/chat/v1/chat_pb";
 import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
@@ -55,17 +55,19 @@ export function headerMentionNames(header: ChannelHeader): MentionNames {
 }
 
 // What the channel is called where a sentence names it ("Message …",
-// "Also send to …"): #name, or a conversation's title.
+// "Also send to …"): #name, a voice room's bare name, or a
+// conversation's title.
 export function headerPlace(header: ChannelHeader): string {
-  return header.dm
-    ? dmTitle(header.dm, header.myUserId)
+  if (header.dm) return dmTitle(header.dm, header.myUserId);
+  return header.channel.kind === ChannelKind.VOICE
+    ? header.channel.name
     : `#${header.channel.name}`;
 }
 
 // The line at the top of a channel's history, once nothing older is left.
 export function headerBeginning(header: ChannelHeader): string {
   const { dm } = header;
-  if (!dm) return `This is the beginning of #${header.channel.name}.`;
+  if (!dm) return `This is the beginning of ${headerPlace(header)}.`;
   return dmIsGroup(dm)
     ? "This is the beginning of this conversation."
     : `This is the beginning of your conversation with ${dmTitle(dm, header.myUserId)}.`;

@@ -433,6 +433,18 @@ describe("a direct message's header", () => {
     );
   });
 
+  it("names a voice room's chat by the room's bare name", () => {
+    const room = header({
+      channel: create(ChannelSchema, {
+        id: "v1",
+        name: "Porch",
+        kind: ChannelKind.VOICE,
+      }),
+    });
+    expect(headerPlace(room)).toBe("Porch");
+    expect(headerBeginning(room)).toBe("This is the beginning of Porch.");
+  });
+
   // DM events carry an empty space_id: another conversation starting is
   // not a channel a link here could open.
   it("takes no space's events, nor another conversation as a channel", () => {
