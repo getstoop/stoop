@@ -20,7 +20,7 @@ import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
-import CallPill, { useCallPillClearance } from "../Channel/CallPill";
+import CallPill, { useCallPill } from "../Channel/CallPill";
 import { olderFits } from "../Channel/channelEngine";
 import ChannelOutcome from "../Channel/ChannelOutcome";
 import PageRetry from "../Channel/PageRetry";
@@ -95,7 +95,8 @@ export default function Thread({
   const ownHeader = useHeaderClearance();
   // The call pill starts where the header ends as drawn.
   const { reach, onReach } = useHeaderReach();
-  const pill = useCallPillClearance();
+  const callPill = useCallPill();
+  const pill = callPill.clearance;
   const headerHeight = pill ? reach + pill : ownHeader;
   const router = useRouter();
   const focused = useIsFocused();
@@ -257,7 +258,7 @@ export default function Thread({
             : undefined
         }
       />
-      <CallPill top={reach} />
+      <CallPill top={reach} pill={callPill} />
     </>
   );
   const retryOpen = () => {

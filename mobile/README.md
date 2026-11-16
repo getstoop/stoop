@@ -1133,6 +1133,17 @@ change to them needs a native rebuild, not only Metro.
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are
   `callBar.ts`, with unit tests beside it.
+  - **The bar's green wave moves while the call is connected**
+    (`src/components/WaveBars.tsx`), on the tabs and in the pill: five
+    bars easing shorter and back, out of step, to say the call is on.
+    It follows no sound. It is still while connecting, while the pill
+    fades out, and under Reduce Motion (Reanimated's
+    `useReducedMotion`, read as the app starts; on Android that is the
+    system's transition animation scale at 0, which "Remove
+    animations" sets). The motion is a Reanimated CSS animation on the
+    bars, off the JavaScript thread, and stops with the bar. On Android
+    `uiautomator dump` reports "could not get idle state" while
+    anything on screen animates without end, this included.
   - **Switching servers keeps the call.** With another server on screen
     than the call's, the bar's second line names the call's server
     first ("Hutch House · Theo is speaking") and the server's letter
@@ -1174,12 +1185,21 @@ change to them needs a native rebuild, not only Metro.
     it, nothing with no bar), added to that reach in the one number each
     screen already places everything by, so the oldest message, the
     thread's root and a spinner all start under the pill. The screens
-    read whether the bar shows (`useCallBarShown`), not the call, so
-    they are not drawn again each time someone speaks.
-    It fades in as a call starts and goes at once when it ends. Rows in
+    read whether the bar shows (`useCallBarShown`, through
+    `useCallPill`), not the call, so they are not drawn again each time
+    someone speaks.
+    It fades in as a call starts and out as it ends, however it ends
+    (`useCallPill`, over `tokens.dur` both ways; at once under Reduce
+    Motion). While it fades out it shows what it last said
+    (`CallBarContent` `held`), takes no touches and is hidden from a
+    screen reader, and the list keeps its room until it has gone, so no
+    row slides under a pill still in sight; a call starting again
+    meanwhile fades it back in, live. The tabs' bar does not fade: its
+    row is swapped at once. Rows in
     view stay where they are either way. The pill's room is added at
     the list's oldest end, so for a reader at that end a call ending
-    moves the first rows up by the pill's height, and a call starting
+    moves the first rows up by the pill's height once the pill has
+    faded, and a call starting
     leaves them under the pill until the reader scrolls up to them.
     That takes a screen already open under the room's (a channel, then
     the search, then the room), since a call starts on the room's

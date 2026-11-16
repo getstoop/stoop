@@ -21,7 +21,7 @@ import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
-import CallPill, { useCallPillClearance } from "./CallPill";
+import CallPill, { useCallPill } from "./CallPill";
 import ChannelOutcome from "./ChannelOutcome";
 import ChannelTitle from "./ChannelTitle";
 import ConversationTitle from "./ConversationTitle";
@@ -130,7 +130,8 @@ export default function Channel({
   // The call pill starts where the header ends as drawn, and takes its
   // own room under that.
   const { reach, onReach } = useHeaderReach();
-  const pill = useCallPillClearance();
+  const callPill = useCallPill();
+  const pill = callPill.clearance;
   const headerHeight = under ?? (pill ? reach + pill : ownHeader);
   const router = useRouter();
   const focused = useIsFocused();
@@ -372,7 +373,7 @@ export default function Channel({
             : undefined
         }
       />
-      <CallPill top={reach} />
+      <CallPill top={reach} pill={callPill} />
     </>
   );
 

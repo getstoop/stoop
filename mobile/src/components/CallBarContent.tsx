@@ -1,9 +1,12 @@
 import { useNavigation, useRouter } from "expo-router";
+import { useRef } from "react";
 import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useCallPlace } from "../call/CallPlaceProvider";
+import type { Call } from "../call/call";
 import { useCall, useCallActions } from "../call/CallProvider";
 import {
   CALL_BAR_HEIGHT,
+  type CallPlace,
   callBarLabel,
   callBarName,
   callBarShown,
@@ -15,7 +18,8 @@ import { usePushOnce } from "../hooks/usePushOnce";
 import { useCurrentServer, useServers } from "../servers";
 import { type ServerNavigation, swapServer } from "../servers/swapServer";
 import { type Theme, tokens, useTheme } from "../theme";
-import { HangUpIcon, MicIcon, MicOffIcon, WaveIcon } from "./Icons";
+import { HangUpIcon, MicIcon, MicOffIcon } from "./Icons";
+import WaveBars from "./WaveBars";
 
 // What the call bar says and does, on whatever surface it is put (the
 // row by the tab bar, CallBar.tsx): the call's room and, under it, who
@@ -28,7 +32,10 @@ import { HangUpIcon, MicIcon, MicOffIcon, WaveIcon } from "./Icons";
 // chat), pressing goes back to it. It reads the call
 // itself, and draws nothing with no call; it needs a server's screen
 // around it (CurrentServer). `style` is for the surface's own padding.
-export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle> }) {
+// The wave moves while the call is connected (WaveBars). `held` keeps
+// what it last said on show once the call has gone, for a surface that
+// fades out after it (CallPill), which must then take no touches.
+export default function CallBarContent({ style, held }: { style?: StyleProp<ViewStyle>; held?: boolean }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
@@ -36,10 +43,15 @@ export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle>
   const pushOnce = usePushOnce();
   const current = useCurrentServer();
   const { servers, switchTo } = useServers();
-  const call = useCall();
-  const place = useCallPlace();
+  const now = useCall();
+  const placeNow = useCallPlace();
   const { toggleMute, leave } = useCallActions();
-  if (!callBarShown(call)) return null;
+  const live = callBarShown(now);
+  const last = useRef<{ call: Call; place: CallPlace | undefined }>(undefined);
+  if (live) last.current = { call: now, place: placeNow };
+  const drawn = live || held ? last.current : undefined;
+  if (!drawn) return null;
+  const { call, place } = drawn;
 
   const { room } = call;
   const elsewhere = room.serverId !== current.id;
@@ -82,7 +94,7 @@ export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle>
           {elsewhere ? (
             <Text style={styles.tileLetter}>{serverName.trim().charAt(0).toUpperCase()}</Text>
           ) : (
-            <WaveIcon color={theme.ok} />
+            <WaveBars color={theme.ok} moving={live && call.status === "connected"} />
           )}
         </View>
         <View style={styles.lines}>
