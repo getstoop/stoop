@@ -90,6 +90,10 @@ describe("the bar's status line", () => {
     expect(callBarName(place)).toBe("Porch");
   });
 
+  it("names nobody while this account isn't known", () => {
+    expect(callBarStatus(call({ speaking: ["me", "priya"] }), { ...place, meId: "" }, "")).toBe("Neighbors");
+  });
+
   it("calls someone the members don't have Someone", () => {
     expect(speakingNames(call({ speaking: ["new", "priya"] }), place)).toEqual(["Someone", "Priya"]);
   });

@@ -39,9 +39,10 @@ export type CallPlace = {
 
 // Who is speaking besides this account, by name; "Someone" for anyone
 // the space's members don't have yet. Nobody until the names have
-// loaded: this account can't be told from the others before then.
+// loaded and this account is known: it can't be told from the others
+// before then.
 export function speakingNames(call: Call, place: CallPlace | undefined): string[] {
-  if (!place) return [];
+  if (!place?.meId) return [];
   return call.speaking.filter((userId) => userId !== place.meId).map((userId) => place.names[userId] ?? "Someone");
 }
 
