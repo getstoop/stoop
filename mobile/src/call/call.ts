@@ -50,9 +50,12 @@ export type ConnectionEvents = {
   // The connection is down and being tried again, then back up.
   onReconnecting: () => void;
   onReconnected: () => void;
-  // The connection ended and nobody here asked it to. `reason` is why,
-  // as LiveKit names it (DisconnectReason), or "" when it didn't say.
-  onDropped: (reason: string) => void;
+  // The connection ended and nobody here asked it to: the server took
+  // this account out of the room ("removed": out of it, the room
+  // deleted, or this account joining it on another device), or anything
+  // else, LiveKit giving up on reconnecting included ("lost"). Which
+  // of LiveKit's reasons are which is livekit.ts's to say.
+  onDropped: (why: "removed" | "lost") => void;
 };
 
 export type CallDeps = {
@@ -119,16 +122,6 @@ export function offersSettings(call: Call | null, room: CallRoom): boolean {
 // connection is being tried again, or "".
 export const reconnectingLine = (call: Call | null) =>
   call?.status === "connected" && call.reconnecting ? "Reconnecting…" : "";
-
-// Whether a connection that ended by itself was ended by the server
-// taking this account out of the room, as LiveKit names why
-// (DisconnectReason): removed from it, the room deleted, or this account
-// joining it on another device. Those end the call silently, as the
-// same news over the realtime socket does (voiceState, roomGone). Any
-// other ending, LiveKit giving up on reconnecting included, is the call
-// lost.
-export const removedByServer = (reason: string) =>
-  reason === "PARTICIPANT_REMOVED" || reason === "ROOM_DELETED" || reason === "DUPLICATE_IDENTITY";
 
 // What the Speaker control shows: the loudspeaker on or off, or that
 // headphones have the sound and it has nothing to switch.
@@ -247,9 +240,11 @@ export function createCall(deps: CallDeps): CallHolder {
       onReconnected: () => {
         if (connection === opened && call?.reconnecting) set({ ...call, reconnecting: false });
       },
-      onDropped: (reason) => {
+      // Removed ends silently, as the same news over the realtime socket
+      // does (voiceState, roomGone); lost stays for the room's screen.
+      onDropped: (why) => {
         if (connection !== opened || call?.status !== "connected") return;
-        void (removedByServer(reason) ? end() : lose());
+        void (why === "removed" ? end() : lose());
       },
     });
     connection = opened;

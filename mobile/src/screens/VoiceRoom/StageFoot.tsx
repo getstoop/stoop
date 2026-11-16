@@ -65,17 +65,16 @@ export default function StageFoot({
   const inside = (
     <>
       {failure ? (
-        <View style={styles.failed}>
+        <View style={[styles.failed, onOpenSettings && styles.failedWithButton]}>
           <Text style={[styles.here, styles.failure]} numberOfLines={2} accessibilityRole="alert">
             {failure}
           </Text>
           {onOpenSettings && (
             <Pressable
               onPress={onOpenSettings}
-              hitSlop={10}
               accessibilityRole="button"
               testID="voice-open-settings"
-              style={({ pressed }) => pressed && styles.dim}
+              style={({ pressed }) => [styles.settingsButton, pressed && styles.dim]}
             >
               <Text style={styles.settings}>Open Settings</Text>
             </Pressable>
@@ -224,7 +223,16 @@ function makeStyles(theme: Theme) {
     },
     failed: {
       alignItems: "center",
-      gap: 8,
+    },
+    // The button is as tall as a touch needs, which is more room than
+    // its words want over Join: the block gives some of it back.
+    failedWithButton: {
+      marginBottom: -6,
+    },
+    settingsButton: {
+      minHeight: 44,
+      paddingHorizontal: 16,
+      justifyContent: "center",
     },
     settings: {
       color: theme.accent,

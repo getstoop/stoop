@@ -9,7 +9,6 @@ import {
   leavesCall,
   offersSettings,
   reconnectingLine,
-  removedByServer,
   speakerState,
 } from "./call";
 
@@ -340,7 +339,7 @@ describe("leaving", () => {
     opened[1].land();
     await second;
     opened[0].events.onReconnecting();
-    opened[0].events.onDropped("");
+    opened[0].events.onDropped("lost");
     opened[0].events.onSpeaking(["someone"]);
     await settle();
     expect(holder.get()).toMatchObject({ room: attic, status: "connected", speaking: [], reconnecting: false });
@@ -430,50 +429,52 @@ describe("when the connection drops", () => {
   });
 
   it("ends the call as lost when the connection is gone for good, and says so in its room only", async () => {
-    for (const reason of ["", "UNKNOWN_REASON", "SERVER_SHUTDOWN", "SIGNAL_CLOSE", "STATE_MISMATCH", "JOIN_FAILURE"]) {
-      const { holder, opened, reports } = await joined();
-      opened[0].events.onReconnecting();
-      opened[0].events.onDropped(reason);
-      await settle();
-      expect(holder.get()).toMatchObject({ room: porch, status: "failed", failure: "lost", reconnecting: false });
-      expect(opened[0].closed).toBe(1);
-      expect(reports).toEqual(["home:porch:open", "home:left:open"]);
-      expect(footState(holder.get(), porch)).toBe("join");
-      expect(failureLine(holder.get(), porch)).toBe("Call ended. Try again.");
-      expect(failureLine(holder.get(), attic)).toBe("");
-      expect(failureLine(holder.get(), shed)).toBe("");
-      expect(reconnectingLine(holder.get())).toBe("");
-      expect(offersSettings(holder.get(), porch)).toBe(false);
-    }
+    const { holder, opened, reports } = await joined();
+    opened[0].events.onReconnecting();
+    opened[0].events.onDropped("lost");
+    await settle();
+    expect(holder.get()).toMatchObject({ room: porch, status: "failed", failure: "lost", reconnecting: false });
+    expect(opened[0].closed).toBe(1);
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(footState(holder.get(), porch)).toBe("join");
+    expect(failureLine(holder.get(), porch)).toBe("Call ended. Try again.");
+    expect(failureLine(holder.get(), attic)).toBe("");
+    expect(failureLine(holder.get(), shed)).toBe("");
+    expect(reconnectingLine(holder.get())).toBe("");
+    expect(offersSettings(holder.get(), porch)).toBe(false);
   });
 
   it("is lost without having been said to be reconnecting, too", async () => {
     const { holder, opened } = await joined();
-    opened[0].events.onDropped("");
+    opened[0].events.onDropped("lost");
     await settle();
     expect(failureLine(holder.get(), porch)).toBe("Call ended. Try again.");
   });
 
   it("ends silently when the server took this account out of the room", async () => {
-    expect(removedByServer("PARTICIPANT_REMOVED")).toBe(true);
-    expect(removedByServer("ROOM_DELETED")).toBe(true);
-    expect(removedByServer("DUPLICATE_IDENTITY")).toBe(true);
-    expect(removedByServer("SERVER_SHUTDOWN")).toBe(false);
-    expect(removedByServer("")).toBe(false);
-    for (const reason of ["PARTICIPANT_REMOVED", "ROOM_DELETED", "DUPLICATE_IDENTITY"]) {
-      const { holder, opened, reports } = await joined();
-      opened[0].events.onDropped(reason);
-      await settle();
-      expect(holder.get()).toBeNull();
-      expect(opened[0].closed).toBe(1);
-      expect(reports).toEqual(["home:porch:open", "home:left:open"]);
-      expect(failureLine(holder.get(), porch)).toBe("");
-    }
+    const { holder, opened, reports } = await joined();
+    opened[0].events.onReconnecting();
+    opened[0].events.onDropped("removed");
+    await settle();
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(failureLine(holder.get(), porch)).toBe("");
+  });
+
+  it("wears the rings again when who is speaking is said after it reconnects", async () => {
+    const { holder, opened } = await joined();
+    opened[0].events.onSpeaking(["priya"]);
+    opened[0].events.onReconnecting();
+    opened[0].events.onReconnected();
+    expect(holder.get()?.speaking).toEqual([]);
+    opened[0].events.onSpeaking(["priya"]);
+    expect(holder.get()).toMatchObject({ speaking: ["priya"], reconnecting: false });
   });
 
   it("forgets a lost call when Join is pressed", async () => {
     const { holder, opened } = await joined();
-    opened[0].events.onDropped("");
+    opened[0].events.onDropped("lost");
     await settle();
     const again = holder.join(porch);
     expect(holder.get()).toMatchObject({ room: porch, status: "connecting" });
@@ -487,13 +488,13 @@ describe("when the connection drops", () => {
 
   it("forgets a lost call when its screen is left, and when any call is joined", async () => {
     const one = await joined();
-    one.opened[0].events.onDropped("");
+    one.opened[0].events.onDropped("lost");
     await settle();
     one.holder.dismiss();
     expect(one.holder.get()).toBeNull();
 
     const other = await joined();
-    other.opened[0].events.onDropped("");
+    other.opened[0].events.onDropped("lost");
     await settle();
     const elsewhere = other.holder.join(shed);
     await settle();
@@ -506,7 +507,7 @@ describe("when the connection drops", () => {
 
   it("forgets a lost call when the app goes to the background", async () => {
     const { holder, opened, reports } = await joined();
-    opened[0].events.onDropped("");
+    opened[0].events.onDropped("lost");
     await settle();
     await holder.leave();
     expect(holder.get()).toBeNull();
@@ -516,13 +517,24 @@ describe("when the connection drops", () => {
   it("says nothing after the user's own leave, a switch of rooms or the background", async () => {
     const left = await joined();
     await left.holder.leave();
-    left.opened[0].events.onDropped("");
+    left.opened[0].events.onDropped("lost");
     await settle();
     expect(left.holder.get()).toBeNull();
 
+    // The background leaves the call (CallProvider), also one that was
+    // reconnecting.
+    const hidden = await joined();
+    hidden.opened[0].events.onReconnecting();
+    expect(leavesCall("background", false)).toBe(true);
+    await hidden.holder.leave();
+    hidden.opened[0].events.onDropped("lost");
+    await settle();
+    expect(hidden.holder.get()).toBeNull();
+    expect(failureLine(hidden.holder.get(), porch)).toBe("");
+
     const switched = await joined();
     const moving = switched.holder.join(attic);
-    switched.opened[0].events.onDropped("");
+    switched.opened[0].events.onDropped("lost");
     await settle();
     switched.opened[1].land();
     await moving;
@@ -533,7 +545,7 @@ describe("when the connection drops", () => {
   it("keeps a lost call's line when the server then says this account left, or the room went", async () => {
     const { holder, opened, reports } = await joined();
     holder.voiceState("home", { userId: "me", channelId: "porch", joined: true });
-    opened[0].events.onDropped("");
+    opened[0].events.onDropped("lost");
     await settle();
     holder.voiceState("home", { userId: "me", channelId: "porch", joined: false });
     await settle();
@@ -546,7 +558,7 @@ describe("when the connection drops", () => {
     holder.voiceState("home", { userId: "me", channelId: "porch", joined: true });
     opened[0].events.onReconnecting();
     holder.voiceState("home", { userId: "me", channelId: "porch", joined: false });
-    opened[0].events.onDropped("");
+    opened[0].events.onDropped("lost");
     await settle();
     expect(holder.get()).toBeNull();
     expect(failureLine(holder.get(), porch)).toBe("");
@@ -554,7 +566,7 @@ describe("when the connection drops", () => {
     const gone = await joined();
     gone.opened[0].events.onReconnecting();
     gone.holder.roomGone("home", "porch");
-    gone.opened[0].events.onDropped("");
+    gone.opened[0].events.onDropped("lost");
     await settle();
     expect(gone.holder.get()).toBeNull();
   });
@@ -883,7 +895,7 @@ describe("when the server says where this account is", () => {
   it("says nothing twice when the connection said it was removed first", async () => {
     const { holder, opened, reports } = await joined();
     holder.voiceState(...said(porch, true));
-    opened[0].events.onDropped("PARTICIPANT_REMOVED");
+    opened[0].events.onDropped("removed");
     holder.voiceState(...said(porch, false));
     await settle();
     expect(holder.get()).toBeNull();

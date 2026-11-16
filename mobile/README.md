@@ -1105,9 +1105,16 @@ change to them needs a native rebuild, not only Metro.
   - **LiveKit saying this account was removed ends the call silently**,
     as the same news over the realtime socket does, whichever is heard
     first: the reasons `PARTICIPANT_REMOVED`, `ROOM_DELETED` and
-    `DUPLICATE_IDENTITY` (`removedByServer` in `call.ts`). The call's
-    own leave, a switch of rooms and the background close the
-    connection themselves, and what it says after is not heard.
+    `DUPLICATE_IDENTITY`, matched against LiveKit's own enum in
+    `livekit.ts` (`REMOVED`), which tells `call.ts` only "removed" or
+    "lost". The call's own leave, a switch of rooms and the background
+    close the connection themselves, and what it says after is not
+    heard.
+  - **Two things follow from leaving the retrying to LiveKit.**
+    "Reconnecting…" lasts as long as LiveKit's own retry window, which
+    is most of a minute before it gives up. And a removal that lands
+    while signalling is down is heard from neither side in time, so
+    that call may end as lost, with its line, rather than silently.
 - **A join that fails says "Couldn't join. Try again."**, whatever the
   cause, and a join refused the microphone "Allow the microphone to
   join." over an Open Settings button, which opens the app's page in
