@@ -7,7 +7,7 @@ import { ScrollViewMarker } from "react-native-screens/experimental";
 import { setChannelMuted } from "../../api/channels";
 import { errorText } from "../../api/errors";
 import { useCall, useCallActions } from "../../call/CallProvider";
-import { failureLine, footState, offersSettings, reconnectingLine, speakerState } from "../../call/call";
+import { failureLine, footState, offersSettings, reconnectingLine } from "../../call/call";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
@@ -21,6 +21,7 @@ import { channelMute } from "../Channel/headerActions";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "../Channel/ScreenHeader";
 import Stage from "./Stage";
 import StageFoot from "./StageFoot";
+import OutputSheet from "./OutputSheet";
 import { hereLine, stagePeople } from "./stageRules";
 import { chatWaiting, opensOn, type Side } from "./switchRules";
 import { useVoiceRoom } from "./useVoiceRoom";
@@ -37,7 +38,7 @@ import VoiceTitle from "./VoiceTitle";
 // the room, live from the socket's roster, over a foot that names them
 // above Join. Join puts the phone in the room's call, which the app
 // holds above this screen (src/call): the foot then offers Mute,
-// Speaker and Leave, this account is a tile like anyone, through the
+// Output and Leave, this account is a tile like anyone, through the
 // roster, and whoever is speaking wears a ring. Leaving the screen
 // keeps the call, and coming back finds it. While the call's connection
 // is being tried again the foot says "Reconnecting…" over the controls,
@@ -49,7 +50,7 @@ import VoiceTitle from "./VoiceTitle";
 // has, read and written without joining. Opening it reads it, as a
 // channel. Seen from Call, Chat wears a dot while messages wait there;
 // in this room's call, Call wears a green wave on both sides, and on
-// Chat the call's Mute sits beside the switch (Speaker and Leave stay
+// Chat the call's Mute sits beside the switch (Output and Leave stay
 // on the Stage). Opened at a message (`focusId`, the search's row), the
 // room opens on Chat, at it; going to Call forgets the message.
 //
@@ -81,10 +82,12 @@ export default function VoiceRoom({
   const [footHeight, setFootHeight] = useState(0);
 
   const call = useCall();
-  const { join, leave, toggleMute: toggleMic, toggleSpeaker, dismiss } = useCallActions();
+  const { join, leave, toggleMute: toggleMic, chooseOutput, openOutputPicker, dismiss } = useCallActions();
   const room = useMemo(() => ({ serverId: server.id, spaceId, channelId }), [server.id, spaceId, channelId]);
   const foot = footState(call, room);
   const inCall = foot === "joined";
+  // The Output control's list, where the app draws it (LISTS_OUTPUTS).
+  const [choosingOutput, setChoosingOutput] = useState(false);
 
   // The side shown. A message to open at, also one named while the
   // room is already up (the search going back to it), shows Chat.
@@ -223,12 +226,20 @@ export default function VoiceRoom({
             state={foot}
             muted={inCall && !!call?.muted}
             onJoin={() => void join(room)}
-            speaker={speakerState(call)}
+            output={call?.output ?? NO_OUTPUT}
             onToggleMute={() => void toggleMic()}
-            onToggleSpeaker={() => void toggleSpeaker()}
+            onOutput={() => (LISTS_OUTPUTS ? setChoosingOutput(true) : openOutputPicker())}
             onLeave={() => void leave()}
             onHeight={setFootHeight}
           />
+          {choosingOutput && inCall && call && (
+            <OutputSheet
+              outputs={call.outputs}
+              current={call.output.kind}
+              onChoose={(kind) => void chooseOutput(kind)}
+              onClose={() => setChoosingOutput(false)}
+            />
+          )}
         </>
       )}
     </View>
@@ -236,6 +247,13 @@ export default function VoiceRoom({
 }
 
 const NOBODY: string[] = [];
+
+// Where Output opens its list. Android has no picker of outputs of its
+// own, so the app lists them in a sheet (OutputSheet); iOS has one, and
+// shows that.
+const LISTS_OUTPUTS = Platform.OS === "android";
+// What the foot is handed outside a call, where it draws no Output.
+const NO_OUTPUT = { kind: "speaker", name: "" } as const;
 
 // The app's page in the system's settings, where the microphone is
 // allowed after a refusal. Going there is going to the background, which

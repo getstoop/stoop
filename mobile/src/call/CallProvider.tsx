@@ -96,7 +96,8 @@ const noConnection = (): Connection => ({
   ready: Promise.reject(new Error("no server")),
   userId: () => "",
   setMuted: async () => {},
-  setSpeaker: async () => {},
+  chooseOutput: async () => {},
+  showOutputPicker: () => {},
   close: async () => {},
 });
 
@@ -127,8 +128,11 @@ export function useHereChannelId(serverId: string): string | undefined {
   return useSyncExternalStore(holder.subscribe, () => hereChannelId(holder.get(), serverId));
 }
 
-// What can be done with the call: join, leave, toggleMute, toggleSpeaker,
-// dismiss.
-export function useCallActions(): Pick<CallHolder, "join" | "leave" | "toggleMute" | "toggleSpeaker" | "dismiss"> {
+// What can be done with the call: join, leave, toggleMute, chooseOutput,
+// openOutputPicker, dismiss.
+export function useCallActions(): Pick<
+  CallHolder,
+  "join" | "leave" | "toggleMute" | "chooseOutput" | "openOutputPicker" | "dismiss"
+> {
   return useHolder();
 }

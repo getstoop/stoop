@@ -1008,7 +1008,7 @@ badge stays as it was when the app left the front.
 
 A voice room's screen (`src/screens/VoiceRoom`) has two sides, picked
 with a Call | Chat switch in a second floating row under its header.
-Call, which the room opens on, joins its call: Join, then Mute, Speaker
+Call, which the room opens on, joins its call: Join, then Mute, Output
 and Leave in its place, and a ring on whoever is speaking. Chat is the
 room's own text chat.
 The LiveKit packages are in (`@livekit/react-native`, its WebRTC build,
@@ -1034,7 +1034,7 @@ change to them needs a native rebuild, not only Metro.
   it on the Spaces tab (none for a muted room or in a muted space),
   loaded again when a message lands or goes there or the marker moves
   (`touchesChat`). On Chat, while in the call, the call's Mute is a
-  round button beside the switch; Speaker and Leave stay on the Stage.
+  round button beside the switch; Output and Leave stay on the Stage.
 - **Search in the room's header is narrowed to the room's chat**
   (`?c=`, the `in:#room` filter, as a channel's), and a match in a
   voice room's chat, from any search, opens the room on Chat at the
@@ -1045,8 +1045,8 @@ change to them needs a native rebuild, not only Metro.
   beside the other app-wide providers, so leaving the room's screen
   keeps the call and coming back finds it. `useCall()` gives what a
   screen draws (the server, space and room, connecting, connected or
-  failed, reconnecting, muted, the loudspeaker on or off, whether headphones have the
-  sound, who is speaking) and `useCallActions()` what it can do. One
+  failed, reconnecting, muted, where the sound comes out and where
+  else it could, who is speaking) and `useCallActions()` what it can do. One
   call at a time, across every server: joining a second room leaves
   the first, then joins.
 - **`call.ts` is the call's rules and nothing else**: plain state with
@@ -1084,7 +1084,7 @@ change to them needs a native rebuild, not only Metro.
   room says (`Reconnecting` and `SignalReconnecting`, `Reconnected`,
   and `Disconnected` with its reason), and `call.ts` holds the rules.
   - **While LiveKit retries, the call says "Reconnecting…"**: on the
-    Stage's foot in the line's place, with Mute, Speaker and Leave
+    Stage's foot in the line's place, with Mute, Output and Leave
     kept, and as the call bar's second line, on the tabs and in the
     pill, whose wave holds still. The call stays `connected` with
     `reconnecting` set. The Stage's tiles stay as the roster has them,
@@ -1133,55 +1133,92 @@ change to them needs a native rebuild, not only Metro.
   `defaultOutput: "speaker"`; on Android it is the communication preset
   with outputs preferred in the order Bluetooth, wired headset,
   loudspeaker, earpiece.
-- **Speaker switches between the loudspeaker and the earpiece**, and
-  is on again at the start of every call. It is the choice for when no
-  headphones are connected: headphones have the sound whichever way it
-  is set, and the choice holds again when they go. The choice is the
-  call's (`speaker` in `call.ts`); the call bar has no control for it.
-  There is no picker of outputs.
+- **Output shows where the sound goes, and moves it.** The control
+  between Mute and Leave on the Stage's foot is a mark and a short
+  name for the output the sound is on now: "Speaker" for the
+  loudspeaker, "Phone" for the earpiece, "Headphones" for any on a
+  wire, "Bluetooth", and on iOS the system's own name for whatever is
+  neither the phone's nor on a wire (the headphones' name, an AirPlay
+  speaker's). The names and their marks are `outputName` in
+  `call/output.ts` and `OutputIcon.tsx`. A press opens the way to move the sound: the
+  app's own sheet on Android, the system's picker on iOS (below). The
+  loudspeaker and the earpiece are entries there like any other; there
+  is no separate Speaker control, and none that turns the call's sound
+  off. The call bar has no control for any of this.
+  The rules, on both phones: a call starts on the loudspeaker, or on a
+  headset already connected; a headset that connects during the call
+  takes the sound, also from an output picked by hand; and when the
+  output in use goes, the sound returns to the phone's own output
+  chosen last, which is the loudspeaker until the earpiece is picked.
+  The call holds where the sound is and, on Android, what there is to
+  choose among (`output` and `outputs` in `call.ts`; the kinds and
+  the rules are `call/output.ts`, with unit tests beside it), and every call
+  starts again on the loudspeaker.
   LiveKit says nothing of where the sound goes now, or of a headset
   coming or going, on either phone, so a module of our own does
   (`modules/stoop-audio-route`): an event when the phone's outputs
-  change, and on iOS the outputs the sound goes to. `livekit.ts`
-  listens from the join landing until the connection closes, and reads
-  the outputs as it starts and at each event, and half a second after
-  an event once more, since on Android the list is LiveKit's own and may
-  not have the news yet. While headphones have the
-  sound the control is disabled and shows off, on both phones, and a
-  press does nothing. A build made before the module was added has no
-  such event: there iOS never knows of headphones, and Android only of
-  those there as the join lands or at a press of Speaker.
-  - **iOS** switches the audio session's default: with the loudspeaker
-    as the default and video chat mode, or without it and voice chat
-    mode (LiveKit's own two settings). It is set on the session at once
-    and in LiveKit's policy, which sets the session again whenever the
-    audio engine changes. iOS itself sends the sound to headphones
-    either way. LiveKit's own "force speaker" output is not used: it
-    takes the sound from headphones. The module reads the audio
-    session's current route (`AVAudioSession.currentRoute`) and passes
-    on its route-change notice. "Headphones have the sound" is any
-    output there that is not the iPhone's own loudspeaker or earpiece
-    (`iosHeadphones` in `call.ts`): wired or USB headphones, Bluetooth,
-    and AirPlay, a car or HDMI as well, since Speaker switches between
-    the phone's own two and has nothing to say about any of those.
-  - **Android** chooses the loudspeaker or the earpiece by hand
-    (`selectAudioOutput`). LiveKit's audio switch moves the sound to a
-    headset by itself only until an output has been chosen by hand,
-    after which the chosen one stays whatever connects. The module's
-    event is Android's own notice of an output added or removed
-    (`AudioDeviceCallback`), and at each one the app reads LiveKit's
-    list of outputs (`getAudioOutputs`): the control is disabled and
-    shows off while a headset is among them, and from the first press
-    of Speaker the app chooses the headset itself when one appears and
-    the loudspeaker or earpiece again when it goes. Up to then
-    LiveKit's own order does it. The module asks for no permission and
-    reads no device's name. When a headset goes, LiveKit falls back to
-    the loudspeaker first, so with Speaker off the call may be out loud
-    for the moment it takes the app to hear of it and choose the
-    earpiece. A press that finds a headset the last reading hadn't seen
-    changes nothing.
-    A phone with no earpiece (the emulator has none) is not told apart:
-    Speaker switches there and the sound stays on the loudspeaker.
+  change, and on iOS the outputs the sound goes to and the system's
+  picker. `livekit.ts` listens from the join landing until the
+  connection closes, and reads the outputs as it starts and at each
+  event, and half a second after an event once more, since on Android
+  the list is LiveKit's own and may not have the news yet.
+  - **Android: the app's own sheet** (`OutputSheet.tsx`, a `MenuSheet`
+    with no card): the outputs there are now, by kind, the one in use
+    checked and announced as selected. Picking one moves the sound
+    there (`selectAudioOutput`) and closes the sheet; the list follows
+    the call, so a headset that connects while it is open appears in
+    it. The list is LiveKit's (`getAudioOutputs`, at most its four:
+    loudspeaker, earpiece, wired headset, Bluetooth), read at each of
+    the module's events, which are Android's own notice of an output
+    added or removed (`AudioDeviceCallback`). A phone with no earpiece
+    (the emulator has none) has no "Phone" in it. The module asks for
+    no permission and no device's name is read, so Bluetooth
+    headphones are "Bluetooth" and no more.
+    LiveKit does not say which output it is using, and keeps the sound
+    on whatever was chosen last whatever connects later. So the app
+    chooses every time, by its own rule (`androidOutput` in
+    `call/output.ts`), and what it chose is what the control shows: at the
+    first reading a headset if there is one (Bluetooth before wired),
+    else the loudspeaker; a headset that appears gets the sound; when
+    the output in use goes, a headset still there has it, and failing
+    one the phone's own output picked last. When the output in use
+    goes, LiveKit falls back by its own order first, so with the
+    earpiece as the phone's own the call may be out loud for the
+    moment it takes the app to hear of it and choose the earpiece.
+  - **iOS: the system's picker.** iOS has its own list of outputs and
+    lets no app choose among them, so the control opens the system's
+    (`showPicker` in the module), which looks like iOS and not like the
+    app. What is picked there is the system's to apply, and comes back
+    as a route change: the module reads the audio session's current
+    route (`AVAudioSession.currentRoute`) at each of its route-change
+    notices, and the control shows the first output there.
+    iOS shows that picker only from an `AVRoutePickerView`, with no
+    call to present it. The module keeps one such view in the key
+    window, unseen and untouchable, and presses its button on the main
+    queue. LiveKit's own `showAudioRoutePicker()` is not used: it
+    presses the button of a view that is in no window, from whatever
+    thread it is called on. Finding the button among the view's subviews is the one
+    thing iOS does not promise; if a later iOS has none there, nothing
+    is shown. Drawing the system's view over the control instead would
+    not need that, but the control would then be the system's own,
+    with its glyph and its name for a screen reader.
+    iOS moves the sound to headphones and back by itself. The picker
+    also offers the phone's own two, and LiveKit sets the session again
+    from its policy whenever the audio engine changes. So once the
+    picker has been shown in a call, the sound landing on the other of
+    the phone's own two is taken as chosen there, and LiveKit's policy
+    is told (`setupIOSAudioManagement`): the loudspeaker as the
+    session's default with video chat mode, or the earpiece with voice
+    chat mode. The session itself is not set at that moment, so as not
+    to undo what was just picked. Before the picker is shown, nothing
+    but the policy puts the sound on either. LiveKit's own "force
+    speaker" output is not used: it takes the sound from headphones.
+  - **Not yet tried on a real phone:** the simulator and the emulator
+    have one output each, and the simulator presents no picker at all,
+    also for a finger on a visible `AVRoutePickerView`. Whether iOS's picker lets the earpiece be
+    picked while the loudspeaker is the session's default, and what
+    LiveKit's next setting of the session does to a pick, are the
+    first things to try.
 - **While in a call, the call bar takes the server chip's row** by the
   tab bar, on all four tabs, with one server too, and the chip comes
   back when the call ends (`tabRow` in `src/call/callBar.ts`, read
@@ -1428,8 +1465,8 @@ field). Expo links it on its own; a change to its Swift or Kotlin needs a
 native rebuild, not only Metro.
 
 `modules/stoop-audio-route` is the second, and small: where the phone
-sends its sound and when that changes, for a call's Speaker control
-(Voice → Speaker, above). The same goes for a change to it.
+sends its sound, when that changes, and iOS's picker of outputs, for a
+call's Output control (Voice → Output, above). The same goes for a change to it.
 
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS

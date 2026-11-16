@@ -2,21 +2,25 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ExternalIcon, HangUpIcon, LoudspeakerIcon, MicIcon, MicOffIcon } from "../../components/Icons";
+import { type Output, outputName } from "../../call/output";
+import { ExternalIcon, HangUpIcon, MicIcon, MicOffIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import Surface from "../Channel/Surface";
+import OutputIcon from "./OutputIcon";
 
 const JOIN = 52;
 const CONTROL = 60;
+// A control's column: the round button and the room its name has.
+const CONTROL_WIDTH = 72;
 // The bubble's padding around Join, and its corner, which follows
 // Join's own.
 const BUBBLE_PAD = 12;
 
 // The foot of the Stage: who is here, in a line, over Join; once in the
-// call, Mute, Speaker and Leave in Join's place. Speaker is the
-// loudspeaker rather than the earpiece, and has nothing to switch while
-// headphones have the sound. A join that failed, or a call that was
-// lost, says so in the line's place (`failure`), and so does a call
+// call, Mute, Output and Leave in Join's place. Output shows where the
+// call's sound goes now, as a mark and a name, and a press opens the way
+// to move it (`onOutput`: the screen's to say which). A join that
+// failed, or a call that was lost, says so in the line's place (`failure`), and so does a call
 // whose connection is being tried again (`notice`), with the controls
 // kept. A join refused the microphone has a link under its line to
 // the app's page in the system's settings (`onOpenSettings`), where the
@@ -31,11 +35,11 @@ export default function StageFoot({
   notice,
   state,
   muted,
-  speaker,
+  output,
   onJoin,
   onOpenSettings,
   onToggleMute,
-  onToggleSpeaker,
+  onOutput,
   onLeave,
   onHeight,
 }: {
@@ -48,12 +52,11 @@ export default function StageFoot({
   // Before the join, while it connects, or in the call (call footState).
   state: "join" | "connecting" | "joined";
   muted: boolean;
-  // The loudspeaker on or off, or headphones have the sound (call
-  // speakerState).
-  speaker: "on" | "off" | "headphones";
+  // Where the call's sound goes now.
+  output: Output;
   onJoin: () => void;
   onToggleMute: () => void;
-  onToggleSpeaker: () => void;
+  onOutput: () => void;
   onLeave: () => void;
   onHeight: (height: number) => void;
 }) {
@@ -99,14 +102,13 @@ export default function StageFoot({
             {muted ? <MicOffIcon color={theme.surface} size={26} /> : <MicIcon color={theme.text} size={26} />}
           </Control>
           <Control
-            label="Speaker"
-            toggle
-            on={speaker === "on"}
-            disabled={speaker === "headphones"}
-            hint={speaker === "headphones" ? "Sound is going to headphones" : undefined}
-            onPress={onToggleSpeaker}
+            label={outputName(output)}
+            says="Output"
+            hint="Chooses where the call's sound goes"
+            testID="voice-output"
+            onPress={onOutput}
           >
-            <LoudspeakerIcon color={speaker === "on" ? theme.surface : theme.text} size={26} />
+            <OutputIcon kind={output.kind} color={theme.text} size={26} />
           </Control>
           <Control label="Leave" end onPress={onLeave}>
             <HangUpIcon color={theme.onAccent} size={26} />
@@ -151,24 +153,25 @@ export default function StageFoot({
 }
 
 // One of the call's controls: a round button over its name. `on` fills
-// it (muted, the loudspeaker on); `toggle` is one whose name stays and
-// whose state is said as on or off; `end` is the one that ends the call.
+// it (muted); `end` is the one that ends the call. One whose name is
+// what it is set to now (Output's "Speaker") is called by `says` for a
+// screen reader, with the name as its value.
 function Control({
   label,
+  says,
   on,
-  toggle,
   end,
-  disabled,
   hint,
+  testID,
   onPress,
   children,
 }: {
   label: string;
+  says?: string;
   on?: boolean;
-  toggle?: boolean;
   end?: boolean;
-  disabled?: boolean;
   hint?: string;
+  testID?: string;
   onPress: () => void;
   children: ReactNode;
 }) {
@@ -176,13 +179,13 @@ function Control({
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
       hitSlop={6}
-      accessibilityRole={toggle ? "switch" : "button"}
-      accessibilityLabel={label}
+      accessibilityRole="button"
+      accessibilityLabel={says ?? label}
+      accessibilityValue={says ? { text: label } : undefined}
       accessibilityHint={hint}
-      accessibilityState={toggle ? { checked: !!on, disabled: !!disabled } : undefined}
-      style={({ pressed }) => [styles.control, (pressed || disabled) && styles.dim]}
+      testID={testID}
+      style={({ pressed }) => [styles.control, pressed && styles.dim]}
     >
       <View style={[styles.round, on && styles.roundOn, end && styles.roundEnd]}>{children}</View>
       <Text style={styles.controlLabel} numberOfLines={1}>
@@ -266,7 +269,7 @@ function makeStyles(theme: Theme) {
       gap: 28,
     },
     control: {
-      width: 72,
+      width: CONTROL_WIDTH,
       alignItems: "center",
       gap: 6,
     },
@@ -284,7 +287,11 @@ function makeStyles(theme: Theme) {
     roundEnd: {
       backgroundColor: theme.danger,
     },
+    // A name longer than the button (headphones' own) may reach a little
+    // way into the gaps beside it before it is cut short.
     controlLabel: {
+      width: CONTROL_WIDTH + 24,
+      textAlign: "center",
       color: theme.textMuted,
       fontSize: tokens.textSm,
       fontWeight: "600",
