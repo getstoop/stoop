@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loadSignedInMe, type SignedInMe } from "../../api/me";
 import { hostOf } from "../../api/probe";
 import Section from "../../components/Section";
-import ServerChipOverlay from "../../components/ServerChipOverlay";
+import TabRowOverlay from "../../components/TabRowOverlay";
 import TabNotice from "../../components/TabNotice";
 import { useDndSwitch } from "../../dnd/DndProvider";
 import { usePushOnce } from "../../hooks/usePushOnce";
@@ -177,7 +177,7 @@ export default function You({ server }: { server: SavedServer }) {
         </Section>
         <SignOutButton server={server} />
       </ScrollView>
-      <ServerChipOverlay />
+      <TabRowOverlay />
     </View>
   );
 }

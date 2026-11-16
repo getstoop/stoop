@@ -652,10 +652,11 @@ import a screen; the screens themselves live in `src/screens`, so
   `ServerChipSlot.tsx`), on glass, and
   the system counts it into each tab's safe area; on an older iOS, which
   has no slot, each tab's screen draws it as a row over its own foot, on
-  top of the tab bar (`ServerChipOverlay.tsx`), and pads its lists by
+  top of the tab bar (`TabRowOverlay.tsx`), and pads its lists by
   the row's height; on Android as a row on top of the drawn tab bar,
   part of it, below the screen. The system tab bar is told never to
-  shrink on a scroll, which would shrink the slot into it.
+  shrink on a scroll, which would shrink the slot into it. In a voice
+  call the call bar has the chip's place (Voice, below).
 - The app tells the system it is light or dark as the theme is
   (`Appearance.setColorScheme`), so what the system draws matches. The
   navigator is told as well (its own theme, set in `src/app/_layout.tsx`):
@@ -1046,7 +1047,7 @@ change to them needs a native rebuild, not only Metro.
   is on again at the start of every call. It is the choice for when no
   headphones are connected: headphones have the sound whichever way it
   is set, and the choice holds again when they go. The choice is the
-  call's (`speaker` in `call.ts`), for the call bar to show later.
+  call's (`speaker` in `call.ts`); the call bar has no control for it.
   There is no picker of outputs.
   - **iOS** switches the audio session's default: with the loudspeaker
     as the default and video chat mode, or without it and voice chat
@@ -1077,6 +1078,45 @@ change to them needs a native rebuild, not only Metro.
     reading hadn't seen changes nothing.
     A phone with no earpiece (the emulator has none) is not told apart:
     Speaker switches there and the sound stays on the loudspeaker.
+- **While in a call, the call bar takes the server chip's row** by the
+  tab bar, on all four tabs, with one server too, and the chip comes
+  back when the call ends (`tabRow` in `src/call/callBar.ts`, read
+  through `src/hooks/useServerChipRoom.ts`). It names the room and,
+  under it, who is speaking besides you ("Priya is speaking", "Priya
+  and Theo are speaking", "Priya and 2 others are speaking"), the
+  room's space while nobody is, and "Connecting…" on the way in.
+  Pressing the names opens the room's screen; Mute shows an amber
+  struck microphone while muted, and Leave ends the call. A join that
+  failed shows no bar: its room's screen says so. The rules are
+  `callBar.ts`, with unit tests beside it.
+  - **Switching servers keeps the call.** With another server on screen
+    than the call's, the bar's second line names the call's server
+    first ("Hutch House · Theo is speaking") and the server's letter
+    stands where the wave was. Pressing it swaps to that server, as the
+    switcher does, and opens the room there: the room is left waiting
+    (`call/pendingRoom.ts`) for that server's layout, which pushes it
+    (`call/OpenCallRoom.tsx`) if the call is still in it.
+  - **What the bar says and does is `src/components/CallBarContent.tsx`**,
+    which reads the call itself, draws no surface and takes a `style`:
+    put it on any surface under a server's screen. `CallBar.tsx` is the
+    row docked on the tab bar. The room's and its space's names, the
+    members' names and this account's ID come from
+    `call/CallPlaceProvider.tsx`, inside `CallProvider`: one load for
+    every bar, whichever server is on screen, when the call starts and
+    again when the call's server says the room, its space or its
+    members changed. A load that fails is tried again a few times;
+    until the names are in, the bar says "Voice room" and "In a call"
+    and names nobody as speaking.
+  - **Where the row is drawn** follows the chip: on Android at the top
+    of the drawn tab bar; on an iOS before 26 over each tab's foot, on
+    top of the tab bar (`TabRowOverlay.tsx`). On iOS 26 the chip lives
+    in the system tab bar's slot, and the call bar has no drawing for
+    the slot yet (STOOPMOBIL-54): while in a call the slot is emptied
+    and each tab's screen draws the bar as a bubble of Liquid Glass
+    floating over the tab bar, where the slot was.
+  - **On the Spaces tab the room you are in is tinted and says "You're
+    here"** where Live was (`screens/Spaces/VoiceRoom.tsx`), once the
+    join has landed.
 - **Bluetooth headsets need no `BLUETOOTH_CONNECT`.** LiveKit routes
   through the audio switch that reads devices from Android's
   `AudioManager`; the one that asks for that permission (through the
@@ -1259,7 +1299,7 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
-`alerts/loader.ts`, `alerts/store.ts`, `call/call.ts`, `dnd/switch.ts`, `dnd/store.ts`,
+`alerts/loader.ts`, `alerts/store.ts`, `call/call.ts`, `call/callBar.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
 `shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
 `pendingInvite.ts`, `api/invites.ts`,
