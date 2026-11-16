@@ -10,14 +10,17 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/getstoop/stoop/internal/netguard"
@@ -124,7 +127,8 @@ var topicPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
 
 // Send encrypts msg for sub and posts it. The error is for a message that
 // was never answered: a bad subscription (ErrBadSubscription), an oversized
-// payload (ErrPayloadTooLarge), or a failed request, which may be retried.
+// payload (ErrPayloadTooLarge), or a failed request, which may be retried
+// and wraps the context's error or netguard.ErrNotPublic when that is why.
 // Any answer from the push service is a Result.
 func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Result, error) {
 	// The endpoint is a capability URL, so no error carries it.
@@ -145,7 +149,7 @@ func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Resul
 	if err != nil {
 		return Result{}, err
 	}
-	token, err := s.tokens.get(s.key, endpoint.Scheme+"://"+endpoint.Host, s.subject, s.now())
+	token, err := s.tokens.get(s.key, origin(endpoint), s.subject, s.now())
 	if err != nil {
 		return Result{}, fmt.Errorf("webpush: sign token: %w", err)
 	}
@@ -166,11 +170,7 @@ func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Resul
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		var failed *url.Error
-		if errors.As(err, &failed) {
-			err = failed.Err
-		}
-		return Result{}, fmt.Errorf("webpush: post: %w", err)
+		return Result{}, postError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	// Read a little so the connection can be reused; the body says nothing
@@ -182,6 +182,46 @@ func (s *Sender) Send(ctx context.Context, sub Subscription, msg Message) (Resul
 		Status:     resp.StatusCode,
 		RetryAfter: retryAfter(resp.Header.Get("Retry-After"), s.now()),
 	}, nil
+}
+
+// postError says in fixed words why a request failed. The client's own
+// error can quote the endpoint, so its text is never passed on; only the
+// sentinels a caller may test for are wrapped.
+func postError(err error) error {
+	for _, known := range []error{context.Canceled, context.DeadlineExceeded, netguard.ErrNotPublic} {
+		if errors.Is(err, known) {
+			return fmt.Errorf("webpush: post: %w", known)
+		}
+	}
+	var netErr net.Error
+	var dnsErr *net.DNSError
+	var certErr *tls.CertificateVerificationError
+	switch {
+	case errors.As(err, &dnsErr):
+		return errors.New("webpush: post: name lookup failed")
+	case errors.As(err, &netErr) && netErr.Timeout():
+		return errors.New("webpush: post: timed out")
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return errors.New("webpush: post: connection refused")
+	case errors.As(err, &certErr):
+		return errors.New("webpush: post: TLS certificate not trusted")
+	default:
+		return errors.New("webpush: post: request failed")
+	}
+}
+
+// origin is the endpoint's serialized origin, the audience a push service
+// expects: the host in lower case, the scheme's default port left out.
+func origin(endpoint *url.URL) string {
+	host := strings.ToLower(endpoint.Hostname())
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	defaultPort := map[string]string{"https": "443", "http": "80"}[endpoint.Scheme]
+	if port := endpoint.Port(); port != "" && port != defaultPort {
+		host += ":" + port
+	}
+	return endpoint.Scheme + "://" + host
 }
 
 func outcomeOf(status int) Outcome {

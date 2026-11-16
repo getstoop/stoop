@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -258,5 +259,68 @@ func TestNewSenderRefusesMissingParts(t *testing.T) {
 	}
 	if _, err := NewSender(http.DefaultClient, nil, ""); err == nil {
 		t.Error("a nil key passed")
+	}
+}
+
+// A Location the client cannot parse fails before the redirect guard runs,
+// and the client's own error quotes it.
+func TestSendKeepsTheEndpointOutOfARedirectFailure(t *testing.T) {
+	receiver, auth := newReceiver(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "http://"+r.Host+r.URL.Path+"%zz")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+	_, err := newTestSender(t).Send(context.Background(), Subscription{
+		Endpoint: server.URL + "/push/device-secret", P256DH: receiver.PublicKey().Bytes(), Auth: auth,
+	}, Message{Payload: []byte("hi")})
+	if err == nil {
+		t.Fatal("a malformed redirect passed")
+	}
+	if strings.Contains(err.Error(), "device-secret") {
+		t.Errorf("the error names the endpoint: %v", err)
+	}
+}
+
+func TestSendFailureCanBeToldApart(t *testing.T) {
+	receiver, auth := newReceiver(t)
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
+	defer server.Close()
+	defer close(release)
+	sub := Subscription{Endpoint: server.URL, P256DH: receiver.PublicKey().Bytes(), Auth: auth}
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := newTestSender(t).Send(canceled, sub, Message{}); !errors.Is(err, context.Canceled) {
+		t.Errorf("canceled: err = %v, want context.Canceled", err)
+	}
+	expiring, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := newTestSender(t).Send(expiring, sub, Message{}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("deadline: err = %v, want context.DeadlineExceeded", err)
+	}
+}
+
+func TestAudienceIsTheSerializedOrigin(t *testing.T) {
+	cases := map[string]string{
+		"https://push.example/push/abc":         "https://push.example",
+		"https://PUSH.EXAMPLE:443/push/abc":     "https://push.example",
+		"HTTPS://Push.Example:8443/push/abc":    "https://push.example:8443",
+		"http://push.example:80/push":           "http://push.example",
+		"http://push.example:443/push":          "http://push.example:443",
+		"https://push.example:80":               "https://push.example:80",
+		"https://push.example:/push":            "https://push.example",
+		"https://[2001:DB8::1]:443/push":        "https://[2001:db8::1]",
+		"https://[2001:db8::1]:8443/push?x=1#y": "https://[2001:db8::1]:8443",
+	}
+	for raw, want := range cases {
+		endpoint, err := url.Parse(raw)
+		if err != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		if got := origin(endpoint); got != want {
+			t.Errorf("origin(%s) = %s, want %s", raw, got, want)
+		}
 	}
 }
