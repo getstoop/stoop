@@ -91,7 +91,7 @@ mobile/assets/   the phone app's icon, mark and notification glyph, written dire
 | `favicon.svg` | copied | `index.html`; `Root.tsx` swaps to `favicon-live.svg` while the mic or screen is captured |
 | `favicon.ico` | `favicon` at 16, 32, 48 | browsers without SVG favicons, and anything that fetches `/favicon.ico` unasked; no `<link>` needed |
 | `apple-touch-icon.png` | `icon-square` at 180 | iOS home screen, Safari |
-| `icon-192.png`, `icon-512.png` | `icon-square` | the manifest; `icon-192` is also the banner icon in `web/src/api/notifications.ts` |
+| `icon-192.png`, `icon-512.png` | `icon-rounded` | the manifest; `icon-192` is also the banner icon in `web/src/api/notifications.ts` |
 | `icon-maskable-512.png` | `icon-maskable` | the manifest, `purpose: maskable` |
 | `badge-96.png` | `badge` | `notifications.ts` `badge:` — the monochrome status-bar glyph on Android |
 
@@ -104,10 +104,10 @@ these in (`scripts/brand-sync.mjs` there; a sibling checkout by default).
 | File | From | Read by |
 | --- | --- | --- |
 | `icon.icns` | `icon-macos`, ten sizes 16..1024 via `iconutil` | electron-builder, mac (by name in `buildResources`) |
-| `icon.ico` | `icon-square` at 16..256 | electron-builder, win |
+| `icon.ico` | `icon-rounded` at 16..256 | electron-builder, win |
 | `icon.png`, `icons/NNxNN.png` | `icon-rounded` | electron-builder, linux (`linux.icon: icons`); `icons/256x256.png` also ships as the window icon |
 | `tray/trayTemplate.png`, `@2x` | `menubar-template`: the mark at 16 pt on the 22 pt canvas, 3 pt margins | `src/main/trayIcon.ts`, macOS, `setTemplateImage(true)` |
-| `tray/tray.ico`, `tray/tray.png` | the tile at 16..48 / at 32 | `trayIcon.ts`, Windows / Linux — those trays draw the image as-is, so a template glyph would be invisible on a dark tray |
+| `tray/tray.ico`, `tray/tray.png` | `icon-rounded` at 16..48 / at 32 | `trayIcon.ts`, Windows / Linux — those trays draw the image as-is, so a template glyph would be invisible on a dark tray |
 | `mark.svg` | `mark-ember` copied | `add/index.html`, `gate/index.html` at 40 × 40 beside the `<h1>` |
 
 The tray has no image-level state: unread is `setTitle` text and the dock
