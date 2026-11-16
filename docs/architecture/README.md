@@ -84,7 +84,8 @@ text, a cut to a rune budget), `internal/pbtime` (an optional time as a
 proto timestamp), `internal/release` (the release
 index and version comparison),
 `internal/blob` (the storage port and its backends), `internal/unfurl`
-(the link fetcher), `internal/kv` (keyed state with a cap and an expiry,
+(the link fetcher), `internal/webpush` (encrypts, signs and posts one Web
+Push message), `internal/kv` (keyed state with a cap and an expiry,
 in memory), `internal/ratelimit`, `internal/trustedproxy`, `internal/netguard`,
 `internal/accesswire`, `internal/buildinfo`, `internal/diag` (the
 in-memory instruments behind the Diagnostics tab and `/metrics`),
