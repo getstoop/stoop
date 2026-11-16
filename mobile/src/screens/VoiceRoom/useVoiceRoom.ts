@@ -12,6 +12,7 @@ import type { SavedServer } from "../../servers";
 import { afterLoad } from "../Spaces/reloads";
 import { useQuietReload } from "../Spaces/useQuietReload";
 import { touchesRoom } from "./stageRules";
+import { touchesChat } from "./switchRules";
 
 export type RoomView =
   | { state: "loading" }
@@ -29,8 +30,10 @@ export type RoomView =
 // live from the socket): the room, its space and the space's members,
 // loaded as the Spaces tab's pane loads them, and again, after a
 // moment's quiet, when the socket says one of them changed
-// (stageRules touchesRoom) or the app comes back. A reload that fails keeps what is shown; a
-// room no longer among the space's voice channels is gone.
+// (stageRules touchesRoom), when what waits in the room's chat may have
+// (switchRules touchesChat: the room carries its unread count, for the
+// switch's dot) or the app comes back. A reload that fails keeps what
+// is shown; a room no longer among the space's voice channels is gone.
 export function useVoiceRoom(
   server: SavedServer,
   spaceId: string,
@@ -77,7 +80,7 @@ export function useVoiceRoom(
     if (event.payload.case === "credentialRevoked") {
       latest.current++;
       setView({ state: "ended" });
-    } else if (touchesRoom(event, spaceId)) quiet.soon();
+    } else if (touchesRoom(event, spaceId) || touchesChat(event, channelId)) quiet.soon();
   });
 
   const retry = useCallback(() => {

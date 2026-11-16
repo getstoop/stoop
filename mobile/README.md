@@ -610,7 +610,9 @@ import a screen; the screens themselves live in `src/screens`, so
   for the page before the last match while the server says there is one
   (`beforeId`), a page that failed is said under the list with a tap to
   ask again, and a new search drops the older pages. A tap pushes the message's channel with `?focus=` naming
-  the message, which opens around it (the composer item above). A
+  the message, which opens around it (the composer item above); a
+  match in a voice room's chat opens the room on its Chat side
+  instead (Voice, below). A
   refusal is said in the server's words, the rate limit
   and the timeout in core's (`SEARCH_REFUSALS`).
 - A message's links get the cards the server fetched for them
@@ -1002,13 +1004,41 @@ badge stays as it was when the app left the front.
 
 ## Voice
 
-A voice room's screen (`src/screens/VoiceRoom`) joins its call: Join,
-then Mute, Speaker and Leave in its place, and a ring on whoever is
-speaking.
+A voice room's screen (`src/screens/VoiceRoom`) has two sides, picked
+with a Call | Chat switch in a second floating row under its header.
+Call, which the room opens on, joins its call: Join, then Mute, Speaker
+and Leave in its place, and a ring on whoever is speaking. Chat is the
+room's own text chat.
 The LiveKit packages are in (`@livekit/react-native`, its WebRTC build,
 its Expo plugin and `livekit-client`, at the version web uses), so a
 change to them needs a native rebuild, not only Metro.
 
+- **A room's chat is the room's channel.** A voice channel holds
+  messages like any other, under its own channel id (web shows them
+  beside the call), so Chat is the channel screen itself
+  (`src/screens/Channel`) drawn inside the room's: given `under`, it
+  draws no header of its own and clears the room's header and switch
+  instead. Everything a channel does is there (the composer and its
+  draft, files, threads, the menu, reading moves the marker), and
+  none of it needs the call. The composer and the top of the history
+  name the room without a `#` (`core/channelHeader` `headerPlace`).
+  The side is the screen's state, not a route: the room opens on Call
+  every time, and the chat's list is mounted only while Chat shows.
+- **The switch says what the other side holds** (`ViewSwitch.tsx`,
+  rules in `switchRules.ts`). Call wears a green wave while this phone
+  is in this room's call, on both sides. Chat wears a dot while the
+  room's chat has messages past the reader's marker and Call is the
+  side shown: the room's `unreadCount`, as a text channel's row reads
+  it on the Spaces tab (none for a muted room or in a muted space),
+  loaded again when a message lands or goes there or the marker moves
+  (`touchesChat`). On Chat, while in the call, the call's Mute is a
+  round button beside the switch; Speaker and Leave stay on the Stage.
+- **Search in the room's header is narrowed to the room's chat**
+  (`?c=`, the `in:#room` filter, as a channel's), and a match in a
+  voice room's chat, from any search, opens the room on Chat at the
+  message: `voice/[channelId]?focus=<message id>` (`roomRoute`), where
+  a text channel's opens its channel. Going back to Call drops
+  `focus`, so Chat next opens as a channel does.
 - **The call is held above the router**, in `src/call`: `CallProvider`
   beside the other app-wide providers, so leaving the room's screen
   keeps the call and coming back finds it. `useCall()` gives what a
@@ -1035,6 +1065,18 @@ change to them needs a native rebuild, not only Metro.
   connected. Android's permission prompt reads as the background too,
   so the first Join's prompt is let through. Signing out of the call's
   server, or its session ending, leaves it as well.
+- **The server taking this account out of the room ends the call**,
+  whether or not LiveKit was told (it is told best effort,
+  `docs/architecture/voice.md` → Leaving, when it isn't your idea): a
+  kick, a ban, leaving the space on another device, the room or its
+  space deleted, being taken out of a private room, or this account
+  joining another room elsewhere, since an account is in one room at a
+  time. The call hears it on the realtime socket (`voiceState` and
+  `roomGone` in `call.ts`): `VoiceStateChanged` saying this account
+  left the call's room, or `ChannelDeleted` for it. A "left" counts
+  only once the server has said this account is in the room since the
+  call began or the socket last came back, so the call's own leave, a
+  switch of rooms and a reconnect are not removals. It ends silently.
 - **Sound comes out of the loudspeaker** as a call starts, unless a
   wired or Bluetooth headset is connected, which takes over. On iOS
   that is LiveKit's own audio session handling, which
@@ -1299,7 +1341,8 @@ The Android one needs `JAVA_HOME` at a Java 17 and the generated
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,
 `Attachments/layout.ts`, `Viewer/items.ts`, `api/fileNames.ts`,
-`alerts/loader.ts`, `alerts/store.ts`, `call/call.ts`, `call/callBar.ts`, `dnd/switch.ts`, `dnd/store.ts`,
+`alerts/loader.ts`, `alerts/store.ts`, `call/call.ts`, `call/callBar.ts`,
+the voice room's `stageRules.ts` and `switchRules.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
 `shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
 `pendingInvite.ts`, `api/invites.ts`,

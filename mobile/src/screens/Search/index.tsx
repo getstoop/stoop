@@ -1,5 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { hasChannelFilter, inChannel, toggleInChannel, withoutChannelFilter } from "@stoop/core/search";
+import { ChannelKind } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +23,7 @@ import { useSignInAgain } from "../../hooks/useSignInAgain";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import EdgeFade from "../Channel/EdgeFade";
+import { roomRoute } from "../Channel/routes";
 import Unavailable from "../Channel/Unavailable";
 import { noMatchParts } from "./noMatch";
 import ResultRow from "./ResultRow";
@@ -29,7 +31,8 @@ import ScopeRow from "./ScopeRow";
 import SearchHeader from "./SearchHeader";
 import { type SearchState, useSearch } from "./useSearch";
 
-// A space's messages searched, pushed over a channel or a thread: web's
+// A space's messages searched, pushed over a channel, a thread or a
+// voice room: web's
 // search page on the phone. Its own header floats over the list (the
 // server's layout hides the native one): a round back button and the
 // field's pill, which arrives narrowed to the channel the search started
@@ -47,7 +50,9 @@ import { type SearchState, useSearch } from "./useSearch";
 // with `focus` naming the message, which the channel opens around and
 // lands on (screens/Channel); for the channel under this screen a
 // dismiss to it updates the `focus` param on the screen already
-// mounted, and the channel jumps once per value.
+// mounted, and the channel jumps once per value. A match in a voice
+// room's chat opens the room instead, on its Chat side
+// (screens/VoiceRoom), the same way.
 // With nothing searched the hint says what the query takes; a search
 // that found nothing says so, and offers the whole space when it was
 // narrowed to a channel; a refusal is said in the server's words, or
@@ -159,13 +164,16 @@ export default function Search({
       // under this screen the param must land on that screen: dismissing
       // to it carries the param (as a channel link to it does,
       // useChannelLinks), where a push would stack a second copy.
-      const href = {
-        pathname: "/s/[id]/space/[spaceId]/channel/[channelId]",
-        params: { id: server.id, spaceId, channelId: message.channelId, focus: message.id },
-      } as const;
+      const voice = channels?.find((channel) => channel.id === message.channelId)?.kind === ChannelKind.VOICE;
+      const href = voice
+        ? roomRoute(server.id, spaceId, message.channelId, message.id)
+        : ({
+            pathname: "/s/[id]/space/[spaceId]/channel/[channelId]",
+            params: { id: server.id, spaceId, channelId: message.channelId, focus: message.id },
+          } as const);
       pushOnce(() => (message.channelId === channelId ? router.dismissTo(href) : router.push(href)));
     },
-    [pushOnce, router, server.id, spaceId, channelId],
+    [pushOnce, router, server.id, spaceId, channelId, channels],
   );
 
   const spaceName = view.state === "ready" ? view.scope.space.name : server.name;

@@ -96,24 +96,33 @@ import { useScrollRetry } from "./useScrollRetry";
 // route under /dm): titled by who it is with (ConversationTitle), with
 // no Search and no pins, as on web, and nobody's messages to moderate;
 // its bell mutes the conversation.
+//
+// A voice room's chat is this screen inside the room's (screens/VoiceRoom,
+// on its Chat side), given `under`: the room draws its own header and
+// its switch over this, so there is no header here, and the list and
+// what stands in for it clear `under` instead.
 
 export default function Channel({
   server,
   spaceId,
   channelId,
   focusId,
+  under,
 }: {
   server: SavedServer;
   spaceId: string;
   channelId: string;
   // The message to open at, from the route.
   focusId?: string;
+  // How far down a header drawn by the screen around this one reaches.
+  under?: number;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   // The header floats over the list (ScreenHeader), so the list and what
   // stands in for it clear it by this much.
-  const headerHeight = useHeaderClearance();
+  const ownHeader = useHeaderClearance();
+  const headerHeight = under ?? ownHeader;
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -326,7 +335,7 @@ export default function Channel({
   // The header in every state: the way back alone until the channel is
   // known, then its title, Search where there is a space to search (a
   // direct message has none, as on web), and the bell.
-  const top = (
+  const top = under === undefined && (
     <ScreenHeader
       title={
         !header ? undefined : header.dm ? (
@@ -356,7 +365,8 @@ export default function Channel({
 
   if (outcome) {
     return (
-      <View style={styles.screen}>
+      // What stands in clears this screen's own header by itself.
+      <View style={[styles.screen, { paddingTop: headerHeight - ownHeader }]}>
         {top}
         <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retry} />
       </View>

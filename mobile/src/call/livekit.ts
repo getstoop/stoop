@@ -153,6 +153,8 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
 
   return {
     ready: withTimeout(connect(), JOIN_TIMEOUT_MS),
+    // The token names the participant by user ID (voice.md → Tokens).
+    userId: () => lk.localParticipant.identity,
     setMuted: async (muted) => {
       await lk.localParticipant.setMicrophoneEnabled(!muted);
     },
