@@ -1,4 +1,4 @@
-import { useNavigation, useRouter } from "expo-router";
+import { useIsFocused, useNavigation, useRouter } from "expo-router";
 import { useRef } from "react";
 import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useCallPlace } from "../call/CallPlaceProvider";
@@ -32,7 +32,10 @@ import WaveBars from "./WaveBars";
 // chat), pressing goes back to it. It reads the call
 // itself, and draws nothing with no call; it needs a server's screen
 // around it (CurrentServer). `style` is for the surface's own padding.
-// The wave moves while the call is connected (WaveBars). `held` keeps
+// The wave moves while the call is connected and the screen this is on
+// is the one in front (WaveBars): a bar on a covered screen, or on a
+// tab not shown, stays mounted and would otherwise animate unseen for
+// the whole call. `held` keeps
 // what it last said on show once the call has gone, for a surface that
 // fades out after it (CallPill), which must then take no touches.
 export default function CallBarContent({ style, held }: { style?: StyleProp<ViewStyle>; held?: boolean }) {
@@ -41,6 +44,7 @@ export default function CallBarContent({ style, held }: { style?: StyleProp<View
   const router = useRouter();
   const navigation = useNavigation<ServerNavigation>();
   const pushOnce = usePushOnce();
+  const focused = useIsFocused();
   const current = useCurrentServer();
   const { servers, switchTo } = useServers();
   const now = useCall();
@@ -94,7 +98,7 @@ export default function CallBarContent({ style, held }: { style?: StyleProp<View
           {elsewhere ? (
             <Text style={styles.tileLetter}>{serverName.trim().charAt(0).toUpperCase()}</Text>
           ) : (
-            <WaveBars color={theme.ok} moving={live && call.status === "connected"} />
+            <WaveBars color={theme.ok} moving={live && focused && call.status === "connected"} />
           )}
         </View>
         <View style={styles.lines}>

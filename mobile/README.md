@@ -1136,8 +1136,11 @@ change to them needs a native rebuild, not only Metro.
   - **The bar's green wave moves while the call is connected**
     (`src/components/WaveBars.tsx`), on the tabs and in the pill: five
     bars easing shorter and back, out of step, to say the call is on.
-    It follows no sound. It is still while connecting, while the pill
-    fades out, and under Reduce Motion (Reanimated's
+    It follows no sound. It moves only on the screen in front
+    (`useIsFocused` in `CallBarContent`): a pill on a covered screen
+    and a bar on a tab not shown stay mounted, and would otherwise
+    animate unseen for the whole call. It is still while connecting,
+    while the pill fades out, and under Reduce Motion (Reanimated's
     `useReducedMotion`, read as the app starts; on Android that is the
     system's transition animation scale at 0, which "Remove
     animations" sets). The motion is a Reanimated CSS animation on the

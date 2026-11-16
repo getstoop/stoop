@@ -6,8 +6,9 @@ import Animated, { useReducedMotion } from "react-native-reanimated";
 // eases shorter and back, out of step with the others, for as long as
 // it is drawn. It follows no sound: it says only that the call is on.
 // Still otherwise, and under Reduce Motion. The motion is the animation
-// library's own, off the JavaScript thread, and nothing is drawn again
-// for it. Decorative: what it means is said beside it.
+// library's own, off the JavaScript thread, with no render for it; it
+// still costs a frame's work every frame while it runs, so `moving` is
+// for a bar in sight only. Decorative: what it means is said beside it.
 export default function WaveBars({ color, size = 18, moving }: { color: string; size?: number; moving: boolean }) {
   const reduced = useReducedMotion();
   const unit = size / 24;
