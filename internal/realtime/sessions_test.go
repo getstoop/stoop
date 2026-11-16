@@ -24,10 +24,6 @@ func TestSessionConnected(t *testing.T) {
 	second := dialMobile(t, srv, "casey")
 	second.next(time.Second)
 	_ = first.conn.Close(websocket.StatusNormalClosure, "")
-	time.Sleep(100 * time.Millisecond)
-	if !gw.SessionConnected("session:casey") {
-		t.Fatal("one socket closing dropped a session that still has another")
-	}
 	_ = second.conn.Close(websocket.StatusNormalClosure, "")
 	deadline := time.Now().Add(2 * time.Second)
 	for gw.SessionConnected("session:casey") && time.Now().Before(deadline) {

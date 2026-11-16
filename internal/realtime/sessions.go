@@ -34,6 +34,12 @@ func (s *sessions) close(sessionID string) {
 	s.conns[sessionID]--
 }
 
+func (s *sessions) connected(sessionID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.conns[sessionID] > 0
+}
+
 // SessionConnected says whether at least one socket opened with this
 // session is open on this server now. It turns false as soon as the
 // gateway sees the socket close; a peer that vanished without closing is
@@ -42,7 +48,5 @@ func (g *Gateway) SessionConnected(sessionID string) bool {
 	if sessionID == "" {
 		return false
 	}
-	g.sessions.mu.Lock()
-	defer g.sessions.mu.Unlock()
-	return g.sessions.conns[sessionID] > 0
+	return g.sessions.connected(sessionID)
 }
