@@ -1,5 +1,6 @@
 // The app's one voice call: which room it is in, how far the join has
-// got, whether the microphone is muted and who is speaking. Plain state
+// got, whether the microphone is muted, where its sound comes out and
+// who is speaking. Plain state
 // and its rules, with the phone's parts (the microphone prompt, LiveKit,
 // the realtime socket) handed in, so it runs in a test without any of
 // them. CallProvider holds one above the router.
@@ -14,6 +15,11 @@ export type Call = {
   // Why a failed join failed: the microphone was refused, or anything else.
   failure?: "microphone" | "connection";
   muted: boolean;
+  // The loudspeaker rather than the earpiece, for when no headphones
+  // are connected. Every call starts with it on.
+  speaker: boolean;
+  // Headphones have the sound, where the phone can tell (Android).
+  headphones: boolean;
   // The user IDs of whoever is speaking, this account's included.
   speaking: string[];
 };
@@ -24,11 +30,14 @@ export type Call = {
 export type Connection = {
   ready: Promise<void>;
   setMuted: (muted: boolean) => Promise<void>;
+  setSpeaker: (speaker: boolean) => Promise<void>;
   close: () => Promise<void>;
 };
 
 export type ConnectionEvents = {
   onSpeaking: (userIds: string[]) => void;
+  // Headphones took the sound, or gave it back.
+  onHeadphones: (connected: boolean) => void;
   // The connection ended and nobody here asked it to.
   onDropped: () => void;
 };
@@ -50,6 +59,8 @@ export type CallHolder = {
   join: (room: CallRoom) => Promise<void>;
   leave: () => Promise<void>;
   toggleMute: () => Promise<void>;
+  // Loudspeaker or earpiece. Nothing while headphones have the sound.
+  toggleSpeaker: () => Promise<void>;
   // Says where the call is again: the server forgets when its socket
   // drops.
   report: () => void;
@@ -72,6 +83,25 @@ export function failureLine(call: Call | null, room: CallRoom): string {
   if (!call || !sameRoom(call.room, room) || call.status !== "failed") return "";
   return call.failure === "microphone" ? "Allow the microphone to join." : "Couldn't join. Try again.";
 }
+
+// What the Speaker control shows: the loudspeaker on or off, or that
+// headphones have the sound and it has nothing to switch.
+export function speakerState(call: Call | null): "on" | "off" | "headphones" {
+  if (call?.headphones) return "headphones";
+  return call?.speaker ? "on" : "off";
+}
+
+// Android: which output the sound belongs on, of those the phone has
+// now: a headset when there is one, else as Speaker says.
+export function androidOutput(outputs: string[], speaker: boolean): string {
+  const headset = ["bluetooth", "headset"].find((kind) => outputs.includes(kind));
+  return headset ?? (speaker ? "speaker" : "earpiece");
+}
+
+// Whether a change in the app's state leaves the call: going to the
+// background does, unless it is only the microphone prompt in front.
+export const leavesCall = (appState: string, askingForMicrophone: boolean) =>
+  appState === "background" && !askingForMicrophone;
 
 export function createCall(deps: CallDeps): CallHolder {
   let call: Call | null = null;
@@ -123,8 +153,9 @@ export function createCall(deps: CallDeps): CallHolder {
     }
     attempt += 1;
     const mine = attempt;
-    set({ room, status: "connecting", muted: false, speaking: [] });
-    const fail = (failure: Call["failure"]) => set({ room, status: "failed", failure, muted: false, speaking: [] });
+    const fresh = { room, muted: false, speaker: true, headphones: false, speaking: [] };
+    set({ ...fresh, status: "connecting" });
+    const fail = (failure: Call["failure"]) => set({ ...fresh, status: "failed", failure });
 
     const allowed = await deps.askForMicrophone().catch(() => false);
     await closing;
@@ -137,6 +168,9 @@ export function createCall(deps: CallDeps): CallHolder {
     const opened = deps.open(room, {
       onSpeaking: (userIds) => {
         if (connection === opened && call) set({ ...call, speaking: userIds });
+      },
+      onHeadphones: (connected) => {
+        if (connection === opened && call && call.headphones !== connected) set({ ...call, headphones: connected });
       },
       onDropped: () => {
         if (connection === opened && call?.status === "connected") void end();
@@ -172,6 +206,19 @@ export function createCall(deps: CallDeps): CallHolder {
     if (connection === open) report();
   };
 
+  const toggleSpeaker = async () => {
+    const open = connection;
+    if (!open || call?.status !== "connected" || call.headphones) return;
+    const speaker = !call.speaker;
+    set({ ...call, speaker });
+    try {
+      await open.setSpeaker(speaker);
+    } catch {
+      // The sound didn't move: say where it still is.
+      if (connection === open && call?.speaker === speaker) set({ ...call, speaker: !speaker });
+    }
+  };
+
   return {
     get: () => call,
     subscribe: (listener) => {
@@ -183,6 +230,7 @@ export function createCall(deps: CallDeps): CallHolder {
     join,
     leave: end,
     toggleMute,
+    toggleSpeaker,
     report,
     dismiss: () => {
       if (call?.status === "failed") set(null);

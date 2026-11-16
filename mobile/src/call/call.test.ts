@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { type CallRoom, type ConnectionEvents, createCall, failureLine, footState } from "./call";
+import {
+  androidOutput,
+  type CallRoom,
+  type ConnectionEvents,
+  createCall,
+  failureLine,
+  footState,
+  leavesCall,
+  speakerState,
+} from "./call";
 
 const porch: CallRoom = { serverId: "home", spaceId: "space", channelId: "porch" };
 const attic: CallRoom = { serverId: "home", spaceId: "space", channelId: "attic" };
+const shed: CallRoom = { serverId: "away", spaceId: "yard", channelId: "shed" };
 
 // A connection the test settles by hand.
 function fakeConnection(room: CallRoom, events: ConnectionEvents) {
@@ -24,6 +34,12 @@ function fakeConnection(room: CallRoom, events: ConnectionEvents) {
     setMuted: async (muted: boolean) => {
       if (made.refuseMute) throw new Error("no");
       made.muted.push(muted);
+    },
+    speaker: [] as boolean[],
+    refuseSpeaker: false,
+    setSpeaker: async (speaker: boolean) => {
+      if (made.refuseSpeaker) throw new Error("no");
+      made.speaker.push(speaker);
     },
     close: async () => {
       made.closed += 1;
@@ -128,6 +144,23 @@ describe("joining", () => {
     await second;
     expect(holder.get()).toMatchObject({ room: attic, status: "connected" });
     expect(reports).toEqual(["home:porch:open", "home:left:open", "home:attic:open"]);
+  });
+
+  it("leaves a room on one server before joining one on another", async () => {
+    const { holder, opened, reports } = setup();
+    const first = holder.join(porch);
+    await settle();
+    opened[0].land();
+    await first;
+    const second = holder.join(shed);
+    await settle();
+    expect(opened[0].closed).toBe(1);
+    expect(opened).toHaveLength(2);
+    opened[1].land();
+    await second;
+    expect(holder.get()).toMatchObject({ room: shed, status: "connected" });
+    expect(opened.filter((made) => made.closed === 0)).toHaveLength(1);
+    expect(reports).toEqual(["home:porch:open", "home:left:open", "away:shed:open"]);
   });
 
   it("opens nothing until the call it left has closed", async () => {
@@ -243,6 +276,25 @@ describe("leaving", () => {
     expect(holder.get()).toBeNull();
   });
 
+  it("leaves when the app goes to the background, and says nothing of it", async () => {
+    const { holder, opened, reports } = setup();
+    const joining = holder.join(porch);
+    await settle();
+    opened[0].land();
+    await joining;
+    expect(leavesCall("inactive", false)).toBe(false);
+    expect(leavesCall("active", false)).toBe(false);
+    // Android's microphone prompt reads as the background.
+    expect(leavesCall("background", true)).toBe(false);
+    expect(leavesCall("background", false)).toBe(true);
+    await holder.leave();
+    expect(holder.get()).toBeNull();
+    expect(opened[0].closed).toBe(1);
+    expect(failureLine(holder.get(), porch)).toBe("");
+    expect(footState(holder.get(), porch)).toBe("join");
+    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+  });
+
   it("ends a call that is dropped", async () => {
     const { holder, opened, reports } = setup();
     const joining = holder.join(porch);
@@ -313,6 +365,112 @@ describe("in a call", () => {
     await joining;
     expect(opened[0].muted).toEqual([]);
     expect(reports).toEqual(["home:porch:open"]);
+  });
+
+  it("starts on the loudspeaker, and switches to the earpiece and back", async () => {
+    const { holder, opened, reports } = await joined();
+    expect(holder.get()?.speaker).toBe(true);
+    expect(speakerState(holder.get())).toBe("on");
+    await holder.toggleSpeaker();
+    expect(holder.get()?.speaker).toBe(false);
+    expect(speakerState(holder.get())).toBe("off");
+    await holder.toggleSpeaker();
+    expect(speakerState(holder.get())).toBe("on");
+    expect(opened[0].speaker).toEqual([false, true]);
+    // Where the sound comes out is nobody else's business.
+    expect(reports).toEqual(["home:porch:open"]);
+  });
+
+  it("stays as it was when the sound won't move", async () => {
+    const { holder, opened } = await joined();
+    opened[0].refuseSpeaker = true;
+    await holder.toggleSpeaker();
+    expect(holder.get()?.speaker).toBe(true);
+  });
+
+  it("starts every call on the loudspeaker again", async () => {
+    const { holder, opened } = await joined();
+    await holder.toggleSpeaker();
+    expect(holder.get()?.speaker).toBe(false);
+    await holder.leave();
+    const again = holder.join(porch);
+    expect(holder.get()?.speaker).toBe(true);
+    await settle();
+    opened[1].land();
+    await again;
+    expect(speakerState(holder.get())).toBe("on");
+    await holder.toggleSpeaker();
+    const moving = holder.join(attic);
+    await settle();
+    opened[2].land();
+    await moving;
+    expect(holder.get()).toMatchObject({ room: attic, speaker: true, headphones: false });
+    expect(opened[2].speaker).toEqual([]);
+  });
+
+  it("switches nothing while headphones have the sound, and keeps what was chosen", async () => {
+    const { holder, opened } = await joined();
+    await holder.toggleSpeaker();
+    opened[0].events.onHeadphones(true);
+    expect(speakerState(holder.get())).toBe("headphones");
+    await holder.toggleSpeaker();
+    expect(opened[0].speaker).toEqual([false]);
+    opened[0].events.onHeadphones(false);
+    expect(speakerState(holder.get())).toBe("off");
+  });
+
+  it("keeps the choice when a press finds headphones nobody had seen yet", async () => {
+    const { holder, opened } = await joined();
+    opened[0].setSpeaker = async () => {
+      opened[0].events.onHeadphones(true);
+      throw new Error("headphones have the sound");
+    };
+    await holder.toggleSpeaker();
+    expect(holder.get()).toMatchObject({ speaker: true, headphones: true });
+    opened[0].events.onHeadphones(false);
+    expect(speakerState(holder.get())).toBe("on");
+  });
+
+  it("tells nobody of headphones that haven't changed", async () => {
+    const { holder, opened } = await joined();
+    let changes = 0;
+    holder.subscribe(() => (changes += 1));
+    opened[0].events.onHeadphones(false);
+    opened[0].events.onHeadphones(true);
+    opened[0].events.onHeadphones(true);
+    expect(changes).toBe(1);
+  });
+
+  it("switches no speaker outside a call", async () => {
+    const { holder, opened } = setup();
+    await holder.toggleSpeaker();
+    expect(speakerState(holder.get())).toBe("off");
+    const joining = holder.join(porch);
+    await settle();
+    await holder.toggleSpeaker();
+    expect(holder.get()?.speaker).toBe(true);
+    opened[0].land();
+    await joining;
+    expect(opened[0].speaker).toEqual([]);
+  });
+
+  it("ignores headphones on a connection it has left", async () => {
+    const { holder, opened } = await joined();
+    const moving = holder.join(attic);
+    await settle();
+    opened[1].land();
+    await moving;
+    opened[0].events.onHeadphones(true);
+    expect(holder.get()?.headphones).toBe(false);
+  });
+
+  it("puts Android's sound on a headset when there is one, else where Speaker says", () => {
+    expect(androidOutput(["speaker", "earpiece"], true)).toBe("speaker");
+    expect(androidOutput(["speaker", "earpiece"], false)).toBe("earpiece");
+    expect(androidOutput(["headset", "speaker"], false)).toBe("headset");
+    expect(androidOutput(["bluetooth", "speaker", "earpiece"], true)).toBe("bluetooth");
+    expect(androidOutput(["headset", "bluetooth", "speaker"], true)).toBe("bluetooth");
+    expect(androidOutput([], true)).toBe("speaker");
   });
 
   it("says where it is again when asked, and only while connected", async () => {

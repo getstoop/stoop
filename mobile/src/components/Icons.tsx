@@ -144,6 +144,17 @@ export function SpeakerIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+// A speaker sounding out loud: a call's loudspeaker.
+export function LoudspeakerIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M4 9v6h4l5 4V5L8 9H4z" />
+      <Path d="M16 9a4 4 0 0 1 0 6" />
+      <Path d="M18.5 6.5a8 8 0 0 1 0 11" />
+    </Stroke>
+  );
+}
+
 // A muted microphone, as web's MicIcon draws it off (VoiceIcons.tsx).
 export function MicOffIcon({ color, size = 18 }: IconProps) {
   return (
