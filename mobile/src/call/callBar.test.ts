@@ -23,6 +23,7 @@ const call = (over: Partial<Call> = {}): Call => ({
   speaker: true,
   headphones: false,
   speaking: [],
+  reconnecting: false,
   ...over,
 });
 
@@ -37,11 +38,13 @@ describe("when the call bar shows", () => {
   it("shows in a call and on the way into one", () => {
     expect(callBarShown(call())).toBe(true);
     expect(callBarShown(call({ status: "connecting" }))).toBe(true);
+    expect(callBarShown(call({ reconnecting: true }))).toBe(true);
   });
 
-  it("shows nothing with no call, or for a join that failed", () => {
+  it("shows nothing with no call, for a join that failed, or for a call that was lost", () => {
     expect(callBarShown(null)).toBe(false);
     expect(callBarShown(call({ status: "failed", failure: "connection" }))).toBe(false);
+    expect(callBarShown(call({ status: "failed", failure: "lost" }))).toBe(false);
   });
 
   it("takes the server chip's row, with one server too", () => {
@@ -118,6 +121,12 @@ describe("the bar's status line", () => {
 
   it("says Connecting on the way in, whoever is speaking", () => {
     expect(callBarStatus(call({ status: "connecting", speaking: ["priya"] }), place, "")).toBe("Connecting…");
+  });
+
+  it("says Reconnecting while the connection is tried again, whoever was speaking", () => {
+    expect(callBarStatus(call({ reconnecting: true, speaking: ["priya"] }), place, "")).toBe("Reconnecting…");
+    expect(callBarStatus(call({ reconnecting: true }), place, "Hutch House")).toBe("Hutch House · Reconnecting…");
+    expect(callBarStatus(call({ reconnecting: true }), undefined, "")).toBe("Reconnecting…");
   });
 
   it("names the call's server first when another server is on screen", () => {

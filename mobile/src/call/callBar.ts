@@ -1,4 +1,4 @@
-import type { Call, CallRoom } from "./call";
+import { type Call, type CallRoom, reconnectingLine } from "./call";
 
 // The rules of the call bar, which says outside the room's screen that
 // the app is in a call (components/CallBarContent.tsx): when it shows,
@@ -8,7 +8,7 @@ import type { Call, CallRoom } from "./call";
 export const CALL_BAR_HEIGHT = 56;
 
 // Whether the bar shows: in a call or on the way into one. A join that
-// failed is its room's screen's to say.
+// failed, or a call that was lost, is its room's screen's to say.
 export function callBarShown(call: Call | null): call is Call {
   return !!call && call.status !== "failed";
 }
@@ -95,12 +95,15 @@ export function speakingLine(names: string[]): string {
 }
 
 // The bar's second line: "Connecting…" on the way in, then who is
-// speaking, or the room's space while nobody is. `serverName` is the
+// speaking, or the room's space while nobody is; "Reconnecting…" while
+// the connection is being tried again. `serverName` is the
 // call's server when another server is on screen, else "", and goes
 // first: "Hutch House · Theo is speaking".
 export function callBarStatus(call: Call, place: CallPlace | undefined, serverName: string): string {
   const what =
-    call.status === "connecting" ? "Connecting…" : speakingLine(speakingNames(call, place)) || (place?.spaceName ?? "");
+    call.status === "connecting"
+      ? "Connecting…"
+      : reconnectingLine(call) || speakingLine(speakingNames(call, place)) || (place?.spaceName ?? "");
   return [serverName, what].filter(Boolean).join(" · ") || "In a call";
 }
 

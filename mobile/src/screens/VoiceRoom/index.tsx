@@ -1,13 +1,13 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Keyboard, Platform, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Keyboard, Linking, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { setChannelMuted } from "../../api/channels";
 import { errorText } from "../../api/errors";
 import { useCall, useCallActions } from "../../call/CallProvider";
-import { failureLine, footState, speakerState } from "../../call/call";
+import { failureLine, footState, offersSettings, reconnectingLine, speakerState } from "../../call/call";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
@@ -39,7 +39,10 @@ import VoiceTitle from "./VoiceTitle";
 // holds above this screen (src/call): the foot then offers Mute,
 // Speaker and Leave, this account is a tile like anyone, through the
 // roster, and whoever is speaking wears a ring. Leaving the screen
-// keeps the call, and coming back finds it.
+// keeps the call, and coming back finds it. While the call's connection
+// is being tried again the foot says "Reconnecting…" over the controls,
+// the tiles stay as the roster has them and nobody wears a ring; a call
+// lost for good is back at Join under "Call ended. Try again.".
 //
 // Chat is the room's own chat, which is the room's channel: the channel
 // screen (screens/Channel) drawn under this header, with all a channel
@@ -99,7 +102,8 @@ export default function VoiceRoom({
     if (next === "call" && focusId) router.setParams({ focus: undefined });
     setSide(next);
   };
-  // A failed join is this visit's news: gone on leaving the screen.
+  // A failed join, or a lost call, is this visit's news: gone on leaving
+  // the screen.
   useEffect(() => dismiss, [dismiss]);
 
   const openSearch = useCallback(
@@ -214,6 +218,8 @@ export default function VoiceRoom({
           <StageFoot
             line={hereLine(people?.map((person) => person.name) ?? [])}
             failure={failureLine(call, room)}
+            notice={inCall ? reconnectingLine(call) : ""}
+            onOpenSettings={offersSettings(call, room) ? openSettings : undefined}
             state={foot}
             muted={inCall && !!call?.muted}
             onJoin={() => void join(room)}
@@ -230,6 +236,12 @@ export default function VoiceRoom({
 }
 
 const NOBODY: string[] = [];
+
+// The app's page in the system's settings, where the microphone is
+// allowed after a refusal. Going there is going to the background, which
+// ends whatever the call holds (CallProvider), the refusal's line
+// included: coming back finds Join, which asks again.
+const openSettings = () => void Linking.openSettings().catch(() => {});
 
 const noFade ={ top: "hidden", bottom: "hidden", left: "hidden", right: "hidden" } as const;
 

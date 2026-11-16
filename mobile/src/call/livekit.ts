@@ -5,7 +5,7 @@ import {
   AudioSession,
   setupIOSAudioManagement,
 } from "@livekit/react-native";
-import { type Participant, Room, RoomEvent } from "livekit-client";
+import { DisconnectReason, type Participant, Room, RoomEvent } from "livekit-client";
 import { Platform } from "react-native";
 import { voiceClient } from "../api/clients";
 import { sessionToken } from "../api/servers";
@@ -14,7 +14,21 @@ import { androidOutput, type CallRoom, type Connection, type ConnectionEvents } 
 // The LiveKit side of a call, as web's (web/src/api/voice.ts): a token
 // from JoinVoiceChannel, signalling at the server's own /livekit, the
 // ICE servers it names, and the microphone published as signalling comes
-// up. What the call is and does with this is call.ts.
+// up. A connection that goes down is LiveKit's to bring back, with its
+// own retries and none here: the room says when it starts trying (the
+// whole connection, or signalling only), when it is back, and, having
+// given up, that it is disconnected and why. What the call is and does
+// with this is call.ts.
+
+// LiveKit's reasons for a disconnect that are the server taking this
+// account out of the room: removed from it, the room deleted, or this
+// account joining it on another device. Any other, or none, is the
+// connection lost (call.ts onDropped).
+const REMOVED = [
+  DisconnectReason.PARTICIPANT_REMOVED,
+  DisconnectReason.ROOM_DELETED,
+  DisconnectReason.DUPLICATE_IDENTITY,
+];
 
 // As web's: a join that neither lands nor fails by then has failed.
 const JOIN_TIMEOUT_MS = 30_000;
@@ -105,9 +119,24 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
 
   lk.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
     events.onSpeaking(speakers.map((speaker) => speaker.identity)),
-  ).on(RoomEvent.Disconnected, () => {
-    if (live && !closed) events.onDropped();
-  });
+  )
+    .on(RoomEvent.Reconnecting, () => {
+      if (live && !closed) events.onReconnecting();
+    })
+    .on(RoomEvent.SignalReconnecting, () => {
+      if (live && !closed) events.onReconnecting();
+    })
+    // LiveKit says who is speaking again before it says it is back,
+    // which the call doesn't hear while reconnecting: so it is said
+    // once more here, for whoever kept talking to wear their ring.
+    .on(RoomEvent.Reconnected, () => {
+      if (!live || closed) return;
+      events.onReconnected();
+      events.onSpeaking(lk.activeSpeakers.map((speaker) => speaker.identity));
+    })
+    .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+      if (live && !closed) events.onDropped(reason !== undefined && REMOVED.includes(reason) ? "removed" : "lost");
+    });
 
   const stopIfClosed = () => {
     if (closed) throw new Error("closed");

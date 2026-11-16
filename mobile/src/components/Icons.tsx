@@ -291,6 +291,17 @@ export function ArrowDownIcon({ color, size = 20 }: IconProps) {
   );
 }
 
+// Leaving the app: a link that opens somewhere else (the system's
+// settings) wears it. The app's own: web has none.
+export function ExternalIcon({ color, size = 16 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M18 13.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4.5" />
+      <Path d="M14 4h6v6M20 4l-9 9" />
+    </Stroke>
+  );
+}
+
 export function LinkIcon({ color, size = 20 }: IconProps) {
   return (
     <Format color={color} size={size}>
