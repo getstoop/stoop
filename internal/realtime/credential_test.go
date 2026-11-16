@@ -63,6 +63,9 @@ func TestOnlyASessionOpensTheSocket(t *testing.T) {
 		if _, res, err := tryDial(srv, credential); err == nil || res == nil || res.StatusCode != http.StatusForbidden {
 			t.Errorf("%s: err = %v, response = %v", credential, err, res)
 		}
+		if gw.SessionConnected(credential) {
+			t.Errorf("%s reads as a connected session", credential)
+		}
 	}
 	casey := dial(t, srv, "casey")
 	if casey.next(time.Second).GetReady() == nil {

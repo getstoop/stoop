@@ -296,6 +296,13 @@ mobile, spaces, do not disturb}`.
   them only on mobile waits out the same grace, so a reloading tab
   doesn't flicker the mark. The report changes nothing but the person's
   own mark, so it is taken as given, like a voice report.
+- **The gateway knows each socket's session**: it counts open sockets per
+  session id and `Gateway.SessionConnected(sessionID)` says whether any is
+  open now, so a sender can skip a session whose app is in front. It turns
+  false when the gateway sees the socket close; a peer that vanished
+  without closing is seen at the next ping (up to the 30 s ping interval
+  plus the 10 s ping timeout). Only sessions open sockets, so tokens and
+  bots are never connected.
 - **Do not disturb is stored on the account** (`users.dnd`,
   `users.dnd_until`) and set with `AuthService.SetDoNotDisturb`. The gateway
   reads it through the `DoNotDisturbLookup` port on every connect, follows
