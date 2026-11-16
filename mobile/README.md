@@ -1176,7 +1176,7 @@ change to them needs a native rebuild, not only Metro.
   and Theo are speaking", "Priya and 2 others are speaking"), the
   room's space while nobody is, "Connecting…" on the way in and
   "Reconnecting…" while a dropped connection is tried again.
-  Pressing the names opens the room's screen; Mute shows an amber
+  Pressing the names opens the room's screen; Mute shows a red
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are
   `callBar.ts`, with unit tests beside it.

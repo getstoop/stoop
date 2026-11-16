@@ -14,6 +14,10 @@ const SIZES: Record<TileSize, { height: number; avatar: number }> = {
 // The speaking ring's width.
 const RING = 3;
 
+// How far the name grows with the system's text size: past this it
+// would reach the avatar on the smallest tile.
+const NAME_SCALE = 1.5;
+
 // One person on the Stage: their avatar in the middle of the tile and
 // their name in its lower left corner, with a muted microphone beside
 // it for someone who has muted theirs. Read out as one thing. Whoever
@@ -41,7 +45,7 @@ export default function Tile({
     <View style={[styles.tile, { width, height }]} accessible accessibilityLabel={tileLabel(person)}>
       <Avatar name={person.name} fileId={person.avatarFileId} origin={origin} token={token} size={avatar} />
       <View style={styles.name}>
-        <Text style={styles.words} numberOfLines={1}>
+        <Text style={styles.words} maxFontSizeMultiplier={NAME_SCALE} numberOfLines={1}>
           {person.name}
         </Text>
         {person.muted && <MicOffIcon color={theme.danger} size={16} />}
