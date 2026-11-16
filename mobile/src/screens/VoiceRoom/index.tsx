@@ -88,6 +88,9 @@ export default function VoiceRoom({
   const inCall = foot === "joined";
   // The Output control's list, where the app draws it (LISTS_OUTPUTS).
   const [choosingOutput, setChoosingOutput] = useState(false);
+  // A call that ends under the open list takes the list with it, and
+  // the next call doesn't open one nobody asked for.
+  if (choosingOutput && !inCall) setChoosingOutput(false);
 
   // The side shown. A message to open at, also one named while the
   // room is already up (the search going back to it), shows Chat.

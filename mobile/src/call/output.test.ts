@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { androidName, androidOutput, androidOutputs, type OutputKind, outputName, ownOutput } from "./output";
+import {
+  androidName,
+  androidOutput,
+  androidOutputs,
+  iosOwnChange,
+  type OutputKind,
+  outputName,
+  ownOutput,
+} from "./output";
 
 describe("a call's outputs", () => {
   it("names an output by its kind, or by the system's name for what is not the phone's or on a wire", () => {
@@ -12,13 +20,15 @@ describe("a call's outputs", () => {
     expect(outputName({ kind: "other", name: "" })).toBe("Other");
   });
 
+  // The lists below are ones Android gives: the audio switch leaves the
+  // earpiece out while a headset is on a wire, so the two are never in
+  // one list.
+  const phone: OutputKind[] = ["speaker", "earpiece"];
+  const wired: OutputKind[] = ["speaker", "headphones"];
+
   it("reads Android's outputs as kinds, in the list's order, and names them back", () => {
-    expect(androidOutputs(["bluetooth", "headset", "speaker", "earpiece"])).toEqual([
-      "speaker",
-      "earpiece",
-      "headphones",
-      "bluetooth",
-    ]);
+    expect(androidOutputs(["bluetooth", "speaker", "earpiece"])).toEqual(["speaker", "earpiece", "bluetooth"]);
+    expect(androidOutputs(["bluetooth", "headset", "speaker"])).toEqual(["speaker", "headphones", "bluetooth"]);
     expect(androidOutputs(["speaker", "something new"])).toEqual(["speaker"]);
     expect(androidOutputs([])).toEqual([]);
     expect(androidName("headphones")).toBe("headset");
@@ -28,48 +38,43 @@ describe("a call's outputs", () => {
 
   it("starts Android's sound on a headset when there is one, else on the loudspeaker", () => {
     const fresh: Parameters<typeof androidOutput>[1] = { outputs: [], output: "speaker", own: "speaker" };
-    expect(androidOutput(["speaker", "earpiece"], fresh)).toBe("speaker");
-    expect(androidOutput(["speaker", "earpiece", "headphones"], fresh)).toBe("headphones");
-    expect(androidOutput(["speaker", "earpiece", "headphones", "bluetooth"], fresh)).toBe("bluetooth");
+    expect(androidOutput(phone, fresh)).toBe("speaker");
+    expect(androidOutput(wired, fresh)).toBe("headphones");
+    expect(androidOutput([...wired, "bluetooth"], fresh)).toBe("bluetooth");
     expect(androidOutput([], fresh)).toBe("speaker");
   });
 
   it("gives Android's sound to a headset that connects, also after a pick by hand", () => {
-    const phone: OutputKind[] = ["speaker", "earpiece"];
     expect(androidOutput([...phone, "bluetooth"], { outputs: phone, output: "earpiece", own: "earpiece" })).toBe(
       "bluetooth",
     );
+    // A wire plugged in while the earpiece has the sound, which takes the earpiece out of the list.
+    expect(androidOutput(wired, { outputs: phone, output: "earpiece", own: "earpiece" })).toBe("headphones");
     // The loudspeaker was picked over the headphones, and then Bluetooth connects.
-    expect(
-      androidOutput([...phone, "headphones", "bluetooth"], {
-        outputs: [...phone, "headphones"],
-        output: "speaker",
-        own: "speaker",
-      }),
-    ).toBe("bluetooth");
+    expect(androidOutput([...wired, "bluetooth"], { outputs: wired, output: "speaker", own: "speaker" })).toBe(
+      "bluetooth",
+    );
   });
 
   it("leaves Android's sound where it is while nothing new connects", () => {
-    const all: OutputKind[] = ["speaker", "earpiece", "headphones"];
     // The loudspeaker picked over headphones that stay connected.
-    expect(androidOutput(all, { outputs: all, output: "speaker", own: "speaker" })).toBe("speaker");
-    expect(androidOutput(all, { outputs: all, output: "headphones", own: "earpiece" })).toBe("headphones");
+    expect(androidOutput(wired, { outputs: wired, output: "speaker", own: "speaker" })).toBe("speaker");
+    expect(androidOutput(wired, { outputs: wired, output: "headphones", own: "earpiece" })).toBe("headphones");
     // Another output going changes nothing for the one in use.
-    expect(androidOutput(["speaker", "earpiece"], { outputs: all, output: "earpiece", own: "earpiece" })).toBe("earpiece");
+    expect(
+      androidOutput(phone, { outputs: [...phone, "bluetooth"], output: "earpiece", own: "earpiece" }),
+    ).toBe("earpiece");
   });
 
   it("returns Android's sound to the phone's own output chosen last when its headset goes", () => {
-    const phone: OutputKind[] = ["speaker", "earpiece"];
     const was = { outputs: [...phone, "bluetooth"] as OutputKind[], output: "bluetooth" as const };
     expect(androidOutput(phone, { ...was, own: "speaker" })).toBe("speaker");
     expect(androidOutput(phone, { ...was, own: "earpiece" })).toBe("earpiece");
+    // A wire pulled out, which puts the earpiece back in the list.
+    expect(androidOutput(phone, { outputs: wired, output: "headphones", own: "earpiece" })).toBe("earpiece");
     // Another headset still there has it first.
     expect(
-      androidOutput([...phone, "headphones"], {
-        outputs: [...phone, "headphones", "bluetooth"],
-        output: "bluetooth",
-        own: "earpiece",
-      }),
+      androidOutput(wired, { outputs: [...wired, "bluetooth"], output: "bluetooth", own: "speaker" }),
     ).toBe("headphones");
   });
 
@@ -79,5 +84,29 @@ describe("a call's outputs", () => {
     expect(ownOutput("headphones")).toBe(false);
     expect(ownOutput("bluetooth")).toBe(false);
     expect(ownOutput("other")).toBe(false);
+  });
+
+  it("takes iOS's sound moving between the phone's own two as a pick only after the picker was shown", () => {
+    expect(iosOwnChange("earpiece", "speaker", "speaker", true)).toBe("pick");
+    expect(iosOwnChange("speaker", "earpiece", "earpiece", true)).toBe("pick");
+    // Nobody opened the picker: not a pick, and not the app's to undo.
+    expect(iosOwnChange("earpiece", "speaker", "speaker", false)).toBe("none");
+  });
+
+  it("puts iOS's sound back when headphones go and it lands on the output not chosen", () => {
+    expect(iosOwnChange("speaker", "bluetooth", "earpiece", false)).toBe("restore");
+    expect(iosOwnChange("speaker", "headphones", "earpiece", true)).toBe("restore");
+    expect(iosOwnChange("earpiece", "other", "speaker", true)).toBe("restore");
+    // The call's first reading.
+    expect(iosOwnChange("earpiece", undefined, "speaker", false)).toBe("restore");
+  });
+
+  it("does nothing on iOS while the sound is where it was chosen, was already, or on a headset", () => {
+    expect(iosOwnChange("speaker", "bluetooth", "speaker", true)).toBe("none");
+    expect(iosOwnChange("speaker", undefined, "speaker", false)).toBe("none");
+    // The second reading of one change, and a restore that didn't take: no loop.
+    expect(iosOwnChange("speaker", "speaker", "earpiece", true)).toBe("none");
+    expect(iosOwnChange("bluetooth", "speaker", "speaker", true)).toBe("none");
+    expect(iosOwnChange("headphones", "earpiece", "earpiece", false)).toBe("none");
   });
 });

@@ -72,6 +72,29 @@ export function androidOutput(
   return headsets[0] ?? was.own;
 }
 
-export const sameOutput = (one: Output, other: Output) => one.kind === other.kind && one.name === other.name;
+// iOS: what the sound landing on one of the phone's own two outputs
+// means, when it is not the one chosen last (`own`). iOS moves the sound
+// itself and gives no reason the app can trust, so this goes by where it
+// was before:
+// - from the phone's other own output, with the system's picker shown
+//   since the last pick (`armed`): the user picked it there ("pick");
+// - from anything else (headphones going, the call's first reading): the
+//   session's default put it there, not the user, and it goes back to
+//   the one chosen ("restore");
+// - otherwise nothing: not the app's to say, and not corrected.
+// A reading that finds the sound where it already was is nothing.
+// What this cannot tell apart is in mobile/README.md → Voice → Output.
+export function iosOwnChange(
+  now: OutputKind,
+  was: OutputKind | undefined,
+  own: OutputKind,
+  armed: boolean,
+): "pick" | "restore" | "none" {
+  if (now === was || !ownOutput(now) || now === own) return "none";
+  if (was && ownOutput(was)) return armed ? "pick" : "none";
+  return "restore";
+}
+
+export const sameOutput =(one: Output, other: Output) => one.kind === other.kind && one.name === other.name;
 export const sameList = (one: OutputKind[], other: OutputKind[]) =>
   one.length === other.length && one.every((kind, at) => kind === other[at]);

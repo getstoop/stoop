@@ -78,8 +78,12 @@ public class StoopAudioRouteModule: Module {
   // false and nothing is shown.
   private func showPicker() -> Bool {
     guard let window = Self.keyWindow() else { return false }
-    let view = picker ?? AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+    let view = picker ?? AVRoutePickerView()
     picker = view
+    // At the middle of the window's foot, near the control that asked:
+    // where the system shows the picker as a popover (an iPad), this is
+    // what it points at.
+    view.frame = CGRect(x: window.bounds.midX, y: window.bounds.maxY - 120, width: 1, height: 1)
     if view.window !== window {
       view.removeFromSuperview()
       view.alpha = 0

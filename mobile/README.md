@@ -1171,7 +1171,9 @@ change to them needs a native rebuild, not only Metro.
     loudspeaker, earpiece, wired headset, Bluetooth), read at each of
     the module's events, which are Android's own notice of an output
     added or removed (`AudioDeviceCallback`). A phone with no earpiece
-    (the emulator has none) has no "Phone" in it. The module asks for
+    (the emulator has none) has no "Phone" in it, and neither has any
+    phone while a headset is on a wire: the audio switch leaves the
+    earpiece out until the wire is pulled. The module asks for
     no permission and no device's name is read, so Bluetooth
     headphones are "Bluetooth" and no more.
     LiveKit does not say which output it is using, and keeps the sound
@@ -1194,31 +1196,52 @@ change to them needs a native rebuild, not only Metro.
     notices, and the control shows the first output there.
     iOS shows that picker only from an `AVRoutePickerView`, with no
     call to present it. The module keeps one such view in the key
-    window, unseen and untouchable, and presses its button on the main
-    queue. LiveKit's own `showAudioRoutePicker()` is not used: it
+    window, unseen and untouchable, at the middle of the window's foot
+    (where a popover on an iPad points), and presses its button on the
+    main queue. LiveKit's own `showAudioRoutePicker()` is not used: it
     presses the button of a view that is in no window, from whatever
     thread it is called on. Finding the button among the view's subviews is the one
     thing iOS does not promise; if a later iOS has none there, nothing
     is shown. Drawing the system's view over the control instead would
     not need that, but the control would then be the system's own,
     with its glyph and its name for a screen reader.
-    iOS moves the sound to headphones and back by itself. The picker
-    also offers the phone's own two, and LiveKit sets the session again
-    from its policy whenever the audio engine changes. So once the
-    picker has been shown in a call, the sound landing on the other of
-    the phone's own two is taken as chosen there, and LiveKit's policy
-    is told (`setupIOSAudioManagement`): the loudspeaker as the
-    session's default with video chat mode, or the earpiece with voice
-    chat mode. The session itself is not set at that moment, so as not
-    to undo what was just picked. Before the picker is shown, nothing
-    but the policy puts the sound on either. LiveKit's own "force
-    speaker" output is not used: it takes the sound from headphones.
+    iOS moves the sound to headphones and back by itself, and gives no
+    reason for a move the app can trust. The picker also offers the
+    phone's own two, so the app goes by where the sound was before
+    (`iosOwnChange` in `call/output.ts`):
+    - The sound moving from one of the phone's own two to the other,
+      after the picker was really shown (`showPicker` says whether it
+      was) and before another such move, is taken as picked there. It
+      becomes the phone's own choice, in LiveKit's policy
+      (`setupIOSAudioManagement`), which LiveKit sets the session from
+      again whenever the audio engine changes, and on the session at
+      once (`setAppleAudioConfiguration`), so the two agree: the
+      loudspeaker as the session's default with video chat mode, or
+      the earpiece with voice chat mode. One pick is taken for each
+      time the picker is shown.
+    - The sound landing on the one not chosen from anywhere else
+      (headphones going, the call's first reading) is the session's
+      default at work, not the user: the session is set to the one
+      chosen, once, and the sound goes back.
+    - Any other move is left alone.
+    LiveKit's own "force speaker" output is not used: it takes the
+    sound from headphones.
+    What this cannot tell apart, and gets wrong: with the earpiece
+    chosen and headphones in use, picking "Speaker" in the picker
+    looks the same as the headphones going, and the sound is put back
+    on the earpiece; a second own-output pick made without closing the
+    picker is not recorded as the choice; and a move between the
+    phone's own two that the system makes for a reason of its own
+    while the picker's pick is still awaited would be taken as the
+    pick.
   - **Not yet tried on a real phone:** the simulator and the emulator
     have one output each, and the simulator presents no picker at all,
-    also for a finger on a visible `AVRoutePickerView`. Whether iOS's picker lets the earpiece be
-    picked while the loudspeaker is the session's default, and what
-    LiveKit's next setting of the session does to a pick, are the
-    first things to try.
+    also for a finger on a visible `AVRoutePickerView`. The first
+    things to try: whether iOS's picker lets the earpiece be picked
+    while the loudspeaker is the session's default; whether setting
+    the session right after a pick leaves the sound where it was
+    picked, also with headphones connected but not in use; and whether
+    the sound comes back to a picked earpiece when headphones go.
 - **While in a call, the call bar takes the server chip's row** by the
   tab bar, on all four tabs, with one server too, and the chip comes
   back when the call ends (`tabRow` in `src/call/callBar.ts`, read
