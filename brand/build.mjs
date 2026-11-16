@@ -65,8 +65,8 @@ copy("favicon.svg", join(pub, "favicon.svg"));
 copy("favicon-live.svg", join(pub, "favicon-live.svg"));
 await icoFrom("favicon", join(pub, "favicon.ico"), [16, 32, 48]);
 await raster("icon-square", join(pub, "apple-touch-icon.png"), 180);
-await raster("icon-square", join(pub, "icon-192.png"), 192);
-await raster("icon-square", join(pub, "icon-512.png"), 512);
+await raster("icon-rounded", join(pub, "icon-192.png"), 192);
+await raster("icon-rounded", join(pub, "icon-512.png"), 512);
 await raster("icon-maskable", join(pub, "icon-maskable-512.png"), 512);
 await raster("badge", join(pub, "badge-96.png"), 96);
 
@@ -78,7 +78,7 @@ await raster("icon-rounded", join(desk, "icon.png"), 512);
 for (const px of [16, 32, 48, 64, 128, 256, 512]) {
   await raster("icon-rounded", join(desk, "icons", `${px}x${px}.png`), px);
 }
-await icoFrom("icon-square", join(desk, "icon.ico"), [16, 24, 32, 48, 64, 128, 256]);
+await icoFrom("icon-rounded", join(desk, "icon.ico"), [16, 24, 32, 48, 64, 128, 256]);
 
 const set = join(tmp, "icon.iconset");
 for (const [px, name] of [
@@ -98,7 +98,7 @@ const draw = (64 * 16) / 48;
 const offset = 3 - (8 * 16) / 48;
 await raster("menubar-template", join(desk, "tray/trayTemplate.png"), 22, { draw, offset });
 await raster("menubar-template", join(desk, "tray/trayTemplate@2x.png"), 22, { scale: 2, draw, offset });
-await icoFrom("icon-square", join(desk, "tray/tray.ico"), [16, 24, 32, 48]);
+await icoFrom("icon-rounded", join(desk, "tray/tray.ico"), [16, 24, 32, 48]);
 await raster("icon-rounded", join(desk, "tray/tray.png"), 32);
 copy("mark-ember.svg", join(desk, "mark.svg"));
 
