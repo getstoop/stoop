@@ -18,7 +18,7 @@ import ChannelOutcome from "../Channel/ChannelOutcome";
 import EdgeBlur from "../Channel/EdgeBlur";
 import EdgeFade from "../Channel/EdgeFade";
 import { channelMute } from "../Channel/headerActions";
-import ScreenHeader, { useHeaderClearance } from "../Channel/ScreenHeader";
+import ScreenHeader, { useHeaderClearance, useHeaderReach } from "../Channel/ScreenHeader";
 import Stage from "./Stage";
 import StageFoot from "./StageFoot";
 import { hereLine, stagePeople } from "./stageRules";
@@ -69,6 +69,8 @@ export default function VoiceRoom({
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderClearance();
+  // The switch starts where the header ends as drawn.
+  const { reach, onReach } = useHeaderReach();
   const router = useRouter();
   const pushOnce = usePushOnce();
   const roster = useVoiceRoster(server.id);
@@ -142,6 +144,7 @@ export default function VoiceRoom({
 
   const top = (
     <ScreenHeader
+      onReach={onReach}
       title={ready && <VoiceTitle name={ready.channel.name} spaceName={ready.space.name} count={people?.length} />}
       search={ready ? { spaceName: ready.space.name, onPress: openSearch } : undefined}
       mute={
@@ -170,7 +173,7 @@ export default function VoiceRoom({
   }
 
   // Both sides start under the header and the switch.
-  const clearance = headerHeight + SWITCH_CLEARANCE;
+  const clearance = reach + SWITCH_CLEARANCE;
   const stage = (
     <Stage
       people={people}
@@ -187,7 +190,7 @@ export default function VoiceRoom({
     <View style={styles.screen}>
       {top}
       <ViewSwitch
-        top={headerHeight}
+        top={reach}
         side={side}
         inCall={inCall}
         waiting={chatWaiting(view.channel, view.space.muted, side)}

@@ -20,6 +20,7 @@ import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import CallPill, { useCallPill } from "../Channel/CallPill";
 import { olderFits } from "../Channel/channelEngine";
 import ChannelOutcome from "../Channel/ChannelOutcome";
 import PageRetry from "../Channel/PageRetry";
@@ -28,7 +29,7 @@ import ComposerDock from "../Channel/ComposerDock";
 import Divider from "../Channel/Divider";
 import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
-import ScreenHeader, { useHeaderClearance } from "../Channel/ScreenHeader";
+import ScreenHeader, { useHeaderClearance, useHeaderReach } from "../Channel/ScreenHeader";
 import { threadMute } from "../Channel/headerActions";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
@@ -68,7 +69,8 @@ import { threadReadDue } from "./threadReadDue";
 // web's thread panel does: once it has replies, and only where its
 // channel isn't muted, which silences it already. Before the bell, Search
 // pushes the space's search screen narrowed to the thread's channel, as
-// the channel's header does.
+// the channel's header does. While the app is in a call, the call pill
+// floats under the header, as the channel's (CallPill).
 
 // How long after a failed read it is asked for again.
 const READ_RETRY_MS = 5000;
@@ -90,7 +92,12 @@ export default function Thread({
   const styles = makeStyles(theme);
   // The header floats over the list (ScreenHeader), so the list
   // and the spinner in its place clear it by this much.
-  const headerHeight = useHeaderClearance();
+  const ownHeader = useHeaderClearance();
+  // The call pill starts where the header ends as drawn.
+  const { reach, onReach } = useHeaderReach();
+  const callPill = useCallPill();
+  const pill = callPill.clearance;
+  const headerHeight = pill ? reach + pill : ownHeader;
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -233,22 +240,26 @@ export default function Thread({
   // Muted says a summary is there, so a change to either is a change here.
   const muted = summary?.muted;
   const title = (
-    <ScreenHeader
-      title={
-        <ThreadTitle
-          channel={header?.channel}
-          spaceName={header?.space?.name ?? ""}
-          conversation={header?.dm ? headerPlace(header) : undefined}
-        />
-      }
-      // A direct message has no space to search, as on web.
-      search={header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined}
-      mute={
-        header && muted !== undefined
-          ? { ...threadMute(muted, header.channel.muted), pending: muting, onPress: toggleMute }
-          : undefined
-      }
-    />
+    <>
+      <ScreenHeader
+        onReach={onReach}
+        title={
+          <ThreadTitle
+            channel={header?.channel}
+            spaceName={header?.space?.name ?? ""}
+            conversation={header?.dm ? headerPlace(header) : undefined}
+          />
+        }
+        // A direct message has no space to search, as on web.
+        search={header?.space ? { spaceName: header.space.name, onPress: openSearch } : undefined}
+        mute={
+          header && muted !== undefined
+            ? { ...threadMute(muted, header.channel.muted), pending: muting, onPress: toggleMute }
+            : undefined
+        }
+      />
+      <CallPill top={reach} pill={callPill} />
+    </>
   );
   const retryOpen = () => {
     if (outcome === "failed") engine.retry();
@@ -256,21 +267,21 @@ export default function Thread({
   };
   if (outcome === "ended" || outcome === "gone") {
     return (
-      <Screen title={title}>
+      <Screen title={title} clear={headerHeight - ownHeader}>
         <ChannelOutcome outcome={outcome} server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
   }
   if (thread?.outcome === "gone" || (held && !root)) {
     return (
-      <Screen title={title}>
+      <Screen title={title} clear={headerHeight - ownHeader}>
         <Unavailable message="This thread isn't available any more." />
       </Screen>
     );
   }
   if (outcome === "failed" || thread?.outcome === "failed") {
     return (
-      <Screen title={title}>
+      <Screen title={title} clear={headerHeight - ownHeader}>
         <ChannelOutcome outcome="failed" server={server} spaceId={spaceId} onRetry={retryOpen} />
       </Screen>
     );
@@ -406,11 +417,12 @@ export default function Thread({
   );
 }
 
-// The screen's surface under its header.
-function Screen({ title, children }: { title: ReactNode; children: ReactNode }) {
+// The screen's surface under its header. `clear` is what the call pill
+// adds to the header's clearance, for what clears only that by itself.
+function Screen({ title, clear, children }: { title: ReactNode; clear?: number; children: ReactNode }) {
   const styles = makeStyles(useTheme());
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { paddingTop: clear }]}>
       {title}
       {children}
     </View>

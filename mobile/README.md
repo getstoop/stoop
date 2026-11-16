@@ -169,9 +169,11 @@ import a screen; the screens themselves live in `src/screens`, so
   navigation bar (`src/screens/Channel/ScreenHeader.tsx`), the same on
   both platforms: a round back button, the title in a pill of the same
   make taking the room between (`TitlePill.tsx`), and one capsule
-  holding Search and the bell. The list scrolls
-  under all of it, padded by the
-  header's reach at its head, and fading out at both ends, under the
+  holding Search and the bell. While the app is in a call, the call
+  pill is a second row under it (`CallPill.tsx`, Voice below). The list
+  scrolls under all of it, padded by the
+  header's reach at its head (and the pill's, while it shows), and
+  fading out at both ends, under the
   status bar so the time stays readable and under the home indicator up
   to the composer's foot (`EdgeFade.tsx`). On iOS 26 the list is marked
   to have none of the system's own fade under the bar
@@ -1131,6 +1133,20 @@ change to them needs a native rebuild, not only Metro.
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are
   `callBar.ts`, with unit tests beside it.
+  - **The bar's green wave moves while the call is connected**
+    (`src/components/WaveBars.tsx`), on the tabs and in the pill: five
+    bars easing shorter and back, out of step, to say the call is on.
+    It follows no sound. It moves only on the screen in front
+    (`useIsFocused` in `CallBarContent`): a pill on a covered screen
+    and a bar on a tab not shown stay mounted, and would otherwise
+    animate unseen for the whole call. It is still while connecting,
+    while the pill fades out, and under Reduce Motion (Reanimated's
+    `useReducedMotion`, read as the app starts; on Android that is the
+    system's transition animation scale at 0, which "Remove
+    animations" sets). The motion is a Reanimated CSS animation on the
+    bars, off the JavaScript thread, and stops with the bar. On Android
+    `uiautomator dump` reports "could not get idle state" while
+    anything on screen animates without end, this included.
   - **Switching servers keeps the call.** With another server on screen
     than the call's, the bar's second line names the call's server
     first ("Hutch House · Theo is speaking") and the server's letter
@@ -1141,7 +1157,8 @@ change to them needs a native rebuild, not only Metro.
   - **What the bar says and does is `src/components/CallBarContent.tsx`**,
     which reads the call itself, draws no surface and takes a `style`:
     put it on any surface under a server's screen. `CallBar.tsx` is the
-    row docked on the tab bar. The room's and its space's names, the
+    row docked on the tab bar, `CallPill.tsx` the pill on pushed
+    screens (below). The room's and its space's names, the
     members' names and this account's ID come from
     `call/CallPlaceProvider.tsx`, inside `CallProvider`: one load for
     every bar, whichever server is on screen, when the call starts and
@@ -1156,6 +1173,48 @@ change to them needs a native rebuild, not only Metro.
     the slot yet (STOOPMOBIL-54): while in a call the slot is emptied
     and each tab's screen draws the bar as a bubble of Liquid Glass
     floating over the tab bar, where the slot was.
+  - **A channel, a conversation and a thread carry it as a pill under
+    their header** (`src/screens/Channel/CallPill.tsx`), since they
+    cover the tab bar: the same `CallBarContent` on the header's own
+    surface (`Surface.tsx`: Liquid Glass where iOS has it, the panel
+    elsewhere), as far from the sides as the header and 8 under it, as
+    the voice room's switch row is. The composer is not touched. The
+    pill starts where the header ends as drawn (`useHeaderReach` in
+    `ScreenHeader.tsx`, which measures it): the header's set clearance,
+    or lower once the system's text size has grown the title's pill
+    past the bar. The voice room's switch row is placed the same way.
+    The screen's list, and whatever stands in for it, clears the pill by
+    `callPillClearance` (`callBar.ts`: the bar's height and the 8 under
+    it, nothing with no bar), added to that reach in the one number each
+    screen already places everything by, so the oldest message, the
+    thread's root and a spinner all start under the pill. The screens
+    read whether the bar shows (`useCallBarShown`, through
+    `useCallPill`), not the call, so they are not drawn again each time
+    someone speaks.
+    It fades in as a call starts and out as it ends, however it ends
+    (`useCallPill`, over `tokens.dur` both ways; at once under Reduce
+    Motion). While it fades out it shows what it last said
+    (`CallBarContent` `held`), takes no touches and is hidden from a
+    screen reader, and the list keeps its room until it has gone, so no
+    row slides under a pill still in sight; a call starting again
+    meanwhile fades it back in, live. The tabs' bar does not fade: its
+    row is swapped at once. Rows in
+    view stay where they are either way. The pill's room is added at
+    the list's oldest end, so for a reader at that end a call ending
+    moves the first rows up by the pill's height once the pill has
+    faded, and a call starting
+    leaves them under the pill until the reader scrolls up to them.
+    That takes a screen already open under the room's (a channel, then
+    the search, then the room), since a call starts on the room's
+    screen; nothing moves the list for it. A voice room's screen
+    never shows the pill, on either side and whichever room the call is
+    in: it has the switch row there, and its Chat is the channel screen
+    given `under`, which draws no header and no pill. A thread opened
+    from a room's Chat is a thread, and shows it; pressing the pill
+    there goes back to the room under it rather than pushing a second
+    copy (`screensOverRoom` in `callBar.ts`: the bar pops to the call's
+    room when it is in the stack it is drawn in, and pushes it
+    otherwise). Search, settings and other pushed screens don't show it.
   - **On the Spaces tab the room you are in is tinted and says "You're
     here"** where Live was (`screens/Spaces/VoiceRoom.tsx`), once the
     join has landed.

@@ -21,6 +21,7 @@ import { usePushOnce } from "../../hooks/usePushOnce";
 import { useFocusedPlace } from "../../notifications/focus";
 import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
+import CallPill, { useCallPill } from "./CallPill";
 import ChannelOutcome from "./ChannelOutcome";
 import ChannelTitle from "./ChannelTitle";
 import ConversationTitle from "./ConversationTitle";
@@ -32,7 +33,7 @@ import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
-import ScreenHeader, { useHeaderClearance } from "./ScreenHeader";
+import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
 import type { ChannelEngine } from "./channelEngine";
 import { channelMute } from "./headerActions";
 import { readShown } from "./readPass";
@@ -101,6 +102,10 @@ import { useScrollRetry } from "./useScrollRetry";
 // on its Chat side), given `under`: the room draws its own header and
 // its switch over this, so there is no header here, and the list and
 // what stands in for it clear `under` instead.
+//
+// While the app is in a call, the call pill floats under this screen's
+// own header (CallPill), and the list and what stands in for it clear
+// both. Not inside a voice room, which has its switch there.
 
 export default function Channel({
   server,
@@ -122,7 +127,12 @@ export default function Channel({
   // The header floats over the list (ScreenHeader), so the list and what
   // stands in for it clear it by this much.
   const ownHeader = useHeaderClearance();
-  const headerHeight = under ?? ownHeader;
+  // The call pill starts where the header ends as drawn, and takes its
+  // own room under that.
+  const { reach, onReach } = useHeaderReach();
+  const callPill = useCallPill();
+  const pill = callPill.clearance;
+  const headerHeight = under ?? (pill ? reach + pill : ownHeader);
   const router = useRouter();
   const focused = useIsFocused();
   const status = useServerStatus(server.origin);
@@ -336,31 +346,35 @@ export default function Channel({
   // known, then its title, Search where there is a space to search (a
   // direct message has none, as on web), and the bell.
   const top = under === undefined && (
-    <ScreenHeader
-      title={
-        !header ? undefined : header.dm ? (
-          <ConversationTitle
-            dm={header.dm}
-            myUserId={header.myUserId}
-            serverId={server.id}
-            origin={server.origin}
-            token={token}
-          />
-        ) : (
-          <ChannelTitle channel={header.channel} spaceName={header.space?.name ?? ""} memberCount={header.memberCount} />
-        )
-      }
-      search={header?.space && !outcome ? { spaceName: header.space.name, onPress: openSearch } : undefined}
-      mute={
-        header && !outcome
-          ? {
-              ...channelMute(header.dm ? "conversation" : "channel", header.channel.muted, !!header.space?.muted),
-              pending: muting,
-              onPress: toggleMute,
-            }
-          : undefined
-      }
-    />
+    <>
+      <ScreenHeader
+        onReach={onReach}
+        title={
+          !header ? undefined : header.dm ? (
+            <ConversationTitle
+              dm={header.dm}
+              myUserId={header.myUserId}
+              serverId={server.id}
+              origin={server.origin}
+              token={token}
+            />
+          ) : (
+            <ChannelTitle channel={header.channel} spaceName={header.space?.name ?? ""} memberCount={header.memberCount} />
+          )
+        }
+        search={header?.space && !outcome ? { spaceName: header.space.name, onPress: openSearch } : undefined}
+        mute={
+          header && !outcome
+            ? {
+                ...channelMute(header.dm ? "conversation" : "channel", header.channel.muted, !!header.space?.muted),
+                pending: muting,
+                onPress: toggleMute,
+              }
+            : undefined
+        }
+      />
+      <CallPill top={reach} pill={callPill} />
+    </>
   );
 
   if (outcome) {

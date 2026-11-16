@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Call } from "./call";
 import {
+  CALL_BAR_HEIGHT,
   type CallPlace,
   callBarLabel,
   callBarName,
   callBarShown,
   callBarStatus,
+  callPillClearance,
   hereChannelId,
+  ROOM_ROUTE,
+  screensOverRoom,
   speakingLine,
   speakingNames,
   tabRow,
@@ -50,6 +54,47 @@ describe("when the call bar shows", () => {
     expect(tabRow(callBarShown(null), 2)).toBe("chip");
     expect(tabRow(callBarShown(null), 1)).toBe(null);
     expect(tabRow(callBarShown(call({ status: "failed" })), 2)).toBe("chip");
+  });
+});
+
+describe("the room the call pill takes under a header", () => {
+  it("is the bar's height and the gap under it, in a call and on the way in", () => {
+    expect(callPillClearance(callBarShown(call()))).toBe(CALL_BAR_HEIGHT + 8);
+    expect(callPillClearance(callBarShown(call({ status: "connecting" })))).toBe(CALL_BAR_HEIGHT + 8);
+  });
+
+  it("is nothing with no call, or for a join that failed", () => {
+    expect(callPillClearance(callBarShown(null))).toBe(0);
+    expect(callPillClearance(callBarShown(call({ status: "failed", failure: "connection" })))).toBe(0);
+  });
+});
+
+describe("going back to the call's room", () => {
+  const porch = { serverId: "home", spaceId: "space", channelId: "porch" };
+  const room = (channelId: string) => ({ name: ROOM_ROUTE, params: { id: "home", spaceId: "space", channelId } });
+  const tabs = { name: "(tabs)" };
+  const channel = { name: "space/[spaceId]/channel/[channelId]/index", params: { channelId: "garden" } };
+  const thread = { name: "space/[spaceId]/channel/[channelId]/thread/[rootId]", params: { channelId: "porch" } };
+
+  it("pops the screens over the room when it is in the stack", () => {
+    expect(screensOverRoom([tabs, room("porch"), thread], 2, porch)).toBe(1);
+    expect(screensOverRoom([tabs, room("porch"), thread, channel, thread], 4, porch)).toBe(3);
+  });
+
+  it("pushes when the room isn't there", () => {
+    expect(screensOverRoom([tabs, channel], 1, porch)).toBeUndefined();
+    expect(screensOverRoom([tabs], 0, porch)).toBeUndefined();
+    expect(screensOverRoom([{ name: "index" }], 0, porch)).toBeUndefined();
+  });
+
+  it("takes another room, or the room's own chat as a thread's channel, for no room", () => {
+    expect(screensOverRoom([tabs, room("stoop"), thread], 2, porch)).toBeUndefined();
+    expect(screensOverRoom([tabs, thread, channel], 2, porch)).toBeUndefined();
+  });
+
+  it("goes to the nearest copy, and counts nothing past the screen in front", () => {
+    expect(screensOverRoom([tabs, room("porch"), thread, room("porch"), thread], 4, porch)).toBe(1);
+    expect(screensOverRoom([tabs, channel, room("porch")], 1, porch)).toBeUndefined();
   });
 });
 

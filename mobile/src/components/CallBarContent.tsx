@@ -1,14 +1,25 @@
-import { useNavigation, useRouter } from "expo-router";
+import { useIsFocused, useNavigation, useRouter } from "expo-router";
+import { useRef } from "react";
 import { Pressable, type StyleProp, StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useCallPlace } from "../call/CallPlaceProvider";
+import type { Call } from "../call/call";
 import { useCall, useCallActions } from "../call/CallProvider";
-import { CALL_BAR_HEIGHT, callBarLabel, callBarName, callBarShown, callBarStatus } from "../call/callBar";
+import {
+  CALL_BAR_HEIGHT,
+  type CallPlace,
+  callBarLabel,
+  callBarName,
+  callBarShown,
+  callBarStatus,
+  screensOverRoom,
+} from "../call/callBar";
 import { askForRoom } from "../call/pendingRoom";
 import { usePushOnce } from "../hooks/usePushOnce";
 import { useCurrentServer, useServers } from "../servers";
 import { type ServerNavigation, swapServer } from "../servers/swapServer";
 import { type Theme, tokens, useTheme } from "../theme";
-import { HangUpIcon, MicIcon, MicOffIcon, WaveIcon } from "./Icons";
+import { HangUpIcon, MicIcon, MicOffIcon } from "./Icons";
+import WaveBars from "./WaveBars";
 
 // What the call bar says and does, on whatever surface it is put (the
 // row by the tab bar, CallBar.tsx): the call's room and, under it, who
@@ -16,21 +27,35 @@ import { HangUpIcon, MicIcon, MicOffIcon, WaveIcon } from "./Icons";
 // names opens the room's screen. With another server on screen than the
 // call's, the second line names the call's server first, its letter
 // stands where the wave was, and pressing swaps to that server and
-// opens the room there (call/OpenCallRoom.tsx). It reads the call
+// opens the room there (call/OpenCallRoom.tsx). With the room already
+// in the stack under this screen (a thread opened from the room's
+// chat), pressing goes back to it. It reads the call
 // itself, and draws nothing with no call; it needs a server's screen
 // around it (CurrentServer). `style` is for the surface's own padding.
-export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle> }) {
+// The wave moves while the call is connected and the screen this is on
+// is the one in front (WaveBars): a bar on a covered screen, or on a
+// tab not shown, stays mounted and would otherwise animate unseen for
+// the whole call. `held` keeps
+// what it last said on show once the call has gone, for a surface that
+// fades out after it (CallPill), which must then take no touches.
+export default function CallBarContent({ style, held }: { style?: StyleProp<ViewStyle>; held?: boolean }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const router = useRouter();
   const navigation = useNavigation<ServerNavigation>();
   const pushOnce = usePushOnce();
+  const focused = useIsFocused();
   const current = useCurrentServer();
   const { servers, switchTo } = useServers();
-  const call = useCall();
-  const place = useCallPlace();
+  const now = useCall();
+  const placeNow = useCallPlace();
   const { toggleMute, leave } = useCallActions();
-  if (!callBarShown(call)) return null;
+  const live = callBarShown(now);
+  const last = useRef<{ call: Call; place: CallPlace | undefined }>(undefined);
+  if (live) last.current = { call: now, place: placeNow };
+  const drawn = live || held ? last.current : undefined;
+  if (!drawn) return null;
+  const { call, place } = drawn;
 
   const { room } = call;
   const elsewhere = room.serverId !== current.id;
@@ -45,6 +70,13 @@ export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle>
         askForRoom(room);
         swapServer(navigation, room.serverId);
         switchTo(room.serverId).catch(() => {});
+        return;
+      }
+      // POP counts from `source`, the screen in front (swapServer.ts).
+      const { routes, index, key } = navigation.getState();
+      const over = screensOverRoom(routes, index, room);
+      if (over) {
+        navigation.dispatch({ type: "POP", payload: { count: over }, source: routes[index].key, target: key });
         return;
       }
       router.push({
@@ -66,7 +98,7 @@ export default function CallBarContent({ style }: { style?: StyleProp<ViewStyle>
           {elsewhere ? (
             <Text style={styles.tileLetter}>{serverName.trim().charAt(0).toUpperCase()}</Text>
           ) : (
-            <WaveIcon color={theme.ok} />
+            <WaveBars color={theme.ok} moving={live && focused && call.status === "connected"} />
           )}
         </View>
         <View style={styles.lines}>
