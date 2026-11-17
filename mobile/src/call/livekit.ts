@@ -120,8 +120,16 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     events.onOutput({ kind: output, name: "" }, outputs);
     const name = androidName(output);
     if (told === output || !name) return;
-    told = output;
-    await AudioSession.selectAudioOutput(name);
+    const target = output;
+    told = target;
+    try {
+      await AudioSession.selectAudioOutput(name);
+    } catch (err) {
+      // LiveKit didn't take it: the next reading tells it again, unless
+      // it has been told something else since.
+      if (told === target) told = undefined;
+      throw err;
+    }
   };
 
   // iOS moves the sound itself, to headphones and back and wherever the
