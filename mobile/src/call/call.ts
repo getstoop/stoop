@@ -20,6 +20,11 @@ export type Call = {
   // Connected, with the connection down and being tried again (LiveKit's
   // own retrying). Nobody is known to be speaking meanwhile.
   reconnecting: boolean;
+  // Connected, with the server yet to say this account is in the room
+  // (`placed` in createCall): for longer than a join takes when all is
+  // well, or with the server's socket down. The call has its sound
+  // meanwhile, but no tile on the Stage, which the roster draws.
+  establishing: boolean;
   muted: boolean;
   // The loudspeaker rather than the earpiece, for when no headphones
   // are connected. Every call starts with it on.
@@ -65,6 +70,8 @@ export type CallDeps = {
   // Tells a server where this account is in voice; an empty channelId
   // is "left".
   report: (serverId: string, state: { channelId: string; muted: boolean }) => void;
+  // PLACE_MS, for a test to shorten.
+  placeMs?: number;
 };
 
 export type CallHolder = {
@@ -80,6 +87,9 @@ export type CallHolder = {
   // Says where the call is again: the server forgets when its socket
   // drops.
   report: () => void;
+  // The call's server's socket is down: the server has forgotten where
+  // this account is, and the Stage has no roster to draw.
+  socketDown: () => void;
   // What a server says, over its realtime socket, of someone's place in
   // a voice room: in it (said again on each change of theirs), or out of
   // it. This account out of the call's room has been removed (kicked,
@@ -118,10 +128,19 @@ export function offersSettings(call: Call | null, room: CallRoom): boolean {
   return !!call && sameRoom(call.room, room) && call.status === "failed" && call.failure === "microphone";
 }
 
-// What the call's room's screen and the call bar say while the call's
-// connection is being tried again, or "".
-export const reconnectingLine = (call: Call | null) =>
-  call?.status === "connected" && call.reconnecting ? "Reconnecting…" : "";
+// What the call's room's screen and the call bar say of a call whose
+// connection is not all there, or "": being tried again, or up with the
+// server yet to say this account is in the room (`establishing`).
+export function connectionLine(call: Call | null): string {
+  if (call?.status !== "connected") return "";
+  if (call.reconnecting) return "Reconnecting…";
+  return call.establishing ? "Establishing connection…" : "";
+}
+
+// How long the server may take to say this account is in the room
+// before the call says it is establishing its connection: longer than
+// the answer takes when all is well, so a join doesn't flash the line.
+const PLACE_MS = 1000;
 
 // What the Speaker control shows: the loudspeaker on or off, or that
 // headphones have the sound and it has nothing to switch.
@@ -158,6 +177,7 @@ export function createCall(deps: CallDeps): CallHolder {
   // joined again, the socket before this one closing, or this account
   // leaving the room on another device.
   let placed = false;
+  let placing: ReturnType<typeof setTimeout> | undefined;
   const listeners = new Set<() => void>();
 
   const set = (next: Call | null) => {
@@ -170,6 +190,23 @@ export function createCall(deps: CallDeps): CallHolder {
     deps.report(call.room.serverId, { channelId: call.room.channelId, muted: call.muted });
   };
 
+  // The server is yet to say this account is in the room: at once when
+  // its socket is down, else once that has taken too long.
+  const unplaced = (now: boolean) => {
+    placed = false;
+    clearTimeout(placing);
+    const say = () => {
+      if (call?.status === "connected" && !placed && !call.establishing) set({ ...call, establishing: true });
+    };
+    if (now) say();
+    else placing = setTimeout(say, deps.placeMs ?? PLACE_MS);
+  };
+
+  const forget = () => {
+    placed = false;
+    clearTimeout(placing);
+  };
+
   const close = (open: Connection) => {
     closing = closing.then(() => open.close().catch(() => {}));
     return closing;
@@ -178,7 +215,7 @@ export function createCall(deps: CallDeps): CallHolder {
   // Ends the call, whoever ended it.
   const end = async () => {
     attempt += 1;
-    placed = false;
+    forget();
     const was = call;
     const open = connection;
     connection = null;
@@ -195,9 +232,9 @@ export function createCall(deps: CallDeps): CallHolder {
     const open = connection;
     if (!was || !open) return;
     attempt += 1;
-    placed = false;
+    forget();
     connection = null;
-    set({ ...was, status: "failed", failure: "lost", reconnecting: false, speaking: [] });
+    set({ ...was, status: "failed", failure: "lost", reconnecting: false, establishing: false, speaking: [] });
     deps.report(was.room.serverId, { channelId: "", muted: was.muted });
     await close(open);
   };
@@ -214,7 +251,7 @@ export function createCall(deps: CallDeps): CallHolder {
     }
     attempt += 1;
     const mine = attempt;
-    const fresh = { room, muted: false, speaker: true, headphones: false, speaking: [], reconnecting: false };
+    const fresh = { room, muted: false, speaker: true, headphones: false, speaking: [], reconnecting: false, establishing: false };
     set({ ...fresh, status: "connecting" });
     const fail = (failure: Call["failure"]) => set({ ...fresh, status: "failed", failure });
 
@@ -260,6 +297,7 @@ export function createCall(deps: CallDeps): CallHolder {
     }
     if (connection !== opened || !call) return;
     set({ ...call, status: "connected" });
+    unplaced(false);
     report();
   };
 
@@ -303,14 +341,22 @@ export function createCall(deps: CallDeps): CallHolder {
     toggleMute,
     toggleSpeaker,
     report: () => {
-      placed = false;
+      if (call?.status === "connected") unplaced(false);
       report();
+    },
+    socketDown: () => {
+      if (call?.status === "connected") unplaced(true);
     },
     voiceState: (serverId, { userId, channelId, joined }) => {
       if (call?.status !== "connected" || call.room.serverId !== serverId || call.room.channelId !== channelId) return;
       if (userId !== connection?.userId()) return;
-      if (joined) placed = true;
-      else if (placed) void end();
+      if (!joined) {
+        if (placed) void end();
+        return;
+      }
+      placed = true;
+      clearTimeout(placing);
+      if (call.establishing) set({ ...call, establishing: false });
     },
     roomGone: (serverId, channelId) => {
       if (!call || call.status === "failed") return;

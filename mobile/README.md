@@ -1093,6 +1093,21 @@ change to them needs a native rebuild, not only Metro.
     it is back, as it is whenever the roster isn't known), and nobody
     wears a ring, since who is speaking is not known meanwhile. When it is
     back, everything is as it was and nothing is said.
+  - **A call the server hasn't placed says "Establishing
+    connection…"** in the same two places, with the controls kept. The
+    call has its sound as soon as LiveKit is up, but its own tile comes
+    from the roster, and so from the realtime socket: just after the
+    network came back the socket may still be waiting to dial again,
+    and the call would look joined with nobody on the Stage. So the
+    line shows while the call is connected and the server has yet to
+    say this account is in the room (`establishing` in `call.ts`): at
+    once while the server's socket is down, which `CallProvider` reads
+    from the roster being unknown, and otherwise once the server's
+    answer is a second late (`PLACE_MS`), so a join that goes well
+    never shows it. It goes when the server says this account is in
+    the room. "Reconnecting…" wins over it. A report the server drops
+    without a word leaves the line up until the next mute or the
+    socket's next reconnect, which say it again.
   - **A call lost for good ends, and its room's screen says "Call
     ended. Try again."** over Join: LiveKit gave up retrying, or
     disconnected for any reason but the server's removal. The call
@@ -1174,8 +1189,9 @@ change to them needs a native rebuild, not only Metro.
   through `src/hooks/useServerChipRoom.ts`). It names the room and,
   under it, who is speaking besides you ("Priya is speaking", "Priya
   and Theo are speaking", "Priya and 2 others are speaking"), the
-  room's space while nobody is, "Connecting…" on the way in and
-  "Reconnecting…" while a dropped connection is tried again.
+  room's space while nobody is, "Connecting…" on the way in,
+  "Establishing connection…" until the server has placed the call, and "Reconnecting…" while a
+  dropped connection is tried again.
   Pressing the names opens the room's screen; Mute shows a red
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are

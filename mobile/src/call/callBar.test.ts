@@ -24,6 +24,7 @@ const call = (over: Partial<Call> = {}): Call => ({
   headphones: false,
   speaking: [],
   reconnecting: false,
+  establishing: false,
   ...over,
 });
 
@@ -121,6 +122,10 @@ describe("the bar's status line", () => {
 
   it("says Connecting on the way in, whoever is speaking", () => {
     expect(callBarStatus(call({ status: "connecting", speaking: ["priya"] }), place, "")).toBe("Connecting…");
+  });
+
+  it("says Establishing connection until the server says this account is in the room", () => {
+    expect(callBarStatus(call({ establishing: true, speaking: ["priya"] }), place, "")).toBe("Establishing connection…");
   });
 
   it("says Reconnecting while the connection is tried again, whoever was speaking", () => {

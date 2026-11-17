@@ -8,7 +8,7 @@ import {
   footState,
   leavesCall,
   offersSettings,
-  reconnectingLine,
+  connectionLine,
   speakerState,
 } from "./call";
 
@@ -61,10 +61,16 @@ function setup(microphone: boolean | Promise<boolean> = true) {
       opened.push(made);
       return made;
     },
+    placeMs: PLACE_MS,
     report: (serverId, state) => reports.push(`${serverId}:${state.channelId || "left"}:${state.muted ? "muted" : "open"}`),
   });
   return { holder, opened, reports };
 }
+
+// How long the test's server may take to place the call, and a wait
+// past it.
+const PLACE_MS = 5;
+const late = () => new Promise((resolve) => setTimeout(resolve, PLACE_MS * 4));
 
 // Lets what a join awaits run.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -360,10 +366,9 @@ describe("when the connection drops", () => {
 
   it("says Reconnecting while it is tried again, in the call's room, and keeps the controls", async () => {
     const { holder, opened, reports } = await joined();
-    expect(reconnectingLine(holder.get())).toBe("");
     opened[0].events.onReconnecting();
     expect(holder.get()).toMatchObject({ room: porch, status: "connected", reconnecting: true });
-    expect(reconnectingLine(holder.get())).toBe("Reconnecting…");
+    expect(connectionLine(holder.get())).toBe("Reconnecting…");
     expect(footState(holder.get(), porch)).toBe("joined");
     expect(failureLine(holder.get(), porch)).toBe("");
     expect(opened[0].closed).toBe(0);
@@ -375,7 +380,7 @@ describe("when the connection drops", () => {
     opened[0].events.onReconnecting();
     opened[0].events.onReconnected();
     expect(holder.get()).toMatchObject({ room: porch, status: "connected", reconnecting: false });
-    expect(reconnectingLine(holder.get())).toBe("");
+    expect(connectionLine(holder.get())).not.toBe("Reconnecting…");
     expect(failureLine(holder.get(), porch)).toBe("");
     expect(reports).toEqual(["home:porch:open"]);
   });
@@ -425,7 +430,7 @@ describe("when the connection drops", () => {
     expect(holder.get()).toMatchObject({ status: "connecting", reconnecting: false });
     opened[0].land();
     await joining;
-    expect(reconnectingLine(holder.get())).toBe("");
+    expect(connectionLine(holder.get())).not.toBe("Reconnecting…");
   });
 
   it("ends the call as lost when the connection is gone for good, and says so in its room only", async () => {
@@ -440,7 +445,7 @@ describe("when the connection drops", () => {
     expect(failureLine(holder.get(), porch)).toBe("Call ended. Try again.");
     expect(failureLine(holder.get(), attic)).toBe("");
     expect(failureLine(holder.get(), shed)).toBe("");
-    expect(reconnectingLine(holder.get())).toBe("");
+    expect(connectionLine(holder.get())).toBe("");
     expect(offersSettings(holder.get(), porch)).toBe(false);
   });
 
@@ -874,6 +879,65 @@ describe("when the server says where this account is", () => {
     holder.voiceState(...said({ ...porch, serverId: "away" }, false));
     await settle();
     expect(holder.get()?.status).toBe("connected");
+  });
+
+  it("says nothing while the server answers in good time", async () => {
+    const { holder } = await joined();
+    expect(connectionLine(holder.get())).toBe("");
+    holder.voiceState(...said(porch, true));
+    await late();
+    expect(holder.get()).toMatchObject({ status: "connected", establishing: false });
+    expect(connectionLine(holder.get())).toBe("");
+  });
+
+  it("says Establishing connection, with the controls, once the server is late to say this account is in the room", async () => {
+    const { holder } = await joined();
+    await late();
+    expect(holder.get()).toMatchObject({ status: "connected", establishing: true });
+    expect(connectionLine(holder.get())).toBe("Establishing connection…");
+    expect(footState(holder.get(), porch)).toBe("joined");
+    holder.voiceState(...said(porch, true));
+    expect(connectionLine(holder.get())).toBe("");
+  });
+
+  it("says it at once when the socket is down, and until the server has the call again", async () => {
+    const { holder, reports } = await joined();
+    holder.voiceState(...said(porch, true));
+    holder.socketDown();
+    expect(connectionLine(holder.get())).toBe("Establishing connection…");
+    // The socket is back: the server is told again, and answers.
+    holder.report();
+    expect(connectionLine(holder.get())).toBe("Establishing connection…");
+    expect(reports).toEqual(["home:porch:open", "home:porch:open"]);
+    holder.voiceState(...said(porch, true));
+    await late();
+    expect(connectionLine(holder.get())).toBe("");
+  });
+
+  it("does not take the server's leave as a removal while the socket is down", async () => {
+    const { holder } = await joined();
+    holder.voiceState(...said(porch, true));
+    holder.socketDown();
+    holder.voiceState(...said(porch, false));
+    await settle();
+    expect(holder.get()?.status).toBe("connected");
+  });
+
+  it("says nothing of a socket down while not in a call, or after the call ended", async () => {
+    const { holder } = await joined();
+    await holder.leave();
+    holder.socketDown();
+    await late();
+    expect(holder.get()).toBeNull();
+  });
+
+  it("says Reconnecting rather than Establishing connection while the connection is tried again", async () => {
+    const { holder, opened } = await joined();
+    holder.socketDown();
+    opened[0].events.onReconnecting();
+    expect(connectionLine(holder.get())).toBe("Reconnecting…");
+    opened[0].events.onReconnected();
+    expect(connectionLine(holder.get())).toBe("Establishing connection…");
   });
 
   it("is not placed by someone else, or while still connecting", async () => {
