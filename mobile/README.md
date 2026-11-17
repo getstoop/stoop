@@ -1045,7 +1045,7 @@ change to them needs a native rebuild, not only Metro.
   beside the other app-wide providers, so leaving the room's screen
   keeps the call and coming back finds it. `useCall()` gives what a
   screen draws (the server, space and room, connecting, connected or
-  failed, reconnecting, muted, the loudspeaker on or off, whether headphones have the
+  failed, reconnecting, establishing its connection, muted, the loudspeaker on or off, whether headphones have the
   sound, who is speaking) and `useCallActions()` what it can do. One
   call at a time, across every server: joining a second room leaves
   the first, then joins.
@@ -1056,8 +1056,9 @@ change to them needs a native rebuild, not only Metro.
   microphone is asked for first (a refusal joins nothing), then
   `JoinVoiceChannel`, signalling at the server's own `/livekit` with
   the ICE servers it names, and the microphone published as signalling
-  comes up and muted at once: every join starts muted, until Unmute is
-  pressed.
+  comes up. Every join starts muted, until Unmute is pressed: the
+  track is muted before it is published, as web's is, so it never
+  carries sound first.
 - **Where the call is goes to the server over the realtime socket**
   (`VoiceState`, as web sends it): on connecting, on each mute, as
   "left" on leaving, and again after every reconnect, since the server
