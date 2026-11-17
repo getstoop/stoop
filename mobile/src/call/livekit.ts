@@ -167,6 +167,7 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     if (closed) track.stop();
     stopIfClosed();
     await track.mute();
+    stopIfClosed();
     let published: Promise<unknown> = Promise.resolve();
     lk.once(RoomEvent.SignalConnected, () => {
       published = lk.localParticipant.publishTrack(track);
