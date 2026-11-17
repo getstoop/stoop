@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  androidOutput,
   type CallRoom,
   type ConnectionEvents,
   createCall,
@@ -9,8 +8,8 @@ import {
   leavesCall,
   offersSettings,
   connectionLine,
-  speakerState,
 } from "./call";
+import { type OutputKind, outputName } from "./output";
 
 const porch: CallRoom = { serverId: "home", spaceId: "space", channelId: "porch" };
 const attic: CallRoom = { serverId: "home", spaceId: "space", channelId: "attic" };
@@ -38,11 +37,15 @@ function fakeConnection(room: CallRoom, events: ConnectionEvents) {
       if (made.refuseMute) throw new Error("no");
       made.muted.push(muted);
     },
-    speaker: [] as boolean[],
-    refuseSpeaker: false,
-    setSpeaker: async (speaker: boolean) => {
-      if (made.refuseSpeaker) throw new Error("no");
-      made.speaker.push(speaker);
+    chosen: [] as OutputKind[],
+    refuseOutput: false,
+    chooseOutput: async (kind: OutputKind) => {
+      if (made.refuseOutput) throw new Error("no");
+      made.chosen.push(kind);
+    },
+    pickers: 0,
+    showOutputPicker: () => {
+      made.pickers += 1;
     },
     close: async () => {
       made.closed += 1;
@@ -618,110 +621,131 @@ describe("in a call", () => {
     expect(reports).toEqual(["home:porch:muted"]);
   });
 
-  it("starts on the loudspeaker, and switches to the earpiece and back", async () => {
+  it("starts on the loudspeaker, with nothing to choose among until the phone says", async () => {
     const { holder, opened, reports } = await joined();
-    expect(holder.get()?.speaker).toBe(true);
-    expect(speakerState(holder.get())).toBe("on");
-    await holder.toggleSpeaker();
-    expect(holder.get()?.speaker).toBe(false);
-    expect(speakerState(holder.get())).toBe("off");
-    await holder.toggleSpeaker();
-    expect(speakerState(holder.get())).toBe("on");
-    expect(opened[0].speaker).toEqual([false, true]);
+    expect(holder.get()).toMatchObject({ output: { kind: "speaker", name: "" }, outputs: [] });
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    expect(holder.get()?.outputs).toEqual(["speaker", "earpiece"]);
     // Where the sound comes out is nobody else's business.
     expect(reports).toEqual(["home:porch:muted"]);
   });
 
+  it("moves the sound to an output chosen from the list, and back", async () => {
+    const { holder, opened } = await joined();
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    await holder.chooseOutput("earpiece");
+    expect(holder.get()?.output.kind).toBe("earpiece");
+    await holder.chooseOutput("speaker");
+    expect(holder.get()?.output.kind).toBe("speaker");
+    expect(opened[0].chosen).toEqual(["earpiece", "speaker"]);
+  });
+
+  it("shows the choice at once, before the sound has moved", async () => {
+    const { holder, opened } = await joined();
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    const choosing = holder.chooseOutput("earpiece");
+    expect(holder.get()?.output.kind).toBe("earpiece");
+    await choosing;
+  });
+
   it("stays as it was when the sound won't move", async () => {
     const { holder, opened } = await joined();
-    opened[0].refuseSpeaker = true;
-    await holder.toggleSpeaker();
-    expect(holder.get()?.speaker).toBe(true);
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    opened[0].refuseOutput = true;
+    await holder.chooseOutput("earpiece");
+    expect(holder.get()?.output.kind).toBe("speaker");
+  });
+
+  it("keeps what the phone said meanwhile when the sound won't move", async () => {
+    const { holder, opened } = await joined();
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    opened[0].chooseOutput = async () => {
+      opened[0].events.onOutput({ kind: "bluetooth", name: "" }, ["speaker", "earpiece", "bluetooth"]);
+      throw new Error("no");
+    };
+    await holder.chooseOutput("earpiece");
+    expect(holder.get()?.output.kind).toBe("bluetooth");
+  });
+
+  it("chooses nothing that is not in the list, and not the output it is on", async () => {
+    const { holder, opened } = await joined();
+    await holder.chooseOutput("earpiece");
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    await holder.chooseOutput("bluetooth");
+    await holder.chooseOutput("speaker");
+    expect(holder.get()?.output.kind).toBe("speaker");
+    expect(opened[0].chosen).toEqual([]);
+  });
+
+  it("follows the phone: a headset taking the sound, by name where it has one, and giving it back", async () => {
+    const { holder, opened } = await joined();
+    opened[0].events.onOutput({ kind: "bluetooth", name: "Priya's Buds" }, []);
+    expect(holder.get()?.output).toEqual({ kind: "bluetooth", name: "Priya's Buds" });
+    expect(outputName(holder.get()!.output)).toBe("Priya's Buds");
+    opened[0].events.onOutput({ kind: "speaker", name: "Speaker" }, []);
+    expect(outputName(holder.get()!.output)).toBe("Speaker");
   });
 
   it("starts every call on the loudspeaker again", async () => {
     const { holder, opened } = await joined();
-    await holder.toggleSpeaker();
-    expect(holder.get()?.speaker).toBe(false);
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    await holder.chooseOutput("earpiece");
     await holder.leave();
     const again = holder.join(porch);
-    expect(holder.get()?.speaker).toBe(true);
+    expect(holder.get()).toMatchObject({ output: { kind: "speaker" }, outputs: [] });
     await settle();
     opened[1].land();
     await again;
-    expect(speakerState(holder.get())).toBe("on");
-    await holder.toggleSpeaker();
+    opened[1].events.onOutput({ kind: "bluetooth", name: "" }, ["speaker", "bluetooth"]);
     const moving = holder.join(attic);
     await settle();
     opened[2].land();
     await moving;
-    expect(holder.get()).toMatchObject({ room: attic, speaker: true, headphones: false });
-    expect(opened[2].speaker).toEqual([]);
+    expect(holder.get()).toMatchObject({ room: attic, output: { kind: "speaker" }, outputs: [] });
+    expect(opened[2].chosen).toEqual([]);
   });
 
-  it("switches nothing while headphones have the sound, and keeps what was chosen", async () => {
-    const { holder, opened } = await joined();
-    await holder.toggleSpeaker();
-    opened[0].events.onHeadphones(true);
-    expect(speakerState(holder.get())).toBe("headphones");
-    await holder.toggleSpeaker();
-    expect(opened[0].speaker).toEqual([false]);
-    opened[0].events.onHeadphones(false);
-    expect(speakerState(holder.get())).toBe("off");
-  });
-
-  it("keeps the choice when a press finds headphones nobody had seen yet", async () => {
-    const { holder, opened } = await joined();
-    opened[0].setSpeaker = async () => {
-      opened[0].events.onHeadphones(true);
-      throw new Error("headphones have the sound");
-    };
-    await holder.toggleSpeaker();
-    expect(holder.get()).toMatchObject({ speaker: true, headphones: true });
-    opened[0].events.onHeadphones(false);
-    expect(speakerState(holder.get())).toBe("on");
-  });
-
-  it("tells nobody of headphones that haven't changed", async () => {
+  it("tells nobody of an output and a list that haven't changed", async () => {
     const { holder, opened } = await joined();
     let changes = 0;
     holder.subscribe(() => (changes += 1));
-    opened[0].events.onHeadphones(false);
-    opened[0].events.onHeadphones(true);
-    opened[0].events.onHeadphones(true);
-    expect(changes).toBe(1);
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, []);
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    opened[0].events.onOutput({ kind: "earpiece", name: "" }, ["speaker", "earpiece"]);
+    expect(changes).toBe(2);
   });
 
-  it("switches no speaker outside a call", async () => {
+  it("chooses no output and opens no picker outside a call", async () => {
     const { holder, opened } = setup();
-    await holder.toggleSpeaker();
-    expect(speakerState(holder.get())).toBe("off");
+    await holder.chooseOutput("earpiece");
+    holder.openOutputPicker();
     const joining = holder.join(porch);
     await settle();
-    await holder.toggleSpeaker();
-    expect(holder.get()?.speaker).toBe(true);
+    opened[0].events.onOutput({ kind: "speaker", name: "" }, ["speaker", "earpiece"]);
+    await holder.chooseOutput("earpiece");
+    holder.openOutputPicker();
+    expect(holder.get()?.output.kind).toBe("speaker");
     opened[0].land();
     await joining;
-    expect(opened[0].speaker).toEqual([]);
+    expect(opened[0].chosen).toEqual([]);
+    expect(opened[0].pickers).toBe(0);
   });
 
-  it("ignores headphones on a connection it has left", async () => {
+  it("opens the system's picker while in a call", async () => {
+    const { holder, opened } = await joined();
+    holder.openOutputPicker();
+    expect(opened[0].pickers).toBe(1);
+  });
+
+  it("ignores an output said on a connection it has left", async () => {
     const { holder, opened } = await joined();
     const moving = holder.join(attic);
     await settle();
     opened[1].land();
     await moving;
-    opened[0].events.onHeadphones(true);
-    expect(holder.get()?.headphones).toBe(false);
-  });
-
-  it("puts Android's sound on a headset when there is one, else where Speaker says", () => {
-    expect(androidOutput(["speaker", "earpiece"], true)).toBe("speaker");
-    expect(androidOutput(["speaker", "earpiece"], false)).toBe("earpiece");
-    expect(androidOutput(["headset", "speaker"], false)).toBe("headset");
-    expect(androidOutput(["bluetooth", "speaker", "earpiece"], true)).toBe("bluetooth");
-    expect(androidOutput(["headset", "bluetooth", "speaker"], true)).toBe("bluetooth");
-    expect(androidOutput([], true)).toBe("speaker");
+    opened[0].events.onOutput({ kind: "bluetooth", name: "" }, ["bluetooth"]);
+    expect(holder.get()).toMatchObject({ output: { kind: "speaker" }, outputs: [] });
   });
 
   it("says where it is again when asked, and only while connected", async () => {

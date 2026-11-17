@@ -6,6 +6,8 @@
 // the realtime socket) handed in, so it runs in a test without any of
 // them. CallProvider holds one above the router.
 
+import { LOUDSPEAKER, type Output, type OutputKind, sameList, sameOutput } from "./output";
+
 export type CallRoom = { serverId: string; spaceId: string; channelId: string };
 
 export type Call = {
@@ -26,11 +28,12 @@ export type Call = {
   // meanwhile, but no tile on the Stage, which the roster draws.
   establishing: boolean;
   muted: boolean;
-  // The loudspeaker rather than the earpiece, for when no headphones
-  // are connected. Every call starts with it on.
-  speaker: boolean;
-  // Headphones have the sound, where the phone can tell (Android).
-  headphones: boolean;
+  // Where the sound comes out now. Every call starts on the loudspeaker,
+  // and the phone says when it is anywhere else.
+  output: Output;
+  // The outputs there are to choose among now, where the app lists them
+  // itself (Android). Empty where the system's own picker does (iOS).
+  outputs: OutputKind[];
   // The user IDs of whoever is speaking, this account's included.
   speaking: string[];
 };
@@ -44,14 +47,21 @@ export type Connection = {
   // `ready` has settled, "" before.
   userId: () => string;
   setMuted: (muted: boolean) => Promise<void>;
-  setSpeaker: (speaker: boolean) => Promise<void>;
+  // Moves the sound to one of the outputs listed (Android). Rejects
+  // when it didn't move.
+  chooseOutput: (kind: OutputKind) => Promise<void>;
+  // Shows the system's picker of outputs (iOS); nothing where the app
+  // lists them itself.
+  showOutputPicker: () => void;
   close: () => Promise<void>;
 };
 
 export type ConnectionEvents = {
   onSpeaking: (userIds: string[]) => void;
-  // Headphones took the sound, or gave it back.
-  onHeadphones: (connected: boolean) => void;
+  // Where the sound goes now, and the outputs there are to choose among
+  // (empty where the system's picker lists them): said as the call goes
+  // live and at each change of either.
+  onOutput: (output: Output, outputs: OutputKind[]) => void;
   // The connection is down and being tried again, then back up.
   onReconnecting: () => void;
   onReconnected: () => void;
@@ -82,8 +92,11 @@ export type CallHolder = {
   join: (room: CallRoom) => Promise<void>;
   leave: () => Promise<void>;
   toggleMute: () => Promise<void>;
-  // Loudspeaker or earpiece. Nothing while headphones have the sound.
-  toggleSpeaker: () => Promise<void>;
+  // Moves the sound to one of the call's `outputs`. Nothing for one
+  // that isn't among them.
+  chooseOutput: (kind: OutputKind) => Promise<void>;
+  // Opens the system's picker of outputs, where the phone has one (iOS).
+  openOutputPicker: () => void;
   // Says where the call is again: the server forgets when its socket
   // drops.
   report: () => void;
@@ -141,20 +154,6 @@ export function connectionLine(call: Call | null): string {
 // before the call says it is establishing its connection: longer than
 // the answer takes when all is well, so a join doesn't flash the line.
 const PLACE_MS = 1000;
-
-// What the Speaker control shows: the loudspeaker on or off, or that
-// headphones have the sound and it has nothing to switch.
-export function speakerState(call: Call | null): "on" | "off" | "headphones" {
-  if (call?.headphones) return "headphones";
-  return call?.speaker ? "on" : "off";
-}
-
-// Android: which output the sound belongs on, of those the phone has
-// now: a headset when there is one, else as Speaker says.
-export function androidOutput(outputs: string[], speaker: boolean): string {
-  const headset = ["bluetooth", "headset"].find((kind) => outputs.includes(kind));
-  return headset ?? (speaker ? "speaker" : "earpiece");
-}
 
 // Whether a change in the app's state leaves the call: going to the
 // background does, unless it is only the microphone prompt in front.
@@ -251,7 +250,7 @@ export function createCall(deps: CallDeps): CallHolder {
     }
     attempt += 1;
     const mine = attempt;
-    const fresh = { room, muted: true, speaker: true, headphones: false, speaking: [], reconnecting: false, establishing: false };
+    const fresh = { room, muted: true, output: LOUDSPEAKER, outputs: [], speaking: [], reconnecting: false, establishing: false };
     set({ ...fresh, status: "connecting" });
     const fail = (failure: Call["failure"]) => set({ ...fresh, status: "failed", failure });
 
@@ -267,8 +266,10 @@ export function createCall(deps: CallDeps): CallHolder {
       onSpeaking: (userIds) => {
         if (connection === opened && call && !call.reconnecting) set({ ...call, speaking: userIds });
       },
-      onHeadphones: (connected) => {
-        if (connection === opened && call && call.headphones !== connected) set({ ...call, headphones: connected });
+      onOutput: (output, outputs) => {
+        if (connection !== opened || !call) return;
+        if (sameOutput(call.output, output) && sameList(call.outputs, outputs)) return;
+        set({ ...call, output, outputs });
       },
       onReconnecting: () => {
         if (connection !== opened || call?.status !== "connected" || call.reconnecting) return;
@@ -315,17 +316,24 @@ export function createCall(deps: CallDeps): CallHolder {
     if (connection === open) report();
   };
 
-  const toggleSpeaker = async () => {
+  const chooseOutput = async (kind: OutputKind) => {
     const open = connection;
-    if (!open || call?.status !== "connected" || call.headphones) return;
-    const speaker = !call.speaker;
-    set({ ...call, speaker });
+    if (!open || call?.status !== "connected" || !call.outputs.includes(kind)) return;
+    const was = call.output;
+    if (was.kind === kind) return;
+    const chosen = { kind, name: "" };
+    set({ ...call, output: chosen });
     try {
-      await open.setSpeaker(speaker);
+      await open.chooseOutput(kind);
     } catch {
-      // The sound didn't move: say where it still is.
-      if (connection === open && call?.speaker === speaker) set({ ...call, speaker: !speaker });
+      // The sound didn't move: say where it still is, unless the phone
+      // has said since.
+      if (connection === open && call?.output === chosen) set({ ...call, output: was });
     }
+  };
+
+  const openOutputPicker = () => {
+    if (connection && call?.status === "connected") connection.showOutputPicker();
   };
 
   return {
@@ -339,7 +347,8 @@ export function createCall(deps: CallDeps): CallHolder {
     join,
     leave: end,
     toggleMute,
-    toggleSpeaker,
+    chooseOutput,
+    openOutputPicker,
     report: () => {
       if (call?.status === "connected") unplaced(false);
       report();

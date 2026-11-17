@@ -1,6 +1,5 @@
 import {
   AndroidAudioTypePresets,
-  type AppleAudioCategoryOption,
   type AudioConfiguration,
   AudioSession,
   setupIOSAudioManagement,
@@ -9,7 +8,9 @@ import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type Par
 import { Platform } from "react-native";
 import { voiceClient } from "../api/clients";
 import { sessionToken } from "../api/servers";
-import { androidOutput, type CallRoom, type Connection, type ConnectionEvents } from "./call";
+import { audioRoute } from "../../modules/stoop-audio-route";
+import type { CallRoom, Connection, ConnectionEvents } from "./call";
+import { androidName, androidOutput, androidOutputs, type OutputKind, ownOutput } from "./output";
 
 // The LiveKit side of a call, as web's (web/src/api/voice.ts): a token
 // from JoinVoiceChannel, signalling at the server's own /livekit, the
@@ -34,9 +35,10 @@ const REMOVED = [
 const JOIN_TIMEOUT_MS = 30_000;
 
 // Where sound goes as a call starts (mobile/README.md → Voice).
-// Android: LiveKit picks the first of these that is there, so the
-// loudspeaker unless a headset is, in call mode. iOS: the loudspeaker
-// rather than the earpiece when nothing else is connected.
+// Android: the first of these that is there, so the loudspeaker unless
+// a headset is, in call mode; the app then chooses by the same order
+// itself (routeAndroid). iOS: the loudspeaker rather than the earpiece
+// when nothing else is connected.
 const AUDIO: AudioConfiguration = {
   android: {
     preferredOutputList: ["bluetooth", "headset", "speaker", "earpiece"],
@@ -44,34 +46,6 @@ const AUDIO: AudioConfiguration = {
   },
   ios: { defaultOutput: "speaker" },
 };
-
-// iOS: the loudspeaker or the earpiece as the session's default, which
-// headphones override either way. LiveKit sets the session again from
-// its policy whenever the audio engine changes, so the policy is told
-// too; the session is set here for the change to be heard now. The
-// options and modes are LiveKit's own for the two.
-const IOS_OPTIONS: AppleAudioCategoryOption[] = ["mixWithOthers", "allowBluetooth", "allowBluetoothA2DP", "allowAirPlay"];
-
-async function setIosSpeaker(speaker: boolean) {
-  setupIOSAudioManagement(speaker);
-  try {
-    await AudioSession.setAppleAudioConfiguration({
-      audioCategory: "playAndRecord",
-      audioCategoryOptions: speaker ? [...IOS_OPTIONS, "defaultToSpeaker"] : IOS_OPTIONS,
-      audioMode: speaker ? "videoChat" : "voiceChat",
-    });
-  } catch (err) {
-    // The session didn't follow, so the policy goes back with it.
-    setupIOSAudioManagement(!speaker);
-    throw err;
-  }
-}
-
-// Android has no event for a headset coming or going, so the outputs
-// are read this often while in a call. Until the next reading after a
-// headset goes, the sound is where LiveKit's own order puts it: the
-// loudspeaker.
-const OUTPUTS_EVERY_MS = 1000;
 
 // The response's address is a path on the server's origin; ws follows
 // http and wss follows https.
@@ -87,6 +61,10 @@ function withTimeout<Value>(work: Promise<Value>, ms: number): Promise<Value> {
   });
 }
 
+// How long after the phone says its outputs changed they are read a
+// second time (routeChanged).
+const READ_AGAIN_MS = 500;
+
 export function openConnection(origin: string, room: CallRoom, events: ConnectionEvents): Connection {
   const lk = new Room();
   let closed = false;
@@ -94,28 +72,73 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
   let live = false;
   let audioStarted = false;
   let mic: LocalAudioTrack | undefined;
-  let speaker = true;
-  // Android: whether Speaker has been pressed, and the output chosen
-  // last since. LiveKit moves the sound to a headset by itself only
-  // until an output is chosen by hand: a chosen one stays whatever
-  // connects later. So from the first press on, a headset is chosen
-  // here when one appears, and the phone's own output when it goes.
-  let chosen = false;
-  let output = "";
-  let watching: ReturnType<typeof setInterval> | undefined;
+  // Android: the phone's own output chosen last, which has the sound
+  // again when a headset goes: the loudspeaker until the earpiece is
+  // picked.
+  let own: OutputKind = "speaker";
+  // Android: the outputs as last read and the one the sound is on.
+  // LiveKit says neither and keeps the sound on whatever was chosen
+  // last, whatever connects later, so the app chooses every time: at the
+  // first reading, when a headset appears or goes (androidOutput), and
+  // at a pick from the list. `told` is what LiveKit was told last.
+  let outputs: OutputKind[] = [];
+  let output: OutputKind = "speaker";
+  let told: OutputKind | undefined;
+  // LiveKit says nothing of where the sound goes or of a headset coming
+  // or going, on either phone, so our own module does
+  // (modules/stoop-audio-route): listened to from the join landing until
+  // the connection closes.
+  let stopListening: (() => void) | undefined;
 
-  // Puts Android's sound where it belongs, and says whether that is a
-  // headset.
-  const routeAndroid = async (): Promise<boolean> => {
-    const outputs = await AudioSession.getAudioOutputs();
-    if (closed) return false;
-    const wanted = androidOutput(outputs, speaker);
-    const headset = wanted !== "speaker" && wanted !== "earpiece";
-    events.onHeadphones(headset);
-    if (!chosen || wanted === output) return headset;
-    output = wanted;
-    await AudioSession.selectAudioOutput(wanted);
-    return headset;
+  // Android: reads the outputs, says them and where the sound belongs
+  // among them, and puts it there.
+  const routeAndroid = async () => {
+    const now = androidOutputs(await AudioSession.getAudioOutputs());
+    if (closed) return;
+    output = androidOutput(now, { outputs, output, own });
+    outputs = now;
+    events.onOutput({ kind: output, name: "" }, outputs);
+    const name = androidName(output);
+    if (told === output || !name) return;
+    const target = output;
+    told = target;
+    try {
+      await AudioSession.selectAudioOutput(name);
+    } catch (err) {
+      // LiveKit didn't take it: the next reading tells it again, unless
+      // it has been told something else since.
+      if (told === target) told = undefined;
+      throw err;
+    }
+  };
+
+  // iOS moves the sound itself, to headphones and back and wherever the
+  // system's picker says; this says where it is now. The picker has one
+  // entry for the phone itself, the loudspeaker, so there is nothing of
+  // the app's to choose or put back.
+  const routeIos = () => {
+    const [now] = audioRoute?.outputs() ?? [];
+    if (now) events.onOutput(now, []);
+  };
+
+  // The outputs are read as the call goes live and again each time the
+  // phone says they changed. On Android, until that reading after the
+  // output the sound was on goes, the sound is where LiveKit's own order
+  // puts it: a headset still there, else the loudspeaker.
+  const readRoute = () => {
+    if (closed) return;
+    if (Platform.OS === "android") void routeAndroid().catch(() => {});
+    else if (Platform.OS === "ios") routeIos();
+  };
+
+  // A change is read at once and once more a moment later: on Android
+  // the list read is LiveKit's own, kept from the same news, and nothing
+  // promises it has heard by the first reading.
+  let again: ReturnType<typeof setTimeout> | undefined;
+  const routeChanged = () => {
+    readRoute();
+    clearTimeout(again);
+    again = setTimeout(readRoute, READ_AGAIN_MS);
   };
 
   lk.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
@@ -150,7 +173,8 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     const joined = await voiceClient(origin, session).joinVoiceChannel({ channelId: room.channelId });
     stopIfClosed();
     await AudioSession.configureAudio(AUDIO);
-    // The last call may have left the earpiece as iOS's default.
+    // LiveKit sets iOS's audio session from this policy whenever its
+    // audio engine changes: the loudspeaker as the phone's own output.
     if (Platform.OS === "ios") setupIOSAudioManagement(true);
     stopIfClosed();
     audioStarted = true;
@@ -185,10 +209,8 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     await published;
     stopIfClosed();
     live = true;
-    if (Platform.OS === "android") {
-      watching = setInterval(() => void routeAndroid().catch(() => {}), OUTPUTS_EVERY_MS);
-      void routeAndroid().catch(() => {});
-    }
+    stopListening = audioRoute?.onChange(routeChanged);
+    readRoute();
   };
 
   return {
@@ -198,27 +220,45 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     setMuted: async (muted) => {
       await lk.localParticipant.setMicrophoneEnabled(!muted);
     },
-    // Rejects, with the choice as it was, when the sound didn't move:
-    // also when a headset turned out to have it (Android), which the
-    // last reading hadn't seen yet.
-    setSpeaker: async (on) => {
-      const was = speaker;
-      speaker = on;
+    // Android only: iOS has no output the app can choose, and rejects.
+    // Rejects too for an output that has gone since the list was read.
+    // What is chosen is written down before LiveKit is told, so a
+    // reading of the outputs that runs meanwhile (routeAndroid) starts
+    // from it: a headset it finds arriving is chosen after this, and
+    // LiveKit ends where the app says the sound is.
+    chooseOutput: async (kind) => {
+      const name = androidName(kind);
+      if (Platform.OS !== "android" || !name || !outputs.includes(kind)) throw new Error("no such output");
+      const was = { output, own };
+      output = kind;
+      told = kind;
+      if (ownOutput(kind)) own = kind;
+      events.onOutput({ kind, name: "" }, outputs);
       try {
-        if (Platform.OS === "ios") await setIosSpeaker(on);
-        else {
-          chosen = true;
-          if (await routeAndroid()) throw new Error("headphones have the sound");
-        }
+        await AudioSession.selectAudioOutput(name);
       } catch (err) {
-        speaker = was;
+        // LiveKit didn't take it. Unless the sound has been put elsewhere
+        // since, it is where it was, and LiveKit is told at the next
+        // reading.
+        if (!closed && output === kind) {
+          ({ output, own } = was);
+          told = undefined;
+          events.onOutput({ kind: output, name: "" }, outputs);
+        }
         throw err;
       }
+    },
+    // iOS only: our own module presents the system's picker
+    // (modules/stoop-audio-route showPicker says why not LiveKit's).
+    // What is picked there comes back as a route change.
+    showOutputPicker: () => {
+      if (Platform.OS === "ios") void audioRoute?.showPicker();
     },
     close: async () => {
       if (closed) return;
       closed = true;
-      clearInterval(watching);
+      stopListening?.();
+      clearTimeout(again);
       await lk.disconnect().catch(() => {});
       // Disconnecting stops a published track; one not yet published is
       // stopped here, or the microphone would stay open.

@@ -155,6 +155,37 @@ export function LoudspeakerIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+// The phone itself, with the slot at its top: a call's sound in its
+// earpiece.
+export function PhoneIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Rect x={7} y={2.5} width={10} height={19} rx={2.5} />
+      <Path d="M10.5 6h3" />
+    </Stroke>
+  );
+}
+
+// Headphones, as web draws them (VoiceIcons.tsx).
+export function HeadphonesIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M4 14v-2a8 8 0 0 1 16 0v2" />
+      <Rect x={3} y={14} width={4} height={6} rx={1} />
+      <Rect x={17} y={14} width={4} height={6} rx={1} />
+    </Stroke>
+  );
+}
+
+// The Bluetooth rune.
+export function BluetoothIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="m7 7 10 10-5 5V2l5 5L7 17" />
+    </Stroke>
+  );
+}
+
 // A muted microphone, as web's MicIcon draws it off (VoiceIcons.tsx).
 export function MicOffIcon({ color, size = 18 }: IconProps) {
   return (
