@@ -4,6 +4,7 @@ const {
   withAndroidManifest,
   withDangerousMod,
 } = require("expo/config-plugins");
+const withPushKeys = require("./plugins/withPushKeys");
 
 // R8 rules a release build needs on top of the template's, written into
 // the generated android/app/proguard-rules.pro.
@@ -45,17 +46,21 @@ const withProguardRules = (config) =>
 // mobile-android-release sets it, so a release build on a developer's
 // phone can reach the dev server; nothing else does.
 module.exports = ({ config }) => {
-  const next = withProguardRules({
-    ...config,
-    ios: {
-      ...config.ios,
-      bundleIdentifier:
-        process.env.STOOP_IOS_BUNDLE_ID ?? config.ios.bundleIdentifier,
-      ...(process.env.STOOP_APPLE_TEAM_ID && {
-        appleTeamId: process.env.STOOP_APPLE_TEAM_ID,
-      }),
-    },
-  });
+  // withPushKeys names the app group after the bundle ID, so it goes on
+  // once that is settled.
+  const next = withPushKeys(
+    withProguardRules({
+      ...config,
+      ios: {
+        ...config.ios,
+        bundleIdentifier:
+          process.env.STOOP_IOS_BUNDLE_ID ?? config.ios.bundleIdentifier,
+        ...(process.env.STOOP_APPLE_TEAM_ID && {
+          appleTeamId: process.env.STOOP_APPLE_TEAM_ID,
+        }),
+      },
+    }),
+  );
   if (process.env.STOOP_ANDROID_CLEARTEXT !== "1") return next;
   return withAndroidManifest(next, (mod) => {
     mod.modResults.manifest.application[0].$["android:usesCleartextTraffic"] =

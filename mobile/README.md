@@ -1001,8 +1001,57 @@ badge stays as it was when the app left the front.
   importance (`channel.ts`), made before the prompt, which Android
   won't show without one. Its status-bar glyph is
   `assets/notification-icon.png`, the mark in white cut by `make brand`,
-  tinted Brownstone's accent (`app.json`). On iOS the plugin is told to
-  add no push entitlement (`enableRemoteNotifications: false`).
+  tinted Brownstone's accent (`app.json`). On iOS the plugin adds the
+  push entitlement (`enableRemoteNotifications: true`), for the push
+  work below; nothing registers for push yet.
+
+Push is being built: a relay will forward a message encrypted to this
+phone (Web Push, RFC 8291), and a notification service extension will
+decrypt it while the phone is locked. What is here so far is the
+groundwork, on iOS only: the keys, and a place the extension can read
+(`src/push`, over the native module `modules/stoop-push-keys`).
+
+- `pushKeys` (`src/push`) makes a P-256 key pair and a 16-byte auth
+  secret for an ID (`ensure`), says an ID's public key (`publicKey`)
+  and forgets an ID's keys (`remove`). An ID is the caller's short
+  name for a subscription: 1 to 64 letters, digits, `-` and `_`,
+  starting with a letter or digit. JavaScript gets `p256dh` (the
+  65-byte uncompressed point) and `auth`, both base64url; the private
+  key never leaves the native module. `pushKeys.store` gets, sets and
+  removes small JSON values by key, for what the extension needs
+  beside the keys. Where there is no native module (Android)
+  `pushKeys.supported` is false and every call rejects with a
+  `PushKeysError` coded `unsupported`; in a build signed without the
+  app group, `unavailable`.
+- One group holds both, the app group `group.<bundle ID>`
+  (`plugins/withPushKeys.js`, applied in `app.config.js` after the
+  bundle ID is settled; Info.plist names it under `StoopAppGroup`). An
+  app group is a keychain access group too, so there is no entry in
+  `keychain-access-groups`: one name, no team prefix, and the app's
+  default keychain group stays its own. The first entry of
+  `keychain-access-groups` is where every keychain write that names no
+  group lands, so a shared group listed there first would take the
+  session tokens with it.
+- The keys are one keychain item per ID (`PushKeychain.swift`), which
+  the extension reads by naming the group: a generic password, service
+  `stoop-push-keys`, account the ID, access group the app group,
+  accessible after first unlock on this device only, its value 48
+  bytes, the private key's raw scalar (32) then the auth secret (16).
+  The public key is never stored; it is derived from the private key
+  each time.
+- The store is one file per key in the app group's container,
+  `store/<key>.json`, the value's JSON text (`PushGroupStore.swift`),
+  readable after first unlock.
+- The keychain outlives the app and the container does not: after the
+  app is deleted and installed again an ID's keys are still there, and
+  `ensure` answers with them, while the store is empty. So an ID has
+  keys when the keychain says so and nothing in the store is trusted
+  to say it.
+- A development build logs one `PUSH_KEYS_CHECK` line to Metro at
+  launch (`src/push/devCheck.ts`, under `__DEV__` only): keys of its
+  own made or found, their public key, and a launch count kept in the
+  store. On the simulator that shows the module works; only a phone
+  shows what a locked phone allows.
 
 ## Voice
 
@@ -1451,6 +1500,27 @@ Capabilities and let it register the device and ID, or build once from
 -destination id=<phone UDID> -allowProvisioningUpdates`. Then build
 again as usual.
 
+The app has two capabilities a provisioning profile must carry: push
+notifications and its app group, `group.<bundle ID>` (Notifications,
+above). A profile made before the app had them fails the build with
+"Provisioning Profile … doesn't support the App Groups capability" (or
+Push Notifications), and `make mobile-ios` cannot fix that: it does not
+let Xcode change profiles. Once per team and bundle ID, after
+`make mobile-prebuild`, run
+
+```sh
+make mobile-ios-provision
+```
+
+which builds once from `mobile/ios` with `xcodebuild
+-allowProvisioningUpdates -allowProvisioningDeviceRegistration`, so
+Xcode registers the app group with the team and makes a profile that
+has both. Picking the team in Xcode under Signing & Capabilities does
+the same. Then `make mobile-ios` as usual. A build with no team (the
+simulator, CI) needs none of this. Push notifications need a paid
+Apple Developer membership: a free account's team cannot sign that
+capability, so it can build for the simulator only.
+
 ## Make targets
 
 From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
@@ -1462,6 +1532,7 @@ From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
 | `make mobile-android` | The same for a connected Android phone |
 | `make mobile-metro` | Starts Metro for a build already on the phone |
 | `make mobile-prebuild` | Regenerates `ios/` and `android/` from `app.json` |
+| `make mobile-ios-provision` | One signed iPhone build that lets Xcode update the provisioning profile, after the app gains a capability (Signing for iOS, above) |
 | `make mobile-theme` | Regenerates `src/theme/generated.ts` from the web themes |
 | `make mobile-typecheck` | `tsc --noEmit` over `mobile/` and the web code it shares |
 | `make mobile-ios-release` | A release build onto a connected iPhone, no Metro, to judge speed and motion as shipped; replaces the development build until `make mobile-ios` |
@@ -1483,6 +1554,10 @@ native rebuild, not only Metro.
 `modules/stoop-audio-route` is the second, and small: where the phone
 sends its sound, when that changes, and iOS's picker of outputs, for a
 call's Output control (Voice → Output, above). The same goes for a change to it.
+
+`modules/stoop-push-keys` is the third, for iOS alone: the keys a push
+is encrypted to, in the keychain, and a small store in the app group
+(Notifications, above).
 
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS
@@ -1522,7 +1597,7 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 the voice room's `stageRules.ts` and `switchRules.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
 `shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
-`pendingInvite.ts`, `api/invites.ts`,
+`pendingInvite.ts`, `api/invites.ts`, `push/keys.ts`,
 and Add a space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 

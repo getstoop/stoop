@@ -11,9 +11,14 @@ import LastSpaceProvider from "../lastSpace/LastSpaceProvider";
 import OpenInviteLink from "../links/OpenInviteLink";
 import OpenSharedLink from "../links/OpenSharedLink";
 import NotificationsProvider from "../notifications/NotificationsProvider";
+import { logPushKeysCheck } from "../push/devCheck";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
 import { ThemeProvider, tokens, useTheme } from "../theme";
+
+// A development build says at launch whether this phone's push keys
+// work (src/push/devCheck.ts); a release build does not.
+if (__DEV__) void logPushKeysCheck();
 
 // The root of the app. Files under src/app are routes and layouts only,
 // a few lines each; the screens they show live in src/screens. Gestures
