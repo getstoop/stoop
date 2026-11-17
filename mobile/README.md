@@ -1141,15 +1141,18 @@ change to them needs a native rebuild, not only Metro.
   neither the phone's nor on a wire (the headphones' name, an AirPlay
   speaker's). The names and their marks are `outputName` in
   `call/output.ts` and `OutputIcon.tsx`. A press opens the way to move the sound: the
-  app's own sheet on Android, the system's picker on iOS (below). The
-  loudspeaker and the earpiece are entries there like any other; there
-  is no separate Speaker control, and none that turns the call's sound
-  off. The call bar has no control for any of this.
+  app's own sheet on Android, the system's picker on iOS (below). On
+  Android the loudspeaker and the earpiece are entries there like any
+  other; iOS's picker has one entry for the phone itself, the
+  loudspeaker, so a call on an iPhone cannot be put on the earpiece.
+  There is no separate Speaker control, and none that turns the call's
+  sound off. The call bar has no control for any of this.
   The rules, on both phones: a call starts on the loudspeaker, or on a
   headset already connected; a headset that connects during the call
   takes the sound, also from an output picked by hand; and when the
   output in use goes, the sound returns to the phone's own output
-  chosen last, which is the loudspeaker until the earpiece is picked.
+  chosen last, which is the loudspeaker until the earpiece is picked
+  (on Android; on iOS it is always the loudspeaker).
   The call holds where the sound is and, on Android, what there is to
   choose among (`output` and `outputs` in `call.ts`; the kinds and
   the rules are `call/output.ts`, with unit tests beside it), and every call
@@ -1205,43 +1208,14 @@ change to them needs a native rebuild, not only Metro.
     is shown. Drawing the system's view over the control instead would
     not need that, but the control would then be the system's own,
     with its glyph and its name for a screen reader.
-    iOS moves the sound to headphones and back by itself, and gives no
-    reason for a move the app can trust. The picker also offers the
-    phone's own two, so the app goes by where the sound was before
-    (`iosOwnChange` in `call/output.ts`):
-    - The sound moving from one of the phone's own two to the other,
-      after the picker was really shown (`showPicker` says whether it
-      was) and before another such move, is taken as picked there. It
-      becomes the phone's own choice, in LiveKit's policy
-      (`setupIOSAudioManagement`), which LiveKit sets the session from
-      again whenever the audio engine changes, and on the session at
-      once (`setAppleAudioConfiguration`), so the two agree: the
-      loudspeaker as the session's default with video chat mode, or
-      the earpiece with voice chat mode. One pick is taken for each
-      time the picker is shown.
-    - The sound landing on the one not chosen from anywhere else
-      (headphones going, the call's first reading) is the session's
-      default at work, not the user: the session is set to the one
-      chosen, once, and the sound goes back.
-    - Any other move is left alone.
-    LiveKit's own "force speaker" output is not used: it takes the
+    iOS moves the sound to headphones and back by itself, and the app
+    only says where it is. On a real iPhone the picker lists the phone
+    once, as its loudspeaker, beside headphones and AirPlay: the
+    earpiece is not offered, and the app has no control of its own for
+    it. LiveKit's own "force speaker" output is not used: it takes the
     sound from headphones.
-    What this cannot tell apart, and gets wrong: with the earpiece
-    chosen and headphones in use, picking "Speaker" in the picker
-    looks the same as the headphones going, and the sound is put back
-    on the earpiece; a second own-output pick made without closing the
-    picker is not recorded as the choice; and a move between the
-    phone's own two that the system makes for a reason of its own
-    while the picker's pick is still awaited would be taken as the
-    pick.
-  - **Not yet tried on a real phone:** the simulator and the emulator
-    have one output each, and the simulator presents no picker at all,
-    also for a finger on a visible `AVRoutePickerView`. The first
-    things to try: whether iOS's picker lets the earpiece be picked
-    while the loudspeaker is the session's default; whether setting
-    the session right after a pick leaves the sound where it was
-    picked, also with headphones connected but not in use; and whether
-    the sound comes back to a picked earpiece when headphones go.
+  - **Not yet tried on a real phone:** Android's sheet with more than
+    one headset, and Bluetooth there without the Bluetooth permission.
 - **While in a call, the call bar takes the server chip's row** by the
   tab bar, on all four tabs, with one server too, and the chip comes
   back when the call ends (`tabRow` in `src/call/callBar.ts`, read

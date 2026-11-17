@@ -3,7 +3,6 @@ import {
   androidName,
   androidOutput,
   androidOutputs,
-  iosOwnChange,
   type OutputKind,
   outputName,
   ownOutput,
@@ -84,29 +83,5 @@ describe("a call's outputs", () => {
     expect(ownOutput("headphones")).toBe(false);
     expect(ownOutput("bluetooth")).toBe(false);
     expect(ownOutput("other")).toBe(false);
-  });
-
-  it("takes iOS's sound moving between the phone's own two as a pick only after the picker was shown", () => {
-    expect(iosOwnChange("earpiece", "speaker", "speaker", true)).toBe("pick");
-    expect(iosOwnChange("speaker", "earpiece", "earpiece", true)).toBe("pick");
-    // Nobody opened the picker: not a pick, and not the app's to undo.
-    expect(iosOwnChange("earpiece", "speaker", "speaker", false)).toBe("none");
-  });
-
-  it("puts iOS's sound back when headphones go and it lands on the output not chosen", () => {
-    expect(iosOwnChange("speaker", "bluetooth", "earpiece", false)).toBe("restore");
-    expect(iosOwnChange("speaker", "headphones", "earpiece", true)).toBe("restore");
-    expect(iosOwnChange("earpiece", "other", "speaker", true)).toBe("restore");
-    // The call's first reading.
-    expect(iosOwnChange("earpiece", undefined, "speaker", false)).toBe("restore");
-  });
-
-  it("does nothing on iOS while the sound is where it was chosen, was already, or on a headset", () => {
-    expect(iosOwnChange("speaker", "bluetooth", "speaker", true)).toBe("none");
-    expect(iosOwnChange("speaker", undefined, "speaker", false)).toBe("none");
-    // The second reading of one change, and a restore that didn't take: no loop.
-    expect(iosOwnChange("speaker", "speaker", "earpiece", true)).toBe("none");
-    expect(iosOwnChange("bluetooth", "speaker", "speaker", true)).toBe("none");
-    expect(iosOwnChange("headphones", "earpiece", "earpiece", false)).toBe("none");
   });
 });
