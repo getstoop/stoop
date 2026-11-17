@@ -1139,33 +1139,47 @@ change to them needs a native rebuild, not only Metro.
   is set, and the choice holds again when they go. The choice is the
   call's (`speaker` in `call.ts`); the call bar has no control for it.
   There is no picker of outputs.
+  LiveKit says nothing of where the sound goes now, or of a headset
+  coming or going, on either phone, so a module of our own does
+  (`modules/stoop-audio-route`): an event when the phone's outputs
+  change, and on iOS the outputs the sound goes to. `livekit.ts`
+  listens from the join landing until the connection closes, and reads
+  the outputs as it starts and at each event, and half a second after
+  an event once more, since on Android the list is LiveKit's own and may
+  not have the news yet. While headphones have the
+  sound the control is disabled and shows off, on both phones, and a
+  press does nothing. A build made before the module was added has no
+  such event: there iOS never knows of headphones, and Android only of
+  those there as the join lands or at a press of Speaker.
   - **iOS** switches the audio session's default: with the loudspeaker
     as the default and video chat mode, or without it and voice chat
     mode (LiveKit's own two settings). It is set on the session at once
     and in LiveKit's policy, which sets the session again whenever the
     audio engine changes. iOS itself sends the sound to headphones
     either way. LiveKit's own "force speaker" output is not used: it
-    takes the sound from headphones. LiveKit gives the app no way to
-    learn what is connected on iOS, so there the control never knows of
-    headphones: it stays as it was set, and switching it while they
-    have the sound changes only where the sound goes once they are
-    gone.
+    takes the sound from headphones. The module reads the audio
+    session's current route (`AVAudioSession.currentRoute`) and passes
+    on its route-change notice. "Headphones have the sound" is any
+    output there that is not the iPhone's own loudspeaker or earpiece
+    (`iosHeadphones` in `call.ts`): wired or USB headphones, Bluetooth,
+    and AirPlay, a car or HDMI as well, since Speaker switches between
+    the phone's own two and has nothing to say about any of those.
   - **Android** chooses the loudspeaker or the earpiece by hand
     (`selectAudioOutput`). LiveKit's audio switch moves the sound to a
     headset by itself only until an output has been chosen by hand,
-    after which the chosen one stays whatever connects. It has no event
-    for a headset coming or going either, so while in a call the app
-    reads the outputs every second (`livekit.ts`): the control is
-    disabled and shows off while a headset is among them, and from the
-    first press of Speaker the app chooses the headset itself when one
-    appears and the loudspeaker or earpiece again when it goes. Up to
-    then LiveKit's own order does it, at once. Two things follow from
-    reading rather than being told. After a press, a headset that
-    connects has the sound up to a second late. And when a headset
-    goes, LiveKit falls back to the loudspeaker until the next reading,
-    so with Speaker off the call is out loud for up to a second before
-    it reaches the earpiece. A press that finds a headset the last
-    reading hadn't seen changes nothing.
+    after which the chosen one stays whatever connects. The module's
+    event is Android's own notice of an output added or removed
+    (`AudioDeviceCallback`), and at each one the app reads LiveKit's
+    list of outputs (`getAudioOutputs`): the control is disabled and
+    shows off while a headset is among them, and from the first press
+    of Speaker the app chooses the headset itself when one appears and
+    the loudspeaker or earpiece again when it goes. Up to then
+    LiveKit's own order does it. The module asks for no permission and
+    reads no device's name. When a headset goes, LiveKit falls back to
+    the loudspeaker first, so with Speaker off the call may be out loud
+    for the moment it takes the app to hear of it and choose the
+    earpiece. A press that finds a headset the last reading hadn't seen
+    changes nothing.
     A phone with no earpiece (the emulator has none) is not told apart:
     Speaker switches there and the sound stays on the loudspeaker.
 - **While in a call, the call bar takes the server chip's row** by the
@@ -1412,6 +1426,10 @@ draws a message's paragraph and holds the composer's field
 (`docs/architecture/messaging.md` → The phone's rows, The phone's
 field). Expo links it on its own; a change to its Swift or Kotlin needs a
 native rebuild, not only Metro.
+
+`modules/stoop-audio-route` is the second, and small: where the phone
+sends its sound and when that changes, for a call's Speaker control
+(Voice → Speaker, above). The same goes for a change to it.
 
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS

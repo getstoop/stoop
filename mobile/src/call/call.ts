@@ -24,7 +24,8 @@ export type Call = {
   // The loudspeaker rather than the earpiece, for when no headphones
   // are connected. Every call starts with it on.
   speaker: boolean;
-  // Headphones have the sound, where the phone can tell (Android).
+  // Headphones, or anything else that is not the phone's own loudspeaker
+  // or earpiece, have the sound.
   headphones: boolean;
   // The user IDs of whoever is speaking, this account's included.
   speaking: string[];
@@ -136,6 +137,14 @@ export function androidOutput(outputs: string[], speaker: boolean): string {
   const headset = ["bluetooth", "headset"].find((kind) => outputs.includes(kind));
   return headset ?? (speaker ? "speaker" : "earpiece");
 }
+
+// iOS: whether headphones have the sound, from the kinds of the outputs
+// it goes to now (modules/stoop-audio-route). Anything that is not the
+// phone's own loudspeaker or earpiece counts: wired, USB, Bluetooth,
+// AirPlay, a car. Speaker switches between the phone's own two and has
+// nothing to say about any of those. No outputs at all is not headphones.
+export const iosHeadphones = (outputs: { kind: string }[]) =>
+  outputs.some((output) => output.kind !== "speaker" && output.kind !== "earpiece");
 
 // Whether a change in the app's state leaves the call: going to the
 // background does, unless it is only the microphone prompt in front.

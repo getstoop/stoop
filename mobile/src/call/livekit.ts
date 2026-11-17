@@ -9,7 +9,8 @@ import { DisconnectReason, type Participant, Room, RoomEvent } from "livekit-cli
 import { Platform } from "react-native";
 import { voiceClient } from "../api/clients";
 import { sessionToken } from "../api/servers";
-import { androidOutput, type CallRoom, type Connection, type ConnectionEvents } from "./call";
+import { audioRoute } from "../../modules/stoop-audio-route";
+import { androidOutput, type CallRoom, type Connection, type ConnectionEvents, iosHeadphones } from "./call";
 
 // The LiveKit side of a call, as web's (web/src/api/voice.ts): a token
 // from JoinVoiceChannel, signalling at the server's own /livekit, the
@@ -67,12 +68,6 @@ async function setIosSpeaker(speaker: boolean) {
   }
 }
 
-// Android has no event for a headset coming or going, so the outputs
-// are read this often while in a call. Until the next reading after a
-// headset goes, the sound is where LiveKit's own order puts it: the
-// loudspeaker.
-const OUTPUTS_EVERY_MS = 1000;
-
 // The response's address is a path on the server's origin; ws follows
 // http and wss follows https.
 function signalingUrl(origin: string, urlOrPath: string): string {
@@ -86,6 +81,10 @@ function withTimeout<Value>(work: Promise<Value>, ms: number): Promise<Value> {
     work.then(resolve, reject).finally(() => clearTimeout(timer));
   });
 }
+
+// How long after the phone says its outputs changed they are read a
+// second time (routeChanged).
+const READ_AGAIN_MS = 500;
 
 export function openConnection(origin: string, room: CallRoom, events: ConnectionEvents): Connection {
   const lk = new Room();
@@ -101,7 +100,11 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
   // here when one appears, and the phone's own output when it goes.
   let chosen = false;
   let output = "";
-  let watching: ReturnType<typeof setInterval> | undefined;
+  // LiveKit says nothing of where the sound goes or of a headset coming
+  // or going, on either phone, so our own module does
+  // (modules/stoop-audio-route): listened to from the join landing until
+  // the connection closes.
+  let stopListening: (() => void) | undefined;
 
   // Puts Android's sound where it belongs, and says whether that is a
   // headset.
@@ -115,6 +118,34 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     output = wanted;
     await AudioSession.selectAudioOutput(wanted);
     return headset;
+  };
+
+  // iOS moves the sound to headphones and back by itself; this only
+  // says whether they have it now (iosHeadphones says what counts).
+  const routeIos = (): boolean => {
+    const headphones = iosHeadphones(audioRoute?.outputs() ?? []);
+    events.onHeadphones(headphones);
+    return headphones;
+  };
+
+  // The outputs are read as the call goes live and again each time the
+  // phone says they changed. On Android, until that reading after a
+  // headset goes, the sound is where LiveKit's own order puts it: the
+  // loudspeaker.
+  const readRoute = () => {
+    if (closed) return;
+    if (Platform.OS === "android") void routeAndroid().catch(() => {});
+    else if (Platform.OS === "ios") routeIos();
+  };
+
+  // A change is read at once and once more a moment later: on Android
+  // the list read is LiveKit's own, kept from the same news, and nothing
+  // promises it has heard by the first reading.
+  let again: ReturnType<typeof setTimeout> | undefined;
+  const routeChanged = () => {
+    readRoute();
+    clearTimeout(again);
+    again = setTimeout(readRoute, READ_AGAIN_MS);
   };
 
   lk.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) =>
@@ -174,10 +205,8 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     await published;
     stopIfClosed();
     live = true;
-    if (Platform.OS === "android") {
-      watching = setInterval(() => void routeAndroid().catch(() => {}), OUTPUTS_EVERY_MS);
-      void routeAndroid().catch(() => {});
-    }
+    stopListening = audioRoute?.onChange(routeChanged);
+    readRoute();
   };
 
   return {
@@ -188,14 +217,16 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
       await lk.localParticipant.setMicrophoneEnabled(!muted);
     },
     // Rejects, with the choice as it was, when the sound didn't move:
-    // also when a headset turned out to have it (Android), which the
-    // last reading hadn't seen yet.
+    // also when headphones turned out to have it, which the last reading
+    // hadn't seen yet.
     setSpeaker: async (on) => {
       const was = speaker;
       speaker = on;
       try {
-        if (Platform.OS === "ios") await setIosSpeaker(on);
-        else {
+        if (Platform.OS === "ios") {
+          if (routeIos()) throw new Error("headphones have the sound");
+          await setIosSpeaker(on);
+        } else {
           chosen = true;
           if (await routeAndroid()) throw new Error("headphones have the sound");
         }
@@ -207,7 +238,8 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     close: async () => {
       if (closed) return;
       closed = true;
-      clearInterval(watching);
+      stopListening?.();
+      clearTimeout(again);
       await lk.disconnect().catch(() => {});
       if (audioStarted) await AudioSession.stopAudioSession().catch(() => {});
     },
