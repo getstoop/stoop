@@ -1009,7 +1009,7 @@ badge stays as it was when the app left the front.
 A voice room's screen (`src/screens/VoiceRoom`) has two sides, picked
 with a Call | Chat switch in a second floating row under its header.
 Call, which the room opens on, joins its call: Join, then Mute, Speaker
-and Leave in its place, and a ring on whoever is speaking. Chat is the
+and Leave in its place, and a ring around the tile of whoever is speaking. Chat is the
 room's own text chat.
 The LiveKit packages are in (`@livekit/react-native`, its WebRTC build,
 its Expo plugin and `livekit-client`, at the version web uses), so a
@@ -1176,7 +1176,7 @@ change to them needs a native rebuild, not only Metro.
   and Theo are speaking", "Priya and 2 others are speaking"), the
   room's space while nobody is, "Connecting…" on the way in and
   "Reconnecting…" while a dropped connection is tried again.
-  Pressing the names opens the room's screen; Mute shows an amber
+  Pressing the names opens the room's screen; Mute shows a red
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are
   `callBar.ts`, with unit tests beside it.

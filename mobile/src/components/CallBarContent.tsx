@@ -119,7 +119,7 @@ export default function CallBarContent({ style, held }: { style?: StyleProp<View
         onPress={() => void toggleMute()}
         style={({ pressed }) => [styles.button, pressed && styles.pressed, connecting && styles.dim]}
       >
-        {call.muted ? <MicOffIcon color={theme.warn} size={22} /> : <MicIcon color={theme.text} size={22} />}
+        {call.muted ? <MicOffIcon color={theme.danger} size={22} /> : <MicIcon color={theme.text} size={22} />}
       </Pressable>
       <Pressable
         accessibilityRole="button"
