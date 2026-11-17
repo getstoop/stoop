@@ -102,7 +102,14 @@ export function pushKeysOver(native: NativePushKeys | null): PushKeys {
         }),
       set: (key, value) =>
         call(key, (module) => {
-          const text = JSON.stringify(value);
+          // undefined for what JSON leaves out (undefined, a function);
+          // a throw for what it cannot write (a cycle, a BigInt).
+          let text: string | undefined;
+          try {
+            text = JSON.stringify(value);
+          } catch {
+            text = undefined;
+          }
           if (text === undefined) throw new PushKeysError("invalid", `Not a JSON value for '${key}'`);
           return module.setItem(key, text);
         }),

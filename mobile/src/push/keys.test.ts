@@ -111,7 +111,12 @@ describe("pushKeysOver", () => {
 
   it("refuses a value JSON cannot hold", async () => {
     const { native, calls } = fakeNative();
-    expect(await refusedWith(pushKeysOver(native).store.set("servers", undefined))).toBe("invalid");
+    const keys = pushKeysOver(native);
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(await refusedWith(keys.store.set("servers", undefined))).toBe("invalid");
+    expect(await refusedWith(keys.store.set("servers", circular))).toBe("invalid");
+    expect(await refusedWith(keys.store.set("servers", { count: 1n }))).toBe("invalid");
     expect(calls).toEqual([]);
   });
 
