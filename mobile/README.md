@@ -1045,8 +1045,9 @@ change to them needs a native rebuild, not only Metro.
   beside the other app-wide providers, so leaving the room's screen
   keeps the call and coming back finds it. `useCall()` gives what a
   screen draws (the server, space and room, connecting, connected or
-  failed, reconnecting, muted, where the sound comes out and where
-  else it could, who is speaking) and `useCallActions()` what it can do. One
+  failed, reconnecting, establishing its connection, muted, where the
+  sound comes out and where else it could, who is speaking) and
+  `useCallActions()` what it can do. One
   call at a time, across every server: joining a second room leaves
   the first, then joins.
 - **`call.ts` is the call's rules and nothing else**: plain state with
@@ -1056,7 +1057,9 @@ change to them needs a native rebuild, not only Metro.
   microphone is asked for first (a refusal joins nothing), then
   `JoinVoiceChannel`, signalling at the server's own `/livekit` with
   the ICE servers it names, and the microphone published as signalling
-  comes up. A join starts unmuted.
+  comes up. Every join starts muted, until Unmute is pressed: the
+  track is muted before it is published, as web's is, so it never
+  carries sound first.
 - **Where the call is goes to the server over the realtime socket**
   (`VoiceState`, as web sends it): on connecting, on each mute, as
   "left" on leaving, and again after every reconnect, since the server
@@ -1093,6 +1096,21 @@ change to them needs a native rebuild, not only Metro.
     it is back, as it is whenever the roster isn't known), and nobody
     wears a ring, since who is speaking is not known meanwhile. When it is
     back, everything is as it was and nothing is said.
+  - **A call the server hasn't placed says "Establishing
+    connection…"** in the same two places, with the controls kept. The
+    call has its sound as soon as LiveKit is up, but its own tile comes
+    from the roster, and so from the realtime socket: just after the
+    network came back the socket may still be waiting to dial again,
+    and the call would look joined with nobody on the Stage. So the
+    line shows while the call is connected and the server has yet to
+    say this account is in the room (`establishing` in `call.ts`): at
+    once while the server's socket is down, which `CallProvider` reads
+    from the roster being unknown, and otherwise once the server's
+    answer is a second late (`PLACE_MS`), so a join that goes well
+    never shows it. It goes when the server says this account is in
+    the room. "Reconnecting…" wins over it. A report the server drops
+    without a word leaves the line up until the next mute or the
+    socket's next reconnect, which say it again.
   - **A call lost for good ends, and its room's screen says "Call
     ended. Try again."** over Join: LiveKit gave up retrying, or
     disconnected for any reason but the server's removal. The call
@@ -1222,8 +1240,9 @@ change to them needs a native rebuild, not only Metro.
   through `src/hooks/useServerChipRoom.ts`). It names the room and,
   under it, who is speaking besides you ("Priya is speaking", "Priya
   and Theo are speaking", "Priya and 2 others are speaking"), the
-  room's space while nobody is, "Connecting…" on the way in and
-  "Reconnecting…" while a dropped connection is tried again.
+  room's space while nobody is, "Connecting…" on the way in,
+  "Establishing connection…" until the server has placed the call, and "Reconnecting…" while a
+  dropped connection is tried again.
   Pressing the names opens the room's screen; Mute shows a red
   struck microphone while muted, and Leave ends the call. A join that
   failed shows no bar: its room's screen says so. The rules are

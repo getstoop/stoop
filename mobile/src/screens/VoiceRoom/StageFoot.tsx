@@ -21,7 +21,7 @@ const BUBBLE_PAD = 12;
 // call's sound goes now, as a mark and a name, and a press opens the way
 // to move it (`onOutput`: the screen's to say which). A join that
 // failed, or a call that was lost, says so in the line's place (`failure`), and so does a call
-// whose connection is being tried again (`notice`), with the controls
+// whose connection is being tried again or not yet all there (`notice`), with the controls
 // kept. A join refused the microphone has a link under its line to
 // the app's page in the system's settings (`onOpenSettings`), where the
 // microphone is allowed once the system won't ask again: underlined,
@@ -45,7 +45,7 @@ export default function StageFoot({
 }: {
   line: string;
   failure: string;
-  // "Reconnecting…" while the call's connection is tried again, or "".
+  // What the call says of its connection (call connectionLine), or "".
   notice: string;
   // Given while the failure is the microphone refused.
   onOpenSettings?: () => void;

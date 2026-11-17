@@ -7,7 +7,7 @@ import { ScrollViewMarker } from "react-native-screens/experimental";
 import { setChannelMuted } from "../../api/channels";
 import { errorText } from "../../api/errors";
 import { useCall, useCallActions } from "../../call/CallProvider";
-import { failureLine, footState, offersSettings, reconnectingLine } from "../../call/call";
+import { connectionLine, failureLine, footState, offersSettings } from "../../call/call";
 import { usePushOnce } from "../../hooks/usePushOnce";
 import { useVoiceRoster } from "../../realtime/RealtimeProvider";
 import { inRoom } from "../../realtime/voice";
@@ -41,7 +41,8 @@ import VoiceTitle from "./VoiceTitle";
 // Output and Leave, this account is a tile like anyone, through the
 // roster, and whoever is speaking wears a ring. Leaving the screen
 // keeps the call, and coming back finds it. While the call's connection
-// is being tried again the foot says "Reconnecting…" over the controls,
+// is being tried again the foot says "Reconnecting…" over the controls
+// ("Establishing connection…" while the server has yet to place it),
 // the tiles stay as the roster has them and nobody wears a ring; a call
 // lost for good is back at Join under "Call ended. Try again.".
 //
@@ -224,7 +225,7 @@ export default function VoiceRoom({
           <StageFoot
             line={hereLine(people?.map((person) => person.name) ?? [])}
             failure={failureLine(call, room)}
-            notice={inCall ? reconnectingLine(call) : ""}
+            notice={inCall ? connectionLine(call) : ""}
             onOpenSettings={offersSettings(call, room) ? openSettings : undefined}
             state={foot}
             muted={inCall && !!call?.muted}

@@ -4,7 +4,7 @@ import {
   AudioSession,
   setupIOSAudioManagement,
 } from "@livekit/react-native";
-import { DisconnectReason, type Participant, Room, RoomEvent } from "livekit-client";
+import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type Participant, Room, RoomEvent } from "livekit-client";
 import { Platform } from "react-native";
 import { voiceClient } from "../api/clients";
 import { sessionToken } from "../api/servers";
@@ -71,6 +71,7 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
   // Whether the join has landed: only then is a disconnect a drop.
   let live = false;
   let audioStarted = false;
+  let mic: LocalAudioTrack | undefined;
   // Android: the phone's own output chosen last, which has the sound
   // again when a headset goes: the loudspeaker until the earpiece is
   // picked.
@@ -179,11 +180,21 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
     audioStarted = true;
     await AudioSession.startAudioSession();
     stopIfClosed();
-    // The connection isn't up until it has a track to carry, so the
-    // microphone is published as soon as signalling is (web's join).
+    // A call starts muted (call.ts), so the microphone's track is muted
+    // before it is published, as web's is: it is announced muted and
+    // carries no sound until it is unmuted. The connection isn't up
+    // until it has a track to carry, so it is published as soon as
+    // signalling is.
+    const track = await createLocalAudioTrack();
+    mic = track;
+    // Closed meanwhile: close() had no track to stop yet.
+    if (closed) track.stop();
+    stopIfClosed();
+    await track.mute();
+    stopIfClosed();
     let published: Promise<unknown> = Promise.resolve();
     lk.once(RoomEvent.SignalConnected, () => {
-      published = lk.localParticipant.setMicrophoneEnabled(true);
+      published = lk.localParticipant.publishTrack(track);
       published.catch(() => {});
     });
     // The server's list replaces LiveKit's own; an empty one keeps it.
@@ -249,6 +260,9 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
       stopListening?.();
       clearTimeout(again);
       await lk.disconnect().catch(() => {});
+      // Disconnecting stops a published track; one not yet published is
+      // stopped here, or the microphone would stay open.
+      mic?.stop();
       if (audioStarted) await AudioSession.stopAudioSession().catch(() => {});
     },
   };

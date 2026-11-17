@@ -1,7 +1,7 @@
 import { permissions } from "@livekit/react-native-webrtc";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
-import { useEventSubscription, useSendClientEvent } from "../realtime/RealtimeProvider";
+import { useEventSubscription, useSendClientEvent, useVoiceRoster } from "../realtime/RealtimeProvider";
 import { useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
 import { type Call, type CallHolder, type CallRoom, type Connection, createCall, leavesCall } from "./call";
@@ -72,6 +72,14 @@ export default function CallProvider({ children }: { children: ReactNode }) {
       } else if (payload.case === "channelDeleted") holder.roomGone(serverId, payload.value.channelId);
     });
   }, [serverId, subscribe, holder]);
+
+  // The server's roster is unknown while its socket is down (and before
+  // it first answers): the call says so (connectionLine).
+  const socketDown = useVoiceRoster(serverId ?? "") === undefined;
+  const connected = call?.status === "connected";
+  useEffect(() => {
+    if (connected && socketDown) holder.socketDown();
+  }, [connected, socketDown, holder]);
 
   // The session the call was joined under: signing out, or in again as
   // someone else, ends the call.
