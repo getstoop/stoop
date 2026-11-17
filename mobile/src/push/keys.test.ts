@@ -147,11 +147,13 @@ describe("pushKeysOver", () => {
       publicKey: () => Promise.reject(coded("ERR_PUSH_KEYS_INVALID_NAME")),
       deleteKeys: () => Promise.reject(coded("ERR_PUSH_KEYS_FAILED")),
       getItem: () => Promise.reject(new Error("no code")),
+      setItem: () => Promise.reject(coded("ERR_PUSH_KEYS_LOCKED")),
     });
     expect(await refusedWith(keys.ensure("one"))).toBe("unavailable");
     expect(await refusedWith(keys.publicKey("one"))).toBe("invalid");
     expect(await refusedWith(keys.remove("one"))).toBe("failed");
     expect(await refusedWith(keys.store.get("servers"))).toBe("failed");
+    expect(await refusedWith(keys.store.set("servers", 1))).toBe("locked");
     await expect(keys.ensure("one")).rejects.toThrow("native ERR_PUSH_KEYS_UNAVAILABLE");
   });
 });

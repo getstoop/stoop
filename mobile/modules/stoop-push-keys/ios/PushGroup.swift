@@ -4,8 +4,9 @@ import Foundation
 // The one group the app shares with its notification service extension:
 // an app group, "group.<bundle ID>", which iOS also accepts as a keychain
 // access group. The config plugin (mobile/plugins/withPushKeys.js) puts
-// it in the entitlements and writes its name into Info.plist under
-// StoopAppGroup, where the extension can read it too.
+// it in the entitlements and writes its name into the app's Info.plist
+// under StoopAppGroup. The extension is a bundle of its own with its own
+// Info.plist, so whatever builds it must write the same name there.
 enum PushGroup {
   static func name() throws -> String {
     guard let group = Bundle.main.object(forInfoDictionaryKey: "StoopAppGroup") as? String, !group.isEmpty else {
@@ -40,6 +41,13 @@ final class PushKeysUnavailableException: GenericException<String>, @unchecked S
 final class PushKeysInvalidNameException: GenericException<String>, @unchecked Sendable {
   override var code: String { "ERR_PUSH_KEYS_INVALID_NAME" }
   override var reason: String { "Not a valid ID or key: '\(param)'" }
+}
+
+// The keychain is closed: the phone has not been unlocked since it
+// started. The keys may well be there; ask again later.
+final class PushKeysLockedException: Exception, @unchecked Sendable {
+  override var code: String { "ERR_PUSH_KEYS_LOCKED" }
+  override var reason: String { "The keychain is locked until the phone is first unlocked" }
 }
 
 // Anything else the keychain or the file system refused.

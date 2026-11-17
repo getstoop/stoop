@@ -10,7 +10,9 @@ import ExpoModulesCore
 // half and the auth secret, which are what a subscription tells the
 // server. Every function rejects with ERR_PUSH_KEYS_UNAVAILABLE in a
 // build that has no app group, ERR_PUSH_KEYS_INVALID_NAME for an ID or
-// key it will not take, and ERR_PUSH_KEYS_FAILED for the rest.
+// key it will not take, ERR_PUSH_KEYS_LOCKED while the keychain is
+// closed (before the first unlock), and ERR_PUSH_KEYS_FAILED for the
+// rest.
 public class StoopPushKeysModule: Module {
   public func definition() -> ModuleDefinition {
     Name("StoopPushKeys")

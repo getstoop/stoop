@@ -8,7 +8,8 @@ export type PushSubscriptionKeys = { p256dh: string; auth: string };
 // StoopPushKeysModule.swift. An ID or a key is 1 to 64 letters, digits,
 // "-" and "_", starting with a letter or digit. A call rejects with an
 // error whose `code` is ERR_PUSH_KEYS_UNAVAILABLE (the build has no app
-// group), ERR_PUSH_KEYS_INVALID_NAME or ERR_PUSH_KEYS_FAILED.
+// group), ERR_PUSH_KEYS_INVALID_NAME, ERR_PUSH_KEYS_LOCKED (the phone has
+// not been unlocked since it started) or ERR_PUSH_KEYS_FAILED.
 export type NativePushKeys = {
   ensureKeys(id: string): Promise<PushSubscriptionKeys>;
   publicKey(id: string): Promise<string | null>;

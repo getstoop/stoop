@@ -1022,10 +1022,13 @@ groundwork, on iOS only: the keys, and a place the extension can read
   beside the keys. Where there is no native module (Android)
   `pushKeys.supported` is false and every call rejects with a
   `PushKeysError` coded `unsupported`; in a build signed without the
-  app group, `unavailable`.
+  app group, `unavailable`; while the keychain is closed, before the
+  phone's first unlock after a restart, `locked`, which like `failed`
+  never means an ID has no keys.
 - One group holds both, the app group `group.<bundle ID>`
   (`plugins/withPushKeys.js`, applied in `app.config.js` after the
-  bundle ID is settled; Info.plist names it under `StoopAppGroup`). An
+  bundle ID is settled; the app's Info.plist names it under
+  `StoopAppGroup`, and the extension's own will have to as well). An
   app group is a keychain access group too, so there is no entry in
   `keychain-access-groups`: one name, no team prefix, and the app's
   default keychain group stays its own. The first entry of
@@ -1516,7 +1519,8 @@ which builds once from `mobile/ios` with `xcodebuild
 -allowProvisioningUpdates -allowProvisioningDeviceRegistration`, so
 Xcode registers the app group with the team and makes a profile that
 has both. Picking the team in Xcode under Signing & Capabilities does
-the same. Then `make mobile-ios` as usual. A build with no team (the
+the same. The phone must already be registered with the team (the
+first build above did that). Then `make mobile-ios` as usual. A build with no team (the
 simulator, CI) needs none of this. Push notifications need a paid
 Apple Developer membership: a free account's team cannot sign that
 capability, so it can build for the simulator only.

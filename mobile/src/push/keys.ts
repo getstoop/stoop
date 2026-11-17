@@ -15,8 +15,12 @@ import type { NativePushKeys, PushSubscriptionKeys } from "../../modules/stoop-p
 //   unsupported  no native module (Android, or a build from before it)
 //   unavailable  the build has no app group (signed without one)
 //   invalid      not an ID or key this takes, or a value JSON can't hold
+//   locked       the keychain is closed until the phone is first unlocked
+//                after a restart; the keys may be there, so ask again later
 //   failed       the keychain or the file system refused
-export type PushKeysErrorCode = "unsupported" | "unavailable" | "invalid" | "failed";
+// Neither "locked" nor "failed" says an ID has no keys: never answer
+// one by removing and making them again.
+export type PushKeysErrorCode = "unsupported" | "unavailable" | "invalid" | "locked" | "failed";
 
 export class PushKeysError extends Error {
   readonly code: PushKeysErrorCode;
@@ -57,6 +61,7 @@ export function validName(name: string): boolean {
 const NATIVE_CODES: Record<string, PushKeysErrorCode> = {
   ERR_PUSH_KEYS_UNAVAILABLE: "unavailable",
   ERR_PUSH_KEYS_INVALID_NAME: "invalid",
+  ERR_PUSH_KEYS_LOCKED: "locked",
 };
 
 function refusal(error: unknown): PushKeysError {

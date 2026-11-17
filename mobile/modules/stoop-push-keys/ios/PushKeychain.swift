@@ -104,6 +104,8 @@ enum PushKeychain {
     if status == errSecMissingEntitlement {
       return PushKeysUnavailableException("the app is not signed for its app group")
     }
+    // -25308: before the first unlock after a restart.
+    if status == errSecInteractionNotAllowed { return PushKeysLockedException() }
     return PushKeysFailedException("The keychain refused \(doing) (status \(status))")
   }
 
