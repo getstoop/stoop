@@ -13,6 +13,8 @@ type Native = {
   addListener(event: "onRouteChange", listener: () => void): { remove(): void };
   // iOS only (StoopAudioRouteModule.swift).
   currentOutputs?: () => AudioOutput[];
+  // iOS only: whether the system's picker was presented.
+  showPicker?: () => Promise<boolean>;
 };
 
 // The module is built for iOS and Android (expo-module.config.json);
@@ -25,6 +27,12 @@ export const audioRoute = native
       // alone, and LiveKit's AudioSession.getAudioOutputs() is its list,
       // so this is empty there.
       outputs: (): AudioOutput[] => native.currentOutputs?.() ?? [],
+      // Presents the system's picker of outputs over the app, and says
+      // whether it was presented. iOS only, and false elsewhere: Android
+      // has no such picker, and the app lists its outputs itself. What
+      // is picked there is the system's to apply, and comes back through
+      // onChange.
+      showPicker: (): Promise<boolean> => native.showPicker?.().catch(() => false) ?? Promise.resolve(false),
       // Calls back whenever the phone's outputs or its choice among them
       // change: the route on iOS (AVAudioSession's route change, for
       // every reason it gives), an output added or removed on Android
