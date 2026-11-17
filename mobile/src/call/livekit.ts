@@ -172,6 +172,9 @@ export function openConnection(origin: string, room: CallRoom, events: Connectio
       rtcConfig: iceServers.length ? { iceServers } : undefined,
     });
     await published;
+    // A call starts muted (call.ts): the track is up, as the connection
+    // needs, and says nothing until it is unmuted.
+    await lk.localParticipant.setMicrophoneEnabled(false);
     stopIfClosed();
     live = true;
     if (Platform.OS === "android") {

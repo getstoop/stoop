@@ -76,16 +76,16 @@ const late = () => new Promise((resolve) => setTimeout(resolve, PLACE_MS * 4));
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("joining", () => {
-  it("connects, then says where it is", async () => {
+  it("connects muted, then says where it is", async () => {
     const { holder, opened, reports } = setup();
     const joining = holder.join(porch);
-    expect(holder.get()).toMatchObject({ room: porch, status: "connecting", muted: false });
+    expect(holder.get()).toMatchObject({ room: porch, status: "connecting", muted: true });
     await settle();
     expect(reports).toEqual([]);
     opened[0].land();
     await joining;
-    expect(holder.get()).toMatchObject({ room: porch, status: "connected", muted: false });
-    expect(reports).toEqual(["home:porch:open"]);
+    expect(holder.get()).toMatchObject({ room: porch, status: "connected", muted: true });
+    expect(reports).toEqual(["home:porch:muted"]);
   });
 
   it("does not join when the microphone is refused", async () => {
@@ -181,7 +181,7 @@ describe("joining", () => {
     opened[1].land();
     await second;
     expect(holder.get()).toMatchObject({ room: attic, status: "connected" });
-    expect(reports).toEqual(["home:porch:open", "home:left:open", "home:attic:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted", "home:attic:muted"]);
   });
 
   it("leaves a room on one server before joining one on another", async () => {
@@ -198,7 +198,7 @@ describe("joining", () => {
     await second;
     expect(holder.get()).toMatchObject({ room: shed, status: "connected" });
     expect(opened.filter((made) => made.closed === 0)).toHaveLength(1);
-    expect(reports).toEqual(["home:porch:open", "home:left:open", "away:shed:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted", "away:shed:muted"]);
   });
 
   it("opens nothing until the call it left has closed", async () => {
@@ -288,7 +288,7 @@ describe("leaving", () => {
     await holder.leave();
     expect(holder.get()).toBeNull();
     expect(opened[0].closed).toBe(1);
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("stops a join still connecting, and reports nothing", async () => {
@@ -330,7 +330,7 @@ describe("leaving", () => {
     expect(opened[0].closed).toBe(1);
     expect(failureLine(holder.get(), porch)).toBe("");
     expect(footState(holder.get(), porch)).toBe("join");
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
 
@@ -349,7 +349,7 @@ describe("leaving", () => {
     opened[0].events.onSpeaking(["someone"]);
     await settle();
     expect(holder.get()).toMatchObject({ room: attic, status: "connected", speaking: [], reconnecting: false });
-    expect(reports.at(-1)).toBe("home:attic:open");
+    expect(reports.at(-1)).toBe("home:attic:muted");
   });
 });
 
@@ -372,7 +372,7 @@ describe("when the connection drops", () => {
     expect(footState(holder.get(), porch)).toBe("joined");
     expect(failureLine(holder.get(), porch)).toBe("");
     expect(opened[0].closed).toBe(0);
-    expect(reports).toEqual(["home:porch:open"]);
+    expect(reports).toEqual(["home:porch:muted"]);
   });
 
   it("goes back to normal when it reconnects, with nothing said", async () => {
@@ -382,7 +382,7 @@ describe("when the connection drops", () => {
     expect(holder.get()).toMatchObject({ room: porch, status: "connected", reconnecting: false });
     expect(connectionLine(holder.get())).not.toBe("Reconnecting…");
     expect(failureLine(holder.get(), porch)).toBe("");
-    expect(reports).toEqual(["home:porch:open"]);
+    expect(reports).toEqual(["home:porch:muted"]);
   });
 
   it("tells whoever listens once, however often it is said to be reconnecting", async () => {
@@ -411,15 +411,15 @@ describe("when the connection drops", () => {
     expect(holder.get()?.speaking).toEqual(["theo"]);
   });
 
-  it("still mutes and leaves while reconnecting", async () => {
+  it("still unmutes and leaves while reconnecting", async () => {
     const { holder, opened, reports } = await joined();
     opened[0].events.onReconnecting();
     await holder.toggleMute();
-    expect(holder.get()).toMatchObject({ muted: true, reconnecting: true });
+    expect(holder.get()).toMatchObject({ muted: false, reconnecting: true });
     await holder.leave();
     expect(holder.get()).toBeNull();
     expect(opened[0].closed).toBe(1);
-    expect(reports).toEqual(["home:porch:open", "home:porch:muted", "home:left:muted"]);
+    expect(reports).toEqual(["home:porch:muted", "home:porch:open", "home:left:open"]);
   });
 
   it("is not reconnecting before the join has landed", async () => {
@@ -440,7 +440,7 @@ describe("when the connection drops", () => {
     await settle();
     expect(holder.get()).toMatchObject({ room: porch, status: "failed", failure: "lost", reconnecting: false });
     expect(opened[0].closed).toBe(1);
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
     expect(footState(holder.get(), porch)).toBe("join");
     expect(failureLine(holder.get(), porch)).toBe("Call ended. Try again.");
     expect(failureLine(holder.get(), attic)).toBe("");
@@ -463,7 +463,7 @@ describe("when the connection drops", () => {
     await settle();
     expect(holder.get()).toBeNull();
     expect(opened[0].closed).toBe(1);
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
     expect(failureLine(holder.get(), porch)).toBe("");
   });
 
@@ -507,7 +507,7 @@ describe("when the connection drops", () => {
     await elsewhere;
     expect(other.holder.get()).toMatchObject({ room: shed, status: "connected" });
     expect(failureLine(other.holder.get(), porch)).toBe("");
-    expect(other.reports).toEqual(["home:porch:open", "home:left:open", "away:shed:open"]);
+    expect(other.reports).toEqual(["home:porch:muted", "home:left:muted", "away:shed:muted"]);
   });
 
   it("forgets a lost call when the app goes to the background", async () => {
@@ -516,7 +516,7 @@ describe("when the connection drops", () => {
     await settle();
     await holder.leave();
     expect(holder.get()).toBeNull();
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("says nothing after the user's own leave, a switch of rooms or the background", async () => {
@@ -555,7 +555,7 @@ describe("when the connection drops", () => {
     holder.voiceState("home", { userId: "me", channelId: "porch", joined: false });
     await settle();
     expect(failureLine(holder.get(), porch)).toBe("Call ended. Try again.");
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("says nothing when the server's removal is heard first, whatever the connection says after", async () => {
@@ -587,35 +587,35 @@ describe("in a call", () => {
     return made;
   }
 
-  it("mutes and unmutes, and reports each", async () => {
+  it("unmutes and mutes, and reports each", async () => {
     const { holder, opened, reports } = await joined();
     await holder.toggleMute();
-    expect(holder.get()?.muted).toBe(true);
-    await holder.toggleMute();
     expect(holder.get()?.muted).toBe(false);
-    expect(opened[0].muted).toEqual([true, false]);
-    expect(reports).toEqual(["home:porch:open", "home:porch:muted", "home:porch:open"]);
+    await holder.toggleMute();
+    expect(holder.get()?.muted).toBe(true);
+    expect(opened[0].muted).toEqual([false, true]);
+    expect(reports).toEqual(["home:porch:muted", "home:porch:open", "home:porch:muted"]);
   });
 
   it("stays as it was when the microphone won't follow", async () => {
     const { holder, opened, reports } = await joined();
     opened[0].refuseMute = true;
     await holder.toggleMute();
-    expect(holder.get()?.muted).toBe(false);
-    expect(reports.at(-1)).toBe("home:porch:open");
+    expect(holder.get()?.muted).toBe(true);
+    expect(reports.at(-1)).toBe("home:porch:muted");
   });
 
-  it("mutes nothing outside a call", async () => {
+  it("unmutes nothing outside a call", async () => {
     const { holder, opened, reports } = setup();
     await holder.toggleMute();
     const joining = holder.join(porch);
     await settle();
     await holder.toggleMute();
-    expect(holder.get()?.muted).toBe(false);
+    expect(holder.get()?.muted).toBe(true);
     opened[0].land();
     await joining;
     expect(opened[0].muted).toEqual([]);
-    expect(reports).toEqual(["home:porch:open"]);
+    expect(reports).toEqual(["home:porch:muted"]);
   });
 
   it("starts on the loudspeaker, and switches to the earpiece and back", async () => {
@@ -629,7 +629,7 @@ describe("in a call", () => {
     expect(speakerState(holder.get())).toBe("on");
     expect(opened[0].speaker).toEqual([false, true]);
     // Where the sound comes out is nobody else's business.
-    expect(reports).toEqual(["home:porch:open"]);
+    expect(reports).toEqual(["home:porch:muted"]);
   });
 
   it("stays as it was when the sound won't move", async () => {
@@ -728,7 +728,7 @@ describe("in a call", () => {
     const { holder, reports } = await joined();
     await holder.toggleMute();
     holder.report();
-    expect(reports.at(-1)).toBe("home:porch:muted");
+    expect(reports.at(-1)).toBe("home:porch:open");
     await holder.leave();
     const count = reports.length;
     holder.report();
@@ -784,7 +784,7 @@ describe("when the server says where this account is", () => {
     expect(opened[0].closed).toBe(1);
     expect(footState(holder.get(), porch)).toBe("join");
     expect(failureLine(holder.get(), porch)).toBe("");
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("keeps the call until the server has said this account is in the room", async () => {
@@ -804,7 +804,7 @@ describe("when the server says where this account is", () => {
     holder.voiceState(...said(porch, false));
     await settle();
     expect(opened[0].closed).toBe(1);
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("keeps the room it switched to when the one it left is said to be left", async () => {
@@ -851,7 +851,7 @@ describe("when the server says where this account is", () => {
     holder.voiceState(...said(porch, false));
     await settle();
     expect(holder.get()?.status).toBe("connected");
-    expect(reports).toEqual(["home:porch:open", "home:porch:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:porch:muted"]);
     holder.voiceState(...said(porch, true));
     holder.voiceState(...said(porch, false));
     await settle();
@@ -859,12 +859,12 @@ describe("when the server says where this account is", () => {
     expect(opened[0].closed).toBe(1);
   });
 
-  it("stays placed through its own mute", async () => {
+  it("stays placed through its own unmute", async () => {
     const { holder } = await joined();
     holder.voiceState(...said(porch, true));
     await holder.toggleMute();
     holder.voiceState(...said(porch, true));
-    expect(holder.get()).toMatchObject({ status: "connected", muted: true });
+    expect(holder.get()).toMatchObject({ status: "connected", muted: false });
     holder.voiceState(...said(porch, false));
     await settle();
     expect(holder.get()).toBeNull();
@@ -908,7 +908,7 @@ describe("when the server says where this account is", () => {
     // The socket is back: the server is told again, and answers.
     holder.report();
     expect(connectionLine(holder.get())).toBe("Establishing connection…");
-    expect(reports).toEqual(["home:porch:open", "home:porch:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:porch:muted"]);
     holder.voiceState(...said(porch, true));
     await late();
     expect(connectionLine(holder.get())).toBe("");
@@ -964,7 +964,7 @@ describe("when the server says where this account is", () => {
     await settle();
     expect(holder.get()).toBeNull();
     expect(opened[0].closed).toBe(1);
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("ends the call when its room is gone, placed or not", async () => {
@@ -977,7 +977,7 @@ describe("when the server says where this account is", () => {
     expect(holder.get()).toBeNull();
     expect(opened[0].closed).toBe(1);
     expect(footState(holder.get(), porch)).toBe("join");
-    expect(reports).toEqual(["home:porch:open", "home:left:open"]);
+    expect(reports).toEqual(["home:porch:muted", "home:left:muted"]);
   });
 
   it("stops a join into a room that is gone, and keeps a failed join's line", async () => {

@@ -1056,7 +1056,8 @@ change to them needs a native rebuild, not only Metro.
   microphone is asked for first (a refusal joins nothing), then
   `JoinVoiceChannel`, signalling at the server's own `/livekit` with
   the ICE servers it names, and the microphone published as signalling
-  comes up. A join starts unmuted.
+  comes up and muted at once: every join starts muted, until Unmute is
+  pressed.
 - **Where the call is goes to the server over the realtime socket**
   (`VoiceState`, as web sends it): on connecting, on each mute, as
   "left" on leaving, and again after every reconnect, since the server

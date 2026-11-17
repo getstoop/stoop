@@ -251,7 +251,7 @@ export function createCall(deps: CallDeps): CallHolder {
     }
     attempt += 1;
     const mine = attempt;
-    const fresh = { room, muted: false, speaker: true, headphones: false, speaking: [], reconnecting: false, establishing: false };
+    const fresh = { room, muted: true, speaker: true, headphones: false, speaking: [], reconnecting: false, establishing: false };
     set({ ...fresh, status: "connecting" });
     const fail = (failure: Call["failure"]) => set({ ...fresh, status: "failed", failure });
 
