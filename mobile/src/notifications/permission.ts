@@ -26,6 +26,17 @@ export function onAskedAndRefused(listener: () => void): () => void {
   };
 }
 
+// Who wants to know that this run's ask was granted: push subscribes
+// then (src/push).
+const grantedListeners = new Set<() => void>();
+
+export function onAskedAndGranted(listener: () => void): () => void {
+  grantedListeners.add(listener);
+  return () => {
+    grantedListeners.delete(listener);
+  };
+}
+
 export async function askToNotifyOnce(): Promise<void> {
   if (asked) return;
   asked = true;
@@ -38,6 +49,8 @@ export async function askToNotifyOnce(): Promise<void> {
     if (!answer.granted) {
       refusedThisRun = true;
       for (const listener of listeners) listener();
+    } else {
+      for (const listener of grantedListeners) listener();
     }
   } catch {
     // Unasked is not granted: nothing shows, and the next run asks.

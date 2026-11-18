@@ -50,5 +50,12 @@ public class StoopPushKeysModule: Module {
       try PushGroup.check(key)
       try PushGroupStore.remove(key, group: PushGroup.name())
     }
+
+    // Who and where a subscription's pushes go (PushTarget.swift): the
+    // bundle ID, and the APNs environment the build was signed for,
+    // "sandbox", "production" or "none".
+    AsyncFunction("apnsTarget") { () -> [String: String] in
+      ["appId": PushTarget.appId(), "environment": PushTarget.environment()]
+    }
   }
 }

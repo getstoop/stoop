@@ -12,6 +12,7 @@ import OpenInviteLink from "../links/OpenInviteLink";
 import OpenSharedLink from "../links/OpenSharedLink";
 import NotificationsProvider from "../notifications/NotificationsProvider";
 import { logPushKeysCheck } from "../push/devCheck";
+import PushProvider from "../push/PushProvider";
 import RealtimeProvider from "../realtime/RealtimeProvider";
 import { ServersProvider } from "../servers";
 import { ThemeProvider, tokens, useTheme } from "../theme";
@@ -28,7 +29,8 @@ if (__DEV__) void logPushKeysCheck();
 // Activity and Messages tabs and, the totals added up, for the app's
 // icon. Do not disturb is held here as well (src/dnd): the phone's one
 // switch, and each server's account's; so are the kinds the phone
-// alerts about (src/alertPrefs), and the space each server's Spaces tab
+// alerts about (src/alertPrefs), each server's push subscription
+// (src/push), and the space each server's Spaces tab
 // last showed (src/lastSpace). The voice call is held here too (src/call),
 // so it outlives the room's screen. The keyboard's place is followed frame by
 // frame under KeyboardProvider (react-native-keyboard-controller), for
@@ -45,13 +47,15 @@ export default function RootLayout() {
               <CallProvider>
                 <DndProvider>
                   <AlertPrefsProvider>
-                    <LastSpaceProvider>
-                      <AlertsProvider>
-                        <NotificationsProvider>
-                          <RootStack />
-                        </NotificationsProvider>
-                      </AlertsProvider>
-                    </LastSpaceProvider>
+                    <PushProvider>
+                      <LastSpaceProvider>
+                        <AlertsProvider>
+                          <NotificationsProvider>
+                            <RootStack />
+                          </NotificationsProvider>
+                        </AlertsProvider>
+                      </LastSpaceProvider>
+                    </PushProvider>
                   </AlertPrefsProvider>
                 </DndProvider>
               </CallProvider>

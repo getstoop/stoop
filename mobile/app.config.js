@@ -41,6 +41,12 @@ const withProguardRules = (config) =>
 // is a secret; both stay out of the repo because they belong to one
 // developer's account.
 //
+// STOOP_PUSH_RELAY_URL is the push relay the app subscribes at
+// (src/push), its origin with the scheme: https://relay.example.org.
+// Without it the app registers for no push at all. It is carried in the
+// config's extra, which a release build embeds and a development build
+// reads from Metro, so changing it needs Metro restarted, not a rebuild.
+//
 // STOOP_ANDROID_CLEARTEXT=1 lets an Android release build speak plain
 // HTTP, which only the debug manifests allow otherwise. make
 // mobile-android-release sets it, so a release build on a developer's
@@ -51,6 +57,10 @@ module.exports = ({ config }) => {
   const next = withPushKeys(
     withProguardRules({
       ...config,
+      extra: {
+        ...config.extra,
+        pushRelayUrl: process.env.STOOP_PUSH_RELAY_URL || null,
+      },
       ios: {
         ...config.ios,
         bundleIdentifier:

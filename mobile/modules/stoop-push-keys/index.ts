@@ -18,6 +18,11 @@ export type NativePushKeys = {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
+  // The bundle ID, and the APNs environment the build was signed for:
+  // read from its provisioning profile, production with none (the App
+  // Store, TestFlight), sandbox on the simulator, "none" when the
+  // profile grants no push. Never rejects.
+  apnsTarget(): Promise<{ appId: string; environment: "sandbox" | "production" | "none" }>;
 };
 
 // The module is built for iOS only (expo-module.config.json); on

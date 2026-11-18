@@ -37,6 +37,7 @@ function fakeNative() {
       calls.push(`removeItem ${key}`);
       items.delete(key);
     },
+    apnsTarget: async () => ({ appId: "org.getstoop.test", environment: "sandbox" }),
   };
   return { native, items, calls };
 }
