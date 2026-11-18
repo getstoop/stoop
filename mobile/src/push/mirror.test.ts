@@ -81,6 +81,16 @@ describe("mirrorWriter", () => {
     expect(store.get).toHaveBeenCalledTimes(1);
   });
 
+  it("writes a change that follows an update that changed nothing", async () => {
+    const store = fakeStore();
+    const writer = mirrorWriter(store);
+    await writer.update(facts({ showText: true }));
+    await writer.update(facts({ showText: true }));
+    await writer.update(facts({ showText: false }));
+    expect(store.value()).toEqual({ showText: false, servers: { a: { name: "Elm Street" } } });
+    expect(store.set).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps a stored value over one not known yet", async () => {
     const store = fakeStore({ showText: false, servers: { a: { name: "Elm Street", spaces: 5 } } });
     await mirrorWriter(store).update(facts({ showText: undefined }));

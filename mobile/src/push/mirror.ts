@@ -74,6 +74,9 @@ export function mirrorWriter(store: Pick<PushKeys["store"], "get" | "set">): Mir
 
   const run = async () => {
     try {
+      // Never done within the call that started it, or update would
+      // keep a finished run as the one still going.
+      await null;
       while (wanted) {
         const facts = wanted;
         wanted = undefined;
