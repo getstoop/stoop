@@ -327,6 +327,8 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
     tokenSeen: (token) => {
       if (!on || token === lastToken) return;
       lastToken = token;
+      // A pass under way may hold the old one.
+      passToken = Promise.resolve(token);
       checkAll();
     },
     kindsChanged: () => {

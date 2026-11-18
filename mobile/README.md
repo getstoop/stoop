@@ -1072,7 +1072,7 @@ Apple shows the relay's plain "New activity".
 - The kinds a server is told are the Notifications screen's switches
   (`record.ts` `wantedKinds`): mentions and replies, direct messages,
   thread replies, and none while that server's switch is off, which
-  keeps the subscription and has the server send nothing Nothing is
+  keeps the subscription and has the server send nothing. Nothing is
   sent until the saved switches have been read.
 - What the phone keeps per server (`record.ts`) is in the keychain
   beside its session token, `push.<local ID>`: the endpoint, when it
