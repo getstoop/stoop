@@ -47,7 +47,11 @@ function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsSto
   // once: a server's ID and origin never change under one key, so the
   // load below always asks this loader.
   useEffect(() => {
-    const mine = alertsLoader({ id, origin }, (badges) => store.set(id, badges));
+    const mine = alertsLoader(
+      { id, origin },
+      (badges) => store.set(id, badges),
+      (count) => store.setSpaceCount(id, count),
+    );
     loader.current = mine;
     const forget = store.setRefresh(id, mine.refresh);
     return () => {
@@ -55,6 +59,7 @@ function ServerAlerts({ server, store }: { server: SavedServer; store: AlertsSto
       loader.current = null;
       forget();
       store.set(id, undefined);
+      store.setSpaceCount(id, undefined);
     };
   }, [id, origin, store]);
 
@@ -98,4 +103,11 @@ export function useWaitingElsewhere(): number {
   const { servers } = useServers();
   const { id } = useCurrentServer();
   return useSyncExternalStore(store.subscribe, () => waitingElsewhere(servers, id, (other) => store.badges(other).total));
+}
+
+// How many spaces the account is in on each server that has said so
+// far, by server ID (store.ts).
+export function useSpaceCounts(): ReadonlyMap<string, number> {
+  const store = useAlertsStore();
+  return useSyncExternalStore(store.subscribe, store.spaceCounts);
 }

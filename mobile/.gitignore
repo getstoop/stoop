@@ -47,3 +47,6 @@ yarn-error.*
 
 # Gradle output of our local modules
 /modules/*/android/build
+
+# SwiftPM output of `swift test` in a module or an extension
+.build/

@@ -71,6 +71,16 @@ describe("alertsLoader", () => {
     expect(said).toEqual([{ activity: 3, messages: 5, total: 4 }]);
   });
 
+  it("says how many spaces the account is in, each time the server answers", async () => {
+    lists.mockResolvedValue({ spaces: [{ alertCount: 0 }, { alertCount: 0 }], dms: [] } as never);
+    const counts: number[] = [];
+    const loader = alertsLoader(SERVER, () => {}, (count) => counts.push(count));
+    await loader.refresh();
+    lists.mockRejectedValue(new Error("offline"));
+    await loader.refresh();
+    expect(counts).toEqual([2]);
+  });
+
   it("clears both tabs' badges with the total when the session ends", async () => {
     lists.mockResolvedValue({
       spaces: [{ muted: false, alertCount: 3 }],

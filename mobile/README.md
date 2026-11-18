@@ -1028,7 +1028,7 @@ groundwork, on iOS only: the keys, and a place the extension can read
 - One group holds both, the app group `group.<bundle ID>`
   (`plugins/withPushKeys.js`, applied in `app.config.js` after the
   bundle ID is settled; the app's Info.plist names it under
-  `StoopAppGroup`, and the extension's own will have to as well). An
+  `StoopAppGroup`, and the extension's own names it too). An
   app group is a keychain access group too, so there is no entry in
   `keychain-access-groups`: one name, no team prefix, and the app's
   default keychain group stays its own. The first entry of
@@ -1045,6 +1045,76 @@ groundwork, on iOS only: the keys, and a place the extension can read
 - The store is one file per key in the app group's container,
   `store/<key>.json`, the value's JSON text (`PushGroupStore.swift`),
   readable after first unlock.
+- The notification service extension (`extensions/notification-service`)
+  is a second target in the generated Xcode project, made on every
+  prebuild by `plugins/withNotificationService.js`: bundle ID
+  `<bundle ID>.NotificationService`, signed for the app group alone,
+  with an Info.plist of its own that names the group under
+  `StoopAppGroup`. Its Swift stays in the repo and the project points
+  at it, so a change needs a build, not a prebuild. It runs for every
+  push before it is shown, the phone locked or not, and also while the
+  app is in front. The relay's notification says only "New activity"
+  and carries the Web Push body, in base64, under `c`
+  (`docs/architecture/push-payload.md`). A push names no subscription,
+  so the extension reads every key pair in the group
+  (`Extension/PushKeyItems.swift`) and tries each until one opens the
+  body (`WebPush.swift`: a wrong key fails the tag); the payload inside
+  must be version 1 and name, as its `serverId`, the ID of the key that
+  opened it (`PushReader.swift`, `PushPayload.swift`). It then writes
+  the title, subtitle and body by `content.ts`'s rules
+  (`PushWords.swift`), the default sound, the server's local ID as the
+  thread identifier, and the payload's `NotificationData` fields under
+  `userInfo["body"]`, where `expo-notifications` reads a pushed
+  notification's data, so a tap opens the message as a local
+  notification's does.
+- The icon's badge is every saved server's count added up, and a
+  payload's `waiting` is one server's. The extension sets the badge to
+  it only when the mirror (below) says that server is the only one
+  saved; with several, or with no mirror, it leaves the badge as it
+  was, and the app sets it when next opened.
+- A push the extension can't read is still shown, since an extension
+  can show nothing only with Apple's notification filtering
+  entitlement, which the app does not have or ask for: the relay's "New
+  activity", with no sound, at the passive interruption level, all of
+  them under one thread identifier so they stack. That is a push no key
+  on the phone opens (a server since removed, whose keys went with
+  it), one that isn't a version 1 payload or names another server than
+  its key, one that arrives before the phone's first unlock after a
+  restart (the keychain is closed), and one the system stops waiting
+  for. `NotificationService.swift` marks where "show nothing" would go.
+- The extension can't ask JavaScript anything, so the app keeps a copy
+  of what the words depend on in the store, under `push-mirror`
+  (`src/push/mirror.ts`, kept by `PushMirror.tsx` under the
+  notifications provider): whether Show message text is on, and each
+  saved server's name and how many spaces the account is in there (the
+  badges' loader says, `src/alerts`); how many servers it lists says
+  whether a push names its server. It is written as the app starts and
+  whenever one of those changes, only when it would differ, and a value
+  the app doesn't know yet (the switch before the saved prefs are read,
+  a server that hasn't answered) keeps what was mirrored before. The
+  store is empty after a reinstall while the keys remain, and what is
+  missing is read the careful way (`PushMirror.swift`): the text
+  hidden, the server not named, the space named. The first launch
+  writes it again.
+- The words are held to the app's by one set of cases,
+  `extensions/notification-service/cases/content.json`: each takes one
+  of the server's payload fixtures (`internal/push/testdata`), the
+  settings, and the title, subtitle and body expected, and both
+  `src/notifications/content.cases.test.ts` (`notificationContent`,
+  with `make test`) and the extension's Swift tests (`PushWords`) run
+  them (Tests, below). A rule changed on one side alone fails the
+  other.
+- `scripts/push-apns.mjs` sends one push by hand, straight to Apple's
+  sandbox, as the relay would hand it over, to try the extension on a
+  phone with no relay or server: it encrypts a payload fixture to keys
+  the phone holds and sends the relay's exact payload. A development
+  build's launch lines give it what it needs: `PUSH_KEYS_CHECK` has
+  the `dev-check` keys' `p256dh` and `auth`, and `PUSH_DEVICE_TOKEN`
+  Apple's device token. The script's head says how to run it; the APNs
+  key is read from the file `STOOP_APNS_KEY` names and never printed.
+  `--unreadable` sends a push nothing on the phone can open, and
+  `--print` writes the payload for `xcrun simctl push` instead of
+  sending.
 - The keychain outlives the app and the container does not: after the
   app is deleted and installed again an ID's keys are still there, and
   `ensure` answers with them, while the store is empty. So an ID has
@@ -1525,6 +1595,16 @@ simulator, CI) needs none of this. Push notifications need a paid
 Apple Developer membership: a free account's team cannot sign that
 capability, so it can build for the simulator only.
 
+The notification service extension (Notifications, above) is a second
+bundle ID, `<bundle ID>.NotificationService`, signed with the same team
+and needing a profile of its own that carries the app group. The first
+signed build after it was added fails with "No profiles for
+'<bundle ID>.NotificationService'": run `make mobile-ios-provision`
+once more (after `make mobile-prebuild`), which registers that ID with
+the team and makes its profile in the same build, or pick the team for
+the StoopNotificationService target in Xcode. It asks for no capability
+of its own beyond the app group: not push, and no keychain group.
+
 ## Make targets
 
 From the repo root. Only `make mobile-typecheck` joins one of `make lint`,
@@ -1563,9 +1643,17 @@ call's Output control (Voice → Output, above). The same goes for a change to i
 is encrypted to, in the keychain, and a small store in the app group
 (Notifications, above).
 
+`extensions/notification-service` is not a module but a target of its
+own in the iOS project, the notification service extension
+(Notifications, above): `Extension/` is what only it can compile,
+`Sources/StoopPush` the logic its tests run too (Tests, below).
+`plugins/withNotificationService.js` adds every Swift file of the two
+to the target at prebuild, so a new file needs `make mobile-prebuild`.
+
 CI typechecks the app but does not compile its native code. A workflow
 run by hand does: debug builds for Android (Gradle) and the iOS
-simulator (`xcodebuild`, unsigned), from a fresh prebuild. Run it on a
+simulator (`xcodebuild`, unsigned), from a fresh prebuild, the
+extension's Swift tests before the iOS one. Run it on a
 branch that changes native code, a module or the Expo SDK:
 
 ```sh
@@ -1593,6 +1681,28 @@ cd mobile/android && ./gradlew :stoop-rich-text:testDebugUnitTest   # Android, R
 
 The Android one needs `JAVA_HOME` at a Java 17 and the generated
 `android/` folder (`make mobile-prebuild`).
+
+The notification service extension's logic (`Sources/StoopPush`:
+opening a Web Push message, reading the payload and the mirror, the
+words) is a Swift package of its own for the same reason, tested on a
+Mac with no simulator and no prebuild:
+
+```sh
+cd mobile/extensions/notification-service && swift test
+```
+
+It opens RFC 8291's own example message, reads every payload fixture
+the server's tests write (`internal/push/testdata`), and runs
+`cases/content.json`, the cases `src/notifications/content.cases.test.ts`
+runs against the app's own wording (Notifications, above). It is not
+part of `make test` or the pull request's CI, which have no Mac: run it
+after changing the extension, `content.ts` or the payload; the
+hand-run native workflow (Make targets, above) runs it too. What only
+the extension can do (the keychain, writing the notification) has no
+test: `xcrun simctl push` hands a notification to the simulator without
+running a service extension, so that part is checked on a phone, with
+`scripts/push-apns.mjs`. The mirror's own rules (`push/mirror.ts`) are
+tested with the rest of the app's pure logic, below.
 
 The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 `MessageBody/blocks.ts`, `LinkPreviews/layout.ts`,

@@ -130,6 +130,26 @@ describe("waitingEverywhere", () => {
   });
 });
 
+describe("spaceCounts", () => {
+  it("holds each server's count, the same map until one changes", () => {
+    const store = alertsStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    const empty = store.spaceCounts();
+    expect(empty.size).toBe(0);
+    store.setSpaceCount("a", 3);
+    const held = store.spaceCounts();
+    expect(held.get("a")).toBe(3);
+    expect(held.get("b")).toBeUndefined();
+    store.setSpaceCount("a", 3);
+    expect(store.spaceCounts()).toBe(held);
+    expect(listener).toHaveBeenCalledTimes(1);
+    store.setSpaceCount("a", undefined);
+    expect(store.spaceCounts().has("a")).toBe(false);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("waitingElsewhere", () => {
   const totals = (by: Record<string, number>) => (id: string) => by[id] ?? 0;
 

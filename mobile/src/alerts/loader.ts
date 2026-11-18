@@ -35,6 +35,8 @@ const unauthenticated = (err: unknown) => err instanceof ConnectError && err.cod
 export function alertsLoader(
   server: { id: string; origin: string },
   onBadges: (badges: ServerBadges) => void,
+  // Told how many spaces the account is in, each time the server says.
+  onSpaces?: (count: number) => void,
 ): AlertsLoader {
   // Loads can overlap (opening, Ready, an event), and an older one
   // finishing last must not undo a newer one: only the latest started
@@ -73,7 +75,9 @@ export function alertsLoader(
     const mine = ++latest;
     try {
       const { spaces, dms } = await loadAlertLists(server.origin, session);
-      if (mine === latest) onBadges(serverBadges(spaces, dms));
+      if (mine !== latest) return;
+      onBadges(serverBadges(spaces, dms));
+      onSpaces?.(spaces.length);
     } catch (err) {
       // An older load refused says the same as the latest would.
       if (unauthenticated(err)) end();
