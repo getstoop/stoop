@@ -72,12 +72,12 @@ func (s *Service) DeliverPush(ctx context.Context, args DeliveryArgs, attempt in
 	if err != nil {
 		return Verdict{}, fmt.Errorf("load subscription: %w", err)
 	}
+	if current, err := s.stillWanted(ctx, sub.CredentialID, args.Item); err != nil || !current {
+		return Verdict{Done: err == nil}, err
+	}
 	remaining := args.Expires.Sub(s.now())
 	if remaining < time.Second {
 		return s.fail(ctx, sub, Verdict{Done: true, Failure: fmt.Sprintf(reasonGaveUp, "not sent in time")}), nil
-	}
-	if current, err := s.stillWanted(ctx, sub.CredentialID, args.Item); err != nil || !current {
-		return Verdict{Done: err == nil}, err
 	}
 	payload, err := s.buildPayload(ctx, sub.LocalServerID, args.Item)
 	if connect.CodeOf(err) == connect.CodeNotFound {

@@ -46,8 +46,10 @@ when:
    blocks its author or loses a private channel (chat deletes their
    items there), and when the channel is deleted. A direct message's or
    thread reply's entry is refreshed under a new id by the next message,
-   so an older delivery still retrying never replaces the newer one under
-   their shared topic.
+   so an older delivery retried after the newer one sends nothing and
+   does not replace it under their shared topic. (Two attempts in flight
+   at the same moment are not ordered: an older one already past this
+   check can still land last.)
 
 Not asked again: the server-wide switch, do not disturb and the live
 socket, which are about the moment the item arrived; and a message edited

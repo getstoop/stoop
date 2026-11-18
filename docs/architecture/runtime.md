@@ -331,8 +331,11 @@ the cap less the live leases, so one batch cannot overshoot; a kind at
 its cap holds back nothing else. Kinds registered with the same
 `Options.Group` also share the cap `Registry.CapGroup` sets: they lease
 under the group's lock instead, and their live leases together stay
-within it. `deliver_webhook` and `deliver_push` are one group, so
-between them they leave a quarter of the workers to everything else.
+within it. `deliver_webhook` and `deliver_push` are one group, capped at
+three quarters of the workers (at least one), each kind at half of that
+rounded up, so between them they leave the rest to everything else and a
+backlog of one never shuts out the other. With a single worker there is
+no reserve.
 Capped kinds are leased first, so a
 stream of uncapped work cannot starve them; the uncapped kinds then
 share one query for the slots left. A capped job's finish wakes the
@@ -368,7 +371,7 @@ the `jobs_runner` health row
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `STOOP_JOBS_WORKERS` | `16` | Jobs run at once; `deliver_webhook` and `deliver_push` together are capped at three quarters of them, at least one (a shared cap group). Like every cap it counts live leases in the database, so a second dispatcher adds no delivery slots. |
+| `STOOP_JOBS_WORKERS` | `16` | Jobs run at once; `deliver_webhook` and `deliver_push` together are capped at three quarters of them, at least one, and each at half of that, rounded up (a shared cap group). Like every cap it counts live leases in the database, so a second dispatcher adds no delivery slots. |
 | `STOOP_JOBS_POLL` | `2s` | How often due rows are looked for when no insert has woken the dispatcher. |
 | `STOOP_JOBS_RETENTION` | `168h` | How long finished rows are kept; `0` keeps them forever. |
 | `STOOP_FILE_SWEEP_INTERVAL` | `6h` | `0` disables the four schedules on it; the Storage tab can still queue a file sweep. |

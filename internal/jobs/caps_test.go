@@ -166,43 +166,53 @@ func TestRegisterRefusesANegativeCap(t *testing.T) {
 }
 
 // Two capped kinds in one group stay within the group's cap together,
-// across two dispatchers, and leave the rest of the workers to an
-// uncapped kind.
+// each within its own, so a backlog of one leaves the other room; across
+// two dispatchers the total still holds.
 func TestGroupCapHoldsAcrossKinds(t *testing.T) {
 	pool := dbtest.New(t)
 	clock := newFakeClock()
 	cfg := testConfig()
 	cfg.Workers = 4
 	release := make(chan struct{})
-	var started atomic.Int32
+	var hooks, pushes atomic.Int32
 	setup := func() *Service {
 		service, registry := newTestService(pool, clock, cfg)
 		registry.CapGroup("deliveries", 3)
-		for _, kind := range []string{"hooks", "pushes"} {
+		for kind, count := range map[string]*atomic.Int32{"hooks": &hooks, "pushes": &pushes} {
 			Register(registry, kind, func(context.Context, *Job, NoArgs) error {
-				started.Add(1)
+				count.Add(1)
 				<-release
 				return nil
-			}, Options{MaxInFlight: 3, Group: "deliveries"})
+			}, Options{MaxInFlight: 2, Group: "deliveries"})
 		}
 		Register(registry, "sweep", func(context.Context, *Job, NoArgs) error { return nil }, Options{})
 		return service
 	}
-	first, second := setup(), setup()
+	first := setup()
 
 	var ids []string
 	for range 4 {
 		ids = append(ids, mustEnqueue(t, first, "hooks", nil), mustEnqueue(t, first, "pushes", nil))
 	}
+	total := func() int32 { return hooks.Load() + pushes.Load() }
 	startDispatcher(t, first)
-	startDispatcher(t, second)
-	waitFor(t, "three deliveries to start", func() bool { return started.Load() == 3 })
-	expectStartedCount(t, "delivery", &started, 3)
+	waitFor(t, "three deliveries to start", func() bool { return total() == 3 })
+	time.Sleep(5 * cfg.Poll)
+	if total() != 3 || hooks.Load() == 0 || pushes.Load() == 0 {
+		t.Fatalf("started hooks %d, pushes %d; want 3 in all with both kinds running", hooks.Load(), pushes.Load())
+	}
 
-	// Both backlogs are due and the group is full: a sweep still runs.
+	// Both backlogs are due and the group is full: the fourth worker is
+	// left to a sweep.
 	sweep := mustEnqueue(t, first, "sweep", nil)
 	waitForState(t, pool, sweep, StateSucceeded, 1)
-	expectStartedCount(t, "delivery", &started, 3)
+
+	// A second dispatcher adds workers, not deliveries.
+	startDispatcher(t, setup())
+	time.Sleep(5 * cfg.Poll)
+	if total() != 3 {
+		t.Fatalf("%d deliveries running across two dispatchers, want 3", total())
+	}
 
 	close(release)
 	for _, id := range ids {
