@@ -334,8 +334,10 @@ under the group's lock instead, and their live leases together stay
 within it. `deliver_webhook` and `deliver_push` are one group, capped at
 three quarters of the workers (at least one), each kind at half of that
 rounded up, so between them they leave the rest to everything else and a
-backlog of one never shuts out the other. With a single worker there is
-no reserve.
+backlog of one never shuts out the other. Capped kinds are tried in
+the order the dispatcher last leased them, least recently first, so
+when the group has one slot (two workers) its kinds take turns
+at it. With a single worker there is no reserve.
 Capped kinds are leased first, so a
 stream of uncapped work cannot starve them; the uncapped kinds then
 share one query for the slots left. A capped job's finish wakes the

@@ -120,7 +120,7 @@ func (s *Service) leaseBatch(ctx context.Context, queue chan<- dbgen.Job, tracke
 func (s *Service) leaseDue(ctx context.Context, free int, excluded []string) []dbgen.Job {
 	now := s.now()
 	var rows []dbgen.Job
-	for _, kind := range s.registry.cappedKinds() {
+	for _, kind := range s.lastLeased.order(s.registry.cappedKinds()) {
 		remaining := free - len(rows)
 		if remaining <= 0 {
 			return rows
@@ -129,6 +129,9 @@ func (s *Service) leaseDue(ctx context.Context, free int, excluded []string) []d
 		if err != nil {
 			s.logUnlessStopping(ctx, "jobs: lease "+kind.kind, err)
 			return rows
+		}
+		if len(capped) > 0 {
+			s.lastLeased.leased(kind.kind)
 		}
 		rows = append(rows, capped...)
 	}

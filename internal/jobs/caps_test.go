@@ -228,3 +228,49 @@ func TestRegisterRefusesAnUncappedKindInAGroup(t *testing.T) {
 	}()
 	Register(NewRegistry(), "grouped", func(context.Context, *Job, NoArgs) error { return nil }, Options{Group: "deliveries"})
 }
+
+// With two workers a group's budget is one slot. The kinds in it take
+// turns at that slot, so both backlogs move, and the other worker is left
+// to everything else.
+func TestGroupOfOneSlotTakesTurns(t *testing.T) {
+	pool := dbtest.New(t)
+	clock := newFakeClock()
+	cfg := testConfig()
+	cfg.Workers = 2
+	service, registry := newTestService(pool, clock, cfg)
+	registry.CapGroup("deliveries", 1)
+	var mu sync.Mutex
+	var order []string
+	for _, kind := range []string{"hooks", "pushes"} {
+		Register(registry, kind, func(context.Context, *Job, NoArgs) error {
+			mu.Lock()
+			order = append(order, kind)
+			mu.Unlock()
+			time.Sleep(20 * time.Millisecond)
+			return nil
+		}, Options{MaxInFlight: 1, Group: "deliveries"})
+	}
+	Register(registry, "sweep", func(context.Context, *Job, NoArgs) error { return nil }, Options{})
+
+	const each = 6
+	for range each {
+		mustEnqueue(t, service, "hooks", nil)
+		mustEnqueue(t, service, "pushes", nil)
+	}
+	startDispatcher(t, service)
+	sweep := mustEnqueue(t, service, "sweep", nil)
+	waitForState(t, pool, sweep, StateSucceeded, 1)
+	waitFor(t, "every delivery to succeed", func() bool {
+		return countRows(t, pool, `SELECT count(*) FROM jobs WHERE kind IN ('hooks', 'pushes') AND state = 'succeeded'`) == 2*each
+	})
+
+	mu.Lock()
+	defer mu.Unlock()
+	firstHalf := map[string]int{}
+	for _, kind := range order[:each] {
+		firstHalf[kind]++
+	}
+	if firstHalf["hooks"] < 2 || firstHalf["pushes"] < 2 {
+		t.Errorf("the first %d deliveries were %v: one kind held the slot", each, order[:each])
+	}
+}
