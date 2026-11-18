@@ -76,7 +76,7 @@ export type PushSubscriber = {
 
 type Task =
   | { type: "check"; serverId: string; force: boolean }
-  | { type: "leave"; server: PushServer; told: Promise<string> };
+  | { type: "leave"; server: PushServer; told: Promise<string>; again: (() => Promise<void>) | null };
 
 // A retry belongs to the session that failed: a new sign-in starts afresh.
 type Retry = { session: number; failures: number; at: number; cancel: () => void };
@@ -111,6 +111,8 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
   let passToken: Promise<string> | null = null;
   let target: Promise<PushTargetInfo> | null = null;
   let saidOff = false;
+  // The server whose check is running, if any.
+  let checking: string | null = null;
 
   const line = (server: PushServer, outcome: string) => {
     let host = server.origin;
@@ -131,7 +133,12 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
     running = true;
     for (let task = queue.shift(); task; task = queue.shift()) {
       try {
-        if (task.type === "check") await checkServer(task.serverId, task.force);
+        if (task.type === "check") {
+          checking = task.serverId;
+          await checkServer(task.serverId, task.force).finally(() => {
+            checking = null;
+          });
+        }
         else await leaveServer(task);
       } catch {
         // Every step catches its own; nothing stops the queue.
@@ -188,7 +195,7 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
       succeeded(serverId);
       retry = undefined;
     }
-    if (retry && deps.now() < retry.at) return line(server, "skipped: waiting to retry");
+    const waiting = retry !== undefined && deps.now() < retry.at;
     if (!(await deps.allowed())) return line(server, "skipped: notifications not allowed");
     const token = await deps.sessionToken(serverId).catch(() => null);
     if (!token) return line(server, "skipped: signed out");
@@ -198,6 +205,19 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
       if (!kinds) return line(server, "skipped: notification settings not read yet");
       const stored = await deps.records.get(serverId).catch(() => null);
       const record = stored && stored.session === server.session ? stored : null;
+      // While a failure waits out its backoff, the subscription the server
+      // still has is told new kinds (an opt-out must not wait hours); the
+      // rest waits for the retry.
+      if (waiting) {
+        if (!record || sameKinds(record.kinds, kinds)) return line(server, "skipped: waiting to retry");
+        try {
+          await deps.update(server.origin, token, kinds);
+          await deps.records.set(serverId, { ...record, kinds });
+          return line(server, "updated kinds (a retry still waits)");
+        } catch (error) {
+          return line(server, `skipped: waiting to retry (kinds not sent: ${error instanceof Error ? error.message : String(error)})`);
+        }
+      }
       // The day holds unless the token (as last heard) or the kinds moved.
       if (!force) {
         if (
@@ -319,11 +339,14 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
 
   // The phone's side of a removal, in turn behind any check still
   // running for it; the server was asked at once (leave).
-  const leaveServer = async ({ server, told }: Extract<Task, { type: "leave" }>) => {
+  const leaveServer = async ({ server, told, again }: Extract<Task, { type: "leave" }>) => {
     retries.get(server.id)?.cancel();
     retries.delete(server.id);
     for (const key of doneAt.keys()) if (key.startsWith(`${server.id}/`)) doneAt.delete(key);
     if (!deps.supported) return;
+    // A check that was running as the server was asked may have
+    // registered after it: ask once more, now that it is done.
+    if (again) await again().catch(() => {});
     const keysGone = await deps.removeKeys(server.id).then(
       () => "",
       (error) => `; keys not removed (${error instanceof Error ? error.message : String(error)})`,
@@ -365,7 +388,8 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
         const task = queue[index];
         if (task.type === "check" && task.serverId === server.id) queue.splice(index, 1);
       }
-      queue.push({ type: "leave", server, told });
+      const again = deps.supported && token && checking === server.id ? () => deps.remove(server.origin, token) : null;
+      queue.push({ type: "leave", server, told, again });
       void pump();
       return told.then(() => {});
     },

@@ -1091,7 +1091,9 @@ Apple shows the relay's plain "New activity".
   with short lifetimes); otherwise it sends the kinds
   (`UpdatePushSubscription`), and the server's NotFound renews at
   once. A failure keeps the old record and is tried again after a
-  minute, doubling to six hours, or the relay's Retry-After if longer.
+  minute, doubling to six hours, or the relay's Retry-After if longer;
+  meanwhile new kinds are still sent to the subscription the server
+  has.
   Servers are taken one at a time. A server without the push calls,
   or with push off, is skipped for the day and keeps its in-app
   banners.
@@ -1104,7 +1106,8 @@ Apple shows the relay's plain "New activity".
 - Signing out of a server or removing it (`useLeaveServer`) asks the
   server to delete the subscription (`DeletePushSubscription`, sent
   just before the session's end, which takes the subscription with it
-  anyway), then forgets the keys and the record whatever it answered.
+  anyway), and once more after a check that was running for it, then
+  forgets the keys and the record whatever it answered.
   The relay is never asked: it has nothing to delete. A subscription
   made where there is no record for the session (a first one, or a new
   sign-in to a saved server) gets new keys under the same ID, so an

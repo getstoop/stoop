@@ -416,6 +416,23 @@ describe("failures", () => {
     expect(phone.timers()).toEqual([]);
   });
 
+  it("still tell the server new kinds while a renewal waits out its backoff", async () => {
+    const phone = world();
+    phone.servers.pop();
+    await phone.check();
+    phone.advance(7 * DAY_MS);
+    phone.fail.set("relay", new RelayError(429, "relay answered 429", 3_600_000));
+    await phone.check();
+    phone.calls.length = 0;
+    phone.state.kinds = [];
+    phone.subscriber.kindsChanged();
+    await phone.subscriber.idle();
+    expect(phone.out()).toEqual(["update https://one.example "]);
+    expect(phone.records.get("aaa111")?.kinds).toEqual([]);
+    expect(phone.lines.at(-1)).toBe("PUSH_SUBSCRIBE aaa111 one.example updated kinds (a retry still waits)");
+    expect(phone.timers()).toHaveLength(1);
+  });
+
   it("stop at a session the server says is over", async () => {
     const phone = world();
     phone.servers.pop();
@@ -470,6 +487,29 @@ describe("leaving a server", () => {
     expect(phone.records.has("bbb222")).toBe(false);
     expect(phone.out()).not.toContain("getConfig https://two.example");
     expect(phone.timers()).toEqual([]);
+  });
+
+  it("asks the server again after a check that was running as it left", async () => {
+    let answer: () => void = () => {};
+    const phone = world({
+      getConfig: () =>
+        new Promise((resolve) => {
+          answer = () => resolve({ enabled: true, serverKey: "key-1" });
+        }),
+    });
+    phone.servers.pop();
+    phone.subscriber.check();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const leaving = phone.subscriber.leave(phone.servers[0], "token-one");
+    answer();
+    await leaving;
+    await phone.subscriber.idle();
+    expect(phone.out().filter((call) => call.startsWith("remove "))).toEqual([
+      "remove https://one.example",
+      "remove https://one.example",
+    ]);
+    expect(phone.out().at(-3)).toBe("remove https://one.example");
+    expect(phone.records.has("aaa111")).toBe(false);
   });
 
   it("calls off a retry that was waiting", async () => {
