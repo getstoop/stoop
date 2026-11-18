@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { createContext, type ReactNode, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { AppState } from "react-native";
 import { type AlertPrefs, parsePrefs } from "./prefs";
 import { type AlertPrefsStore, alertPrefsStore } from "./store";
 
@@ -19,11 +20,19 @@ export default function AlertPrefsProvider({ children }: { children: ReactNode }
     ),
   );
 
-  // A read the keychain refuses is the defaults.
+  // A read the keychain refuses leaves the defaults standing and the
+  // prefs unread, so nothing takes a default for the person's choice
+  // (the push mirror's hide-text); it is tried again each time the app
+  // becomes active.
   useEffect(() => {
-    SecureStore.getItemAsync(KEY)
-      .catch(() => null)
-      .then((raw) => store.loaded(parsePrefs(raw)));
+    const read = () =>
+      SecureStore.getItemAsync(KEY).then(
+        (raw) => store.loaded(parsePrefs(raw)),
+        () => {},
+      );
+    void read();
+    const sub = AppState.addEventListener("change", (state) => state === "active" && !store.isLoaded() && void read());
+    return () => sub.remove();
   }, [store]);
 
   return <AlertPrefsContext.Provider value={store}>{children}</AlertPrefsContext.Provider>;
