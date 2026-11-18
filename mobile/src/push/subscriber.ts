@@ -78,7 +78,8 @@ type Task =
   | { type: "check"; serverId: string; force: boolean }
   | { type: "leave"; server: PushServer; told: Promise<string> };
 
-type Retry = { failures: number; at: number; cancel: () => void };
+// A retry belongs to the session that failed: a new sign-in starts afresh.
+type Retry = { session: number; failures: number; at: number; cancel: () => void };
 
 // The outcome of a step that failed and why, as the log line says it.
 class Failed extends Error {
@@ -102,6 +103,9 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
   // server), by session, so the day holds for it too.
   const doneAt = new Map<string, number>();
   let lastToken: string | null = null;
+  // Counts tokens heard from the platform, so an ask that was under way
+  // can tell its answer is older.
+  let tokensHeard = 0;
   // The device token for the pass under way, dropped when the queue
   // empties or the ask fails; and this build's target, which never changes.
   let passToken: Promise<string> | null = null;
@@ -160,10 +164,10 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
   const failed = (server: PushServer, error: Failed) => {
     const before = retries.get(server.id);
     before?.cancel();
-    const failures = (before?.failures ?? 0) + 1;
+    const failures = (before?.session === server.session ? before.failures : 0) + 1;
     const delay = retryDelayMs(failures, error.original instanceof RelayError ? error.original.retryAfterMs : null);
     const cancel = deps.wait(delay, () => enqueueCheck(server.id, true));
-    retries.set(server.id, { failures, at: deps.now() + delay, cancel });
+    retries.set(server.id, { session: server.session, failures, at: deps.now() + delay, cancel });
     line(server, `failed: ${error.message} (retry in ${Math.round(delay / 1000)} s)`);
   };
 
@@ -179,7 +183,11 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
   const checkServer = async (serverId: string, force: boolean) => {
     const server = deps.servers().find((saved) => saved.id === serverId);
     if (!server) return;
-    const retry = retries.get(serverId);
+    let retry = retries.get(serverId);
+    if (retry && retry.session !== server.session) {
+      succeeded(serverId);
+      retry = undefined;
+    }
     if (retry && deps.now() < retry.at) return line(server, "skipped: waiting to retry");
     if (!(await deps.allowed())) return line(server, "skipped: notifications not allowed");
     const token = await deps.sessionToken(serverId).catch(() => null);
@@ -201,7 +209,8 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
         ) {
           return;
         }
-        if (!record && checkedWithinDay(doneAt.get(session), deps.now())) return;
+        // Push off or absent on the server, or a build without it.
+        if (checkedWithinDay(doneAt.get(session), deps.now())) return;
       }
       // A build signed without push gets no device token: asked first,
       // so it is a quiet skip and not a retry.
@@ -218,10 +227,13 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
       // Asked once a pass, however many servers.
       passToken ??= deps.deviceToken();
       const asked = passToken;
-      const deviceToken = await step("device token", () => asked).catch((error) => {
+      const heard = tokensHeard;
+      let deviceToken = await step("device token", () => asked).catch((error) => {
         passToken = null;
         throw error;
       });
+      // A newer token heard while asking wins over the answer.
+      if (heard !== tokensHeard && lastToken) deviceToken = lastToken;
       lastToken = deviceToken;
       if (
         !force &&
@@ -260,9 +272,10 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
           return line(server, "updated");
         }
       }
-      // A new sign-in gets keys of its own, so a previous session's
-      // subscription, if the server kept it, can no longer be read here.
-      if (stored && !record) await step("keys", () => deps.removeKeys(serverId));
+      // A subscription made afresh (a new sign-in, or none known here) gets
+      // keys of its own, so an earlier one, if a server kept it, can no
+      // longer be read here. Renewal keeps them.
+      if (!record) await step("keys", () => deps.removeKeys(serverId));
       const keys = await step("keys", () => deps.ensureKeys(serverId));
       const relay = relayUrl;
       if (!relay) return;
@@ -327,6 +340,7 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
     tokenSeen: (token) => {
       if (!on || token === lastToken) return;
       lastToken = token;
+      tokensHeard++;
       // A pass under way may hold the old one.
       passToken = Promise.resolve(token);
       checkAll();

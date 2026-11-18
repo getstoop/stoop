@@ -1105,9 +1105,11 @@ Apple shows the relay's plain "New activity".
   server to delete the subscription (`DeletePushSubscription`, sent
   just before the session's end, which takes the subscription with it
   anyway), then forgets the keys and the record whatever it answered.
-  The relay is never asked: it has nothing to delete. A new sign-in to
-  a saved server gets new keys under the same ID, so a previous
-  session's subscription, should its server keep it, can't be read.
+  The relay is never asked: it has nothing to delete. A subscription
+  made where there is no record for the session (a first one, or a new
+  sign-in to a saved server) gets new keys under the same ID, so an
+  earlier one, should its server keep it, can't be read; renewing keeps
+  them.
 - A development build logs a `PUSH_SUBSCRIBE` line to Metro for each
   server a check looks at (subscribed, renewed and why, updated,
   skipped and why, failed and when it tries again, removed), with the

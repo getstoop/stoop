@@ -146,9 +146,11 @@ describe("the check", () => {
     await phone.check();
     expect(phone.out()).toEqual([
       "getConfig https://one.example",
+      "removeKeys aaa111",
       "relay sandbox d1 key-1",
       "register https://one.example aaa111 https://relay.example/push/1",
       "getConfig https://two.example",
+      "removeKeys bbb222",
       "relay sandbox d1 key-1",
       "register https://two.example bbb222 https://relay.example/push/2",
     ]);
@@ -296,6 +298,35 @@ describe("the check", () => {
     expect(phone.timers()).toEqual([]);
   });
 
+  it("skips for the day a server whose push went off, though it has a record", async () => {
+    const phone = world();
+    await phone.check();
+    phone.advance(DAY_MS);
+    phone.fail.set("getConfig https://one.example", new ConnectError("no such procedure", Code.Unimplemented));
+    await phone.check();
+    phone.calls.length = 0;
+    phone.advance(60_000);
+    await phone.check();
+    expect(phone.calls).toEqual([]);
+  });
+
+  it("uses a token heard while the ask was under way", async () => {
+    let answer: (token: string) => void = () => {};
+    const slow = world({
+      deviceToken: () =>
+        new Promise<string>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    slow.servers.pop();
+    slow.subscriber.check();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    slow.subscriber.tokenSeen("d2");
+    answer("d1");
+    await slow.subscriber.idle();
+    expect(slow.records.get("aaa111")?.deviceToken).toBe("d2");
+  });
+
   it("waits for the saved notification settings before telling a server any kinds", async () => {
     const phone = world();
     phone.state.kinds = null;
@@ -372,6 +403,17 @@ describe("failures", () => {
     phone.advance(60_000);
     await phone.subscriber.idle();
     expect(phone.lines.at(-1)).toBe("PUSH_SUBSCRIBE aaa111 one.example renewed: the server had no subscription");
+  });
+
+  it("belong to the session: a new sign-in does not wait out the old one's", async () => {
+    const phone = world();
+    phone.servers.pop();
+    phone.fail.set("relay", new RelayError(429, "relay answered 429", 3_600_000));
+    await phone.check();
+    phone.servers[0] = { ...phone.servers[0], session: 2 };
+    await phone.check();
+    expect(phone.records.get("aaa111")?.session).toBe(2);
+    expect(phone.timers()).toEqual([]);
   });
 
   it("stop at a session the server says is over", async () => {
