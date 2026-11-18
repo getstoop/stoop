@@ -67,8 +67,15 @@ type fakeChat struct {
 	stale map[string]bool
 }
 
-func (f fakeChat) ActivityPending(_ context.Context, _, itemID, _ string) (bool, error) {
-	return !f.stale[itemID], nil
+// PendingActivity answers as chat would for the rig's mention: its
+// actor and preview as they read now, or nil once stale.
+func (f fakeChat) PendingActivity(_ context.Context, _, itemID string) (*chatv1.ActivityItem, error) {
+	if f.stale[itemID] {
+		return nil, nil
+	}
+	item := mention()
+	item.Id = itemID
+	return item, nil
 }
 
 func (f fakeChat) PlaceNames(context.Context, string) (string, string, error) {

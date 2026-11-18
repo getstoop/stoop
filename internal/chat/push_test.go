@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,11 +116,11 @@ func TestActivityPending(t *testing.T) {
 	}
 	pendingFor := func(userID, itemID string) bool {
 		t.Helper()
-		ok, err := fixture.svc.ActivityPending(ctx, userID, itemID, "")
+		item, err := fixture.svc.PendingActivity(ctx, userID, itemID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return ok
+		return item != nil
 	}
 
 	first := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: mentionOf(fixture.owner) + " one"})
@@ -129,6 +130,16 @@ func TestActivityPending(t *testing.T) {
 	}
 	if pendingFor(authctx.UserID(fixture.bea), mention) {
 		t.Error("someone else's item reads as pending")
+	}
+	// The item reads as the feed shows it now: an edit since is in it.
+	if _, err := fixture.svc.EditMessage(fixture.bea, connect.NewRequest(&chatv1.EditMessageRequest{
+		MessageId: first.Id, Content: mentionOf(fixture.owner) + " edited",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if item, err := fixture.svc.PendingActivity(ctx, ada, mention); err != nil || item == nil ||
+		!strings.Contains(item.Preview, "edited") || item.Actor.GetUsername() != "bea" {
+		t.Errorf("pending item = %v, %v; want the edited preview and bea as actor", item, err)
 	}
 	if _, err := fixture.svc.MarkActivityRead(fixture.owner, connect.NewRequest(&chatv1.MarkActivityReadRequest{Ids: []string{mention}})); err != nil {
 		t.Fatal(err)

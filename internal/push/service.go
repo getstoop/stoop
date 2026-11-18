@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
@@ -44,10 +45,11 @@ type Chat interface {
 	PlaceNames(ctx context.Context, channelID string) (space, channel string, err error)
 	// WaitingTotal is what this server puts on the person's app icon.
 	WaitingTotal(ctx context.Context, userID string) (int, error)
-	// ActivityPending is whether the item is still the person's, unread,
-	// in a channel they can read and not muted for them: false once it
-	// was read, refreshed under a newer id, or deleted since.
-	ActivityPending(ctx context.Context, userID, itemID, threadRootID string) (bool, error)
+	// PendingActivity is the item as the feed shows it now (its actor and
+	// preview), or nil once it is no longer the person's and unread, in a
+	// channel they can read, and unmuted: read, refreshed under a newer
+	// id, or deleted since.
+	PendingActivity(ctx context.Context, userID, itemID string) (*chatv1.ActivityItem, error)
 }
 
 // Policy is the server-wide switch. Nothing implements it yet: there is

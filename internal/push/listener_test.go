@@ -62,7 +62,7 @@ func TestEachRuleSkips(t *testing.T) {
 		t.Fatalf("%d deliveries queued with no rule against it, want 1", len(queued))
 	}
 	args := queued[0]
-	if args.SubscriptionID != bench.subID || args.Item.UserID != bench.user || args.Item.ActorName != "Bea Marsh" {
+	if args.SubscriptionID != bench.subID || args.Item.UserID != bench.user || args.Item.ID != mention().Id {
 		t.Errorf("args = %+v", args)
 	}
 	if ttl := args.Expires.Sub(before); ttl < 23*time.Hour || ttl > 25*time.Hour {

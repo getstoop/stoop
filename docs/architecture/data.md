@@ -347,7 +347,9 @@ and `last_failure` (why, in fixed words). Registering again replaces the
 row and clears its record. Failures never delete a row; a push service
 answering 404 or 410 does
 ([push-payload.md](push-payload.md#what-the-push-services-answer-does)).
-Indexed by `user_id`.
+Indexed by `user_id`. A `deliver_push` job's `args` in `jobs` hold
+identifiers only, never message text or names
+([push-payload.md](push-payload.md#when-a-device-gets-one)).
 
 ## Identifiers
 

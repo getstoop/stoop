@@ -184,31 +184,53 @@ func (q *Queries) DeleteReadActivityBefore(ctx context.Context, before time.Time
 	return result.RowsAffected(), nil
 }
 
-const getUnreadActivityItem = `-- name: GetUnreadActivityItem :one
-SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM activity_items WHERE id = $1::uuid AND user_id = $2::uuid AND read_at IS NULL
+const getPendingActivityItem = `-- name: GetPendingActivityItem :one
+SELECT a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at, m.content AS message_content, m.thread_root_id AS message_thread_root_id,
+    COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
+    (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
+        OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id)
+        OR EXISTS (SELECT 1 FROM thread_mutes tm WHERE tm.user_id = a.user_id AND tm.root_message_id = m.thread_root_id))::bool AS muted
+FROM activity_items a
+LEFT JOIN messages m ON m.id = a.message_id
+WHERE a.id = $1::uuid AND a.user_id = $2::uuid AND a.read_at IS NULL
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = a.channel_id AND cr.user_id = a.user_id)
 `
 
-type GetUnreadActivityItemParams struct {
+type GetPendingActivityItemParams struct {
 	ID     string
 	UserID string
 }
 
-// GetUnreadActivityItem is one person's item while it is still unread:
-// for push, which sends nothing for an item read, refreshed under a new
-// id, or deleted since it was heard.
-func (q *Queries) GetUnreadActivityItem(ctx context.Context, arg GetUnreadActivityItemParams) (ActivityItem, error) {
-	row := q.db.QueryRow(ctx, getUnreadActivityItem, arg.ID, arg.UserID)
-	var i ActivityItem
+type GetPendingActivityItemRow struct {
+	ActivityItem        ActivityItem
+	MessageContent      *string
+	MessageThreadRootID *string
+	MessageFirstFileID  string
+	Muted               bool
+}
+
+// GetPendingActivityItem is one of ListActivity's rows, while the item
+// is still its recipient's, unread, and in a channel they can read: for
+// push, which reads it before every attempt and sends nothing for an item
+// read, refreshed under a new id, deleted, or out of reach since it was
+// heard. Same columns as ListActivity, so it renders the same way.
+func (q *Queries) GetPendingActivityItem(ctx context.Context, arg GetPendingActivityItemParams) (GetPendingActivityItemRow, error) {
+	row := q.db.QueryRow(ctx, getPendingActivityItem, arg.ID, arg.UserID)
+	var i GetPendingActivityItemRow
 	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Kind,
-		&i.SpaceID,
-		&i.ChannelID,
-		&i.MessageID,
-		&i.ActorID,
-		&i.CreatedAt,
-		&i.ReadAt,
+		&i.ActivityItem.ID,
+		&i.ActivityItem.UserID,
+		&i.ActivityItem.Kind,
+		&i.ActivityItem.SpaceID,
+		&i.ActivityItem.ChannelID,
+		&i.ActivityItem.MessageID,
+		&i.ActivityItem.ActorID,
+		&i.ActivityItem.CreatedAt,
+		&i.ActivityItem.ReadAt,
+		&i.MessageContent,
+		&i.MessageThreadRootID,
+		&i.MessageFirstFileID,
+		&i.Muted,
 	)
 	return i, err
 }

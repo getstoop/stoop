@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/apierr"
 	"github.com/getstoop/stoop/internal/dbgen"
 )
@@ -33,36 +34,28 @@ func (s *Service) PlaceNames(ctx context.Context, channelID string) (space, chan
 	return spaceRow.Name, row.Name, nil
 }
 
-// ActivityPending is whether an item is still worth a notification to
-// its recipient: it is still theirs and unread (an item read, refreshed
-// under a newer id, or deleted with its message, a block, or a channel
-// they lost is gone or read), they can still read its channel, and it is
-// not muted for them now. threadRootID is the thread the message is in,
-// "" for none.
-func (s *Service) ActivityPending(ctx context.Context, userID, itemID, threadRootID string) (bool, error) {
-	item, err := s.q.GetUnreadActivityItem(ctx, dbgen.GetUnreadActivityItemParams{ID: itemID, UserID: userID})
+// PendingActivity is an item as the feed would show it now (its actor
+// and its preview from the message as it now reads), or nil when it is no
+// longer worth a notification to its recipient: no longer theirs or
+// unread (read, refreshed under a newer id, or deleted with its message,
+// a block, or a channel they lost), in a channel they can no longer read,
+// or muted for them now.
+func (s *Service) PendingActivity(ctx context.Context, userID, itemID string) (*chatv1.ActivityItem, error) {
+	row, err := s.q.GetPendingActivityItem(ctx, dbgen.GetPendingActivityItemParams{ID: itemID, UserID: userID})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return false, nil
+		return nil, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("get activity item: %w", err)
+		return nil, fmt.Errorf("get activity item: %w", err)
 	}
-	readers, err := s.q.ChannelMembersAmong(ctx, dbgen.ChannelMembersAmongParams{UserIds: []string{userID}, ChannelID: item.ChannelID})
+	if row.Muted || row.MessageContent == nil {
+		return nil, nil
+	}
+	items, err := s.renderActivity(ctx, []dbgen.ListActivityRow{dbgen.ListActivityRow(row)})
 	if err != nil {
-		return false, fmt.Errorf("check reader: %w", err)
+		return nil, err
 	}
-	if len(readers) == 0 {
-		return false, nil
-	}
-	var threadRoot *string
-	if threadRootID != "" {
-		threadRoot = &threadRootID
-	}
-	muted, err := s.mutedAmong(ctx, []string{userID}, item.ChannelID, item.SpaceID, threadRoot)
-	if err != nil {
-		return false, err
-	}
-	return !muted[userID], nil
+	return items[0], nil
 }
 
 // WaitingTotal is what the apps put on the icon for this server: the
