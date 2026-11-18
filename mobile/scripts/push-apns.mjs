@@ -183,7 +183,8 @@ request.on("data", (chunk) => {
 request.on("end", () => {
   client.close();
   const what = flags.unreadable ? "a push no key opens" : `${path.basename(flags.payload)} as server ${payload.serverId}`;
-  console.log(`Sent ${what} to ${HOST}, topic ${topic} (${apnsPayload.length} bytes).`);
+  // Nothing read from the environment is printed, the topic included.
+  console.log(`Sent ${what} to ${HOST} (${apnsPayload.length} bytes).`);
   console.log(`APNs answered ${status}${apnsId ? `, apns-id ${apnsId}` : ""}${answer ? `: ${answer}` : ""}`);
   process.exit(status === 200 ? 0 : 1);
 });
