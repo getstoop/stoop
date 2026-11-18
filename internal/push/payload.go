@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
+	"github.com/getstoop/stoop/internal/text"
 	"github.com/getstoop/stoop/internal/webpush"
 )
 
@@ -66,6 +67,13 @@ func encodePayload(payload Payload, limit int) []byte {
 	preview := payload.Preview
 	payload.Preview, payload.PreviewCut = "", true
 	budget := limit - len(encodeJSON(payload))
+	if budget < 0 {
+		// Names longer than any chat allows today: shorten them too.
+		payload.ActorName = text.Truncate(payload.ActorName, maxNameRunes)
+		payload.SpaceName = text.Truncate(payload.SpaceName, maxNameRunes)
+		payload.ChannelName = text.Truncate(payload.ChannelName, maxNameRunes)
+		budget = limit - len(encodeJSON(payload))
+	}
 	used, end := 0, 0
 	for index, char := range preview {
 		// A rune's string, quoted, less the quotes.
@@ -82,6 +90,11 @@ func encodePayload(payload Payload, limit int) []byte {
 
 // payloadLimit is the most a payload may take.
 const payloadLimit = webpush.MaxPayloadBytes
+
+// maxNameRunes is what a name is cut to when names alone would not fit:
+// at 6 bytes a character escaped, three of them stay well inside the
+// limit.
+const maxNameRunes = 64
 
 // collapseKey is what a newer notification replaces an older one by: the
 // mobile app's notification identifier less its server (core

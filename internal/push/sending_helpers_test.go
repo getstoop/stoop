@@ -193,7 +193,7 @@ func mention() *chatv1.ActivityItem {
 		Id: "0193a5b2-0000-7000-8000-000000000001", Kind: chatv1.ActivityKind_ACTIVITY_KIND_MENTION,
 		SpaceId: "0193a5b2-0000-7000-8000-0000000000a1", ChannelId: "0193a5b2-0000-7000-8000-0000000000c1",
 		MessageId: "0193a5b2-0000-7000-8000-0000000000e1",
-		Actor:     &chatv1.MessageAuthor{Username: "grace", DisplayName: "Grace Hopper"},
+		Actor:     &chatv1.MessageAuthor{Username: "bea", DisplayName: "Bea Marsh"},
 		Preview:   "@ada can you look at the build?",
 	}
 }

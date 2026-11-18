@@ -59,7 +59,7 @@ func TestPayloadPreviewIsCutToFit(t *testing.T) {
 	base := Payload{
 		V: PayloadVersion, ServerID: "k3x9pq", ItemID: "0193a5b2-0000-7000-8000-000000000001", Kind: 1,
 		SpaceID: "0193a5b2-0000-7000-8000-0000000000a1", ChannelID: "0193a5b2-0000-7000-8000-0000000000c1",
-		MessageID: "0193a5b2-0000-7000-8000-0000000000e1", ActorName: "Grace Hopper",
+		MessageID: "0193a5b2-0000-7000-8000-0000000000e1", ActorName: "Bea Marsh",
 		SpaceName: "The Stoop", ChannelName: "general", Waiting: 3,
 	}
 	short := base
@@ -94,6 +94,14 @@ func TestPayloadPreviewIsCutToFit(t *testing.T) {
 				t.Errorf("cut short: %d bytes and another rune would fit", len(body))
 			}
 		})
+	}
+
+	// Names that alone would not fit are shortened too.
+	named := base
+	named.ActorName, named.SpaceName, named.ChannelName = strings.Repeat("\x01", 500), strings.Repeat("é", 2000), strings.Repeat("\"", 2000)
+	named.Preview = "still sent"
+	if body := encodePayload(named, payloadLimit); len(body) > payloadLimit || json.Unmarshal(body, &decoded) != nil || !decoded.PreviewCut {
+		t.Errorf("long names: %d bytes, cut %v", len(body), decoded.PreviewCut)
 	}
 
 	broken := base

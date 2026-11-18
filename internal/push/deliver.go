@@ -55,6 +55,7 @@ const (
 	reasonBusy       = "push service busy (%d)"
 	reasonGaveUp     = "gave up after a day: %s"
 	reasonBadAddress = "the device's address can't be used"
+	reasonTooLarge   = "the notification was too large"
 	reasonNotPublic  = "the device's address is not public"
 	reasonNoAnswer   = "no answer from the push service"
 )
@@ -119,7 +120,9 @@ func unanswered(err error, attempt int, remaining time.Duration) Verdict {
 	switch {
 	case errors.Is(err, netguard.ErrNotPublic):
 		return Verdict{Done: true, Failure: reasonNotPublic}
-	case errors.Is(err, webpush.ErrBadSubscription), errors.Is(err, webpush.ErrPayloadTooLarge):
+	case errors.Is(err, webpush.ErrPayloadTooLarge):
+		return Verdict{Done: true, Failure: reasonTooLarge}
+	case errors.Is(err, webpush.ErrBadSubscription):
 		return Verdict{Done: true, Failure: reasonBadAddress}
 	}
 	return retry(reasonNoAnswer, attempt, 0, remaining)

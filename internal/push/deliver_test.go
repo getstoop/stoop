@@ -63,7 +63,7 @@ func TestDeliveryOpensWithTheDeviceKey(t *testing.T) {
 	want := map[string]any{
 		"v": 1.0, "serverId": "k3x9pq", "itemId": args.Item.ID, "kind": 1.0,
 		"spaceId": args.Item.SpaceID, "channelId": args.Item.ChannelID, "threadRootId": "", "messageId": args.Item.MessageID,
-		"actorName": "Grace Hopper", "preview": "@ada can you look at the build?", "previewCut": false,
+		"actorName": "Bea Marsh", "preview": "@ada can you look at the build?", "previewCut": false,
 		"spaceName": "The Stoop", "channelName": "general", "waiting": 3.0,
 	}
 	for field, value := range want {
