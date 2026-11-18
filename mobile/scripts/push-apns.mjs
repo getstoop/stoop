@@ -1,39 +1,8 @@
 #!/usr/bin/env node
-// Sends one hand-made push straight to Apple's SANDBOX, exactly as the
+// Sends one hand-made push straight to Apple's sandbox, exactly as the
 // relay would hand it over, for the notification service extension to
-// decrypt on a phone (extensions/notification-service). It stands in
-// for the server and the relay: a payload fixture is encrypted to the
-// phone's keys as the server encrypts (RFC 8291, aes128gcm, padded to
-// 256 bytes) and sent as
-//
-//   {"aps":{"alert":{"title":"New activity"},"mutable-content":1},"c":"<base64 of the body>"}
-//
-//   STOOP_APNS_KEY=/path/to/AuthKey_<KEYID>.p8 \
-//     node mobile/scripts/push-apns.mjs <device token> \
-//       --p256dh <p256dh> --auth <auth> \
-//       --payload internal/push/testdata/payload-mention.json
-//
-// The device token is the PUSH_DEVICE_TOKEN line a development build
-// logs to Metro at launch, and p256dh and auth are in its
-// PUSH_KEYS_CHECK line (src/push/devCheck.ts): the keys kept under the
-// ID "dev-check".
-//
-//   --server-id <id>  the payload's serverId (default: dev-check). The
-//                     extension shows a payload only when this is the
-//                     ID of the keys that opened it, so with a saved
-//                     server's own keys, give that server's local ID
-//   --unreadable      encrypt to keys made up here, which nothing on
-//                     the phone can open: the quiet "New activity"
-//   --topic <id>      the app's bundle ID (default: STOOP_IOS_BUNDLE_ID,
-//                     from the environment or mobile/.env.local)
-//   --print           send nothing: print the APNs payload, for
-//                     `xcrun simctl push <simulator> <bundle ID> <file>`.
-//                     Needs no device token and no APNs key
-//
-// The APNs key is read from the file STOOP_APNS_KEY names when this
-// runs, signs the request, and is never printed. Its ID is
-// STOOP_APNS_KEY_ID, or the file's name; the team is STOOP_APPLE_TEAM_ID
-// (environment or mobile/.env.local).
+// decrypt on a phone. How to run it and its options:
+// mobile/README.md -> Notifications -> Sending a push by hand.
 
 import crypto from "node:crypto";
 import fs from "node:fs";

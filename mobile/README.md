@@ -1104,17 +1104,34 @@ groundwork, on iOS only: the keys, and a place the extension can read
   with `make test`) and the extension's Swift tests (`PushWords`) run
   them (Tests, below). A rule changed on one side alone fails the
   other.
-- `scripts/push-apns.mjs` sends one push by hand, straight to Apple's
-  sandbox, as the relay would hand it over, to try the extension on a
-  phone with no relay or server: it encrypts a payload fixture to keys
-  the phone holds and sends the relay's exact payload. A development
-  build's launch lines give it what it needs: `PUSH_KEYS_CHECK` has
-  the `dev-check` keys' `p256dh` and `auth`, and `PUSH_DEVICE_TOKEN`
-  Apple's device token. The script's head says how to run it; the APNs
-  key is read from the file `STOOP_APNS_KEY` names and never printed.
-  `--unreadable` sends a push nothing on the phone can open, and
-  `--print` writes the payload for `xcrun simctl push` instead of
-  sending.
+- Sending a push by hand: `scripts/push-apns.mjs` stands in for the
+  server and the relay, to try the extension on a phone before either
+  is wired up. It encrypts a payload fixture to keys the phone holds, as
+  the server encrypts (RFC 8291, `aes128gcm`, padded to 256 bytes), and
+  sends the relay's exact payload straight to Apple's sandbox:
+
+  ```sh
+  STOOP_APNS_KEY=/path/to/AuthKey_<KEYID>.p8 \
+    node mobile/scripts/push-apns.mjs <device token> \
+      --p256dh <p256dh> --auth <auth> \
+      --payload internal/push/testdata/payload-mention.json
+  ```
+
+  A development build's launch lines in Metro give it what it needs:
+  `PUSH_DEVICE_TOKEN` is Apple's device token, and `PUSH_KEYS_CHECK`
+  has the `p256dh` and `auth` of the keys kept under the ID
+  `dev-check`. The APNs key is read from the file `STOOP_APNS_KEY`
+  names as the script runs, signs the request and is never printed; its
+  ID is `STOOP_APNS_KEY_ID`, or the file's name, and the team is
+  `STOOP_APPLE_TEAM_ID` (the environment or `mobile/.env.local`). Its
+  options:
+
+  | Option | What it does |
+  | --- | --- |
+  | `--server-id <id>` | The payload's `serverId` (default `dev-check`). The extension shows a payload only when this is the ID of the keys that opened it, so with a saved server's own keys, give that server's local ID |
+  | `--unreadable` | Encrypts to keys made up on the spot, which nothing on the phone can open: the quiet "New activity" |
+  | `--topic <id>` | The app's bundle ID (default `STOOP_IOS_BUNDLE_ID`, from the environment or `mobile/.env.local`) |
+  | `--print` | Sends nothing: prints the APNs payload, for `xcrun simctl push <simulator> <bundle ID> <file>`. Needs no device token and no APNs key |
 - The keychain outlives the app and the container does not: after the
   app is deleted and installed again an ID's keys are still there, and
   `ensure` answers with them, while the store is empty. So an ID has

@@ -57,6 +57,16 @@ function writeFile(file, text) {
   fs.writeFileSync(file, text);
 }
 
+// The extension's target in a project that already has one. Its name
+// is quoted until the project has been written and read back.
+function existingTarget(project) {
+  for (const [uuid, nativeTarget] of Object.entries(project.pbxNativeTargetSection())) {
+    if (typeof nativeTarget !== "object") continue;
+    if (String(nativeTarget.name).replace(/"/g, "") === TARGET) return { uuid, nativeTarget };
+  }
+  return null;
+}
+
 module.exports = (config) =>
   withXcodeProject(config, (mod) => {
     const app = mod.ios?.bundleIdentifier;
@@ -95,40 +105,44 @@ module.exports = (config) =>
       plist({ "com.apple.security.application-groups": [appGroup] }),
     );
 
-    // Run again on the same project (a prebuild without --clean), the
-    // target is already there.
-    if (project.pbxTargetByName(TARGET)) return mod;
+    // Made once. On a project that already has it (a prebuild without
+    // --clean) only its settings below are brought up to date: its list
+    // of Swift files is left as it was, so a new file needs
+    // make mobile-prebuild, which starts clean.
+    let target = existingTarget(project);
+    if (!target) {
+      // The xcode library adds a target's dependency only into sections
+      // that exist, and a fresh template has neither.
+      const objects = project.hash.project.objects;
+      objects.PBXTargetDependency = objects.PBXTargetDependency || {};
+      objects.PBXContainerItemProxy = objects.PBXContainerItemProxy || {};
 
-    // The xcode library adds a target's dependency only into sections
-    // that exist, and a fresh template has neither.
-    const objects = project.hash.project.objects;
-    objects.PBXTargetDependency = objects.PBXTargetDependency || {};
-    objects.PBXContainerItemProxy = objects.PBXContainerItemProxy || {};
+      // Also adds a copy phase to the app that embeds the .appex, and
+      // makes the app depend on the target.
+      const made = project.addTarget(TARGET, "app_extension", TARGET, `${app}.NotificationService`);
 
-    // Also adds a copy phase to the app that embeds the .appex, and
-    // makes the app depend on the target.
-    const target = project.addTarget(TARGET, "app_extension", TARGET, `${app}.NotificationService`);
+      // Every Swift file of the source folders, where the repo keeps them.
+      const main = project.getFirstProject().firstProject.mainGroup;
+      const sources = [];
+      for (const sourceDir of SOURCE_DIRS) {
+        const folder = path.join(mod.modRequest.projectRoot, SOURCE_ROOT, sourceDir);
+        const files = fs
+          .readdirSync(folder)
+          .filter((file) => file.endsWith(".swift"))
+          .sort();
+        // Quoted: the path has a hyphen in it.
+        const group = project.addPbxGroup(files, `${TARGET}${path.basename(sourceDir)}`, `"../${SOURCE_ROOT}/${sourceDir}"`);
+        project.addToPbxGroup(group.uuid, main);
+        sources.push(...files);
+      }
+      const generated = project.addPbxGroup(["Info.plist", `${TARGET}.entitlements`], `${TARGET}Generated`, TARGET);
+      project.addToPbxGroup(generated.uuid, main);
 
-    // Every Swift file of the source folders, where the repo keeps them.
-    const main = project.getFirstProject().firstProject.mainGroup;
-    const sources = [];
-    for (const sourceDir of SOURCE_DIRS) {
-      const folder = path.join(mod.modRequest.projectRoot, SOURCE_ROOT, sourceDir);
-      const files = fs
-        .readdirSync(folder)
-        .filter((file) => file.endsWith(".swift"))
-        .sort();
-      // Quoted: the path has a hyphen in it.
-      const group = project.addPbxGroup(files, `${TARGET}${path.basename(sourceDir)}`, `"../${SOURCE_ROOT}/${sourceDir}"`);
-      project.addToPbxGroup(group.uuid, main);
-      sources.push(...files);
+      project.addBuildPhase(sources, "PBXSourcesBuildPhase", "Sources", made.uuid);
+      project.addBuildPhase([], "PBXFrameworksBuildPhase", "Frameworks", made.uuid);
+      project.addBuildPhase([], "PBXResourcesBuildPhase", "Resources", made.uuid);
+      target = { uuid: made.uuid, nativeTarget: made.pbxNativeTarget };
     }
-    const generated = project.addPbxGroup(["Info.plist", `${TARGET}.entitlements`], `${TARGET}Generated`, TARGET);
-    project.addToPbxGroup(generated.uuid, main);
-
-    project.addBuildPhase(sources, "PBXSourcesBuildPhase", "Sources", target.uuid);
-    project.addBuildPhase([], "PBXFrameworksBuildPhase", "Frameworks", target.uuid);
-    project.addBuildPhase([], "PBXResourcesBuildPhase", "Resources", target.uuid);
 
     // The app's own settings, read off its first configuration, so the
     // two never drift.
@@ -138,7 +152,7 @@ module.exports = (config) =>
     const appSettings = configurations[lists[appTarget.buildConfigurationList].buildConfigurations[0].value].buildSettings;
 
     const team = mod.ios?.appleTeamId;
-    for (const { value } of lists[target.pbxNativeTarget.buildConfigurationList].buildConfigurations) {
+    for (const { value } of lists[target.nativeTarget.buildConfigurationList].buildConfigurations) {
       Object.assign(configurations[value].buildSettings, {
         INFOPLIST_FILE: `${TARGET}/Info.plist`,
         CODE_SIGN_ENTITLEMENTS: `${TARGET}/${TARGET}.entitlements`,
@@ -150,10 +164,14 @@ module.exports = (config) =>
         MARKETING_VERSION: appSettings.MARKETING_VERSION ?? "1.0",
         CURRENT_PROJECT_VERSION: appSettings.CURRENT_PROJECT_VERSION ?? "1",
         APPLICATION_EXTENSION_API_ONLY: "YES",
-        ...(team && { DEVELOPMENT_TEAM: team }),
+        PRODUCT_BUNDLE_IDENTIFIER: `"${app}.NotificationService"`,
       });
+      const settings = configurations[value].buildSettings;
+      if (team) settings.DEVELOPMENT_TEAM = team;
+      else delete settings.DEVELOPMENT_TEAM;
     }
     project.addTargetAttribute("ProvisioningStyle", "Automatic", target);
     if (team) project.addTargetAttribute("DevelopmentTeam", team, target);
+    else project.removeTargetAttribute("DevelopmentTeam", target);
     return mod;
   });
