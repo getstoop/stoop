@@ -27,8 +27,9 @@ import graph.
 ## Modules and support packages
 
 A **module** owns a slice of the domain, owns the tables that slice lives
-in, and usually exposes a Connect service. There are eight: `auth`,
-`chat`, `instance`, `realtime`, `voice`, `files`, `integrations`, `jobs`.
+in, and usually exposes a Connect service. There are nine: `auth`,
+`chat`, `instance`, `realtime`, `voice`, `files`, `integrations`, `jobs`,
+`push`.
 
 A **support package** owns a mechanism, not a domain, and may be imported
 by anyone (subject to the rules below): `events`, `eventrelay`, `restart`,
@@ -60,7 +61,7 @@ What a module *may* import: `gen/` (generated protobuf and Connect code),
 packages above, the standard library, and third-party libraries.
 
 **Enforcement is mechanical.** `.golangci.yml` configures `depguard` with
-one rule block per module, denying the other six module paths by import
+one rule block per module, denying every other module path by import
 path. A violation fails `make lint` and therefore fails CI, which is what
 makes the rule a rule rather than a preference. Some deny entries are
 written as globs (`…/internal/auth{,/**}`) so that `internal/authctx` — a
@@ -191,12 +192,13 @@ module's tests construct it alone.
 | `files` | `files` |
 | `integrations` | `incoming_webhooks`, `outgoing_webhooks`, `webhook_deliveries` |
 | `jobs` | `jobs`, `job_schedules`, `job_dispatchers` |
+| `push` | `push_keys`, `push_subscriptions` |
 | `realtime` | *(none — by rule)* |
 | `voice` | *(none)* |
 
 Ownership is auditable from the filesystem: sqlc query files live one
 directory per module
-(`internal/db/queries/{auth,chat,instance,files,integrations,jobs}/`),
+(`internal/db/queries/{auth,chat,instance,files,integrations,jobs,push}/`),
 one file per entity. A query against another module's columns would have to
 be written into that module's directory, where it would be obvious in
 review.
@@ -240,7 +242,7 @@ the recovery model.
    message, then the rate-limit interceptor — which must run *before* auth,
    since its whole job is protecting unauthenticated procedures — then the
    auth interceptor.
-7. **Mount one mux**: six Connect handlers, the multipart upload endpoint,
+7. **Mount one mux**: seven Connect handlers, the multipart upload endpoint,
    the file download handler, `/hooks/`, `/ws`, `/auth/` for the OIDC redirects,
    `/livekit/` for the signaling proxy, `/healthz`, `/version`, `/metrics`, and the embedded SPA at
    `/` as the fallback.

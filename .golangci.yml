@@ -33,6 +33,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
         chat-module:
           files: ["**/internal/chat/**"]
           deny:
@@ -49,6 +51,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
         instance-module:
           files: ["**/internal/instance/**"]
           deny:
@@ -64,6 +68,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
         realtime-module:
           files: ["**/internal/realtime/**"]
           deny:
@@ -82,6 +88,8 @@ linters:
               desc: the gateway has no database access; use ports
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
         files-module:
           files: ["**/internal/files/**"]
           deny:
@@ -99,6 +107,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
         blob-package:
           files: ["**/internal/blob/**"]
           deny:
@@ -120,6 +130,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
 
         integrations-module:
           files: ["**/internal/integrations/**"]
@@ -139,6 +151,8 @@ linters:
               desc: modules must not import each other (use ports via internal/app)
             - pkg: github.com/getstoop/stoop/internal/jobs
               desc: modules reach the job queue through their own port (wired in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: modules must not import each other (use ports via internal/app)
 
         jobs-module:
           files: ["**/internal/jobs/**"]
@@ -157,6 +171,29 @@ linters:
               desc: the job queue imports no module (performers are registered in internal/app)
             - pkg: github.com/getstoop/stoop/internal/integrations
               desc: the job queue imports no module (performers are registered in internal/app)
+            - pkg: github.com/getstoop/stoop/internal/push
+              desc: the job queue imports no module (performers are registered in internal/app)
+
+        push-module:
+          files: ["**/internal/push/**"]
+          deny:
+            - pkg: github.com/getstoop/stoop/internal/instance
+              desc: modules must not import each other (use ports via internal/app)
+            # Glob form so internal/authctx (the shared contract) stays allowed.
+            - pkg: github.com/getstoop/stoop/internal/auth{,/**}
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/chat
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/realtime
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/voice
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/files
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/integrations
+              desc: modules must not import each other (use ports via internal/app)
+            - pkg: github.com/getstoop/stoop/internal/jobs
+              desc: modules reach the job queue through their own port (wired in internal/app)
         events-package:
           files: ["**/internal/events/**"]
           deny:

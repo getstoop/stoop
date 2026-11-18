@@ -25,7 +25,7 @@ extracted, and nothing needs to be.
                     │                   stoop (one process)                 │
                     │                                                       │
   browser ─ HTTPS ─►│  :8080  Connect RPC   auth · chat · instance · files  │
-                    │                       voice · integrations            │
+                    │                       voice · integrations · push     │
                     │         plain HTTP    /auth /files /hooks /healthz    │
                     │                       /version /metrics               │
                     │         WebSocket     /ws  ──►  realtime gateway      │
@@ -74,6 +74,7 @@ this plainly.
 | `internal/files`    | uploaded files: the `files` table, upload RPCs, `GET /files/{id}`, the sweep, the quota |
 | `internal/integrations` | incoming and outgoing webhooks, the delivery log and the `deliver_webhook` job, and the admin surface for bots and their credentials |
 | `internal/jobs`     | the background-job queue: the `jobs`, `job_schedules` and `job_dispatchers` tables, the dispatcher and its workers, lanes, per-kind caps, the schedules that materialise periodic kinds |
+| `internal/push`     | push notifications: the server's signing key (`push_keys`) and each signed-in session's one Web Push subscription (`push_subscriptions`); it sends nothing yet |
 
 Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),

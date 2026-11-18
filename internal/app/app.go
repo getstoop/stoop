@@ -22,6 +22,7 @@ import (
 	"github.com/getstoop/stoop/gen/stoop/files/v1/filesv1connect"
 	"github.com/getstoop/stoop/gen/stoop/instance/v1/instancev1connect"
 	"github.com/getstoop/stoop/gen/stoop/integrations/v1/integrationsv1connect"
+	"github.com/getstoop/stoop/gen/stoop/push/v1/pushv1connect"
 	"github.com/getstoop/stoop/gen/stoop/voice/v1/voicev1connect"
 	"github.com/getstoop/stoop/internal/auth"
 	"github.com/getstoop/stoop/internal/blob"
@@ -38,6 +39,7 @@ import (
 	"github.com/getstoop/stoop/internal/integrations"
 	"github.com/getstoop/stoop/internal/jobs"
 	"github.com/getstoop/stoop/internal/kv"
+	"github.com/getstoop/stoop/internal/push"
 	"github.com/getstoop/stoop/internal/ratelimit"
 	"github.com/getstoop/stoop/internal/realtime"
 	"github.com/getstoop/stoop/internal/tailnet"
@@ -82,6 +84,7 @@ type modules struct {
 	chat     *chat.Service
 	files    *files.Service
 	hooks    *integrations.Service
+	push     *push.Service
 	registry *jobs.Registry
 	jobs     *jobs.Service
 }
@@ -163,6 +166,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	integrationsSvc.UseSpaceAccess(chatSvc)
 	integrationsSvc.UseBotIdentities(botIdentities{authSvc})
 	integrationsSvc.UseHookThrottle(ratelimit.New(stores, "ratelimit_hooks", cfg.WebhookRateLimit, cfg.WebhookRateLimit))
+	pushSvc := push.New(pool)
 	// The sweeps as scheduled jobs; the Background work panel, the jobs
 	// health row and /metrics read their rows through one reader.
 	registry := jobs.NewRegistry()
@@ -186,7 +190,7 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	}
 	return &modules{
 		pool: pool, bus: bus, store: store, stores: stores,
-		auth: authSvc, instance: instanceSvc, chat: chatSvc, files: filesSvc, hooks: integrationsSvc,
+		auth: authSvc, instance: instanceSvc, chat: chatSvc, files: filesSvc, hooks: integrationsSvc, push: pushSvc,
 		registry: registry, jobs: jobsSvc,
 	}, nil
 }
@@ -374,6 +378,7 @@ func newHandler(cfg config.Config, log *slog.Logger, shared *modules, voiceSvc *
 	mux.Handle(voicev1connect.NewVoiceServiceHandler(voiceSvc, interceptors))
 	mux.Handle(filesv1connect.NewFileServiceHandler(filesSvc, interceptors))
 	mux.Handle(integrationsv1connect.NewIntegrationServiceHandler(integrationsSvc, interceptors))
+	mux.Handle(pushv1connect.NewPushServiceHandler(shared.push, interceptors))
 	mux.Handle("POST /files/upload", filesSvc.UploadHandler())
 	mux.Handle("POST /hooks/{token}", integrationsSvc.HookHandler())
 	mux.Handle("GET /files/{id}", filesSvc.Handler())

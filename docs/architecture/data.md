@@ -325,6 +325,25 @@ job after each attempt; `body` is cleared on success. The queue is the
 settings page. See
 [integrations.md](integrations.md#deliveries-as-jobs).
 
+### push
+
+**`push_keys`** — one row (`id boolean PRIMARY KEY CHECK (id)`): the
+server's P-256 signing key for push (RFC 8292), `private_key` as PKCS #8
+DER and `public_key` as the uncompressed point clients are handed. Made on
+first use; two servers racing both insert with `ON CONFLICT DO NOTHING`
+and read back the row that stood. The private key never leaves the server.
+
+**`push_subscriptions`** — a device's Web Push subscription, at most one
+per session: `credential_id` → `credentials(id) ON DELETE CASCADE`,
+`UNIQUE`, so signing out, signing out everywhere, a replaced session
+(confirm it's you), deactivation and the expiry sweep all remove it with no
+code of their own. `user_id`, `endpoint` (https, 2048 characters at most),
+`p256dh` (65 bytes) and `auth` (16 bytes), the device's keys (RFC 8291),
+`local_server_id` (the device's own short name for this server, 1 to 32
+ASCII letters, digits, `-` or `_`), `kinds` (`chat.v1.ActivityKind` numbers, sorted; empty means
+none wanted), `created_at`, `last_success_at` and `failures`. Registering
+again replaces the row and clears its record. Indexed by `user_id`.
+
 ## Identifiers
 
 **Every id is a UUIDv7**, minted by the application (`rowid.New()`), not
@@ -489,8 +508,8 @@ ships as a minor ([releasing.md → Versions](../releasing.md#versions)).
 ## Queries and sqlc
 
 Hand-written SQL, generated Go. `sqlc.yaml` points at
-`internal/db/migrations` for the schema and at five query directories, one
-per owning module, and emits `internal/dbgen`.
+`internal/db/migrations` for the schema and at one query directory per owning
+module, and emits `internal/dbgen`.
 
 Type overrides worth knowing: `uuid` maps to `string` (ids cross the
 protobuf boundary as strings, and converting at every edge would be noise),

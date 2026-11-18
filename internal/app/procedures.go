@@ -6,6 +6,7 @@ import (
 	"github.com/getstoop/stoop/gen/stoop/files/v1/filesv1connect"
 	"github.com/getstoop/stoop/gen/stoop/instance/v1/instancev1connect"
 	"github.com/getstoop/stoop/gen/stoop/integrations/v1/integrationsv1connect"
+	"github.com/getstoop/stoop/gen/stoop/push/v1/pushv1connect"
 	"github.com/getstoop/stoop/gen/stoop/voice/v1/voicev1connect"
 	"github.com/getstoop/stoop/internal/authctx"
 )
@@ -115,6 +116,13 @@ var procedures = map[string]authctx.Rule{
 	filesv1connect.FileServiceSweepFilesProcedure:      needs(authctx.InstanceFilesManage),
 
 	voicev1connect.VoiceServiceJoinVoiceChannelProcedure: needs(authctx.VoiceJoin),
+
+	// A device's notifications. The handler also refuses any credential
+	// but a session, which is what a subscription belongs to.
+	pushv1connect.PushServiceGetPushConfigProcedure:            needs(authctx.PreferencesManage),
+	pushv1connect.PushServiceRegisterPushSubscriptionProcedure: needs(authctx.PreferencesManage),
+	pushv1connect.PushServiceUpdatePushSubscriptionProcedure:   needs(authctx.PreferencesManage),
+	pushv1connect.PushServiceDeletePushSubscriptionProcedure:   needs(authctx.PreferencesManage),
 
 	chatv1connect.ChatServiceCreateSpaceProcedure: needs(authctx.SpacesCreate),
 	chatv1connect.ChatServiceListSpacesProcedure:  anyCaller,
