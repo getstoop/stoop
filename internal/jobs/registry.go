@@ -86,6 +86,10 @@ type Options struct {
 	// across every dispatcher; 0 is no cap. See
 	// docs/architecture/runtime.md → Background work.
 	MaxInFlight int
+	// Group names a cap the kind shares with the other kinds in it
+	// (Registry.CapGroup): their live leases together stay within it. A
+	// grouped kind must have a MaxInFlight of its own.
+	Group string
 }
 
 func (o Options) withDefaults() Options {
@@ -109,11 +113,25 @@ type kindEntry struct {
 
 // Registry binds kinds to performers.
 type Registry struct {
-	mu    sync.RWMutex
-	kinds map[string]kindEntry
+	mu     sync.RWMutex
+	kinds  map[string]kindEntry
+	groups map[string]int
 }
 
-func NewRegistry() *Registry { return &Registry{kinds: map[string]kindEntry{}} }
+func NewRegistry() *Registry {
+	return &Registry{kinds: map[string]kindEntry{}, groups: map[string]int{}}
+}
+
+// CapGroup sets the cap the kinds registered with Options.Group = group
+// share. A group with no cap set adds no limit. A cap below 1 panics.
+func (r *Registry) CapGroup(group string, maxInFlight int) {
+	if maxInFlight < 1 {
+		panic(fmt.Sprintf("jobs: group %q needs a cap of at least 1", group))
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.groups[group] = maxInFlight
+}
 
 // Register binds kind to a typed performer; the wrapper decodes the JSON
 // arguments into A. Registering a kind twice, or with a negative
@@ -121,6 +139,9 @@ func NewRegistry() *Registry { return &Registry{kinds: map[string]kindEntry{}} }
 func Register[A any](registry *Registry, kind string, fn func(ctx context.Context, job *Job, args A) error, opts Options) {
 	if opts.MaxInFlight < 0 {
 		panic(fmt.Sprintf("jobs: kind %q has a negative MaxInFlight", kind))
+	}
+	if opts.Group != "" && opts.MaxInFlight == 0 {
+		panic(fmt.Sprintf("jobs: kind %q is in group %q with no MaxInFlight", kind, opts.Group))
 	}
 	perform := performFunc(func(ctx context.Context, job *Job) error {
 		var args A
@@ -144,10 +165,14 @@ func (r *Registry) Kinds() []string {
 	return slices.Sorted(maps.Keys(r.kinds))
 }
 
-// cappedKind is a kind registered with a MaxInFlight.
+// cappedKind is a kind registered with a MaxInFlight, and the group cap
+// it shares with groupKinds when it is in a capped group.
 type cappedKind struct {
 	kind        string
 	maxInFlight int
+	group       string
+	groupKinds  []string
+	groupMax    int
 }
 
 // uncappedKinds lists the kinds with no MaxInFlight, sorted.
@@ -170,9 +195,20 @@ func (r *Registry) cappedKinds() []cappedKind {
 	defer r.mu.RUnlock()
 	var kinds []cappedKind
 	for kind, entry := range r.kinds {
-		if entry.opts.MaxInFlight > 0 {
-			kinds = append(kinds, cappedKind{kind: kind, maxInFlight: entry.opts.MaxInFlight})
+		if entry.opts.MaxInFlight <= 0 {
+			continue
 		}
+		capped := cappedKind{kind: kind, maxInFlight: entry.opts.MaxInFlight}
+		if groupMax, ok := r.groups[entry.opts.Group]; ok && entry.opts.Group != "" {
+			capped.group, capped.groupMax = entry.opts.Group, groupMax
+			for other, otherEntry := range r.kinds {
+				if otherEntry.opts.Group == entry.opts.Group {
+					capped.groupKinds = append(capped.groupKinds, other)
+				}
+			}
+			slices.Sort(capped.groupKinds)
+		}
+		kinds = append(kinds, capped)
 	}
 	slices.SortFunc(kinds, func(left, right cappedKind) int { return cmp.Compare(left.kind, right.kind) })
 	return kinds

@@ -29,7 +29,7 @@ func registerPush(registry *jobs.Registry, pushSvc *push.Service, workers int) {
 			return nil
 		}
 		return jobs.RetryIn(errors.New(verdict.Failure), verdict.RetryIn)
-	}, jobs.Options{MaxAttempts: push.DeliveryAttempts, Backoff: push.DeliveryBackoff, MaxInFlight: deliverySlots(workers)})
+	}, jobs.Options{MaxAttempts: push.DeliveryAttempts, Backoff: push.DeliveryBackoff, MaxInFlight: deliveryKindSlots(workers), Group: deliveryGroup})
 }
 
 // pushFailureRecent is how long a failure keeps the row at warn.
