@@ -31,7 +31,9 @@ and drops one device when:
 5. the device's session has a **live socket** now
    (`Gateway.SessionConnected`; a silently dead socket reads as open for
    up to about 40 seconds, and an item in that window is not pushed);
-6. the device's session has **expired** (it is swept later).
+6. the device's session has **expired** (it is swept later), or its
+   account is **deactivated or deleted** (its sessions are revoked
+   just after; this holds before that, or if revocation failed).
 
 Every device left gets one `deliver_push` job. **The job stores
 identifiers only**: the recipient, the subscription, the item's id and
@@ -43,7 +45,9 @@ the first and each retry, the job asks again about what can change while
 it waits, and ends with nothing sent (and nothing recorded as failed)
 when:
 
-7. the device's session has **expired** since, or its subscription
+7. the device's session has **expired** since or its account has been
+   **deactivated or deleted** (the same lookup, auth's `LiveSessions`,
+   which applies sign-in's own conditions), or its subscription
    **no longer wants the kind** (an update since; empty means none);
 8. the item is **no longer pending** for the recipient (chat's
    `PendingActivity`, which also returns the item as the Activity feed

@@ -240,6 +240,7 @@ func TestDeliveryChecksAgainBeforeSending(t *testing.T) {
 		edit func(*rig, DeliveryArgs)
 	}{
 		{"session expired", func(bench *rig, _ DeliveryArgs) { bench.accounts.expired[bench.sessionID] = true }},
+		{"account deactivated, session not revoked", func(bench *rig, _ DeliveryArgs) { bench.accounts.deactivated = true }},
 		{"item no longer pending", func(bench *rig, args DeliveryArgs) { bench.stale[args.Item.ID] = true }},
 		{"kind no longer wanted", func(bench *rig, _ DeliveryArgs) { bench.updateKinds(t, chatv1.ActivityKind_ACTIVITY_KIND_DM) }},
 		{"no kinds wanted", func(bench *rig, _ DeliveryArgs) { bench.updateKinds(t) }},

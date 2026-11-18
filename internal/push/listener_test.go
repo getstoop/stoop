@@ -37,6 +37,8 @@ func TestEachRuleSkips(t *testing.T) {
 		}},
 		{"live socket", func(bench *rig, _ *chatv1.ActivityItem) { bench.sockets.connected[bench.sessionID] = true }},
 		{"expired session", func(bench *rig, _ *chatv1.ActivityItem) { bench.accounts.expired[bench.sessionID] = true }},
+		// Deactivated, its session row not yet revoked.
+		{"deactivated account", func(bench *rig, _ *chatv1.ActivityItem) { bench.accounts.deactivated = true }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

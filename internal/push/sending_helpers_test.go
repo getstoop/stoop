@@ -31,10 +31,14 @@ import (
 // package can do, since production posts through netguard's public-only
 // transport.
 
+// fakeAccounts answers as auth does: LiveSessions leaves out expired
+// sessions and, while deactivated, every session of the account (auth
+// checks the account's state; its query is tested in internal/auth).
 type fakeAccounts struct {
-	mu      sync.Mutex
-	dnd     bool
-	expired map[string]bool
+	mu          sync.Mutex
+	dnd         bool
+	deactivated bool
+	expired     map[string]bool
 }
 
 func (f *fakeAccounts) DoNotDisturb(context.Context, string) (bool, *time.Time, error) {
@@ -47,6 +51,9 @@ func (f *fakeAccounts) LiveSessions(_ context.Context, ids []string) ([]string, 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var live []string
+	if f.deactivated {
+		return nil, nil
+	}
 	for _, id := range ids {
 		if !f.expired[id] {
 			live = append(live, id)
