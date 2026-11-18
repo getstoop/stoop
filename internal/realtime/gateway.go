@@ -86,11 +86,18 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	connID := g.connSeq.Add(1)
 	defer func() { g.publishLeft(userID, g.voice.clearOwnedBy(userID, connID)) }()
 
+	g.sessions.open(sessionID)
+
 	g.connectPresence(ctx, userID, spaceIDs, mobile)
 	// A socket closed because its session ended takes the person offline
 	// at once; any other close waits out the grace period.
 	revoked := false
 	defer func() { g.disconnectPresence(userID, mobile, revoked) }()
+	// Registered last so it runs first: presence cleanup waits on the
+	// person's announcing lock, which another of their connections can hold
+	// through a slow lookup, and a closed session must not read as
+	// connected meanwhile. Nothing between open and here can return.
+	defer g.sessions.close(sessionID)
 
 	// The reader only decodes; this goroutine applies what it hands over,
 	// so nothing changes this connection's state after the deferred

@@ -273,7 +273,7 @@ state is a Connect RPC; the socket carries only things that are true of a
 
 ## Ephemeral state
 
-Three kinds, all in gateway memory. None is persisted except do not
+Four kinds, all in gateway memory. None is persisted except do not
 disturb, which lives on the account.
 
 ### Presence and do not disturb
@@ -317,6 +317,16 @@ mobile, spaces, do not disturb}`.
 
 Chat reaches presence through `PresenceLister` for exactly one feature:
 resolving `@here` to the members who are online right now.
+
+### Sessions
+
+The gateway counts open sockets per session id, and
+`Gateway.SessionConnected(sessionID)` says whether any is open now, so a
+sender can skip a session whose app is in front. It turns false when the
+gateway sees the socket close; a peer that vanished without closing is
+seen at the next ping (up to the 30 s ping interval plus the 10 s ping
+timeout). Only sessions open sockets, so tokens and bots are never
+connected. It is per server process and not persisted.
 
 ### Typing
 
