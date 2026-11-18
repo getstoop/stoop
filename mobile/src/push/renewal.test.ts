@@ -39,6 +39,12 @@ describe("renewReason", () => {
     expect(renewReason(record({ issuedAt: NOW + 1 }), NOW, "aabb", "server-key")).toBe("issued in the future");
   });
 
+  it("renews an endpoint that expires within 7 days (a relay with short lifetimes)", () => {
+    expect(renewReason(record({ expiresAt: NOW + 7 * DAY_MS - 1 }), NOW, "aabb", "server-key")).toBe(
+      "expires within 7 days",
+    );
+  });
+
   it("only updates otherwise", () => {
     expect(renewReason(record(), NOW, "aabb", "server-key")).toBeNull();
   });

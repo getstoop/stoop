@@ -1072,7 +1072,8 @@ Apple shows the relay's plain "New activity".
 - The kinds a server is told are the Notifications screen's switches
   (`record.ts` `wantedKinds`): mentions and replies, direct messages,
   thread replies, and none while that server's switch is off, which
-  keeps the subscription and has the server send nothing.
+  keeps the subscription and has the server send nothing Nothing is
+  sent until the saved switches have been read.
 - What the phone keeps per server (`record.ts`) is in the keychain
   beside its session token, `push.<local ID>`: the endpoint, when it
   was issued and when it expires, the device token and the server's
@@ -1086,7 +1087,8 @@ Apple shows the relay's plain "New activity".
   day. It renews (a new endpoint, the same keys) when there is no
   record for this session, the device token or the server's key
   changed, the endpoint is 7 days old, or it was issued in the future
-  (the clock was set back); otherwise it sends the kinds
+  (the clock was set back), or it expires within 7 days (only a relay
+  with short lifetimes); otherwise it sends the kinds
   (`UpdatePushSubscription`), and the server's NotFound renews at
   once. A failure keeps the old record and is tried again after a
   minute, doubling to six hours, or the relay's Retry-After if longer.
@@ -1100,10 +1102,12 @@ Apple shows the relay's plain "New activity".
   production; the simulator is the sandbox. A Release build signed
   with a development profile is still the sandbox.
 - Signing out of a server or removing it (`useLeaveServer`) asks the
-  server to delete the subscription (`DeletePushSubscription`, five
-  seconds at most, before the session's end), then forgets the keys
-  and the record whatever it answered. The relay is never asked: it
-  has nothing to delete.
+  server to delete the subscription (`DeletePushSubscription`, sent
+  just before the session's end, which takes the subscription with it
+  anyway), then forgets the keys and the record whatever it answered.
+  The relay is never asked: it has nothing to delete. A new sign-in to
+  a saved server gets new keys under the same ID, so a previous
+  session's subscription, should its server keep it, can't be read.
 - A development build logs a `PUSH_SUBSCRIBE` line to Metro for each
   server a check looks at (subscribed, renewed and why, updated,
   skipped and why, failed and when it tries again, removed), with the

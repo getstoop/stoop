@@ -1,7 +1,7 @@
 import * as Notifications from "expo-notifications";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { useAlertPrefs, useAlertPrefsNow } from "../alertPrefs/AlertPrefsProvider";
+import { useAlertPrefs, useAlertPrefsLoaded, useAlertPrefsNow } from "../alertPrefs/AlertPrefsProvider";
 import { fetchWithoutCookies } from "../api/fetch";
 import { deletePush, getPushConfig, registerPush, updatePush } from "../api/push";
 import { sessionToken } from "../api/servers";
@@ -33,6 +33,7 @@ export default function PushProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
   const [prefs] = useAlertPrefs();
   const prefsNow = useAlertPrefsNow();
+  const [prefsLoaded, prefsLoadedNow] = useAlertPrefsLoaded();
   const listed = useRef<PushServer[]>([]);
   listed.current = servers.map((server) => ({ id: server.id, origin: server.origin, session: server.session ?? 0 }));
 
@@ -53,7 +54,7 @@ export default function PushProvider({ children }: { children: ReactNode }) {
       remove: deletePush,
       subscribe: (relay, request) => subscribeAtRelay(fetchWithoutCookies, relay, request, Date.now),
       records: pushRecords,
-      kinds: (serverId) => wantedKinds(prefsNow(), serverId),
+      kinds: (serverId) => (prefsLoadedNow() ? wantedKinds(prefsNow(), serverId) : null),
       now: Date.now,
       wait: (ms, done) => {
         const timer = setTimeout(done, ms);
@@ -88,9 +89,11 @@ export default function PushProvider({ children }: { children: ReactNode }) {
     if (sessions) subscriber.check();
   }, [sessions, subscriber]);
 
-  // When the kinds wanted change, as the Notifications screen sets them
-  // or as the saved ones are read.
-  const kinds = servers.map((server) => `${server.id}:${wantedKinds(prefs, server.id).join(",")}`).join(" ");
+  // When the kinds wanted change, as the Notifications screen sets them,
+  // and once the saved ones are read: a check before then waits for it.
+  const kinds = prefsLoaded
+    ? servers.map((server) => `${server.id}:${wantedKinds(prefs, server.id).join(",")}`).join(" ")
+    : "";
   useEffect(() => {
     if (kinds) subscriber.kindsChanged();
   }, [kinds, subscriber]);

@@ -28,6 +28,8 @@ export function renewReason(
   if (record.vapidKey !== serverKey) return "server key changed";
   if (record.issuedAt > now) return "issued in the future";
   if (now - record.issuedAt >= RENEW_AGE_MS) return "7 days old";
+  // Only for a relay whose endpoints live under two weeks.
+  if (record.expiresAt - now < RENEW_AGE_MS) return "expires within 7 days";
   return null;
 }
 

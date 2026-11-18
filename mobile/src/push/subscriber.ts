@@ -48,7 +48,8 @@ export type SubscriberDeps = {
     set: (id: string, record: PushRecord) => Promise<void>;
     remove: (id: string) => Promise<void>;
   };
-  kinds: (serverId: string) => ActivityKind[];
+  // The kinds a server's pushes carry, or null until the saved settings are read.
+  kinds: (serverId: string) => ActivityKind[] | null;
   now: () => number;
   // Runs done after ms; the returned function calls it off.
   wait: (ms: number, done: () => void) => () => void;
@@ -67,6 +68,7 @@ export type PushSubscriber = {
   // the subscription (best effort), and the phone forgets the keys and
   // the record whatever it said. Resolves once the server has answered
   // or given up, never rejecting; the phone's side follows in turn.
+  // Nothing need wait on it.
   leave: (server: PushServer, token: string | null) => Promise<void>;
   // Resolves when nothing is left to do (tests).
   idle: () => Promise<void>;
@@ -100,6 +102,10 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
   // server), by session, so the day holds for it too.
   const doneAt = new Map<string, number>();
   let lastToken: string | null = null;
+  // The device token for the pass under way, dropped when the queue
+  // empties or the ask fails; and this build's target, which never changes.
+  let passToken: Promise<string> | null = null;
+  let target: Promise<PushTargetInfo> | null = null;
   let saidOff = false;
 
   const line = (server: PushServer, outcome: string) => {
@@ -128,6 +134,7 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
       }
     }
     running = false;
+    passToken = null;
     const waiters = idleWaiters;
     idleWaiters = [];
     for (const waiter of waiters) waiter();
@@ -179,15 +186,16 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
     if (!token) return line(server, "skipped: signed out");
     const session = `${serverId}/${server.session}`;
     try {
-      const deviceToken = await step("device token", deps.deviceToken);
-      lastToken = deviceToken;
+      const kinds = deps.kinds(serverId);
+      if (!kinds) return line(server, "skipped: notification settings not read yet");
       const stored = await deps.records.get(serverId).catch(() => null);
       const record = stored && stored.session === server.session ? stored : null;
-      const kinds = deps.kinds(serverId);
+      // The day holds unless the token (as last heard) or the kinds moved.
       if (!force) {
         if (
           record &&
-          record.deviceToken === deviceToken &&
+          lastToken !== null &&
+          record.deviceToken === lastToken &&
           sameKinds(record.kinds, kinds) &&
           checkedWithinDay(record.checkedAt, deps.now())
         ) {
@@ -195,10 +203,34 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
         }
         if (!record && checkedWithinDay(doneAt.get(session), deps.now())) return;
       }
-      const target = await deps.target();
-      if (!target.environment) {
+      // A build signed without push gets no device token: asked first,
+      // so it is a quiet skip and not a retry.
+      target ??= deps.target();
+      const { appId, environment } = await target.catch((error) => {
+        target = null;
+        throw error;
+      });
+      if (!environment) {
         succeeded(serverId);
+        doneAt.set(session, deps.now());
         return line(server, "skipped: this build is not signed for push");
+      }
+      // Asked once a pass, however many servers.
+      passToken ??= deps.deviceToken();
+      const asked = passToken;
+      const deviceToken = await step("device token", () => asked).catch((error) => {
+        passToken = null;
+        throw error;
+      });
+      lastToken = deviceToken;
+      if (
+        !force &&
+        record &&
+        record.deviceToken === deviceToken &&
+        sameKinds(record.kinds, kinds) &&
+        checkedWithinDay(record.checkedAt, deps.now())
+      ) {
+        return;
       }
       let config: PushConfig;
       try {
@@ -228,12 +260,14 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
           return line(server, "updated");
         }
       }
+      // A new sign-in gets keys of its own, so a previous session's
+      // subscription, if the server kept it, can no longer be read here.
+      if (stored && !record) await step("keys", () => deps.removeKeys(serverId));
       const keys = await step("keys", () => deps.ensureKeys(serverId));
-      const environment = target.environment;
       const relay = relayUrl;
       if (!relay) return;
       const issued = await step("relay", () =>
-        deps.subscribe(relay, { token: deviceToken, appId: target.appId, environment, vapidKey: config.serverKey }),
+        deps.subscribe(relay, { token: deviceToken, appId, environment, vapidKey: config.serverKey }),
       );
       const issuedAt = deps.now();
       await step("register", () =>
@@ -299,9 +333,10 @@ export function pushSubscriber(deps: SubscriberDeps): PushSubscriber {
       if (on) checkAll();
     },
     leave: (server, token) => {
-      // The server is asked now, not in turn, so the session's end that
-      // follows waits on nothing else. A check still running for it may
-      // register after this; the session's end takes that with it.
+      // The server is asked now, not in turn, beside the session's end
+      // (which takes the subscription with it on the server anyway, so
+      // this matters only when that end is lost). A check still running
+      // for it may register after this; the session's end takes that too.
       const told: Promise<string> =
         deps.supported && token
           ? deps.remove(server.origin, token).then(

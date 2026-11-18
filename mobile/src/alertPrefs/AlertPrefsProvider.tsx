@@ -55,3 +55,10 @@ export function useForgetServerAlerts(): (serverId: string) => void {
 export function useAlertPrefsNow(): () => AlertPrefs {
   return useStore().current;
 }
+
+// Whether the saved prefs have been read, as it reads now and when
+// asked: push tells a server no kinds before they are (src/push).
+export function useAlertPrefsLoaded(): [boolean, () => boolean] {
+  const store = useStore();
+  return [useSyncExternalStore(store.subscribe, store.isLoaded), store.isLoaded];
+}

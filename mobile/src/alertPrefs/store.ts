@@ -8,6 +8,9 @@ export type AlertPrefsStore = {
   current: () => AlertPrefs;
   subscribe: (listener: () => void) => () => void;
   loaded: (saved: AlertPrefs) => void;
+  // Whether the saved prefs have been read, or the person changed one:
+  // until then current() is only the defaults.
+  isLoaded: () => boolean;
   set: (change: Partial<AlertPrefs>) => void;
   setServer: (serverId: string, on: boolean) => void;
   // A removed server's switch goes with it.
@@ -17,12 +20,14 @@ export type AlertPrefsStore = {
 export function alertPrefsStore(save: (next: AlertPrefs) => void): AlertPrefsStore {
   let prefs = DEFAULT_PREFS;
   let moved = false;
+  let read = false;
   const listeners = new Set<() => void>();
   const notify = () => {
     for (const listener of listeners) listener();
   };
   const replace = (next: AlertPrefs) => {
     moved = true;
+    read = true;
     prefs = next;
     save(prefs);
     notify();
@@ -35,8 +40,10 @@ export function alertPrefsStore(save: (next: AlertPrefs) => void): AlertPrefsSto
         listeners.delete(listener);
       };
     },
+    isLoaded: () => read,
     loaded: (saved) => {
       if (moved) return;
+      read = true;
       prefs = saved;
       notify();
     },

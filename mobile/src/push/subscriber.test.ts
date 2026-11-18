@@ -28,7 +28,13 @@ function world(change: Partial<SubscriberDeps> = {}) {
   const lines: string[] = [];
   const timers: { at: number; done: () => void; off: boolean }[] = [];
   const fail = new Map<string, unknown>();
-  const state = { deviceToken: "d1", serverKey: "key-1", kinds: ALL, allowed: true, issued: 0 };
+  const state = {
+    deviceToken: "d1",
+    serverKey: "key-1",
+    kinds: ALL as ActivityKind[] | null,
+    allowed: true,
+    issued: 0,
+  };
   const maybeFail = (name: string) => {
     const error = fail.get(name);
     if (error !== undefined) {
@@ -44,6 +50,7 @@ function world(change: Partial<SubscriberDeps> = {}) {
     sessionToken: async (id) => tokens.get(id) ?? null,
     allowed: async () => state.allowed,
     deviceToken: async () => {
+      calls.push("deviceToken");
       maybeFail("deviceToken");
       return state.deviceToken;
     },
@@ -105,6 +112,8 @@ function world(change: Partial<SubscriberDeps> = {}) {
 
   return {
     subscriber,
+    // The calls that leave the phone, without the asks for the device token.
+    out: () => calls.filter((call) => call !== "deviceToken"),
     servers,
     tokens,
     records,
@@ -135,7 +144,7 @@ describe("the check", () => {
   it("subscribes each server in turn, keyed by its local ID", async () => {
     const phone = world();
     await phone.check();
-    expect(phone.calls).toEqual([
+    expect(phone.out()).toEqual([
       "getConfig https://one.example",
       "relay sandbox d1 key-1",
       "register https://one.example aaa111 https://relay.example/push/1",
@@ -167,10 +176,10 @@ describe("the check", () => {
     phone.calls.length = 0;
     phone.advance(DAY_MS - 1);
     await phone.check();
-    expect(phone.calls).toEqual([]);
+    expect(phone.out()).toEqual([]);
     phone.advance(1);
     await phone.check();
-    expect(phone.calls).toEqual([
+    expect(phone.out()).toEqual([
       "getConfig https://one.example",
       `update https://one.example ${ALL.join(",")}`,
       "getConfig https://two.example",
@@ -186,7 +195,7 @@ describe("the check", () => {
     phone.calls.length = 0;
     phone.advance(7 * DAY_MS);
     await phone.check();
-    expect(phone.calls.filter((call) => call.startsWith("relay"))).toHaveLength(2);
+    expect(phone.out().filter((call) => call.startsWith("relay"))).toHaveLength(2);
     expect(phone.records.get("aaa111")?.issuedAt).toBe(START + 7 * DAY_MS);
     expect(phone.lines.at(-2)).toBe("PUSH_SUBSCRIBE aaa111 one.example renewed: 7 days old");
   });
@@ -218,13 +227,13 @@ describe("the check", () => {
     phone.state.deviceToken = "d2";
     phone.subscriber.tokenSeen("d2");
     await phone.subscriber.idle();
-    expect(phone.calls.filter((call) => call.startsWith("relay"))).toEqual(["relay sandbox d2 key-1", "relay sandbox d2 key-1"]);
+    expect(phone.out().filter((call) => call.startsWith("relay"))).toEqual(["relay sandbox d2 key-1", "relay sandbox d2 key-1"]);
     expect(phone.records.get("bbb222")?.deviceToken).toBe("d2");
     // The same token again is nothing new.
     phone.calls.length = 0;
     phone.subscriber.tokenSeen("d2");
     await phone.subscriber.idle();
-    expect(phone.calls).toEqual([]);
+    expect(phone.out()).toEqual([]);
   });
 
   it("tells the server new kinds at once", async () => {
@@ -234,7 +243,7 @@ describe("the check", () => {
     phone.state.kinds = [ActivityKind.DM];
     phone.subscriber.kindsChanged();
     await phone.subscriber.idle();
-    expect(phone.calls).toEqual([
+    expect(phone.out()).toEqual([
       "getConfig https://one.example",
       `update https://one.example ${ActivityKind.DM}`,
       "getConfig https://two.example",
@@ -243,11 +252,13 @@ describe("the check", () => {
     expect(phone.records.get("aaa111")?.kinds).toEqual([ActivityKind.DM]);
   });
 
-  it("registers a new sign-in to the same server as a new subscription", async () => {
+  it("registers a new sign-in to the same server as a new subscription, with new keys", async () => {
     const phone = world();
     await phone.check();
     phone.servers[0] = { ...phone.servers[0], session: 2 };
+    phone.calls.length = 0;
     await phone.check();
+    expect(phone.calls.slice(0, 3)).toEqual(["deviceToken", "getConfig https://one.example", "removeKeys aaa111"]);
     expect(phone.records.get("aaa111")?.session).toBe(2);
     expect(phone.lines.at(-1)).toBe("PUSH_SUBSCRIBE aaa111 one.example subscribed");
   });
@@ -256,7 +267,7 @@ describe("the check", () => {
     const phone = world();
     phone.state.allowed = false;
     await phone.check();
-    expect(phone.calls).toEqual([]);
+    expect(phone.out()).toEqual([]);
     expect(phone.lines[0]).toBe("PUSH_SUBSCRIBE aaa111 one.example skipped: notifications not allowed");
     phone.state.allowed = true;
     await phone.check();
@@ -272,15 +283,38 @@ describe("the check", () => {
     expect(phone.lines[0]).toBe("PUSH_SUBSCRIBE aaa111 one.example skipped: the server has no push");
     phone.calls.length = 0;
     await phone.check();
-    expect(phone.calls).toEqual([]);
+    expect(phone.out()).toEqual([]);
     expect(phone.timers()).toEqual([]);
   });
 
-  it("skips a build signed without push", async () => {
+  it("skips a build signed without push, before asking for a device token it can't have", async () => {
     const phone = world({ target: async () => ({ appId: "org.getstoop.dev", environment: null }) });
+    phone.fail.set("deviceToken", new Error("no aps-environment"));
     await phone.check();
     expect(phone.calls).toEqual([]);
     expect(phone.lines[0]).toBe("PUSH_SUBSCRIBE aaa111 one.example skipped: this build is not signed for push");
+    expect(phone.timers()).toEqual([]);
+  });
+
+  it("waits for the saved notification settings before telling a server any kinds", async () => {
+    const phone = world();
+    phone.state.kinds = null;
+    await phone.check();
+    expect(phone.calls).toEqual([]);
+    expect(phone.lines[0]).toBe("PUSH_SUBSCRIBE aaa111 one.example skipped: notification settings not read yet");
+    phone.state.kinds = [ActivityKind.DM];
+    phone.subscriber.kindsChanged();
+    await phone.subscriber.idle();
+    expect(phone.records.get("aaa111")?.kinds).toEqual([ActivityKind.DM]);
+  });
+
+  it("asks for the device token once a pass, and not at all within the day", async () => {
+    const phone = world();
+    await phone.check();
+    expect(phone.calls.filter((call) => call === "deviceToken")).toHaveLength(1);
+    phone.calls.length = 0;
+    await phone.check();
+    expect(phone.calls).toEqual([]);
   });
 });
 
@@ -301,7 +335,7 @@ describe("failures", () => {
     phone.calls.length = 0;
     phone.advance(60_000);
     await phone.check();
-    expect(phone.calls.filter((call) => call.includes("one.example"))).toEqual([]);
+    expect(phone.out().filter((call) => call.includes("one.example"))).toEqual([]);
 
     phone.advance(240_000);
     await phone.subscriber.idle();
@@ -357,7 +391,7 @@ describe("leaving a server", () => {
     phone.calls.length = 0;
     await phone.subscriber.leave(phone.servers[0], "token-one");
     await phone.subscriber.idle();
-    expect(phone.calls).toEqual(["remove https://one.example", "removeKeys aaa111", "removeRecord aaa111"]);
+    expect(phone.out()).toEqual(["remove https://one.example", "removeKeys aaa111", "removeRecord aaa111"]);
     expect(phone.records.has("aaa111")).toBe(false);
     expect(phone.keys.has("aaa111")).toBe(false);
     expect(phone.lines.at(-1)).toBe("PUSH_SUBSCRIBE aaa111 one.example removed: told the server");
@@ -380,12 +414,11 @@ describe("leaving a server", () => {
     phone.calls.length = 0;
     await phone.subscriber.leave(phone.servers[0], null);
     await phone.subscriber.idle();
-    expect(phone.calls).toEqual(["removeKeys aaa111", "removeRecord aaa111"]);
+    expect(phone.out()).toEqual(["removeKeys aaa111", "removeRecord aaa111"]);
   });
 
-  it("waits for a check in progress, and drops one still to come and its retry", async () => {
+  it("waits for a check in progress, and drops one still to come", async () => {
     const phone = world();
-    phone.fail.set("getConfig https://two.example", new Error("offline"));
     phone.subscriber.check();
     const leaving = phone.servers[1];
     void phone.subscriber.leave(leaving, "token-two");
@@ -393,7 +426,7 @@ describe("leaving a server", () => {
     await phone.subscriber.idle();
     expect(phone.records.has("aaa111")).toBe(true);
     expect(phone.records.has("bbb222")).toBe(false);
-    expect(phone.calls).not.toContain("getConfig https://two.example");
+    expect(phone.out()).not.toContain("getConfig https://two.example");
     expect(phone.timers()).toEqual([]);
   });
 
@@ -415,7 +448,7 @@ describe("off", () => {
     phone.subscriber.tokenSeen("d1");
     phone.subscriber.kindsChanged();
     await phone.subscriber.idle();
-    expect(phone.calls).toEqual([]);
+    expect(phone.out()).toEqual([]);
     expect(phone.lines).toEqual(["PUSH_SUBSCRIBE off: no relay URL in this build"]);
   });
 
@@ -424,7 +457,7 @@ describe("off", () => {
     await phone.check();
     await phone.subscriber.leave(phone.servers[0], "token-one");
     await phone.subscriber.idle();
-    expect(phone.calls).toEqual([]);
+    expect(phone.out()).toEqual([]);
     expect(phone.lines).toEqual(["PUSH_SUBSCRIBE off: unsupported on this platform"]);
   });
 });
