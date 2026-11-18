@@ -393,13 +393,19 @@ func (q *Queries) GetCredentialCreatedAt(ctx context.Context, id string) (time.T
 }
 
 const listLiveSessions = `-- name: ListLiveSessions :many
-SELECT id FROM credentials
-WHERE id = ANY($1::uuid[]) AND kind = 'session' AND expires_at > now()
+SELECT c.id FROM credentials c
+JOIN users u ON u.id = c.holder_id
+WHERE c.id = ANY($1::uuid[]) AND c.kind = 'session'
+  AND (c.expires_at IS NULL OR c.expires_at > now())
+  AND u.deactivated_at IS NULL
 `
 
-// ListLiveSessions is which of these ids are sessions that have not
-// expired, for push: a subscription outlives its session only until the
-// sweep, and nothing is sent to it meanwhile.
+// ListLiveSessions is which of these ids are sessions that would verify
+// now, for push: not expired, and held by an account that is not
+// deactivated (deletion deactivates too), the conditions
+// GetCredentialByTokenHash applies. A subscription outlives its session
+// only until the sweep, and a deactivated account's sessions only until
+// revokeAll; nothing is sent to either meanwhile.
 func (q *Queries) ListLiveSessions(ctx context.Context, ids []string) ([]string, error) {
 	rows, err := q.db.Query(ctx, listLiveSessions, ids)
 	if err != nil {

@@ -151,6 +151,25 @@ func TestE2EPushQueuesADelivery(t *testing.T) {
 	}).expect(t, "ok")
 
 	server.send(phone, channelID, server.mention(phone)+" a note to self").expect(t, "ok")
+
+	// Deactivated with the session row still standing (before revocation,
+	// or if it failed): nothing is queued.
+	adaID, mentionAda := server.userID(phone), server.mention(phone)
+	setDeactivated := func(on bool) {
+		t.Helper()
+		if _, err := pool.Exec(context.Background(),
+			`UPDATE users SET deactivated_at = CASE WHEN $2::boolean THEN now() END WHERE id = $1`, adaID, on); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setDeactivated(true)
+	server.send(casey, channelID, mentionAda+" ping").expect(t, "ok")
+	time.Sleep(time.Second)
+	if n := queued(); n != 0 {
+		t.Fatalf("%d deliveries queued for a deactivated account, want none", n)
+	}
+	setDeactivated(false)
+
 	server.send(casey, channelID, server.mention(phone)+" look at this").expect(t, "ok")
 	deadline := time.Now().Add(5 * time.Second)
 	for queued() == 0 && time.Now().Before(deadline) {
