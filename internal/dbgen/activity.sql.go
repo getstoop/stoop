@@ -184,6 +184,35 @@ func (q *Queries) DeleteReadActivityBefore(ctx context.Context, before time.Time
 	return result.RowsAffected(), nil
 }
 
+const getUnreadActivityItem = `-- name: GetUnreadActivityItem :one
+SELECT id, user_id, kind, space_id, channel_id, message_id, actor_id, created_at, read_at FROM activity_items WHERE id = $1::uuid AND user_id = $2::uuid AND read_at IS NULL
+`
+
+type GetUnreadActivityItemParams struct {
+	ID     string
+	UserID string
+}
+
+// GetUnreadActivityItem is one person's item while it is still unread:
+// for push, which sends nothing for an item read, refreshed under a new
+// id, or deleted since it was heard.
+func (q *Queries) GetUnreadActivityItem(ctx context.Context, arg GetUnreadActivityItemParams) (ActivityItem, error) {
+	row := q.db.QueryRow(ctx, getUnreadActivityItem, arg.ID, arg.UserID)
+	var i ActivityItem
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Kind,
+		&i.SpaceID,
+		&i.ChannelID,
+		&i.MessageID,
+		&i.ActorID,
+		&i.CreatedAt,
+		&i.ReadAt,
+	)
+	return i, err
+}
+
 const listActivity = `-- name: ListActivity :many
 SELECT a.id, a.user_id, a.kind, a.space_id, a.channel_id, a.message_id, a.actor_id, a.created_at, a.read_at, m.content AS message_content, m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,

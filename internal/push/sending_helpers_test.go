@@ -62,6 +62,12 @@ type fakeChat struct {
 	space, channel string
 	waiting        int
 	err            error
+	// stale holds the items no longer pending (read, replaced, gone).
+	stale map[string]bool
+}
+
+func (f fakeChat) ActivityPending(_ context.Context, _, itemID, _ string) (bool, error) {
+	return !f.stale[itemID], nil
 }
 
 func (f fakeChat) PlaceNames(context.Context, string) (string, string, error) {
@@ -143,6 +149,8 @@ func (fake *relay) received() []relayed {
 // rig is a service wired to fakes and a relay, with ada signed in on one
 // device registered for mentions and direct messages.
 type rig struct {
+	// stale is the items the fake chat no longer has pending.
+	stale map[string]bool
 	*fixture
 	relay     *relay
 	accounts  *fakeAccounts
@@ -159,10 +167,10 @@ func newRig(t *testing.T) *rig {
 	fix := setup(t)
 	bench := &rig{
 		fixture: fix, relay: newRelay(t), accounts: &fakeAccounts{expired: map[string]bool{}},
-		sockets: fakeSockets{connected: map[string]bool{}}, jobs: &fakeJobs{},
+		sockets: fakeSockets{connected: map[string]bool{}}, jobs: &fakeJobs{}, stale: map[string]bool{},
 	}
 	fix.svc.client = bench.relay.server.Client()
-	fix.svc.UseSending(nil, bench.accounts, fakeChat{space: "The Stoop", channel: "general", waiting: 3}, bench.jobs, nil)
+	fix.svc.UseSending(nil, bench.accounts, fakeChat{space: "The Stoop", channel: "general", waiting: 3, stale: bench.stale}, bench.jobs, nil)
 	fix.svc.UseSockets(bench.sockets)
 	ctx, session := fix.session(t)
 	bench.sessionID = session

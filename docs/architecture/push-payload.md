@@ -33,8 +33,25 @@ and drops one device when:
    up to about 40 seconds, and an item in that window is not pushed);
 6. the device's session has **expired** (it is swept later).
 
-Every device left gets one `deliver_push` job. The checks are made once,
-when the item is heard; the job only sends.
+Every device left gets one `deliver_push` job. Before every attempt,
+the first and each retry, the job asks again about what can change while
+it waits, and ends with nothing sent (and nothing recorded as failed)
+when:
+
+7. the device's session has **expired** since;
+8. the item is **no longer pending** for the recipient (chat's
+   `ActivityPending`): it is gone or read, they can no longer read its
+   channel, or it is muted for them now. An item is gone once it is read
+   or refreshed away, when its message is deleted, when the recipient
+   blocks its author or loses a private channel (chat deletes their
+   items there), and when the channel is deleted. A direct message's or
+   thread reply's entry is refreshed under a new id by the next message,
+   so an older delivery still retrying never replaces the newer one under
+   their shared topic.
+
+Not asked again: the server-wide switch, do not disturb and the live
+socket, which are about the moment the item arrived; and a message edited
+since, whose preview stays as it was heard.
 
 ## The message
 
@@ -147,7 +164,8 @@ attempt adds one to `failures` and sets `last_failure_at` and
 Diagnostics tab's `push` row reads them
 ([diagnostics.md](diagnostics.md#the-health-check-port)). A job still
 waiting when its subscription is deleted, or whose channel has gone,
-finds nothing and ends.
+finds nothing and ends, as does one whose session expired or whose item
+is no longer pending (above).
 
 ## Known and accepted
 

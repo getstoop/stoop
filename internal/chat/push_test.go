@@ -97,3 +97,70 @@ func TestActivityEventNamesItsRecipient(t *testing.T) {
 		}
 	}
 }
+
+// An item stays pending for push until it is read, replaced by a newer
+// one, deleted with its message, or muted; it is only its recipient's.
+func TestActivityPending(t *testing.T) {
+	fixture := newAlertsFixture(t)
+	ctx := context.Background()
+	ada := authctx.UserID(fixture.owner)
+	itemFor := func(messageID string) string {
+		t.Helper()
+		var id string
+		if err := fixture.pool.QueryRow(ctx,
+			`SELECT id FROM activity_items WHERE user_id = $1 AND message_id = $2`, ada, messageID).Scan(&id); err != nil {
+			return ""
+		}
+		return id
+	}
+	pendingFor := func(userID, itemID string) bool {
+		t.Helper()
+		ok, err := fixture.svc.ActivityPending(ctx, userID, itemID, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+
+	first := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: mentionOf(fixture.owner) + " one"})
+	mention := itemFor(first.Id)
+	if mention == "" || !pendingFor(ada, mention) {
+		t.Fatal("a fresh mention is not pending")
+	}
+	if pendingFor(authctx.UserID(fixture.bea), mention) {
+		t.Error("someone else's item reads as pending")
+	}
+	if _, err := fixture.svc.MarkActivityRead(fixture.owner, connect.NewRequest(&chatv1.MarkActivityReadRequest{Ids: []string{mention}})); err != nil {
+		t.Fatal(err)
+	}
+	if pendingFor(ada, mention) {
+		t.Error("a read mention is still pending")
+	}
+	second := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: mentionOf(fixture.owner) + " two"})
+	deleted := itemFor(second.Id)
+	if _, err := fixture.svc.DeleteMessage(fixture.bea, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: second.Id})); err != nil {
+		t.Fatal(err)
+	}
+	if deleted == "" || pendingFor(ada, deleted) {
+		t.Error("a deleted message's mention is still pending")
+	}
+
+	// A conversation's newer message refreshes its entry under a new id:
+	// the older one is no longer pending, so its retry sends nothing.
+	dm, err := fixture.svc.OpenDirectMessage(fixture.bea, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{ada}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dmID := dm.Msg.DirectMessage.Channel.Id
+	older := itemFor(fixture.send(fixture.bea, &chatv1.SendMessageRequest{ChannelId: dmID, Content: "hi"}).Id)
+	newer := itemFor(fixture.send(fixture.bea, &chatv1.SendMessageRequest{ChannelId: dmID, Content: "there"}).Id)
+	if newer == "" || older == newer || pendingFor(ada, older) || !pendingFor(ada, newer) {
+		t.Errorf("older %q, newer %q: the newer alone should be pending", older, newer)
+	}
+	if _, err := fixture.svc.SetChannelMuted(fixture.owner, connect.NewRequest(&chatv1.SetChannelMutedRequest{ChannelId: dmID, Muted: true})); err != nil {
+		t.Fatal(err)
+	}
+	if pendingFor(ada, newer) {
+		t.Error("an item muted since is still pending")
+	}
+}

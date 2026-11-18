@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -74,6 +75,9 @@ func (s *Service) DeliverPush(ctx context.Context, args DeliveryArgs, attempt in
 	remaining := args.Expires.Sub(s.now())
 	if remaining < time.Second {
 		return s.fail(ctx, sub, Verdict{Done: true, Failure: fmt.Sprintf(reasonGaveUp, "not sent in time")}), nil
+	}
+	if current, err := s.stillWanted(ctx, sub.CredentialID, args.Item); err != nil || !current {
+		return Verdict{Done: err == nil}, err
 	}
 	payload, err := s.buildPayload(ctx, sub.LocalServerID, args.Item)
 	if connect.CodeOf(err) == connect.CodeNotFound {
@@ -148,6 +152,29 @@ func (s *Service) fail(ctx context.Context, sub dbgen.GetPushSubscriptionRow, ve
 		s.log.Warn("record push failure", "err", err)
 	}
 	return verdict
+}
+
+// stillWanted asks again, before every attempt, what may have changed
+// since the item was heard: the session may have expired, and the item
+// may have been read, deleted, replaced by a newer one under the same
+// topic, muted, or put out of the recipient's reach. Each ends the
+// delivery unsent and unrecorded: nothing failed.
+func (s *Service) stillWanted(ctx context.Context, sessionID string, item ItemFacts) (bool, error) {
+	if s.accounts == nil || s.chat == nil {
+		return false, errors.New("push is not wired")
+	}
+	live, err := s.accounts.LiveSessions(ctx, []string{sessionID})
+	if err != nil {
+		return false, fmt.Errorf("check session: %w", err)
+	}
+	if !slices.Contains(live, sessionID) {
+		return false, nil
+	}
+	pending, err := s.chat.ActivityPending(ctx, item.UserID, item.ID, item.ThreadRootID)
+	if err != nil {
+		return false, fmt.Errorf("check item: %w", err)
+	}
+	return pending, nil
 }
 
 // buildPayload fills the item's facts with the names and the waiting

@@ -38,12 +38,13 @@ func (q *Queries) DeletePushSubscription(ctx context.Context, credentialID strin
 }
 
 const getPushSubscription = `-- name: GetPushSubscription :one
-SELECT id, user_id, endpoint, p256dh, auth, local_server_id
+SELECT id, credential_id, user_id, endpoint, p256dh, auth, local_server_id
 FROM push_subscriptions WHERE id = $1
 `
 
 type GetPushSubscriptionRow struct {
 	ID            string
+	CredentialID  string
 	UserID        string
 	Endpoint      string
 	P256dh        []byte
@@ -56,6 +57,7 @@ func (q *Queries) GetPushSubscription(ctx context.Context, id string) (GetPushSu
 	var i GetPushSubscriptionRow
 	err := row.Scan(
 		&i.ID,
+		&i.CredentialID,
 		&i.UserID,
 		&i.Endpoint,
 		&i.P256dh,

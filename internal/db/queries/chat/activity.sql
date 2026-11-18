@@ -208,3 +208,9 @@ DELETE FROM activity_items WHERE user_id = sqlc.arg(user_id) AND channel_id = sq
 DELETE FROM activity_items a USING channels c
 WHERE a.user_id = sqlc.arg(user_id) AND c.id = a.channel_id
   AND c.space_id = sqlc.arg(space_id)::uuid AND c.private;
+
+-- GetUnreadActivityItem is one person's item while it is still unread:
+-- for push, which sends nothing for an item read, refreshed under a new
+-- id, or deleted since it was heard.
+-- name: GetUnreadActivityItem :one
+SELECT * FROM activity_items WHERE id = sqlc.arg(id)::uuid AND user_id = sqlc.arg(user_id)::uuid AND read_at IS NULL;

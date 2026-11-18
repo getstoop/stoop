@@ -12,7 +12,9 @@ import (
 
 // A kind with Options.MaxInFlight is leased in its own transaction under
 // a per-kind advisory lock, with a limit of the cap less the live leases,
-// so dispatchers serialise per kind and no batch overshoots. See
+// so dispatchers serialise per kind and no batch overshoots. A kind in a
+// capped group takes the group's lock instead and is held to the group's
+// cap as well as its own. See
 // docs/architecture/runtime.md → Background work.
 
 // leaseCapped leases up to free rows of kind without taking its live
@@ -21,7 +23,13 @@ func (s *Service) leaseCapped(ctx context.Context, now time.Time, kind cappedKin
 	var rows []dbgen.Job
 	err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := s.queries.WithTx(tx)
-		if err := queries.LockKindLeasing(ctx, kind.kind); err != nil {
+		// A grouped kind locks its group, so every kind in it serialises
+		// on the one count.
+		lock := kind.kind
+		if kind.group != "" {
+			lock = "group:" + kind.group
+		}
+		if err := queries.LockKindLeasing(ctx, lock); err != nil {
 			return err
 		}
 		live, err := queries.CountLiveLeases(ctx, dbgen.CountLiveLeasesParams{Kind: kind.kind, Now: now})
@@ -29,6 +37,13 @@ func (s *Service) leaseCapped(ctx context.Context, now time.Time, kind cappedKin
 			return err
 		}
 		limit := min(free, kind.maxInFlight-int(live))
+		if kind.group != "" {
+			groupLive, err := queries.CountLiveLeasesOfKinds(ctx, dbgen.CountLiveLeasesOfKindsParams{Kinds: kind.groupKinds, Now: now})
+			if err != nil {
+				return err
+			}
+			limit = min(limit, kind.groupMax-int(groupLive))
+		}
 		if limit <= 0 {
 			return nil
 		}

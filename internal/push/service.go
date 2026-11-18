@@ -44,6 +44,10 @@ type Chat interface {
 	PlaceNames(ctx context.Context, channelID string) (space, channel string, err error)
 	// WaitingTotal is what this server puts on the person's app icon.
 	WaitingTotal(ctx context.Context, userID string) (int, error)
+	// ActivityPending is whether the item is still the person's, unread,
+	// in a channel they can read and not muted for them: false once it
+	// was read, refreshed under a newer id, or deleted since.
+	ActivityPending(ctx context.Context, userID, itemID, threadRootID string) (bool, error)
 }
 
 // Policy is the server-wide switch. Nothing implements it yet: there is
