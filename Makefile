@@ -1,4 +1,4 @@
-.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-android mobile-typecheck mobile-theme mobile-metro mobile-ios-release mobile-android-release mobile-sim mobile-e2e
+.PHONY: dev storybook dev-git-check dev-port-check dev-services dev-services-stop dev-reset dev-flood generate build build-web brand lint test e2e migrate-new docker clean mobile-prebuild mobile-ios mobile-ios-provision mobile-android mobile-typecheck mobile-theme mobile-metro mobile-ios-release mobile-android-release mobile-sim mobile-e2e
 
 BINARY := bin/stoop
 # The Go hot-reloader, by path: Homebrew ships an unrelated `air` (the R
@@ -134,6 +134,15 @@ mobile-prebuild:
 ## mobile-ios: build the development build onto a connected iPhone and start Metro
 mobile-ios:
 	cd mobile && pnpm install --frozen-lockfile && pnpm exec expo run:ios --device
+
+## mobile-ios-provision: one signed build that lets Xcode update the
+## provisioning profile, for when mobile-ios fails with "Provisioning
+## Profile ... doesn't support the App Groups capability" (once per team
+## and bundle ID; needs STOOP_APPLE_TEAM_ID, mobile/README.md → Signing for iOS)
+mobile-ios-provision:
+	cd mobile/ios && xcodebuild -workspace Stoop.xcworkspace -scheme Stoop \
+		-destination 'generic/platform=iOS' \
+		-allowProvisioningUpdates -allowProvisioningDeviceRegistration build
 
 ## mobile-android: the same for a connected Android phone (USB debugging on)
 mobile-android:
