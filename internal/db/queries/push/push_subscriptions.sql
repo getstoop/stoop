@@ -30,7 +30,7 @@ SELECT DISTINCT user_id FROM push_subscriptions;
 SELECT id, credential_id, kinds FROM push_subscriptions WHERE user_id = $1;
 
 -- name: GetPushSubscription :one
-SELECT id, credential_id, user_id, endpoint, p256dh, auth, local_server_id
+SELECT id, credential_id, user_id, endpoint, p256dh, auth, local_server_id, kinds
 FROM push_subscriptions WHERE id = $1;
 
 -- The delivery's record. Each is for the endpoint the delivery used, so

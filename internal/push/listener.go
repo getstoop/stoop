@@ -151,8 +151,9 @@ func (s *Service) itemHeard(ctx context.Context, userID string, item *chatv1.Act
 	return nil
 }
 
-// ItemFacts is what a delivery carries of the item: the event's own
-// fields, so the job reads nothing back.
+// ItemFacts is what a delivery carries of the item: identifiers only.
+// No message text or name is written to the jobs table; the job reads the
+// actor and the preview as they are when it sends (Chat.PendingActivity).
 type ItemFacts struct {
 	UserID       string `json:"user_id"`
 	ID           string `json:"id"`
@@ -161,18 +162,19 @@ type ItemFacts struct {
 	ChannelID    string `json:"channel_id"`
 	ThreadRootID string `json:"thread_root_id"`
 	MessageID    string `json:"message_id"`
-	ActorName    string `json:"actor_name"`
-	Preview      string `json:"preview"`
 }
 
 func itemFacts(userID string, item *chatv1.ActivityItem) ItemFacts {
-	actor := item.GetActor().GetDisplayName()
-	if actor == "" {
-		actor = item.GetActor().GetUsername()
-	}
 	return ItemFacts{
 		UserID: userID, ID: item.Id, Kind: int32(item.Kind),
 		SpaceID: item.SpaceId, ChannelID: item.ChannelId, ThreadRootID: item.ThreadRootId, MessageID: item.MessageId,
-		ActorName: actor, Preview: item.Preview,
 	}
+}
+
+// actorName is who did it: their display name, else their username.
+func actorName(actor *chatv1.MessageAuthor) string {
+	if name := actor.GetDisplayName(); name != "" {
+		return name
+	}
+	return actor.GetUsername()
 }

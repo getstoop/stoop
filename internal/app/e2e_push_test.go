@@ -5,6 +5,7 @@ import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 
@@ -157,5 +158,17 @@ func TestE2EPushQueuesADelivery(t *testing.T) {
 	}
 	if n := queued(); n != 1 {
 		t.Errorf("%d deliveries queued, want 1", n)
+	}
+	// The job holds identifiers only: no message text and no name, so
+	// nothing of a message outlives its deletion in the jobs table,
+	// whatever state the job ends in.
+	var args string
+	if err := pool.QueryRow(context.Background(), `SELECT args::text FROM jobs WHERE kind = 'deliver_push'`).Scan(&args); err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{"look at this", "casey", "Porch"} {
+		if strings.Contains(args, text) {
+			t.Errorf("the stored job holds %q: %s", text, args)
+		}
 	}
 }

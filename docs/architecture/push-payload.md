@@ -33,14 +33,21 @@ and drops one device when:
    up to about 40 seconds, and an item in that window is not pushed);
 6. the device's session has **expired** (it is swept later).
 
-Every device left gets one `deliver_push` job. Before every attempt,
+Every device left gets one `deliver_push` job. **The job stores
+identifiers only**: the recipient, the subscription, the item's id and
+kind, its space, channel, thread root and message ids, and when it
+expires. No message text and no name is written to the jobs table, so
+nothing of a message outlives its deletion there, whatever state the job
+ends in. Before every attempt,
 the first and each retry, the job asks again about what can change while
 it waits, and ends with nothing sent (and nothing recorded as failed)
 when:
 
-7. the device's session has **expired** since;
+7. the device's session has **expired** since, or its subscription
+   **no longer wants the kind** (an update since; empty means none);
 8. the item is **no longer pending** for the recipient (chat's
-   `ActivityPending`): it is gone or read, they can no longer read its
+   `PendingActivity`, which also returns the item as the Activity feed
+   shows it now, the source of `actorName` and `preview`): it is gone or read, they can no longer read its
    channel, or it is muted for them now. An item is gone once it is read
    or refreshed away, when its message is deleted, when the recipient
    blocks its author or loses a private channel (chat deletes their
@@ -52,8 +59,8 @@ when:
    check can still land last.)
 
 Not asked again: the server-wide switch, do not disturb and the live
-socket, which are about the moment the item arrived; and a message edited
-since, whose preview stays as it was heard.
+socket, which are about the moment the item arrived. A message edited
+since is sent as it now reads.
 
 ## The message
 
@@ -93,8 +100,8 @@ does not know, and refuse a `v` it does not know.
 | `channelId` | string | The channel or conversation. Never empty. |
 | `threadRootId` | string | The thread the message is in; `""` when it is in no thread. |
 | `messageId` | string | The message. Never empty. |
-| `actorName` | string | Who did it: their display name, else their username; `""` when neither is known. |
-| `preview` | string | The message excerpt, at most 140 characters as chat makes it (an attachment's name when there is no text); may be `""`. |
+| `actorName` | string | Who did it: their display name, else their username, read when the job ran. An account the server cannot find reads as `unknown`; `""` only when neither name is set. |
+| `preview` | string | The message excerpt as the Activity feed shows it when the job ran (an edit since is in it, mentions under each person's current name), at most 140 characters as chat makes it (an attachment's name when there is no text); may be `""`. |
 | `previewCut` | boolean | `true` when the server shortened `preview` further to fit the limit below. |
 | `spaceName` | string | The space's name; `""` for a direct message. |
 | `channelName` | string | The channel's name, without `#`; `""` for a direct message. |

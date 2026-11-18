@@ -22,6 +22,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	pushv1 "github.com/getstoop/stoop/gen/stoop/push/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // The sending rig: a fake relay standing in for the push service, and
@@ -66,8 +67,15 @@ type fakeChat struct {
 	stale map[string]bool
 }
 
-func (f fakeChat) ActivityPending(_ context.Context, _, itemID, _ string) (bool, error) {
-	return !f.stale[itemID], nil
+// PendingActivity answers as chat would for the rig's mention: its
+// actor and preview as they read now, or nil once stale.
+func (f fakeChat) PendingActivity(_ context.Context, _, itemID string) (*chatv1.ActivityItem, error) {
+	if f.stale[itemID] {
+		return nil, nil
+	}
+	item := mention()
+	item.Id = itemID
+	return item, nil
 }
 
 func (f fakeChat) PlaceNames(context.Context, string) (string, string, error) {
@@ -268,4 +276,17 @@ func decryptBody(t *testing.T, device *ecdh.PrivateKey, auth, body []byte) []byt
 		t.Fatal("record does not end in the last-record delimiter")
 	}
 	return trimmed[:len(trimmed)-1]
+}
+
+// updateKinds changes the rig device's wanted kinds as the device would,
+// through UpdatePushSubscription; none means it wants nothing.
+func (bench *rig) updateKinds(t *testing.T, kinds ...chatv1.ActivityKind) {
+	t.Helper()
+	ctx := authctx.WithIdentity(context.Background(), authctx.Identity{
+		UserID: bench.user, SessionID: bench.sessionID, Role: authctx.RoleMember, Kind: authctx.KindPerson,
+		Credential: authctx.Credential{ID: bench.sessionID, Kind: authctx.CredentialSession},
+	})
+	if _, err := bench.svc.UpdatePushSubscription(ctx, connect.NewRequest(&pushv1.UpdatePushSubscriptionRequest{Kinds: kinds})); err != nil {
+		t.Fatal(err)
+	}
 }

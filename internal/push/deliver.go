@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
 
+	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/netguard"
 	"github.com/getstoop/stoop/internal/webpush"
@@ -72,14 +73,19 @@ func (s *Service) DeliverPush(ctx context.Context, args DeliveryArgs, attempt in
 	if err != nil {
 		return Verdict{}, fmt.Errorf("load subscription: %w", err)
 	}
-	if current, err := s.stillWanted(ctx, sub.CredentialID, args.Item); err != nil || !current {
+	if !slices.Contains(sub.Kinds, args.Item.Kind) {
+		// The device no longer wants this kind (empty means none).
+		return Verdict{Done: true}, nil
+	}
+	now, err := s.stillWanted(ctx, sub.CredentialID, args.Item)
+	if err != nil || now == nil {
 		return Verdict{Done: err == nil}, err
 	}
 	remaining := args.Expires.Sub(s.now())
 	if remaining < time.Second {
 		return s.fail(ctx, sub, Verdict{Done: true, Failure: fmt.Sprintf(reasonGaveUp, "not sent in time")}), nil
 	}
-	payload, err := s.buildPayload(ctx, sub.LocalServerID, args.Item)
+	payload, err := s.buildPayload(ctx, sub.LocalServerID, args.Item, now)
 	if connect.CodeOf(err) == connect.CodeNotFound {
 		// The channel went since: there is nothing to open.
 		return Verdict{Done: true}, nil
@@ -159,32 +165,33 @@ func (s *Service) fail(ctx context.Context, sub dbgen.GetPushSubscriptionRow, ve
 // may have been read, deleted, replaced by a newer one under the same
 // topic, muted, or put out of the recipient's reach. Each ends the
 // delivery unsent and unrecorded: nothing failed.
-func (s *Service) stillWanted(ctx context.Context, sessionID string, item ItemFacts) (bool, error) {
+func (s *Service) stillWanted(ctx context.Context, sessionID string, item ItemFacts) (*chatv1.ActivityItem, error) {
 	if s.accounts == nil || s.chat == nil {
-		return false, errors.New("push is not wired")
+		return nil, errors.New("push is not wired")
 	}
 	live, err := s.accounts.LiveSessions(ctx, []string{sessionID})
 	if err != nil {
-		return false, fmt.Errorf("check session: %w", err)
+		return nil, fmt.Errorf("check session: %w", err)
 	}
 	if !slices.Contains(live, sessionID) {
-		return false, nil
+		return nil, nil
 	}
-	pending, err := s.chat.ActivityPending(ctx, item.UserID, item.ID, item.ThreadRootID)
+	pending, err := s.chat.PendingActivity(ctx, item.UserID, item.ID)
 	if err != nil {
-		return false, fmt.Errorf("check item: %w", err)
+		return nil, fmt.Errorf("check item: %w", err)
 	}
 	return pending, nil
 }
 
-// buildPayload fills the item's facts with the names and the waiting
-// total, read now.
-func (s *Service) buildPayload(ctx context.Context, serverID string, item ItemFacts) ([]byte, error) {
+// buildPayload fills the item's ids with what is read now: the actor and
+// the preview as the feed shows them (now), the names and the waiting
+// total. No message text is carried in the job.
+func (s *Service) buildPayload(ctx context.Context, serverID string, item ItemFacts, now *chatv1.ActivityItem) ([]byte, error) {
 	payload := Payload{
 		V: PayloadVersion, ServerID: serverID,
 		ItemID: item.ID, Kind: item.Kind, SpaceID: item.SpaceID, ChannelID: item.ChannelID,
 		ThreadRootID: item.ThreadRootID, MessageID: item.MessageID,
-		ActorName: item.ActorName, Preview: item.Preview,
+		ActorName: actorName(now.GetActor()), Preview: now.GetPreview(),
 	}
 	if s.chat == nil {
 		return nil, errors.New("push is not wired to chat")
