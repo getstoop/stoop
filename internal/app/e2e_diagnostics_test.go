@@ -24,7 +24,7 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 		t.Errorf("no serverStartedAt: %s", r.raw)
 	}
 	rows, order := healthRows(r)
-	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,email,webhooks,jobs,jobs_runner" {
+	if strings.Join(order, ",") != "postgres,livekit,storage,public_address,email,webhooks,push,jobs,jobs_runner" {
 		t.Errorf("check order = %v", order)
 	}
 	if pg := rows["postgres"]; pg["state"] != "CHECK_STATE_OK" || !strings.Contains(pg["detail"].(string), "pool") || pg["checkedAt"] == "" {
@@ -46,6 +46,9 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	// not empty; the schedules exist and none is due yet.
 	if wh := rows["webhooks"]; wh["state"] != "CHECK_STATE_OFF" || wh["fixTab"] != "integrations" || wh["detail"] != "no outgoing webhooks" {
 		t.Errorf("webhooks = %v", wh)
+	}
+	if ps := rows["push"]; ps["state"] != "CHECK_STATE_OFF" || ps["detail"] != "no devices registered" {
+		t.Errorf("push = %v", ps)
 	}
 	if jb := rows["jobs"]; jb["state"] != "CHECK_STATE_OK" || !strings.Contains(jb["detail"].(string), "7 jobs on schedule") {
 		t.Errorf("jobs = %v", jb)

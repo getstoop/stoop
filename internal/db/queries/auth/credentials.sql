@@ -111,3 +111,10 @@ RETURNING id, holder_id;
 
 -- name: GetCredentialCreatedAt :one
 SELECT created_at FROM credentials WHERE id = $1;
+
+-- ListLiveSessions is which of these ids are sessions that have not
+-- expired, for push: a subscription outlives its session only until the
+-- sweep, and nothing is sent to it meanwhile.
+-- name: ListLiveSessions :many
+SELECT id FROM credentials
+WHERE id = ANY(sqlc.arg(ids)::uuid[]) AND kind = 'session' AND expires_at > now();

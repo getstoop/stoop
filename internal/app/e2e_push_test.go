@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -107,5 +108,54 @@ func TestE2EPushSubscriptions(t *testing.T) {
 	}).expect(t, "ok")
 	if n := count(); n != 0 {
 		t.Errorf("%d subscriptions after deactivation, want 0", n)
+	}
+}
+
+// A mention of someone with a registered device and no socket open is
+// heard and queued as one delivery, for that device; one they made
+// themselves is not. The endpoint is not reachable from here, so this
+// stops at the queue (internal/push sends to a fake relay).
+func TestE2EPushQueuesADelivery(t *testing.T) {
+	url := dbtest.NewURL(t)
+	server := newHarnessOn(t, url)
+	pool, err := pgxpool.New(context.Background(), url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	queued := func() int {
+		t.Helper()
+		var rows int
+		if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM jobs WHERE kind = 'deliver_push'`).Scan(&rows); err != nil {
+			t.Fatal(err)
+		}
+		return rows
+	}
+
+	casey := server.person("casey")
+	server.person("ada")
+	phone := server.loginFrom(t, "ada", "Phone")
+	spaceID, channelID := server.space(casey, "Porch")
+	server.join(phone, server.invite(casey, spaceID))
+	device, err := ecdh.P256().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.rpc(phone, "stoop.push.v1.PushService/RegisterPushSubscription", map[string]any{
+		"endpoint":      "https://relay.example/push/abc",
+		"p256dh":        base64.StdEncoding.EncodeToString(device.PublicKey().Bytes()),
+		"auth":          base64.StdEncoding.EncodeToString(make([]byte, 16)),
+		"localServerId": "k3x9pq",
+		"kinds":         []string{"ACTIVITY_KIND_MENTION"},
+	}).expect(t, "ok")
+
+	server.send(phone, channelID, server.mention(phone)+" a note to self").expect(t, "ok")
+	server.send(casey, channelID, server.mention(phone)+" look at this").expect(t, "ok")
+	deadline := time.Now().Add(5 * time.Second)
+	for queued() == 0 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if n := queued(); n != 1 {
+		t.Errorf("%d deliveries queued, want 1", n)
 	}
 }

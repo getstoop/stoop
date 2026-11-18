@@ -65,6 +65,7 @@ func (s *Service) RegisterPushSubscription(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, fmt.Errorf("store push subscription: %w", err)
 	}
+	s.watchUser(id.UserID)
 	return connect.NewResponse(&pushv1.RegisterPushSubscriptionResponse{}), nil
 }
 

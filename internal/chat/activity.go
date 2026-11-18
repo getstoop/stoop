@@ -160,7 +160,8 @@ func (s *Service) notify(ctx context.Context, recipients []string, about alert) 
 		s.bus.Publish(events.UserTopic(item.UserID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
-					Item: toProtoActivityItem(item, &about.msg.Content, about.msg.ThreadRootID, about.firstAttachment, about.author, muted[item.UserID]),
+					Item:   toProtoActivityItem(item, &about.msg.Content, about.msg.ThreadRootID, about.firstAttachment, about.author, muted[item.UserID]),
+					UserId: item.UserID,
 				},
 			},
 		}))

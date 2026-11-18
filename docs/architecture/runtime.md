@@ -22,7 +22,8 @@ stoop
 │   └── STOOP_JOBS_WORKERS worker goroutines    or a `stoop jobs` process (STOOP_JOBS)
 │       └── child process: stoop jobs           when STOOP_JOBS=child
 ├── goroutine: events relay listener            what a `stoop jobs` publishes, onto the bus
-└── goroutine: webhook subscriber               bus events in, fan-out jobs out
+├── goroutine: webhook subscriber               bus events in, fan-out jobs out
+└── goroutine: push listener                    activity items in, delivery jobs out
 ```
 
 `cmd/stoop/main.go` is short: dispatch the `admin` subcommand,
@@ -39,7 +40,7 @@ to start.
 wait group ten seconds together: the server drains, and the dispatcher
 (which stops leasing, gives in-flight jobs five seconds and clears the
 lease on any still running, so they are retried on the next start), the
-webhook subscriber, the sampler, cloudflared and the Tailscale node
+webhook subscriber, the push listener, the sampler, cloudflared and the Tailscale node
 return. What
 is still running when the ten seconds end is logged, and the pool closes
 either way. A listener that fails to start takes the same path and
@@ -307,7 +308,10 @@ space icon upload and re-encodes the picture off the request
 ([files.md](files.md#images)); it is capped at one running at a time.
 `thumbnail_attachment` is queued by the files module per large image
 attachment and makes its smaller copy ([files.md](files.md#thumbnails)),
-also one at a time, with no lane.
+also one at a time, with no lane. `deliver_push` is queued by the push
+module per device an activity item is sent to, with no lane, capped like
+`deliver_webhook`; it retries on its own backoff until a day has passed
+([push-payload.md](push-payload.md#what-the-push-services-answer-does)).
 The first three use a lane: a job with `lane` and `sequence` set runs only when no
 earlier unfinished job shares its lane, so one runs per lane at a time,
 in sequence order, and a retry waiting on its backoff holds the lane. A

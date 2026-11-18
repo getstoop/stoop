@@ -308,6 +308,9 @@ message ThreadRead {
 // ActivityItemCreated is delivered on the recipient's personal topic.
 message ActivityItemCreated {
   stoop.chat.v1.ActivityItem item = 1;
+  // The recipient, whose topic carries it: what a server-side listener
+  // on several people's topics (push) needs to know whom it is for.
+  string user_id = 2;
 }
 
 // MemberJoined is broadcast to the space when someone new joins (the joiner

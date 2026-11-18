@@ -132,6 +132,11 @@ rather than by what the provider happens to expose, and it stays small.
 | `integrations` | `SpaceAccess` | chat | A channel's space and the space's name; add a bot as a member and set its role. |
 | `integrations` | `BotIdentities` | auth | Create, rename and deactivate bots; mint, revoke and verify their credentials. |
 | `integrations` | `Policy` | instance | Whether each webhook direction is on, whether private targets are allowed, the public URL. |
+| `push` | `Accounts` | auth | Whether the recipient is on do not disturb; which of their sessions have not expired. |
+| `push` | `Sockets` | realtime | Whether a session has a live socket now, so the item is not pushed to that device too. |
+| `push` | `Chat` | chat | The channel's and space's names, and the recipient's waiting total, for the payload ([push-payload.md](push-payload.md)). |
+| `push` | `Policy` | *(none yet)* | The server-wide switch. Nothing implements it: with no setting, push is on. |
+| `push` | `Jobs` | jobs | Queue a `deliver_push` job per device; deliveries go out through `internal/netguard`. |
 | `integrations` | `Jobs` | jobs | Queue a `fan_out_webhook_event` job in the space's lane, and a `deliver_webhook` job in the hook's lane inside the transaction that writes its log row; discard a deleted hook's lane; read a delivery's job state for the sweep; see [integrations.md](integrations.md#deliveries-as-jobs). Deliveries go out through `internal/netguard`. |
 
 Two patterns recur in that table and are worth naming.
@@ -264,7 +269,7 @@ subcommand, load config, install a signal-cancelled context, `app.New`,
 `app.Run`.
 
 `app.Run` starts the plain listener, then `StartBackground` (the job
-dispatcher, the webhook subscriber, the Tailscale and Cloudflare Tunnel
+dispatcher, the webhook subscriber, the push listener, the Tailscale and Cloudflare Tunnel
 managers and the sampler; [runtime.md](runtime.md#background-work)),
 then blocks. On cancellation, or when the listener fails, it gives the
 HTTP server and the background goroutines ten seconds together, then

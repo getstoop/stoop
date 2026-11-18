@@ -324,6 +324,8 @@ type PushSubscription struct {
 	CreatedAt     time.Time
 	LastSuccessAt *time.Time
 	Failures      int32
+	LastFailureAt *time.Time
+	LastFailure   string
 }
 
 type SchemaFloor struct {

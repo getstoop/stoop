@@ -392,6 +392,34 @@ func (q *Queries) GetCredentialCreatedAt(ctx context.Context, id string) (time.T
 	return created_at, err
 }
 
+const listLiveSessions = `-- name: ListLiveSessions :many
+SELECT id FROM credentials
+WHERE id = ANY($1::uuid[]) AND kind = 'session' AND expires_at > now()
+`
+
+// ListLiveSessions is which of these ids are sessions that have not
+// expired, for push: a subscription outlives its session only until the
+// sweep, and nothing is sent to it meanwhile.
+func (q *Queries) ListLiveSessions(ctx context.Context, ids []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, listLiveSessions, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPersonalTokens = `-- name: ListPersonalTokens :many
 SELECT c.id, c.name, c.grants, c.bounded, c.created_at, c.last_used_at, c.expires_at, c.hint,
        coalesce(array_agg(b.space_id) FILTER (WHERE b.space_id IS NOT NULL), '{}')::uuid[] AS bound_spaces

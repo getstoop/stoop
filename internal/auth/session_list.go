@@ -72,3 +72,16 @@ func (s *Service) SignOutEverywhere(ctx context.Context, _ *connect.Request[auth
 	resp.Header().Add("Set-Cookie", s.sessionCookie(ctx, "", -time.Second).String())
 	return resp, nil
 }
+
+// LiveSessions is which of ids are sessions that have not expired, for
+// the push module: it sends nothing to a session past its end.
+func (s *Service) LiveSessions(ctx context.Context, ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	live, err := s.q.ListLiveSessions(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list live sessions: %w", err)
+	}
+	return live, nil
+}

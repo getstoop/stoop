@@ -2333,8 +2333,11 @@ func (x *ThreadRead) GetLastReadMessageId() string {
 
 // ActivityItemCreated is delivered on the recipient's personal topic.
 type ActivityItemCreated struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Item          *v1.ActivityItem       `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Item  *v1.ActivityItem       `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	// The recipient, whose topic carries it: what a server-side listener
+	// on several people's topics (push) needs to know whom it is for.
+	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2374,6 +2377,13 @@ func (x *ActivityItemCreated) GetItem() *v1.ActivityItem {
 		return x.Item
 	}
 	return nil
+}
+
+func (x *ActivityItemCreated) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
 }
 
 // MemberJoined is broadcast to the space when someone new joins (the joiner
@@ -2927,9 +2937,10 @@ const file_stoop_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
 	"channel_id\x18\x02 \x01(\tR\tchannelId\x12&\n" +
 	"\x0froot_message_id\x18\x03 \x01(\tR\rrootMessageId\x12/\n" +
-	"\x14last_read_message_id\x18\x04 \x01(\tR\x11lastReadMessageId\"F\n" +
+	"\x14last_read_message_id\x18\x04 \x01(\tR\x11lastReadMessageId\"_\n" +
 	"\x13ActivityItemCreated\x12/\n" +
-	"\x04item\x18\x01 \x01(\v2\x1b.stoop.chat.v1.ActivityItemR\x04item\"B\n" +
+	"\x04item\x18\x01 \x01(\v2\x1b.stoop.chat.v1.ActivityItemR\x04item\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"B\n" +
 	"\fMemberJoined\x12\x19\n" +
 	"\bspace_id\x18\x01 \x01(\tR\aspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"u\n" +
