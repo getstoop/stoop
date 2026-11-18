@@ -72,6 +72,10 @@ func (s *Service) DeliverPush(ctx context.Context, args DeliveryArgs, attempt in
 	if err != nil {
 		return Verdict{}, fmt.Errorf("load subscription: %w", err)
 	}
+	if !slices.Contains(sub.Kinds, args.Item.Kind) {
+		// The device no longer wants this kind (empty means none).
+		return Verdict{Done: true}, nil
+	}
 	if current, err := s.stillWanted(ctx, sub.CredentialID, args.Item); err != nil || !current {
 		return Verdict{Done: err == nil}, err
 	}

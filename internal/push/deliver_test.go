@@ -241,6 +241,8 @@ func TestDeliveryChecksAgainBeforeSending(t *testing.T) {
 	}{
 		{"session expired", func(bench *rig, _ DeliveryArgs) { bench.accounts.expired[bench.sessionID] = true }},
 		{"item no longer pending", func(bench *rig, args DeliveryArgs) { bench.stale[args.Item.ID] = true }},
+		{"kind no longer wanted", func(bench *rig, _ DeliveryArgs) { bench.updateKinds(t, chatv1.ActivityKind_ACTIVITY_KIND_DM) }},
+		{"no kinds wanted", func(bench *rig, _ DeliveryArgs) { bench.updateKinds(t) }},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

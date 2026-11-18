@@ -22,6 +22,7 @@ import (
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	pushv1 "github.com/getstoop/stoop/gen/stoop/push/v1"
+	"github.com/getstoop/stoop/internal/authctx"
 )
 
 // The sending rig: a fake relay standing in for the push service, and
@@ -268,4 +269,17 @@ func decryptBody(t *testing.T, device *ecdh.PrivateKey, auth, body []byte) []byt
 		t.Fatal("record does not end in the last-record delimiter")
 	}
 	return trimmed[:len(trimmed)-1]
+}
+
+// updateKinds changes the rig device's wanted kinds as the device would,
+// through UpdatePushSubscription; none means it wants nothing.
+func (bench *rig) updateKinds(t *testing.T, kinds ...chatv1.ActivityKind) {
+	t.Helper()
+	ctx := authctx.WithIdentity(context.Background(), authctx.Identity{
+		UserID: bench.user, SessionID: bench.sessionID, Role: authctx.RoleMember, Kind: authctx.KindPerson,
+		Credential: authctx.Credential{ID: bench.sessionID, Kind: authctx.CredentialSession},
+	})
+	if _, err := bench.svc.UpdatePushSubscription(ctx, connect.NewRequest(&pushv1.UpdatePushSubscriptionRequest{Kinds: kinds})); err != nil {
+		t.Fatal(err)
+	}
 }

@@ -38,7 +38,8 @@ the first and each retry, the job asks again about what can change while
 it waits, and ends with nothing sent (and nothing recorded as failed)
 when:
 
-7. the device's session has **expired** since;
+7. the device's session has **expired** since, or its subscription
+   **no longer wants the kind** (an update since; empty means none);
 8. the item is **no longer pending** for the recipient (chat's
    `ActivityPending`): it is gone or read, they can no longer read its
    channel, or it is muted for them now. An item is gone once it is read
