@@ -79,6 +79,11 @@ jobs:
           key: pods-${{ runner.os }}-${{ hashFiles('mobile/pnpm-lock.yaml') }}
           restore-keys: pods-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
+      # The notification service extension's logic, on the Mac itself:
+      # no simulator (mobile/README.md → Tests).
+      - name: Notification service extension tests
+        working-directory: mobile/extensions/notification-service
+        run: swift test
       # Prebuild runs pod install.
       - run: pnpm exec expo prebuild --platform ios --clean
       # Debug skips bundling the JavaScript (the project's bundle phase

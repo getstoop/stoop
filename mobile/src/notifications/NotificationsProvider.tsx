@@ -6,6 +6,7 @@ import { useAlertPrefsNow } from "../alertPrefs/AlertPrefsProvider";
 import { loadChannelList, loadSpaceList } from "../api/activity";
 import { sessionToken } from "../api/servers";
 import { useDndHolds } from "../dnd/DndProvider";
+import PushMirror from "../push/PushMirror";
 import { useServerEvents } from "../realtime/RealtimeProvider";
 import { type SavedServer, useServers } from "../servers";
 import { sessionKey } from "../servers/sessionKey";
@@ -38,7 +39,9 @@ import { useNotificationTaps } from "./taps";
 // server is forgotten. A read that lands while a notification still
 // waits for its names doesn't stop it showing. Tapping one is heard
 // here too (taps.ts) and opened by the server's layout. The app's icon
-// badge is kept from here as well (AppIconBadge.tsx).
+// badge is kept from here as well (AppIconBadge.tsx), and so is the
+// copy of what words a push, for the notification service extension
+// (src/push/PushMirror.tsx).
 export default function NotificationsProvider({ children }: { children: ReactNode }) {
   const { servers } = useServers();
   useNotificationTaps(servers);
@@ -46,6 +49,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
   return (
     <>
       <AppIconBadge />
+      <PushMirror />
       {servers.map((server) => (
         <ServerNotifications key={sessionKey(server)} server={server} manyServers={servers.length > 1} />
       ))}

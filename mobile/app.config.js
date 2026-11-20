@@ -4,6 +4,7 @@ const {
   withAndroidManifest,
   withDangerousMod,
 } = require("expo/config-plugins");
+const withNotificationService = require("./plugins/withNotificationService");
 const withPushKeys = require("./plugins/withPushKeys");
 
 // R8 rules a release build needs on top of the template's, written into
@@ -71,8 +72,11 @@ module.exports = ({ config }) => {
       },
     }),
   );
-  if (process.env.STOOP_ANDROID_CLEARTEXT !== "1") return next;
-  return withAndroidManifest(next, (mod) => {
+  // The notification service extension is named after the bundle ID
+  // too, and shares the app group withPushKeys set up.
+  const built = withNotificationService(next);
+  if (process.env.STOOP_ANDROID_CLEARTEXT !== "1") return built;
+  return withAndroidManifest(built, (mod) => {
     mod.modResults.manifest.application[0].$["android:usesCleartextTraffic"] =
       "true";
     return mod;

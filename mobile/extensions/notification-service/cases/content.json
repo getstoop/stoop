@@ -1,0 +1,144 @@
+{
+  "about": [
+    "What a notification says for a push payload, run by both sides so the words cannot drift:",
+    "mobile/src/notifications/content.cases.test.ts (the app's notificationContent) and",
+    "Tests/StoopPushTests/ContentCasesTests.swift (the extension's PushWords).",
+    "fixture names a payload in internal/push/testdata; change replaces fields of it.",
+    "settings: showText is the phone's Show message text switch; manyServers, more than one",
+    "server saved; manySpaces, the account in more than one space on that server.",
+    "An empty subtitle is no subtitle."
+  ],
+  "cases": [
+    {
+      "name": "a mention, one server, one space",
+      "fixture": "payload-mention.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "#general",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "a mention where the account is in several spaces",
+      "fixture": "payload-mention.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": true },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "#general · The Stoop",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "a mention with several spaces and several servers",
+      "fixture": "payload-mention.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": true, "manySpaces": true },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "#general · The Stoop · Elm Street",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "a mention with several servers and one space",
+      "fixture": "payload-mention.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": true, "manySpaces": false },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "#general · Elm Street",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "several servers, this one's name not known",
+      "fixture": "payload-mention.json",
+      "settings": { "showText": true, "serverName": "", "manyServers": true, "manySpaces": false },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "#general",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "a channel whose name is not known",
+      "fixture": "payload-mention.json",
+      "change": { "channelName": "" },
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": true },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "The Stoop",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "a kind this version does not know reads as a mention",
+      "fixture": "payload-mention.json",
+      "change": { "kind": 99 },
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": {
+        "title": "Bea Marsh mentioned you",
+        "subtitle": "#general",
+        "body": "@ada can you look at the build? It says \"<no tests>\" & stops"
+      }
+    },
+    {
+      "name": "a direct message is titled by its sender alone",
+      "fixture": "payload-dm.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": true },
+      "expect": { "title": "Joaquín", "subtitle": "", "body": "café at 4? ☕" }
+    },
+    {
+      "name": "a direct message with several servers says only the server",
+      "fixture": "payload-dm.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": true, "manySpaces": true },
+      "expect": { "title": "Joaquín", "subtitle": "Elm Street", "body": "café at 4? ☕" }
+    },
+    {
+      "name": "a direct message from nobody known",
+      "fixture": "payload-dm.json",
+      "change": { "actorName": "" },
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": { "title": "Someone", "subtitle": "", "body": "café at 4? ☕" }
+    },
+    {
+      "name": "a thread's reply",
+      "fixture": "payload-thread-reply.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": { "title": "dee replied in a thread", "subtitle": "#releases", "body": "Agreed, ship it." }
+    },
+    {
+      "name": "a reply from nobody known, its preview cut",
+      "fixture": "payload-cut.json",
+      "settings": { "showText": true, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": {
+        "title": "Someone replied to you",
+        "subtitle": "#general",
+        "body": "The first part of a reply far too long to fit"
+      }
+    },
+    {
+      "name": "text hidden: a mention says neither who nor what, and still where",
+      "fixture": "payload-mention.json",
+      "settings": { "showText": false, "serverName": "Elm Street", "manyServers": true, "manySpaces": true },
+      "expect": { "title": "Someone mentioned you", "subtitle": "#general · The Stoop · Elm Street", "body": "" }
+    },
+    {
+      "name": "text hidden: a direct message",
+      "fixture": "payload-dm.json",
+      "settings": { "showText": false, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": { "title": "New direct message", "subtitle": "", "body": "" }
+    },
+    {
+      "name": "text hidden: a thread's reply keeps its verb",
+      "fixture": "payload-thread-reply.json",
+      "settings": { "showText": false, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": { "title": "Someone replied in a thread", "subtitle": "#releases", "body": "" }
+    },
+    {
+      "name": "text hidden: a reply keeps its verb",
+      "fixture": "payload-cut.json",
+      "settings": { "showText": false, "serverName": "Elm Street", "manyServers": false, "manySpaces": false },
+      "expect": { "title": "Someone replied to you", "subtitle": "#general", "body": "" }
+    }
+  ]
+}

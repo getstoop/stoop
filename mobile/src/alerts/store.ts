@@ -47,6 +47,11 @@ export type AlertsStore = {
   // How a server's badges are asked for again (its loader's), until
   // removed by the returned function.
   setRefresh: (serverId: string, refresh: () => Promise<void>) => () => void;
+  // How many spaces the account is in on each server that has said, by
+  // server ID, for a push's wording (src/push/mirror.ts). The same map
+  // until a count changes; undefined takes a server out.
+  spaceCounts: () => ReadonlyMap<string, number>;
+  setSpaceCount: (serverId: string, count: number | undefined) => void;
 };
 
 const same = (a: ServerBadges | undefined, b: ServerBadges | undefined) =>
@@ -56,6 +61,7 @@ export function alertsStore(): AlertsStore {
   const held = new Map<string, ServerBadges>();
   const loads = new Map<string, () => Promise<void>>();
   const listeners = new Set<() => void>();
+  let spaces: ReadonlyMap<string, number> = new Map();
   return {
     badges: (serverId) => held.get(serverId) ?? NO_BADGES,
     set: (serverId, badges) => {
@@ -77,6 +83,15 @@ export function alertsStore(): AlertsStore {
         // A new session on the same server may have said its own since.
         if (loads.get(serverId) === refresh) loads.delete(serverId);
       };
+    },
+    spaceCounts: () => spaces,
+    setSpaceCount: (serverId, count) => {
+      if (spaces.get(serverId) === count) return;
+      const next = new Map(spaces);
+      if (count === undefined) next.delete(serverId);
+      else next.set(serverId, count);
+      spaces = next;
+      for (const listener of listeners) listener();
     },
   };
 }
