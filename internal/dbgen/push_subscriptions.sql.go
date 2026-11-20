@@ -7,7 +7,26 @@ package dbgen
 
 import (
 	"context"
+	"time"
 )
+
+const deleteGonePushSubscription = `-- name: DeleteGonePushSubscription :exec
+DELETE FROM push_subscriptions
+WHERE id = $1::uuid AND endpoint = $2::text
+`
+
+type DeleteGonePushSubscriptionParams struct {
+	ID       string
+	Endpoint string
+}
+
+// DeleteGonePushSubscription removes a subscription the push service
+// said no longer exists (404 or 410): the one thing that deletes a row
+// here besides its session ending.
+func (q *Queries) DeleteGonePushSubscription(ctx context.Context, arg DeleteGonePushSubscriptionParams) error {
+	_, err := q.db.Exec(ctx, deleteGonePushSubscription, arg.ID, arg.Endpoint)
+	return err
+}
 
 const deletePushSubscription = `-- name: DeletePushSubscription :exec
 DELETE FROM push_subscriptions WHERE credential_id = $1
@@ -18,6 +37,152 @@ func (q *Queries) DeletePushSubscription(ctx context.Context, credentialID strin
 	return err
 }
 
+const getPushSubscription = `-- name: GetPushSubscription :one
+SELECT id, credential_id, user_id, endpoint, p256dh, auth, local_server_id, kinds
+FROM push_subscriptions WHERE id = $1
+`
+
+type GetPushSubscriptionRow struct {
+	ID            string
+	CredentialID  string
+	UserID        string
+	Endpoint      string
+	P256dh        []byte
+	Auth          []byte
+	LocalServerID string
+	Kinds         []int32
+}
+
+func (q *Queries) GetPushSubscription(ctx context.Context, id string) (GetPushSubscriptionRow, error) {
+	row := q.db.QueryRow(ctx, getPushSubscription, id)
+	var i GetPushSubscriptionRow
+	err := row.Scan(
+		&i.ID,
+		&i.CredentialID,
+		&i.UserID,
+		&i.Endpoint,
+		&i.P256dh,
+		&i.Auth,
+		&i.LocalServerID,
+		&i.Kinds,
+	)
+	return i, err
+}
+
+const listPushSubscriptionsByUser = `-- name: ListPushSubscriptionsByUser :many
+SELECT id, credential_id, kinds FROM push_subscriptions WHERE user_id = $1
+`
+
+type ListPushSubscriptionsByUserRow struct {
+	ID           string
+	CredentialID string
+	Kinds        []int32
+}
+
+// ListPushSubscriptionsByUser is one person's subscriptions, one per
+// signed-in device.
+func (q *Queries) ListPushSubscriptionsByUser(ctx context.Context, userID string) ([]ListPushSubscriptionsByUserRow, error) {
+	rows, err := q.db.Query(ctx, listPushSubscriptionsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPushSubscriptionsByUserRow
+	for rows.Next() {
+		var i ListPushSubscriptionsByUserRow
+		if err := rows.Scan(&i.ID, &i.CredentialID, &i.Kinds); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPushUserIDs = `-- name: ListPushUserIDs :many
+SELECT DISTINCT user_id FROM push_subscriptions
+`
+
+// ListPushUserIDs is everyone with a subscription: the people whose
+// topics the push listener hears.
+func (q *Queries) ListPushUserIDs(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listPushUserIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pushDeliveryStats = `-- name: PushDeliveryStats :one
+SELECT count(*)::int AS devices, (count(*) FILTER (WHERE failures > 0))::int AS failing
+FROM push_subscriptions
+`
+
+type PushDeliveryStatsRow struct {
+	Devices int32
+	Failing int32
+}
+
+// PushDeliveryStats is the Diagnostics row's counts: every subscription,
+// and those whose last attempt failed.
+func (q *Queries) PushDeliveryStats(ctx context.Context) (PushDeliveryStatsRow, error) {
+	row := q.db.QueryRow(ctx, pushDeliveryStats)
+	var i PushDeliveryStatsRow
+	err := row.Scan(&i.Devices, &i.Failing)
+	return i, err
+}
+
+const pushFailureReasons = `-- name: PushFailureReasons :many
+SELECT last_failure AS reason, count(*)::int AS devices, max(last_failure_at)::timestamptz AS latest
+FROM push_subscriptions
+WHERE failures > 0
+GROUP BY last_failure
+ORDER BY latest DESC
+LIMIT $1::int
+`
+
+type PushFailureReasonsRow struct {
+	Reason  string
+	Devices int32
+	Latest  time.Time
+}
+
+// PushFailureReasons is the failing subscriptions by why, the most
+// recent first.
+func (q *Queries) PushFailureReasons(ctx context.Context, maxReasons int32) ([]PushFailureReasonsRow, error) {
+	rows, err := q.db.Query(ctx, pushFailureReasons, maxReasons)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PushFailureReasonsRow
+	for rows.Next() {
+		var i PushFailureReasonsRow
+		if err := rows.Scan(&i.Reason, &i.Devices, &i.Latest); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const putPushSubscription = `-- name: PutPushSubscription :exec
 
 INSERT INTO push_subscriptions (id, credential_id, user_id, endpoint, p256dh, auth, local_server_id, kinds)
@@ -26,7 +191,7 @@ VALUES ($1::uuid, $2::uuid, $3::uuid, $4::text,
 ON CONFLICT (credential_id) DO UPDATE
 SET endpoint = excluded.endpoint, p256dh = excluded.p256dh, auth = excluded.auth,
     local_server_id = excluded.local_server_id, kinds = excluded.kinds,
-    created_at = now(), last_success_at = NULL, failures = 0
+    created_at = now(), last_success_at = NULL, failures = 0, last_failure_at = NULL, last_failure = ''
 `
 
 type PutPushSubscriptionParams struct {
@@ -55,6 +220,44 @@ func (q *Queries) PutPushSubscription(ctx context.Context, arg PutPushSubscripti
 		arg.LocalServerID,
 		arg.Kinds,
 	)
+	return err
+}
+
+const recordPushFailure = `-- name: RecordPushFailure :exec
+UPDATE push_subscriptions
+SET failures = failures + 1, last_failure_at = now(), last_failure = $1::text
+WHERE id = $2::uuid AND endpoint = $3::text
+`
+
+type RecordPushFailureParams struct {
+	Reason   string
+	ID       string
+	Endpoint string
+}
+
+// RecordPushFailure counts a failed attempt and says why. Failures never
+// delete a row, however many: a relay that is down would otherwise take
+// every device with it.
+func (q *Queries) RecordPushFailure(ctx context.Context, arg RecordPushFailureParams) error {
+	_, err := q.db.Exec(ctx, recordPushFailure, arg.Reason, arg.ID, arg.Endpoint)
+	return err
+}
+
+const recordPushSuccess = `-- name: RecordPushSuccess :exec
+
+UPDATE push_subscriptions SET last_success_at = now(), failures = 0
+WHERE id = $1::uuid AND endpoint = $2::text
+`
+
+type RecordPushSuccessParams struct {
+	ID       string
+	Endpoint string
+}
+
+// The delivery's record. Each is for the endpoint the delivery used, so
+// a registration that replaced it meanwhile is left alone.
+func (q *Queries) RecordPushSuccess(ctx context.Context, arg RecordPushSuccessParams) error {
+	_, err := q.db.Exec(ctx, recordPushSuccess, arg.ID, arg.Endpoint)
 	return err
 }
 

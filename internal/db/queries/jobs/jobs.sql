@@ -59,6 +59,12 @@ SELECT pg_advisory_xact_lock(4207020, hashtext(sqlc.arg(kind)::text));
 SELECT count(*)::bigint FROM jobs
 WHERE kind = sqlc.arg(kind) AND state = 'running' AND leased_until >= sqlc.arg(now)::timestamptz;
 
+-- CountLiveLeasesOfKinds is CountLiveLeases over the kinds of a group
+-- that shares one cap.
+-- name: CountLiveLeasesOfKinds :one
+SELECT count(*)::bigint FROM jobs
+WHERE kind = ANY(sqlc.arg(kinds)::text[]) AND state = 'running' AND leased_until >= sqlc.arg(now)::timestamptz;
+
 -- The outcome writes match the attempt they were leased for, so a stale
 -- attempt whose lease lapsed changes nothing. A succeeded job's arguments
 -- are not kept: nothing reads them, and they may carry content.

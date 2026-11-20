@@ -115,7 +115,8 @@ over Postgres `NOTIFY`, the channel the dispatcher is already woken by.
   the pool, reconnecting with backoff like the dispatcher's listener (both
   on `internal/restart`). Each notification is decoded and published on
   the server's bus with the runner's `event_id` and timestamp intact, so
-  the gateway and the webhook subscriber see it as any other event.
+  the gateway, the webhook subscriber and the push listener see it as
+  any other event.
 - **The server never notifies.** Its own publishes stay on its bus, so
   embedded mode publishes once and nothing is relayed twice: a server
   beside an external runner hears the runner and never echoes itself.
@@ -125,8 +126,8 @@ What crosses is whatever a job publishes: `member_updated` from
 `normalise_image`, `space_updated` from the icon pointer swap it asks chat
 for, `credential_revoked` from `sweep_credentials`. What the server
 publishes does not cross. No module subscribes in both processes — the
-gateway and the webhook subscriber run only in the server — so a relayed
-event is handled once.
+gateway, the webhook subscriber and the push listener run only in the
+server — so a relayed event is handled once.
 
 The relay keeps the bus's guarantees and adds none. `NOTIFY` is at most
 once: a notification raised while the listener is reconnecting is lost,
@@ -250,7 +251,7 @@ the server side.
 | 15 | `member_removed` | space | Kick, leave, or ban. |
 | 28 | `member_updated` | space | A member's avatar or username changed; refetch them (the rows read their name from the members list). |
 | 39 | `groups_changed` | space | A group was created, changed or deleted; refetch the space's groups. |
-| 19 | `activity_item_created` | user | |
+| 19 | `activity_item_created` | user | Carries `user_id`, the recipient, for the push listener, which hears many people's topics on one subscription. |
 | 21 | `presence_changed` | space | Online, offline (after the grace period), do not disturb turning on or off, including when it ends on its own, or moving between only mobile and anything else. |
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | The message's full reaction list and its new `seq`. |

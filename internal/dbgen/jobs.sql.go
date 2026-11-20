@@ -29,6 +29,25 @@ func (q *Queries) CountLiveLeases(ctx context.Context, arg CountLiveLeasesParams
 	return column_1, err
 }
 
+const countLiveLeasesOfKinds = `-- name: CountLiveLeasesOfKinds :one
+SELECT count(*)::bigint FROM jobs
+WHERE kind = ANY($1::text[]) AND state = 'running' AND leased_until >= $2::timestamptz
+`
+
+type CountLiveLeasesOfKindsParams struct {
+	Kinds []string
+	Now   time.Time
+}
+
+// CountLiveLeasesOfKinds is CountLiveLeases over the kinds of a group
+// that shares one cap.
+func (q *Queries) CountLiveLeasesOfKinds(ctx context.Context, arg CountLiveLeasesOfKindsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countLiveLeasesOfKinds, arg.Kinds, arg.Now)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countQueuedJobs = `-- name: CountQueuedJobs :one
 SELECT count(*) FROM jobs WHERE kind = $1 AND state = 'queued'
 `

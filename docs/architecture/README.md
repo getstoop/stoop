@@ -74,7 +74,7 @@ this plainly.
 | `internal/files`    | uploaded files: the `files` table, upload RPCs, `GET /files/{id}`, the sweep, the quota |
 | `internal/integrations` | incoming and outgoing webhooks, the delivery log and the `deliver_webhook` job, and the admin surface for bots and their credentials |
 | `internal/jobs`     | the background-job queue: the `jobs`, `job_schedules` and `job_dispatchers` tables, the dispatcher and its workers, lanes, per-kind caps, the schedules that materialise periodic kinds |
-| `internal/push`     | push notifications: the server's signing key (`push_keys`) and each signed-in session's one Web Push subscription (`push_subscriptions`); it sends nothing yet |
+| `internal/push`     | push notifications: the server's signing key (`push_keys`) and each signed-in session's one Web Push subscription (`push_subscriptions`), the listener that hears activity items and the `deliver_push` job that sends them |
 
 Support packages, which are not modules and own no domain: `internal/events`
 (the bus), `internal/db` (pool + migrations), `internal/dbgen` (sqlc output),
@@ -128,6 +128,7 @@ one its reasoning, its enforcement, and what it costs.
 | [diagnostics.md](diagnostics.md) | The Diagnostics tab and its panels, the `internal/diag` instruments, the health-check port, the sampler, and `GET /metrics`. |
 | [desktop.md](desktop.md) | The contract the desktop shell relies on: `GET /version`, `window.stoop`, deep links, sessions, and what lives in which repository. |
 | [email.md](email.md) | The SMTP settings, `internal/mail`, the hourly cap, the test send and its refusals, and the rules for features that will send mail. |
+| [push-payload.md](push-payload.md) | When an activity item is pushed, the encrypted payload a device decrypts (the contract), the Topic, and what each push service answer does. |
 | [integrations.md](integrations.md) | Bots and their credentials, incoming webhooks and their adapters, outgoing webhooks, deliveries as jobs, egress, and the switches. |
 
 Related documents outside this directory: [../vision.md](../vision.md) for

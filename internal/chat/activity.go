@@ -160,7 +160,8 @@ func (s *Service) notify(ctx context.Context, recipients []string, about alert) 
 		s.bus.Publish(events.UserTopic(item.UserID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
-					Item: toProtoActivityItem(item, &about.msg.Content, about.msg.ThreadRootID, about.firstAttachment, about.author, muted[item.UserID]),
+					Item:   toProtoActivityItem(item, &about.msg.Content, about.msg.ThreadRootID, about.firstAttachment, about.author, muted[item.UserID]),
+					UserId: item.UserID,
 				},
 			},
 		}))
@@ -236,6 +237,22 @@ func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.
 	if err != nil {
 		return nil, fmt.Errorf("list activity: %w", err)
 	}
+	out, err := s.renderActivity(ctx, rows)
+	if err != nil {
+		return nil, err
+	}
+	unread, err := s.q.CountUnreadActivity(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("count unread: %w", err)
+	}
+	return connect.NewResponse(&chatv1.ListActivityResponse{
+		Items: out, UnreadCount: int32(unread),
+	}), nil
+}
+
+// renderActivity is the feed's rows as the client sees them: actors
+// resolved, the preview from the message as it now reads.
+func (s *Service) renderActivity(ctx context.Context, rows []dbgen.ListActivityRow) ([]*chatv1.ActivityItem, error) {
 	actorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
 	for _, r := range rows {
@@ -272,13 +289,7 @@ func (s *Service) ListActivity(ctx context.Context, req *connect.Request[chatv1.
 	for i, r := range rows {
 		out[i] = toProtoActivityItem(r.ActivityItem, names.currentOf(r.MessageContent), r.MessageThreadRootID, files[r.MessageFirstFileID].label(), actors[r.ActivityItem.ActorID], r.Muted)
 	}
-	unread, err := s.q.CountUnreadActivity(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("count unread: %w", err)
-	}
-	return connect.NewResponse(&chatv1.ListActivityResponse{
-		Items: out, UnreadCount: int32(unread),
-	}), nil
+	return out, nil
 }
 
 func (s *Service) MarkActivityRead(ctx context.Context, req *connect.Request[chatv1.MarkActivityReadRequest]) (*connect.Response[chatv1.MarkActivityReadResponse], error) {

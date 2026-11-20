@@ -208,3 +208,19 @@ DELETE FROM activity_items WHERE user_id = sqlc.arg(user_id) AND channel_id = sq
 DELETE FROM activity_items a USING channels c
 WHERE a.user_id = sqlc.arg(user_id) AND c.id = a.channel_id
   AND c.space_id = sqlc.arg(space_id)::uuid AND c.private;
+
+-- GetPendingActivityItem is one of ListActivity's rows, while the item
+-- is still its recipient's, unread, and in a channel they can read: for
+-- push, which reads it before every attempt and sends nothing for an item
+-- read, refreshed under a new id, deleted, or out of reach since it was
+-- heard. Same columns as ListActivity, so it renders the same way.
+-- name: GetPendingActivityItem :one
+SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_thread_root_id,
+    COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
+    (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
+        OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id)
+        OR EXISTS (SELECT 1 FROM thread_mutes tm WHERE tm.user_id = a.user_id AND tm.root_message_id = m.thread_root_id))::bool AS muted
+FROM activity_items a
+LEFT JOIN messages m ON m.id = a.message_id
+WHERE a.id = sqlc.arg(id)::uuid AND a.user_id = sqlc.arg(user_id)::uuid AND a.read_at IS NULL
+  AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = a.channel_id AND cr.user_id = a.user_id);

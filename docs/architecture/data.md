@@ -341,8 +341,15 @@ code of their own. `user_id`, `endpoint` (https, 2048 characters at most),
 `p256dh` (65 bytes) and `auth` (16 bytes), the device's keys (RFC 8291),
 `local_server_id` (the device's own short name for this server, 1 to 32
 ASCII letters, digits, `-` or `_`), `kinds` (`chat.v1.ActivityKind` numbers, sorted; empty means
-none wanted), `created_at`, `last_success_at` and `failures`. Registering
-again replaces the row and clears its record. Indexed by `user_id`.
+none wanted), `created_at`, and the delivery record: `last_success_at`,
+`failures` (failed attempts since the last success), `last_failure_at`
+and `last_failure` (why, in fixed words). Registering again replaces the
+row and clears its record. Failures never delete a row; a push service
+answering 404 or 410 does
+([push-payload.md](push-payload.md#what-the-push-services-answer-does)).
+Indexed by `user_id`. A `deliver_push` job's `args` in `jobs` hold
+identifiers only, never message text or names
+([push-payload.md](push-payload.md#when-a-device-gets-one)).
 
 ## Identifiers
 

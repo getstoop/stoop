@@ -28,7 +28,11 @@ func (s *Service) GetPushConfig(ctx context.Context, _ *connect.Request[pushv1.G
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&pushv1.GetPushConfigResponse{Enabled: true, ApplicationServerKey: public}), nil
+	on, err := s.enabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&pushv1.GetPushConfigResponse{Enabled: on, ApplicationServerKey: public}), nil
 }
 
 // signingPublicKey is the key's public point, made and stored first if
@@ -59,6 +63,26 @@ func (s *Service) signingPublicKey(ctx context.Context) ([]byte, error) {
 	}
 	s.publicKey = row.PublicKey
 	return s.publicKey, nil
+}
+
+// signingKey is the private half, made first if there is none, for
+// signing deliveries.
+func (s *Service) signingKey(ctx context.Context) (*ecdsa.PrivateKey, error) {
+	if _, err := s.signingPublicKey(ctx); err != nil {
+		return nil, err
+	}
+	row, err := s.q.GetPushKey(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load push key: %w", err)
+	}
+	if err := checkSigningKey(row.PrivateKey, row.PublicKey); err != nil {
+		return nil, err
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(row.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("read push key: %w", err)
+	}
+	return parsed.(*ecdsa.PrivateKey), nil
 }
 
 // newSigningKey returns a fresh pair: the private key as PKCS #8 DER, the

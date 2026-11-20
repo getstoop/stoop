@@ -98,6 +98,7 @@ state it is given.
 | `public_address` | the reachability state `GetReachability` computes | a tunnel or tailnet is configured but reconnecting | configured and down for over a minute |
 | `email` | the `smtp` row and `smtp_last_send`, never the server itself; off when not set up | the last send failed | — |
 | `webhooks` | the queue counts above | any delivery dead-lettered in the last hour | a due delivery has waited 5 min without starting |
+| `push` | `push_subscriptions` through `push.Service.DeliveryStats`: devices registered, those whose last delivery failed, and up to three reasons with their count and latest time; off with no device registered | a device's last delivery failed within the day | — |
 | `jobs` | the jobs tables through `instance`'s `JobRecords` port, one record per schedule with its latest run; a disabled schedule is counted apart as "off" | a pass failed, or a job is one interval overdue | three intervals overdue |
 | `jobs_runner` | `job_dispatchers`, the heartbeat row each dispatcher keeps; never off | the newest heartbeat is a minute old | five minutes old, or no dispatcher has registered |
 

@@ -89,6 +89,9 @@ type Service struct {
 	heartbeat time.Duration
 	// listening, when set by a test, is called after each LISTEN succeeds.
 	listening func()
+	// lastLeased is when this dispatcher last leased each capped kind, so
+	// the one leased least recently is tried first (leaseDue).
+	lastLeased leaseTurns
 }
 
 // New builds the module over the pool. It registers the sweep_jobs kind

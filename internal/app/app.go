@@ -57,6 +57,7 @@ type App struct {
 	tailnet  *tailnet.Manager
 	tunnel   *cftunnel.Manager
 	hooks    *integrations.Service
+	push     *push.Service
 	voice    *voice.Service
 	jobs     *jobs.Service
 	registry *jobs.Registry
@@ -174,9 +175,11 @@ func newModules(ctx context.Context, cfg config.Config, log *slog.Logger, newBus
 	registerDeliveries(registry, integrationsSvc, cfg.JobsWorkers)
 	registerImages(registry, filesSvc)
 	registerEmail(registry, authSvc, instanceSvc)
+	registerPush(registry, pushSvc, cfg.JobsWorkers)
 	jobsSvc := jobs.New(pool, registry, jobs.Config{Workers: cfg.JobsWorkers, Poll: cfg.JobsPoll, Retention: cfg.JobsRetention}, log)
 	filesSvc.UseJobs(jobsSvc)
 	integrationsSvc.UseJobs(deliveryJobs{jobsSvc})
+	pushSvc.UseSending(bus, authSvc, chatSvc, jobsSvc, log)
 	authSvc.UseEmailPorts(jobsSvc, instanceSvc.EmailEnabled)
 	authSvc.UseLinkBase(instanceSvc.PublicURL)
 	authSvc.UseEmailThrottle(ratelimit.NewPer(stores, "ratelimit_email_change", 3, time.Hour))
@@ -238,6 +241,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *App, err 
 	gateway.UseDoNotDisturb(authSvc)
 	gateway.SetPresenceGrace(cfg.PresenceGrace)
 	chatSvc.UsePresence(gateway)
+	shared.push.UseSockets(gateway)
 	jobList := jobReader(jobsSvc)
 	instanceSvc.UseJobRecords(jobList)
 	// The delivery backlog and log as the Diagnostics tab and a metrics
@@ -259,6 +263,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *App, err 
 			ReadHeaderTimeout: 10 * time.Second,
 		},
 		hooks:    integrationsSvc,
+		push:     shared.push,
 		voice:    voiceSvc,
 		jobs:     jobsSvc,
 		registry: shared.registry,
@@ -322,6 +327,7 @@ func New(ctx context.Context, cfg config.Config, log *slog.Logger) (_ *App, err 
 		instanceSvc.PublicAddressCheck(),
 		instanceSvc.EmailCheck(),
 		newWebhooksCheck(queue),
+		newPushCheck(shared.push),
 		newJobsCheck(jobList),
 		newJobsRunnerCheck(jobsSvc.Dispatchers),
 	)
@@ -457,8 +463,8 @@ func (a *App) spawn(fn func()) {
 
 // StartBackground launches everything that runs beside the plain
 // listener: the job dispatcher (or the child that runs it), the relay
-// listener, the outgoing-webhook subscriber, the two front-door managers
-// and the sampler. Run calls it; a test that serves the handler itself
+// listener, the outgoing-webhook subscriber, the push listener, the two
+// front-door managers and the sampler. Run calls it; a test that serves the handler itself
 // calls it too, so deliveries happen.
 func (a *App) StartBackground(ctx context.Context) {
 	a.startDispatcher(ctx)
@@ -468,6 +474,9 @@ func (a *App) StartBackground(ctx context.Context) {
 	// The outgoing pipeline's producer: bus in, delivery jobs out; the
 	// POSTs run on the dispatcher.
 	a.spawn(func() { a.hooks.RunSubscriber(ctx) })
+	// Push's producer: activity items in, delivery jobs out. Here, not in
+	// a jobs runner, because it asks the gateway about live sockets.
+	a.spawn(func() { a.push.RunListener(ctx) })
 	// The Tailscale node and cloudflared start, stop and restart as their
 	// settings change; a failure there is logged, never fatal to the plain
 	// listener.
