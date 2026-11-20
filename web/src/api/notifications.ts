@@ -91,9 +91,14 @@ function showDesktopNotification(
     badge: "/badge-96.png",
   };
   const note = new Notification(title, options);
-  note.onclick = () => {
+  // The router, never location.assign: leaving the page would end a voice
+  // call, which lives in it. Loaded here rather than imported, since the
+  // router imports the routes that import this.
+  note.onclick = async () => {
     window.focus();
-    if (location.pathname !== path) location.assign(path);
     note.close();
+    if (location.pathname === path) return;
+    const { router } = await import("../router");
+    await router.navigate({ to: path });
   };
 }
