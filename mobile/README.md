@@ -797,8 +797,9 @@ screen (`NotificationsProvider.tsx`, one listener per session inside
 the realtime provider). Only the live event rings: what the feed loads
 after a reconnect is history. Tapping one opens its message, and
 reading what one points at takes it out of the list. On iOS the app's
-icon carries one number, what waits on every saved server. There is no
-push, so nothing arrives while the app is in the background, and the
+icon carries one number, what waits on every saved server. Push is
+still being built (below), so in the background nothing arrives but,
+in a build with a relay set, the relay's plain "New activity", and the
 badge stays as it was when the app left the front.
 
 - What it says is `content.ts`: the title is who and what ("Priya Shah
@@ -1003,13 +1004,15 @@ badge stays as it was when the app left the front.
   `assets/notification-icon.png`, the mark in white cut by `make brand`,
   tinted Brownstone's accent (`app.json`). On iOS the plugin adds the
   push entitlement (`enableRemoteNotifications: true`), for the push
-  work below; nothing registers for push yet.
+  work below; registering for it is below too.
 
-Push is being built: a relay will forward a message encrypted to this
+Push is being built: a relay forwards a message encrypted to this
 phone (Web Push, RFC 8291), and a notification service extension will
-decrypt it while the phone is locked. What is here so far is the
-groundwork, on iOS only: the keys, and a place the extension can read
-(`src/push`, over the native module `modules/stoop-push-keys`).
+decrypt it while the phone is locked. What is here so far, on iOS only:
+the keys, a place the extension can read (`src/push`, over the native
+module `modules/stoop-push-keys`), and a subscription on each signed-in
+server. Nothing shows a pushed notification yet: without the extension
+Apple shows the relay's plain "New activity".
 
 - `pushKeys` (`src/push`) makes a P-256 key pair and a 16-byte auth
   secret for an ID (`ensure`), says an ID's public key (`publicKey`)
@@ -1055,6 +1058,65 @@ groundwork, on iOS only: the keys, and a place the extension can read
   own made or found, their public key, and a launch count kept in the
   store. On the simulator that shows the module works; only a phone
   shows what a locked phone allows.
+- Each signed-in session subscribes once notifications are allowed
+  (`PushProvider.tsx`, the rules in `subscriber.ts` and `renewal.ts`),
+  in a build with a relay set: `STOOP_PUSH_RELAY_URL` in
+  `mobile/.env.local`, the relay's origin (Signing for iOS, below).
+  Without it, or on Android, nothing registers and nothing errors. A
+  subscription is the phone's APNs device token (expo-notifications'
+  device push token) and the server's key sealed by the relay into an
+  endpoint (`relay.ts`, `POST /v1/subscriptions`), registered on the
+  server (`RegisterPushSubscription`) with the server's local ID and
+  the keys made for that ID: the keychain item's account is the local
+  ID, which is how the extension will know which server a push is for.
+- The kinds a server is told are the Notifications screen's switches
+  (`record.ts` `wantedKinds`): mentions and replies, direct messages,
+  thread replies, and none while that server's switch is off, which
+  keeps the subscription and has the server send nothing. Nothing is
+  sent until the saved switches have been read.
+- What the phone keeps per server (`record.ts`) is in the keychain
+  beside its session token, `push.<local ID>`: the endpoint, when it
+  was issued and when it expires, the device token and the server's
+  key it was issued for, the session it was registered by, the kinds,
+  and when it was last checked.
+- The relay keeps nothing and its endpoints expire, so the app checks
+  each server at launch, on return to the front, once notifications
+  are allowed, at a sign-in, and at once when the device token or the
+  kinds change. A check that completed is not repeated for a day
+  unless one of those two moved; one that failed does not use up the
+  day. It renews (a new endpoint, the same keys) when there is no
+  record for this session, the device token or the server's key
+  changed, the endpoint is 7 days old, or it was issued in the future
+  (the clock was set back), or it expires within 7 days (only a relay
+  with short lifetimes); otherwise it sends the kinds
+  (`UpdatePushSubscription`), and the server's NotFound renews at
+  once. A failure keeps the old record and is tried again after a
+  minute, doubling to six hours, or the relay's Retry-After if longer;
+  meanwhile new kinds are still sent to the subscription the server
+  has.
+  Servers are taken one at a time. A server without the push calls,
+  or with push off, is skipped for the day and keeps its in-app
+  banners.
+- Which APNs environment the relay is told follows how the build was
+  signed (`PushTarget.swift`): the `aps-environment` in the
+  provisioning profile the app carries, development meaning the
+  sandbox; no profile at all is the App Store or TestFlight, so
+  production; the simulator is the sandbox. A Release build signed
+  with a development profile is still the sandbox.
+- Signing out of a server or removing it (`useLeaveServer`) asks the
+  server to delete the subscription (`DeletePushSubscription`, sent
+  just before the session's end, which takes the subscription with it
+  anyway), and once more after a check that was running for it, then
+  forgets the keys and the record whatever it answered.
+  The relay is never asked: it has nothing to delete. A subscription
+  made where there is no record for the session (a first one, or a new
+  sign-in to a saved server) gets new keys under the same ID, so an
+  earlier one, should its server keep it, can't be read; renewing keeps
+  them.
+- A development build logs a `PUSH_SUBSCRIBE` line to Metro for each
+  server a check looks at (subscribed, renewed and why, updated,
+  skipped and why, failed and when it tries again, removed), with the
+  local ID and host, never the endpoint, a key or a token.
 
 ## Voice
 
@@ -1495,8 +1557,16 @@ STOOP_IOS_BUNDLE_ID=org.getstoop.dev
 STOOP_APPLE_TEAM_ID=ABCDE12345
 ```
 
-Re-run `make mobile-prebuild` after changing either. The first build of
-a new ID fails with "No profiles for …". Either open
+A build that registers for push also needs the relay's origin there,
+`STOOP_PUSH_RELAY_URL=https://relay.example.org` (Notifications,
+above). It goes into the app's config, not its native project: a
+development build reads it from Metro, so restart Metro after changing
+it; a release build carries what it was built with. Without it the app
+registers for no push.
+
+Re-run `make mobile-prebuild` after changing the bundle ID or the
+team. The first build of a new ID fails with "No profiles for …".
+Either open
 `ios/Stoop.xcworkspace` in Xcode, pick the team under Signing &
 Capabilities and let it register the device and ID, or build once from
 `mobile/ios` with `xcodebuild -workspace Stoop.xcworkspace -scheme Stoop
@@ -1601,7 +1671,8 @@ The app's pure logic that needs no React Native (`MessageBody/native.ts`,
 the voice room's `stageRules.ts` and `switchRules.ts`, `dnd/switch.ts`, `dnd/store.ts`,
 `notifications/content.ts`, `quiet.ts`, `places.ts`, `focus.ts`,
 `shouldAsk.ts`, `links/sharedLink.ts`, `pendingLink.ts` and
-`pendingInvite.ts`, `api/invites.ts`, `push/keys.ts`,
+`pendingInvite.ts`, `api/invites.ts`, `push/keys.ts`, `push/subscriber.ts`
+and `push/renewal.ts`,
 and Add a space's `pasted.ts` and `landed.ts`) has unit tests beside it (`*.test.ts`), run by web's Vitest with web's
 own (`make test`, `web/vitest.config.ts`).
 

@@ -3,13 +3,17 @@ import { useForgetServerAlerts } from "../alertPrefs/AlertPrefsProvider";
 import { deleteServerDrafts } from "../api/drafts";
 import { sessionToken, type SavedServer } from "../api/servers";
 import { useForgetServerSpace } from "../lastSpace/LastSpaceProvider";
+import { usePushLeave } from "../push/PushProvider";
 import { endSession } from "./endSession";
 import { useServers } from "./index";
 
 // Takes a server off this phone: signing out of it, or removing it. The
 // session's end is sent first and not waited on, so nothing waits on a
 // server that may never answer, and it is on its way even if forgetting
-// the server then fails. A rejection means the server is still saved here,
+// the server then fails. The push subscription's removal (src/push) is
+// sent just before it, while the session can still ask; the server
+// drops the subscription with the session anyway, and the phone forgets
+// the push keys and record whatever the server says. A rejection means the server is still saved here,
 // though its session may be over. Once it is forgotten, every account's
 // drafts for it go too (docs/architecture/messaging.md → The composer),
 // and so do its switch on the Notifications screen (src/alertPrefs) and
@@ -22,15 +26,17 @@ export function useLeaveServer() {
   const { forget } = useServers();
   const forgetAlerts = useForgetServerAlerts();
   const forgetSpace = useForgetServerSpace();
+  const leavePush = usePushLeave();
   return useCallback(
     async (server: SavedServer) => {
       const token = await sessionToken(server.id).catch(() => null);
+      void leavePush({ id: server.id, origin: server.origin, session: server.session ?? 0 }, token);
       if (token) endSession(server.origin, token);
       await forget(server.id);
       deleteServerDrafts(server.id);
       forgetAlerts(server.id);
       forgetSpace(server.id);
     },
-    [forget, forgetAlerts, forgetSpace],
+    [forget, forgetAlerts, forgetSpace, leavePush],
   );
 }
