@@ -393,6 +393,70 @@ func TestMembershipRowsMarkNothingUnread(t *testing.T) {
 	}
 }
 
+// A thread reply's alerts are written while cat is being removed from the
+// one channel: cat's unread thread-reply item is refreshed and bea gets
+// one. The removal holds the channel and will delete cat's item; the
+// write holds cat's item and adds bea's, whose foreign key points at the
+// channel. Held FOR UPDATE, the channel stopped that check and the two
+// waited on each other; FOR NO KEY UPDATE lets it through.
+func TestThreadAlertDuringRemovalDoesNotDeadlock(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	fixture.privateRoom(fixture.ada, fixture.bea, fixture.cat)
+	catID, beaID := authctx.UserID(fixture.cat), authctx.UserID(fixture.bea)
+	root := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "root"})
+	first := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "one", ThreadRootId: root.Id})
+	second := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "two", ThreadRootId: root.Id})
+	about := func(id string) alert {
+		row, err := fixture.svc.q.GetMessage(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return alert{kind: activityKindThreadReply, coalesce: true, msg: row, spaceID: &fixture.spaceID}
+	}
+	if _, err := fixture.pool.Exec(ctx, `DELETE FROM activity_items`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.svc.writeActivityItems(ctx, []string{catID}, about(first.Id)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Stall the removal after it has the channel: hold cat's membership
+	// row, which it deletes next.
+	stall, err := fixture.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stall.Exec(ctx, `SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2 FOR UPDATE`,
+		fixture.channel.ID, catID); err != nil {
+		t.Fatal(err)
+	}
+	removed := make(chan error, 1)
+	go func() { removed <- fixture.removePerson(fixture.ada, fixture.cat) }()
+	time.Sleep(settleFor)
+	wrote := make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.writeActivityItems(ctx, []string{catID, beaID}, about(second.Id))
+		wrote <- err
+	}()
+	time.Sleep(settleFor)
+	_ = stall.Rollback(ctx)
+	if err := <-removed; err != nil {
+		t.Errorf("removal: %v", err)
+	}
+	if err := <-wrote; err != nil {
+		t.Errorf("alerts: %v", err)
+	}
+	var beas int
+	if err := fixture.pool.QueryRow(ctx,
+		`SELECT count(*) FROM activity_items WHERE user_id = $1 AND message_id = $2`, beaID, second.Id).Scan(&beas); err != nil {
+		t.Fatal(err)
+	}
+	if beas != 1 {
+		t.Errorf("bea has %d alerts for the reply, want 1", beas)
+	}
+}
+
 // Removing someone while they send does not deadlock: the removal takes
 // the channel row before their membership and activity, as the send does.
 func TestRemovalDuringASendDoesNotDeadlock(t *testing.T) {

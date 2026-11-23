@@ -139,7 +139,7 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 // addMembers puts space members into a private channel for actorID and
 // records one "added" system message naming the people it put in: anyone
 // already in is left out, and nobody new records nothing. All of them or
-// none, in one transaction under the channel lock (seq.go), and nobody is
+// none, in one transaction under the channel row (seq.go), and nobody is
 // told until it commits. Each new member is sent the channel before the
 // row, so their client has it when the row arrives. It returns who it put
 // in.
@@ -150,7 +150,10 @@ func (s *Service) addMembers(ctx context.Context, channel dbgen.Channel, userIDs
 	)
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		added, recorded = added[:0], ""
-		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
+		// FOR NO KEY UPDATE, as a removal takes it: it shuts out every
+		// other writer of the channel, and the add has no need to hold up
+		// a foreign-key check (an alert, a read marker) meanwhile.
+		if _, err := qtx.LockChannelNoKey(ctx, channel.ID); err != nil {
 			return apierr.NotFoundOr(err, "channel")
 		}
 		for _, userID := range userIDs {
@@ -279,8 +282,12 @@ func (s *Service) removeFromChannel(ctx context.Context, channel dbgen.Channel, 
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		removed, recorded, remaining = 0, "", nil
 		// The channel row before the member's (seq.go): a send by the
-		// same person holds it while it marks their activity read.
-		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
+		// same person holds it while it marks their activity read. Held
+		// FOR NO KEY UPDATE: every other writer of the channel still
+		// waits, but an alert being written for someone else here, which
+		// may hold this person's alert, gets its foreign-key check
+		// through instead of waiting on us while we wait on that alert.
+		if _, err := qtx.LockChannelNoKey(ctx, channel.ID); err != nil {
 			return apierr.NotFoundOr(err, "channel")
 		}
 		var err error
