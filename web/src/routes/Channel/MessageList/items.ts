@@ -1,15 +1,17 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { dayLabel } from "../../../core/dates";
 import { continues, startsDay } from "../../../core/grouping";
+import { isSystemRow } from "../../../core/systemMessages";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 
 // The rows of a timeline, oldest first, each one an item the virtualiser
 // positions and measures on its own: the head (the window's older edge —
 // skeleton rows, the beginning marker, or a thread's root), a day line above
 // the first message of each day, the "New messages" line above the first
-// unread one, every message, and the foot (the newer edge). A divider is a
-// row beside the messages, never a wrapper round one: from a divider, the
-// message it introduces is the next sibling. The mobile app's channel
+// unread one, every message (a system message is an item of its own
+// kind), and the foot (the newer edge). A divider is a row beside the
+// messages, never a wrapper round one: from a divider, the message it
+// introduces is the next sibling. The mobile app's channel
 // draws core/grouping's groupedRows; this is the web's form, with a
 // thread's rules (no day lines, the root above the oldest reply).
 
@@ -18,7 +20,8 @@ export type ListItem =
   | { kind: "foot"; key: "foot" }
   | { kind: "day"; key: string; label: string }
   | { kind: "new"; key: string; label: string; startsDay: boolean }
-  | { kind: "message"; key: string; message: Message; continued: boolean };
+  | { kind: "message"; key: string; message: Message; continued: boolean }
+  | { kind: "system"; key: string; message: Message };
 
 export function listItems({
   messages,
@@ -57,12 +60,16 @@ export function listItems({
     } else if (day) {
       items.push({ kind: "day", key: `day-${message.id}`, label: day });
     }
-    items.push({
-      kind: "message",
-      key: message.id,
-      message,
-      continued: continues(message, previous, firstNewId, inThread),
-    });
+    items.push(
+      isSystemRow(message)
+        ? { kind: "system", key: message.id, message }
+        : {
+            kind: "message",
+            key: message.id,
+            message,
+            continued: continues(message, previous, firstNewId, inThread),
+          },
+    );
   });
   items.push({ kind: "foot", key: "foot" });
   return items;
@@ -73,7 +80,8 @@ export function listItems({
 export function indexOfMessage(items: ListItem[], messageId: string): number {
   return items.findIndex(
     (item) =>
-      (item.kind === "message" && item.message.id === messageId) ||
+      ((item.kind === "message" || item.kind === "system") &&
+        item.message.id === messageId) ||
       (item.kind === "head" && item.rootId === messageId),
   );
 }
@@ -98,5 +106,7 @@ export function estimateSize(item: ListItem): number {
       return 30;
     case "message":
       return item.continued ? 24 : 46;
+    case "system":
+      return 26;
   }
 }

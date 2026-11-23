@@ -1,0 +1,83 @@
+/* ---- System messages (routes/Channel/MessageList/SystemRow.tsx): a row
+   that records something that happened in the channel. The glyph sits in
+   the avatar column, the sentence is muted with names in full ink, and
+   the time follows the sentence. The list places the row (absolute, in
+   virtual-list.css), which is what its glyph and toolbar sit in. ---- */
+
+.system-row {
+  margin: 0 -10px;
+  /* off-scale: the avatar column, 10 + 40 + 12, as .message */
+  padding: 4px 10px 4px 62px;
+  border-radius: var(--radius);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.system-row:hover {
+  background: var(--hover);
+}
+
+.system-glyph {
+  position: absolute;
+  left: 10px;
+  top: 4px;
+  /* off-scale: the avatar's width, so the glyph centres in its column */
+  width: 40px;
+  /* off-scale: one line of the sentence, 13px at --leading-ui */
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.system-person {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.system-person:hover {
+  text-decoration: underline;
+}
+
+.system-emphasis {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.system-time {
+  margin-left: 8px;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* Delete, for a moderator: the message toolbar, on hover or focus. */
+.system-row:hover .message-toolbar,
+.system-row:has(:focus-visible) .message-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .system-row:focus-within .message-toolbar {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.system-row.flash {
+  animation: flash 1.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-row.flash {
+    animation: none;
+    background: var(--accent-soft);
+  }
+}

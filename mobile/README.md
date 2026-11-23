@@ -770,7 +770,11 @@ root fetched when the channel's page doesn't hold it, pages older ones,
 and closes the view as it goes. The screens (`src/screens/Channel`,
 `src/screens/Thread`) mark read and draw the rows `core/grouping.ts`
 groups (day lines, the "New" line, which message continues the one
-before). Sending is send-then-merge, as on web: the
+before). A system message (a channel renamed, its topic set) is drawn
+for now as one plain muted line of the wording `core/systemMessages.ts`
+shares with web (`src/screens/Channel/SystemRow.tsx`), with no menu on
+a long press; the channel screen leaves out quiet rows of a kind the
+app does not know before grouping. Sending is send-then-merge, as on web: the
 composer clears the draft, awaits `SendMessage`, and the answer's row is
 dispatched as `sent` and merged by seq like an event's (the socket's
 copy usually lands first; either order leaves one row). There are no

@@ -987,9 +987,8 @@ happened in its channel: members added to a private channel, a member
 gone from one, the channel renamed, its topic changed, a message pinned,
 announcement mode switched. It is a message row so that paging, the
 channel log, live delivery and retention carry it with no second stream
-to merge. Nothing records one yet: the storage, the wire shape, the
-write helper and the read path are in, and the actions that call the
-helper follow.
+to merge. `UpdateChannel` records the three channel changes; membership,
+pins and departures from the space follow.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
@@ -1078,9 +1077,43 @@ helper follow.
 - **Outgoing webhooks** never deliver a system row
   ([integrations.md](integrations.md#outgoing)).
 
+- **Channel changes** (`UpdateChannel`, `channels.go`). One transaction
+  locks the channel row, reads the values it holds, writes the update,
+  and records a row for each value that actually changed, in the order
+  name, topic, post policy: a rename (old and new name), a topic (the
+  new one, `""` when cleared), announcement mode (the new
+  `post_policy`). Saving a value the channel already has records
+  nothing; a refused update (a name already taken) records nothing,
+  since the rows go in its transaction. After the commit the channel's
+  `channel_updated` goes out, then each row's `message_created` in seq
+  order, to whoever may read the channel.
+- **The wording** is the clients', from one place both share:
+  `web/src/core/systemMessages.ts` turns a row into a glyph name and a
+  list of parts (plain text, a person, a channel name, the excerpt of
+  the message a row is about, and "N others" holding the people a long
+  list leaves out), and `systemText` reads the parts as one line of
+  words. A list of people names up to three and otherwise the first two
+  and a count, as a group conversation's title does; one person added
+  who is the row's author reads "joined". A kind the client does not
+  know shows nothing when the row is quiet (`withoutHiddenSystemRows`,
+  applied where each client builds its list, before grouping, and not
+  in the channel log's `isShown`, which range edges and the cap count
+  on) and otherwise one line asking the reader to update Stoop.
+- **In a list** a system row never continues a message nor is continued
+  by one (`continues` in `core/grouping.ts`), and the "New messages"
+  line skips quiet rows, so it sits above the first unread message
+  someone wrote. A quiet row arriving beyond a range that stops short
+  of the newest is not counted on the pill (`placed` in
+  `core/channelLog/views.ts`), and the web's own arrival count skips one
+  too. Code that asks "is the newest row mine" (following the bottom on
+  my own send, ArrowUp to edit my last message) skips system rows.
+- **Delete** on web is offered to someone with `messages.moderate`
+  alone, with its own confirm; being the row's author grants nothing
+  there.
+
 Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
 its event type, a `recordEvent` call in the action's transaction, and
-the clients' wording.
+its wording and glyph in `core/systemMessages.ts`.
 
 ## Edits, deletions, reactions, replies
 

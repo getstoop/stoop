@@ -154,7 +154,8 @@ export function ChannelView() {
   // A restored draft's quote becomes the reply once the log holds it.
   const restoreQuote = useRestoredQuote(channelId, undefined, setReplyTo);
   const editLast = () => {
-    const mine = messages.filter((m) => m.author?.id === me?.id);
+    // The last message I wrote; a system row is never one to edit.
+    const mine = messages.filter((m) => !m.event && m.author?.id === me?.id);
     const last = mine[mine.length - 1];
     if (last) setEditingId(last.id);
   };

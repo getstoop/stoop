@@ -428,7 +428,7 @@ func TestPrivateChannelEventsReachItsPeopleOnly(t *testing.T) {
 	if _, err := svc.UpdateChannel(fixture.owner, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: fixture.secretID, Topic: &topic})); err != nil {
 		t.Fatal(err)
 	}
-	expect("retopic", "channel_updated")
+	expect("retopic", "channel_updated", "message_created")
 
 	if people, listed, err := svc.ChannelPeople(context.Background(), fixture.secretID); err != nil || !listed || len(people) != 1 || people[0] != authctx.UserID(fixture.bea) {
 		t.Errorf("the channel's people for typing: %v %v %v", people, listed, err)

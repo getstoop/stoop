@@ -45,6 +45,7 @@ import {
   canDeleteAnyMessage,
   canManageChannels,
 } from "../../../core/permissions";
+import { withoutHiddenSystemRows } from "../../../core/systemMessages";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { openSidePanel, useSidePanelStore } from "../../../stores/sidePanel";
 import { MessageRow } from "../MessageRow";
@@ -63,6 +64,7 @@ import {
 } from "./items";
 import { ListHead } from "./ListHead";
 import { MessageSkeleton } from "./MessageSkeleton";
+import { SystemRow } from "./SystemRow";
 import { useRowHandlers } from "./useRowHandlers";
 
 // Rows rendered beyond the visible ones at each end, so a scroll has
@@ -155,11 +157,13 @@ export function MessageList({
   // root when the log holds it; the root is drawn on the head instead.
   const channelRows = useChannelItems(channelId);
   const threadRows = useThreadItems(channelId, threadRootId ?? "");
+  // System rows of a kind this app does not know and that are quiet show
+  // nothing, so they are left out here, before grouping.
   const messages = useMemo(() => {
-    if (!threadRootId) return channelRows;
-    return threadRows[0]?.id === threadRootId
-      ? threadRows.slice(1)
-      : threadRows;
+    if (!threadRootId) return withoutHiddenSystemRows(channelRows);
+    return withoutHiddenSystemRows(
+      threadRows[0]?.id === threadRootId ? threadRows.slice(1) : threadRows,
+    );
   }, [threadRootId, channelRows, threadRows]);
   const range = useView(channelId, threadRootId);
   const status = useViewStatus(view);
@@ -574,8 +578,10 @@ export function MessageList({
   // that replaces the range is neither an arrival nor a reason to move.
   const scrolledToDivider = useRef(false);
   const seenNewest = useRef<string | undefined>(undefined);
-  const newestId = messages[messages.length - 1]?.id;
-  const newestMine = messages[messages.length - 1]?.author?.id === me?.id;
+  const newest = messages[messages.length - 1];
+  const newestId = newest?.id;
+  // A system row is never "mine": recording my rename is not my sending.
+  const newestMine = !!newest && !newest.event && newest.author?.id === me?.id;
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
   useLayoutEffect(() => {
     // Nothing to land on yet (the first page is still out), or nothing
@@ -605,7 +611,8 @@ export function MessageList({
     }
     if (first || atBottomRef.current || newestMine) {
       scrollToBottom();
-    } else {
+    } else if (!newest?.quiet) {
+      // A quiet row is nothing new to read, so the pill doesn't count it.
       setUnseen((count) => count + 1);
     }
   }, [newestId, firstNewId]);
@@ -771,6 +778,23 @@ export function MessageList({
                   );
                 case "message":
                   return row(item.message, item.continued, position);
+                case "system":
+                  return (
+                    <SystemRow
+                      key={item.key}
+                      message={item.message}
+                      {...position}
+                      measure={virtualizer.measureElement}
+                      members={membersById}
+                      canDelete={
+                        !!spaceForPerms && canDeleteAnyMessage(spaceForPerms)
+                      }
+                      withDay={!!threadRootId}
+                      rowIdPrefix={rowIdPrefix}
+                      onCard={rows.showCard}
+                      onDelete={rows.removeSystem}
+                    />
+                  );
                 default:
                   return null;
               }

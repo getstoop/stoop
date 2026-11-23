@@ -48,6 +48,26 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     }
   }, []);
 
+  // A system message: a moderator removes the line, not what it records.
+  const removeSystem = useCallback(async (message: Message) => {
+    const ok = await confirm({
+      title: "Delete this line from the channel?",
+      body: "It's removed for everyone. What it records stays as it is.",
+      action: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await chatClient.deleteMessage({ messageId: message.id });
+      patchRow(message.channelId, message.id, (row) => ({
+        ...row,
+        deleted: true,
+      }));
+    } catch (err) {
+      notice({ title: "Couldn't delete it", body: errorText(err) });
+    }
+  }, []);
+
   // The card goes for everyone; the server's update for the message
   // takes it out of the row.
   const dismissPreview = useCallback(async (message: Message, url: string) => {
@@ -105,6 +125,7 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     picker,
     setPicker,
     remove,
+    removeSystem,
     dismissPreview,
     showCard,
     showGroup,

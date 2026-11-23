@@ -627,7 +627,9 @@ window" is what the view's range holds.
 - **One item per row** (`MessageList/items.ts`): the head (the window's
   older edge — skeleton rows while more lies older, the beginning marker
   with the first-run card, or a thread's root above its reply count), a day line,
-  the "New messages" line, each message, and the foot (the newer edge).
+  the "New messages" line, each message, a system message as an item of
+  its own kind (`MessageList/SystemRow.tsx`, below), and the foot (the
+  newer edge).
   Dividers are rows beside the messages, never wrappers round them
   (`.new-divider + *` is still the message it introduces). The head and
   foot carry the list's top and bottom padding, so the body's height is
@@ -696,6 +698,18 @@ window" is what the view's range holds.
 - **What the window holds is on the list element:** `data-rows` and
   `data-oldest`. A browser spec reads those rather than counting
   `.message` elements, which are only the rows near the viewport.
+  `data-rows` counts system messages too.
+- **System messages** ([messaging.md](messaging.md#system-messages)) are
+  `.system-row`, not `.message`: the glyph in the avatar column, the
+  sentence `core/systemMessages.ts` words (names in full ink, each a
+  button that opens the user card, through the same live-name overlay
+  as an author, `useAuthorShown`), and the time after it
+  (`styles/system-messages.css`). No avatar, reactions, thread or
+  toolbar, except Delete for someone with `messages.moderate`, with
+  its own confirm (`removeSystem` in `MessageList/useRowHandlers.ts`).
+  A jump to one (`indexOfMessage`) lands on it as on a message. The
+  list leaves out quiet rows of a kind it does not know before grouping,
+  and an arrival that is quiet does not count on the pill.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:

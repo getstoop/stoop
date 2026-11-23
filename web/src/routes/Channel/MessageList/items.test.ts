@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   type Message,
   MessageSchema,
+  SystemEventSchema,
 } from "../../../gen/stoop/chat/v1/message_pb";
 import {
   estimateSize,
@@ -32,10 +33,52 @@ const rows = (items: ListItem[]) =>
         return item.rootId ? `<head root=${item.rootId}>` : "<head>";
       case "foot":
         return "<foot>";
+      case "system":
+        return `${item.key} (system)`;
       default:
         return `[${item.label}]`;
     }
   });
+
+const system = (id: string, at: Date): Message => {
+  const made = message(id, at);
+  made.quiet = true;
+  made.event = create(SystemEventSchema, {
+    kind: { case: "memberLeft", value: {} },
+  });
+  return made;
+};
+
+describe("system rows", () => {
+  const at = (minute: number, second: number) =>
+    new Date(2026, 9, 21, 9, minute, second);
+  const items = listItems({
+    messages: [
+      message("01", at(0, 0)),
+      system("02", at(0, 10)),
+      message("03", at(0, 20)),
+    ],
+    firstNewId: undefined,
+    inThread: false,
+    now,
+  });
+
+  it("are items of their own, and break a run of messages", () => {
+    expect(rows(items)).toEqual([
+      "<head>",
+      "[Today]",
+      "01",
+      "02 (system)",
+      "03",
+      "<foot>",
+    ]);
+  });
+
+  it("are found by a jump, and have a height before measuring", () => {
+    expect(indexOfMessage(items, "02")).toBe(3);
+    expect(estimateSize(items[3])).toBeGreaterThan(0);
+  });
+});
 
 describe("listItems", () => {
   const messages = [
