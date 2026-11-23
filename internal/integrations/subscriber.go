@@ -80,9 +80,19 @@ func (s *Service) translate(ctx context.Context, ev *realtimev1.ServerEvent) (Ou
 
 func (s *Service) translatePayload(ctx context.Context, ev *realtimev1.ServerEvent) (OutgoingEvent, bool) {
 	switch p := ev.Payload.(type) {
+	// A system message (event set) is not something a person wrote, which
+	// is what a receiver of message.* expects; hooks never see one. Its
+	// delete has no event to tell it apart, so message.deleted still goes
+	// out for one in a public channel (integrations.md → Outgoing).
 	case *realtimev1.ServerEvent_MessageCreated:
+		if p.MessageCreated.Event != nil {
+			return OutgoingEvent{}, false
+		}
 		return s.messageEvent(ctx, EventMessageCreated, p.MessageCreated.ChannelId, p.MessageCreated.SpaceId, p.MessageCreated)
 	case *realtimev1.ServerEvent_MessageUpdated:
+		if p.MessageUpdated.Event != nil {
+			return OutgoingEvent{}, false
+		}
 		return s.messageEvent(ctx, EventMessageUpdated, p.MessageUpdated.ChannelId, p.MessageUpdated.SpaceId, p.MessageUpdated)
 	case *realtimev1.ServerEvent_MessageDeleted:
 		if p.MessageDeleted.SpaceId == "" {

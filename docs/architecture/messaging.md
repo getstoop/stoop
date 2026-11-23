@@ -1055,6 +1055,28 @@ helper follow.
   rows with the messages around them. No code may assume a system row's
   `content` is empty: a server rolled back past this change lets the
   author edit one.
+- **What a system row refuses.** Everything that assumes a person wrote
+  the message: editing it, reacting to it, starting or replying in a
+  thread under it (`threadRootFor`), quoting or replying to it
+  (`checkQuote`, one path for both), muting or reading its thread
+  (`readableRoot`), `DeleteThread`, pinning it and `DismissLinkPreview`.
+  Each asks `refuseSystemRow`, which tests `kind <> 0` rather than a list
+  of kinds, so a new kind is refused all of them with nothing to add. The
+  answer is `FailedPrecondition`, as for a placeholder.
+- **Deleting one** is moderation alone: `messages.moderate` covers it,
+  as it covers other people's messages, and inside a private channel
+  only for someone in it, as for any message. Being the row's author
+  grants nothing: without `messages.moderate` nobody deletes the record
+  of their own action, and with it anyone deletes any row, one they
+  caused included. A direct message has no moderator, so nobody deletes
+  one there. The reason to delete one is usually the
+  text it holds (a topic, a channel name), so the tombstone keeps the
+  row's kind but not its event: `data` becomes `'{}'` and
+  `reference_message_id` is cleared. Like any tombstone it is shown in no
+  history afterwards, and `ListChanges` carries it as `deleted` with the
+  kind's event empty.
+- **Outgoing webhooks** never deliver a system row
+  ([integrations.md](integrations.md#outgoing)).
 
 Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
 its event type, a `recordEvent` call in the action's transaction, and
@@ -1092,7 +1114,9 @@ anyone from.
   forward them ([realtime.md](realtime.md#serverevent),
   [channel-log.md](channel-log.md)). Only the
   retention sweep hard-deletes message rows. `messages.moderate` covers
-  other people's; your own are always yours.
+  other people's; your own are always yours, except a
+  [system message](#system-messages), which only `messages.moderate`
+  deletes, whoever caused it.
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is
   idempotent by construction — the primary key decides whether it is an
   insert or a delete — and publishes `ReactionsChanged` with the message's
