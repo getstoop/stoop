@@ -33,8 +33,10 @@ SELECT u.id::uuid FROM unnest(sqlc.arg(user_ids)::uuid[]) AS u(id)
 WHERE EXISTS (SELECT 1 FROM channel_readers cr
               WHERE cr.channel_id = sqlc.arg(channel_id)::uuid AND cr.user_id = u.id);
 
+-- ListSpaceIDsByUser is in the order the person joined, so an account
+-- deletion leaves its spaces in a known order.
 -- name: ListSpaceIDsByUser :many
-SELECT space_id FROM space_members WHERE user_id = $1;
+SELECT space_id FROM space_members WHERE user_id = $1 ORDER BY joined_at, space_id;
 
 -- name: GetSpaceMemberRole :one
 SELECT role FROM space_members WHERE space_id = $1 AND user_id = $2;
@@ -49,6 +51,23 @@ UPDATE space_members SET role = $3 WHERE space_id = $1 AND user_id = $2;
 
 -- name: DeleteSpaceMember :execrows
 DELETE FROM space_members WHERE space_id = $1 AND user_id = $2;
+
+-- LockSpaceMember holds a membership row until the transaction ends. A
+-- removal from the space takes it first: adding the person to a private
+-- channel checks the row (a foreign key), so it waits until the removal
+-- has finished and then fails, or finishes first and is listed.
+-- name: LockSpaceMember :one
+SELECT user_id FROM space_members WHERE space_id = $1 AND user_id = $2 FOR UPDATE;
+
+-- ListPrivateChannelsOfMember is the space's private channels someone is
+-- in, in id order: the order a removal from the space locks them in. It
+-- is read before the membership goes, since deleting it cascades to
+-- their place in each private channel.
+-- name: ListPrivateChannelsOfMember :many
+SELECT c.* FROM channels c
+JOIN channel_readers cr ON cr.channel_id = c.id
+WHERE cr.user_id = sqlc.arg(user_id) AND c.space_id = sqlc.arg(space_id)::uuid AND c.private
+ORDER BY c.id;
 
 -- name: GetSpaceMember :one
 SELECT * FROM space_members WHERE space_id = $1 AND user_id = $2;

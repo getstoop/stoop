@@ -201,10 +201,61 @@ func (q *Queries) ListOwnedSpaceIDs(ctx context.Context, ownerID string) ([]stri
 	return items, nil
 }
 
-const listSpaceIDsByUser = `-- name: ListSpaceIDsByUser :many
-SELECT space_id FROM space_members WHERE user_id = $1
+const listPrivateChannelsOfMember = `-- name: ListPrivateChannelsOfMember :many
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq FROM channels c
+JOIN channel_readers cr ON cr.channel_id = c.id
+WHERE cr.user_id = $1 AND c.space_id = $2::uuid AND c.private
+ORDER BY c.id
 `
 
+type ListPrivateChannelsOfMemberParams struct {
+	UserID  string
+	SpaceID string
+}
+
+// ListPrivateChannelsOfMember is the space's private channels someone is
+// in, in id order: the order a removal from the space locks them in. It
+// is read before the membership goes, since deleting it cascades to
+// their place in each private channel.
+func (q *Queries) ListPrivateChannelsOfMember(ctx context.Context, arg ListPrivateChannelsOfMemberParams) ([]Channel, error) {
+	rows, err := q.db.Query(ctx, listPrivateChannelsOfMember, arg.UserID, arg.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Channel
+	for rows.Next() {
+		var i Channel
+		if err := rows.Scan(
+			&i.ID,
+			&i.SpaceID,
+			&i.Name,
+			&i.Kind,
+			&i.Position,
+			&i.CreatedAt,
+			&i.LastMessageID,
+			&i.DmKey,
+			&i.Topic,
+			&i.PostPolicy,
+			&i.Private,
+			&i.Seq,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSpaceIDsByUser = `-- name: ListSpaceIDsByUser :many
+SELECT space_id FROM space_members WHERE user_id = $1 ORDER BY joined_at, space_id
+`
+
+// ListSpaceIDsByUser is in the order the person joined, so an account
+// deletion leaves its spaces in a known order.
 func (q *Queries) ListSpaceIDsByUser(ctx context.Context, userID string) ([]string, error) {
 	rows, err := q.db.Query(ctx, listSpaceIDsByUser, userID)
 	if err != nil {
@@ -254,6 +305,26 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID string) ([]Space
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockSpaceMember = `-- name: LockSpaceMember :one
+SELECT user_id FROM space_members WHERE space_id = $1 AND user_id = $2 FOR UPDATE
+`
+
+type LockSpaceMemberParams struct {
+	SpaceID string
+	UserID  string
+}
+
+// LockSpaceMember holds a membership row until the transaction ends. A
+// removal from the space takes it first: adding the person to a private
+// channel checks the row (a foreign key), so it waits until the removal
+// has finished and then fails, or finishes first and is listed.
+func (q *Queries) LockSpaceMember(ctx context.Context, arg LockSpaceMemberParams) (string, error) {
+	row := q.db.QueryRow(ctx, lockSpaceMember, arg.SpaceID, arg.UserID)
+	var user_id string
+	err := row.Scan(&user_id)
+	return user_id, err
 }
 
 const longestServingAdmin = `-- name: LongestServingAdmin :one

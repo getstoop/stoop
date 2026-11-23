@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -404,10 +406,18 @@ func (s *Service) ReorderChannels(ctx context.Context, req *connect.Request[chat
 	if err != nil {
 		return nil, err
 	}
+	// Each update holds its channel's row, so they go in id order, the
+	// order every transaction holding several channel rows takes them in
+	// (seq.go); in position order a reorder could deadlock with someone
+	// leaving the space.
+	positions := make(map[string]int32, len(order))
+	for index, id := range order {
+		positions[id] = int32(index)
+	}
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		for index, id := range order {
+		for _, id := range slices.Sorted(maps.Keys(positions)) {
 			if err := qtx.SetChannelPosition(ctx, dbgen.SetChannelPositionParams{
-				ID: id, SpaceID: req.Msg.SpaceId, Position: int32(index),
+				ID: id, SpaceID: req.Msg.SpaceId, Position: positions[id],
 			}); err != nil {
 				return fmt.Errorf("set position: %w", err)
 			}

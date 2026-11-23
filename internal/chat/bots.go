@@ -75,7 +75,8 @@ func (s *Service) AddBotMember(ctx context.Context, spaceID, userID string) erro
 }
 
 // RemoveBotMember takes a bot out of a space the way a kick does: the
-// row and its mute go, the space hears it, and voice drops it.
+// row and its mute go, each private channel it was in records that it
+// left, the space hears it, and voice drops it.
 func (s *Service) RemoveBotMember(ctx context.Context, spaceID, userID string) error {
 	role, err := s.q.GetSpaceMemberRole(ctx, dbgen.GetSpaceMemberRoleParams{SpaceID: spaceID, UserID: userID})
 	if errors.Is(err, pgx.ErrNoRows) {
