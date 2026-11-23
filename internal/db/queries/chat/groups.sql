@@ -24,10 +24,12 @@ DELETE FROM groups WHERE id = $1;
 
 -- RemoveGroupMembersExcept drops the group's members not in user_ids,
 -- and touches no other row: saving a group leaves an unchanged member's
--- row alone.
+-- row alone. A NULL list counts as empty and keeps nobody, as an empty
+-- one does (user_id <> ALL (NULL) would match no row).
 -- name: RemoveGroupMembersExcept :exec
 DELETE FROM group_members
-WHERE group_id = @group_id::uuid AND user_id <> ALL (@user_ids::uuid[]);
+WHERE group_id = @group_id::uuid
+  AND user_id <> ALL (COALESCE(@user_ids::uuid[], '{}'::uuid[]));
 
 -- AddGroupMembers puts these people in the group. Someone already in it
 -- is left as they are: no write, and no foreign-key check on their

@@ -102,16 +102,23 @@ func (s *Service) UpdateGroup(ctx context.Context, req *connect.Request[chatv1.U
 		if err != nil {
 			return groupWriteError(err, input.handle)
 		}
-		// Only the difference: a member who stays keeps their row
-		// untouched, so saving the group never waits on someone leaving
-		// the space (who holds their membership while its cascade takes
-		// their group rows) while holding a row that removal needs.
+		// Only the difference, and the new members before the dropped
+		// ones. Someone leaving the space holds their membership while
+		// its cascade takes their group rows, so the save must never
+		// hold a row such a removal needs and then wait on a membership:
+		// a member who stays keeps their row untouched, and the adds,
+		// which wait on the new members' memberships, come while the
+		// save holds no member's row yet. The removals take rows last
+		// and wait on nothing after.
+		if err := addGroupMembers(ctx, qtx, group, input.userIDs); err != nil {
+			return err
+		}
 		if err := qtx.RemoveGroupMembersExcept(ctx, dbgen.RemoveGroupMembersExceptParams{
 			GroupID: group.ID, UserIds: input.userIDs,
 		}); err != nil {
 			return fmt.Errorf("remove group members: %w", err)
 		}
-		return addGroupMembers(ctx, qtx, group, input.userIDs)
+		return nil
 	})
 	if err != nil {
 		return nil, err
