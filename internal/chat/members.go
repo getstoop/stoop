@@ -209,11 +209,12 @@ func (s *Service) removeMember(ctx context.Context, spaceID, userID string) ([]l
 	var left []leftChannel
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		left = nil
-		// The membership first, then the channels (seq.go): from here
-		// nobody can add the person to a private channel of the space,
-		// since that checks this row, so the list below is the whole of
-		// what the delete will cascade away. Not a member: nothing to
-		// list, and the deletes below find nothing either.
+		// The membership first, then the channels (seq.go, which lists
+		// what this can still wait on): from here nobody can add the
+		// person to a private channel of the space, since that checks
+		// this row, so the list below is the whole of what the delete
+		// will cascade away. Not a member: nothing to list, and the
+		// deletes below find nothing either.
 		var channels []dbgen.Channel
 		_, err := qtx.LockSpaceMember(ctx, dbgen.LockSpaceMemberParams{SpaceID: spaceID, UserID: userID})
 		switch {
@@ -268,7 +269,12 @@ func (s *Service) removeMember(ctx context.Context, spaceID, userID string) ([]l
 // another meanwhile. Any transaction that holds more than one channel
 // row takes them in id order (seq.go), so two removals that share
 // channels, or a removal and a reorder, never wait on each other in a
-// circle. The list is read again under the locks: a channel deleted
+// circle. The rows are held FOR NO KEY UPDATE (LockChannelNoKey): that
+// shuts out every other writer of the channel but not a foreign-key
+// check, so an alert being written for someone else in the channel
+// does not wait on the removal while the removal waits on that
+// writer's hold on the departing person's alert. The list is read
+// again under the locks: a channel deleted
 // meanwhile, or one the person was taken out of meanwhile (which
 // recorded its own row), drops out.
 func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, userID string) ([]dbgen.Channel, error) {
@@ -282,7 +288,7 @@ func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, use
 	}
 	held := make(map[string]bool, len(listed))
 	for _, channel := range listed {
-		if _, err := qtx.LockChannel(ctx, channel.ID); errors.Is(err, pgx.ErrNoRows) {
+		if _, err := qtx.LockChannelNoKey(ctx, channel.ID); errors.Is(err, pgx.ErrNoRows) {
 			continue
 		} else if err != nil {
 			return nil, fmt.Errorf("lock channel: %w", err)
@@ -302,26 +308,28 @@ func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, use
 	return channels, nil
 }
 
-// announceLeftChannels publishes each "left" row to the people who
-// remain in its channel, with the channel_member_left a removal from the
-// one channel sends, so their people list and member count follow. The
-// person who left is sent neither: the space's member_removed is how it
-// leaves their list.
+// announceLeftChannels tells the people who remain in each channel that
+// the person left: channel_member_left first, as a removal from the one
+// channel sends it, so their people list and member count follow, then
+// the "left" row. Membership before the row, as an add sends the join
+// before its row. The person who left is sent neither: the space's
+// member_removed is how it leaves their list.
 func (s *Service) announceLeftChannels(ctx context.Context, userID string, left []leftChannel) {
 	for _, entry := range left {
-		if message, err := s.loadMessage(ctx, entry.messageID, spaceOf(entry.channel)); err != nil {
-			slog.Default().Warn("leave space: could not load its system message", "message_id", entry.messageID, "err", err)
-		} else {
-			s.publishTo(entry.channel, entry.remaining, events.Stamp(&realtimev1.ServerEvent{
-				Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
-			}))
-		}
 		s.publishTo(entry.channel, entry.remaining, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ChannelMemberLeft{
 				ChannelMemberLeft: &realtimev1.ChannelMemberChanged{
 					SpaceId: spaceOf(entry.channel), ChannelId: entry.channel.ID, UserId: userID,
 				},
 			},
+		}))
+		message, err := s.loadMessage(ctx, entry.messageID, spaceOf(entry.channel))
+		if err != nil {
+			slog.Default().Warn("leave space: could not load its system message", "message_id", entry.messageID, "err", err)
+			continue
+		}
+		s.publishTo(entry.channel, entry.remaining, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
 		}))
 	}
 }

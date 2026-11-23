@@ -33,8 +33,10 @@ SELECT u.id::uuid FROM unnest(sqlc.arg(user_ids)::uuid[]) AS u(id)
 WHERE EXISTS (SELECT 1 FROM channel_readers cr
               WHERE cr.channel_id = sqlc.arg(channel_id)::uuid AND cr.user_id = u.id);
 
+-- ListSpaceIDsByUser is in the order the person joined, so an account
+-- deletion leaves its spaces in a known order.
 -- name: ListSpaceIDsByUser :many
-SELECT space_id FROM space_members WHERE user_id = $1;
+SELECT space_id FROM space_members WHERE user_id = $1 ORDER BY joined_at, space_id;
 
 -- name: GetSpaceMemberRole :one
 SELECT role FROM space_members WHERE space_id = $1 AND user_id = $2;

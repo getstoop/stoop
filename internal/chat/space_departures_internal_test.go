@@ -101,11 +101,14 @@ func (f *systemRows) states(reader context.Context) map[string]channelState {
 type departureHeard struct {
 	rows map[string]*chatv1.Message
 	left []string
+	// order is each channel's events as they came: "left" for
+	// channel_member_left, "row" for the row.
+	order map[string][]string
 }
 
 func hearDepartures(t *testing.T, sub *events.Subscription) departureHeard {
 	t.Helper()
-	out := departureHeard{rows: map[string]*chatv1.Message{}}
+	out := departureHeard{rows: map[string]*chatv1.Message{}, order: map[string][]string{}}
 	for {
 		select {
 		case event := <-sub.Events():
@@ -120,8 +123,11 @@ func hearDepartures(t *testing.T, sub *events.Subscription) departureHeard {
 					t.Errorf("heard two left rows in channel %s", message.ChannelId)
 				}
 				out.rows[message.ChannelId] = message
+				out.order[message.ChannelId] = append(out.order[message.ChannelId], "row")
 			case *realtimev1.ServerEvent_ChannelMemberLeft:
-				out.left = append(out.left, payload.ChannelMemberLeft.ChannelId)
+				channelID := payload.ChannelMemberLeft.ChannelId
+				out.left = append(out.left, channelID)
+				out.order[channelID] = append(out.order[channelID], "left")
 			}
 		case <-time.After(300 * time.Millisecond):
 			slices.Sort(out.left)
@@ -248,6 +254,11 @@ func TestEveryDepartureRecordsLeft(t *testing.T) {
 				expected := slices.Sorted(slices.Values(channels))
 				if !reflect.DeepEqual(rows, expected) || !reflect.DeepEqual(got.left, expected) {
 					t.Errorf("%s heard rows in %v and leavings in %v, want both in %v", name, rows, got.left, expected)
+				}
+				for channelID, order := range got.order {
+					if !reflect.DeepEqual(order, []string{"left", "row"}) {
+						t.Errorf("%s heard %v in %s, want channel_member_left and then the row", name, order, channelID)
+					}
 				}
 			}
 			for _, name := range []string{"leaver", "space"} {
@@ -597,6 +608,9 @@ func TestAccountDeletionFailingPartWayAnnouncesWhatWasLeft(t *testing.T) {
 	fixture := newSystemRows(t)
 	ctx := context.Background()
 	catID := authctx.UserID(fixture.cat)
+	// cat's spaces in the order cat joined them, which is the order
+	// RemovePerson leaves them in (ListSpaceIDsByUser).
+	spaces := []string{fixture.spaceID}
 	for _, name := range []string{"Attic", "Cellar"} {
 		other, err := fixture.svc.CreateSpace(fixture.ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
 		if err != nil {
@@ -609,13 +623,12 @@ func TestAccountDeletionFailingPartWayAnnouncesWhatWasLeft(t *testing.T) {
 		if _, err := fixture.svc.JoinSpace(fixture.cat, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invite.Msg.Invite.Code})); err != nil {
 			t.Fatal(err)
 		}
+		spaces = append(spaces, other.Msg.Space.Id)
 	}
-	// The removal from the last space RemovePerson comes to fails as it
-	// records its row.
-	spaces, err := fixture.svc.q.ListSpaceIDsByUser(ctx, catID)
-	if err != nil || len(spaces) != 3 {
-		t.Fatalf("cat's spaces = %v, %v", spaces, err)
+	if listed, err := fixture.svc.q.ListSpaceIDsByUser(ctx, catID); err != nil || !reflect.DeepEqual(listed, spaces) {
+		t.Fatalf("cat's spaces listed as %v (%v), want the order joined, %v", listed, err, spaces)
 	}
+	// The removal from the last of them fails as it records its row.
 	failing, err := fixture.svc.CreateChannel(fixture.ada, connect.NewRequest(&chatv1.CreateChannelRequest{
 		SpaceId: spaces[2], Name: "failing", Kind: chatv1.ChannelKind_CHANNEL_KIND_TEXT, Private: true,
 	}))
@@ -663,5 +676,193 @@ func TestAccountDeletionFailingPartWayAnnouncesWhatWasLeft(t *testing.T) {
 		if want := map[bool]int{true: 0, false: 1}[member]; removed != want {
 			t.Errorf("space %d: cat a member %v, heard member_removed %d times, want %d", index, member, removed, want)
 		}
+	}
+}
+
+// settleFor is how long an interleaving test lets a goroutine reach the
+// lock it is meant to wait on.
+const settleFor = 400 * time.Millisecond
+
+// stalledKick starts a kick of cat that holds cat's membership and every
+// private channel of cat's below blockID, and waits on blockID, which
+// another transaction holds until release. done carries the kick's error.
+func stalledKick(t *testing.T, fixture *systemRows, blockID string) (release func(), done chan error) {
+	t.Helper()
+	ctx := context.Background()
+	tx, err := fixture.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.svc.q.WithTx(tx).LockChannel(ctx, blockID); err != nil {
+		t.Fatal(err)
+	}
+	done = make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.KickMember(fixture.ada, connect.NewRequest(&chatv1.KickMemberRequest{
+			SpaceId: fixture.spaceID, UserId: authctx.UserID(fixture.cat),
+		}))
+		done <- err
+	}()
+	time.Sleep(settleFor)
+	return func() { _ = tx.Rollback(ctx) }, done
+}
+
+// twoPrivateChannels are two private channels with these people, lower
+// id first.
+func (f *systemRows) twoPrivateChannels(members ...string) (lower, higher string) {
+	first := f.privateChannel("room-a", members...)
+	second := f.privateChannel("room-b", members...)
+	return min(first, second), max(first, second)
+}
+
+// A thread reply's alerts are written while cat is being removed: cat's
+// unread thread-reply item is refreshed and bea gets one. The removal
+// holds the channel and will delete cat's item; the write holds cat's
+// item and adds bea's, whose foreign key points at the channel. Holding
+// the channel FOR UPDATE stopped that check and the two waited on each
+// other; FOR NO KEY UPDATE lets it through, and both go in.
+func TestThreadAlertDuringDepartureDoesNotDeadlock(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	catID, beaID := authctx.UserID(fixture.cat), authctx.UserID(fixture.bea)
+	lower, higher := fixture.twoPrivateChannels(catID, beaID)
+	root := fixture.send(fixture.ada, &chatv1.SendMessageRequest{ChannelId: lower, Content: "root"})
+	first := fixture.send(fixture.ada, &chatv1.SendMessageRequest{ChannelId: lower, Content: "one", ThreadRootId: root.Id})
+	second := fixture.send(fixture.ada, &chatv1.SendMessageRequest{ChannelId: lower, Content: "two", ThreadRootId: root.Id})
+	about := func(id string) alert {
+		row, err := fixture.svc.q.GetMessage(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return alert{kind: activityKindThreadReply, coalesce: true, msg: row, spaceID: &fixture.spaceID}
+	}
+	if _, err := fixture.pool.Exec(ctx, `DELETE FROM activity_items`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.svc.writeActivityItems(ctx, []string{catID}, about(first.Id)); err != nil {
+		t.Fatal(err)
+	}
+
+	release, kicked := stalledKick(t, fixture, higher)
+	wrote := make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.writeActivityItems(ctx, []string{catID, beaID}, about(second.Id))
+		wrote <- err
+	}()
+	time.Sleep(settleFor)
+	release()
+	if err := <-kicked; err != nil {
+		t.Errorf("kick: %v", err)
+	}
+	if err := <-wrote; err != nil {
+		t.Errorf("alerts: %v", err)
+	}
+	var beas int
+	if err := fixture.pool.QueryRow(ctx,
+		`SELECT count(*) FROM activity_items WHERE user_id = $1 AND message_id = $2`, beaID, second.Id).Scan(&beas); err != nil {
+		t.Fatal(err)
+	}
+	if beas != 1 {
+		t.Errorf("bea has %d alerts for the reply, want 1", beas)
+	}
+}
+
+// A group cat stays in is saved while cat is being removed. The removal
+// holds cat's membership and, through its cascade, will delete cat's
+// group row. Clearing the group and adding everyone back held that row
+// and then waited on cat's membership for the re-insert's foreign key;
+// saving only the difference never touches cat's row, so both go in.
+func TestGroupSaveDuringDepartureDoesNotDeadlock(t *testing.T) {
+	fixture := newSystemRows(t)
+	catID, beaID := authctx.UserID(fixture.cat), authctx.UserID(fixture.bea)
+	_, higher := fixture.twoPrivateChannels(catID)
+	group, err := fixture.svc.CreateGroup(fixture.ada, connect.NewRequest(&chatv1.CreateGroupRequest{
+		SpaceId: fixture.spaceID, Handle: "crew", Name: "Crew", UserIds: []string{catID, beaID},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, kicked := stalledKick(t, fixture, higher)
+	saved := make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.UpdateGroup(fixture.ada, connect.NewRequest(&chatv1.UpdateGroupRequest{
+			GroupId: group.Msg.Group.Id, Handle: "crew", Name: "Crew two", UserIds: []string{catID, beaID},
+		}))
+		saved <- err
+	}()
+	time.Sleep(settleFor)
+	release()
+	if err := <-kicked; err != nil {
+		t.Errorf("kick: %v", err)
+	}
+	if err := <-saved; err != nil {
+		t.Errorf("save group: %v", err)
+	}
+}
+
+// The space is deleted while cat is being removed from it. The removal
+// holds cat's membership before any channel, and the delete's cascade
+// has to delete that membership, so the delete waits behind the removal
+// and both go through.
+func TestSpaceDeleteDuringDepartureDoesNotDeadlock(t *testing.T) {
+	fixture := newSystemRows(t)
+	catID := authctx.UserID(fixture.cat)
+	_, higher := fixture.twoPrivateChannels(catID)
+	release, kicked := stalledKick(t, fixture, higher)
+	deleted := make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.DeleteSpace(fixture.ada, connect.NewRequest(&chatv1.DeleteSpaceRequest{SpaceId: fixture.spaceID}))
+		deleted <- err
+	}()
+	time.Sleep(settleFor)
+	release()
+	if err := <-kicked; err != nil {
+		t.Errorf("kick: %v", err)
+	}
+	if err := <-deleted; err != nil {
+		t.Errorf("delete space: %v", err)
+	}
+}
+
+// Saving a group writes only the difference: a member who stays keeps
+// their row as it was, one dropped goes, one new comes in.
+func TestGroupSaveWritesTheDifference(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	adaID, beaID, catID := authctx.UserID(fixture.ada), authctx.UserID(fixture.bea), authctx.UserID(fixture.cat)
+	group, err := fixture.svc.CreateGroup(fixture.ada, connect.NewRequest(&chatv1.CreateGroupRequest{
+		SpaceId: fixture.spaceID, Handle: "crew", Name: "Crew", UserIds: []string{adaID, beaID},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := func(userID string) string {
+		var xmin string
+		if err := fixture.pool.QueryRow(ctx, `SELECT xmin::text FROM group_members WHERE group_id = $1 AND user_id = $2`,
+			group.Msg.Group.Id, userID).Scan(&xmin); err != nil {
+			t.Fatal(err)
+		}
+		return xmin
+	}
+	before := version(beaID)
+	saved, err := fixture.svc.UpdateGroup(fixture.ada, connect.NewRequest(&chatv1.UpdateGroupRequest{
+		GroupId: group.Msg.Group.Id, Handle: "crew", Name: "Crew two", UserIds: []string{beaID, catID},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := version(beaID); got != before {
+		t.Errorf("bea's row was rewritten (xmin %s, was %s)", got, before)
+	}
+	members, err := fixture.svc.q.ListGroupMemberIDsByGroupIDs(ctx, []string{group.Msg.Group.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(members)
+	if want := slices.Sorted(slices.Values([]string{beaID, catID})); !reflect.DeepEqual(members, want) {
+		t.Errorf("members = %v, want %v", members, want)
+	}
+	if got := saved.Msg.Group.GetName(); got != "Crew two" {
+		t.Errorf("saved name = %q", got)
 	}
 }

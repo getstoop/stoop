@@ -102,8 +102,14 @@ func (s *Service) UpdateGroup(ctx context.Context, req *connect.Request[chatv1.U
 		if err != nil {
 			return groupWriteError(err, input.handle)
 		}
-		if err := qtx.ClearGroupMembers(ctx, group.ID); err != nil {
-			return fmt.Errorf("clear group members: %w", err)
+		// Only the difference: a member who stays keeps their row
+		// untouched, so saving the group never waits on someone leaving
+		// the space (who holds their membership while its cascade takes
+		// their group rows) while holding a row that removal needs.
+		if err := qtx.RemoveGroupMembersExcept(ctx, dbgen.RemoveGroupMembersExceptParams{
+			GroupID: group.ID, UserIds: input.userIDs,
+		}); err != nil {
+			return fmt.Errorf("remove group members: %w", err)
 		}
 		return addGroupMembers(ctx, qtx, group, input.userIDs)
 	})

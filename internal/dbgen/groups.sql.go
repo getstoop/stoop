@@ -12,6 +12,7 @@ import (
 const addGroupMembers = `-- name: AddGroupMembers :exec
 INSERT INTO group_members (group_id, space_id, user_id)
 SELECT $1::uuid, $2::uuid, unnest($3::uuid[])
+ON CONFLICT DO NOTHING
 `
 
 type AddGroupMembersParams struct {
@@ -20,17 +21,11 @@ type AddGroupMembersParams struct {
 	UserIds []string
 }
 
+// AddGroupMembers puts these people in the group. Someone already in it
+// is left as they are: no write, and no foreign-key check on their
+// membership, which a removal from the space may be holding.
 func (q *Queries) AddGroupMembers(ctx context.Context, arg AddGroupMembersParams) error {
 	_, err := q.db.Exec(ctx, addGroupMembers, arg.GroupID, arg.SpaceID, arg.UserIds)
-	return err
-}
-
-const clearGroupMembers = `-- name: ClearGroupMembers :exec
-DELETE FROM group_members WHERE group_id = $1
-`
-
-func (q *Queries) ClearGroupMembers(ctx context.Context, groupID string) error {
-	_, err := q.db.Exec(ctx, clearGroupMembers, groupID)
 	return err
 }
 
@@ -246,6 +241,24 @@ func (q *Queries) ListSpaceGroupsByIDs(ctx context.Context, arg ListSpaceGroupsB
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeGroupMembersExcept = `-- name: RemoveGroupMembersExcept :exec
+DELETE FROM group_members
+WHERE group_id = $1::uuid AND user_id <> ALL ($2::uuid[])
+`
+
+type RemoveGroupMembersExceptParams struct {
+	GroupID string
+	UserIds []string
+}
+
+// RemoveGroupMembersExcept drops the group's members not in user_ids,
+// and touches no other row: saving a group leaves an unchanged member's
+// row alone.
+func (q *Queries) RemoveGroupMembersExcept(ctx context.Context, arg RemoveGroupMembersExceptParams) error {
+	_, err := q.db.Exec(ctx, removeGroupMembersExcept, arg.GroupID, arg.UserIds)
+	return err
 }
 
 const updateGroup = `-- name: UpdateGroup :one

@@ -251,9 +251,11 @@ func (q *Queries) ListPrivateChannelsOfMember(ctx context.Context, arg ListPriva
 }
 
 const listSpaceIDsByUser = `-- name: ListSpaceIDsByUser :many
-SELECT space_id FROM space_members WHERE user_id = $1
+SELECT space_id FROM space_members WHERE user_id = $1 ORDER BY joined_at, space_id
 `
 
+// ListSpaceIDsByUser is in the order the person joined, so an account
+// deletion leaves its spaces in a known order.
 func (q *Queries) ListSpaceIDsByUser(ctx context.Context, userID string) ([]string, error) {
 	rows, err := q.db.Query(ctx, listSpaceIDsByUser, userID)
 	if err != nil {

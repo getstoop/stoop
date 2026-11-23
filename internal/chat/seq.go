@@ -25,22 +25,35 @@ import (
 // the space (ReorderChannels). Two of them taking the same rows in
 // different orders would deadlock, and Postgres would fail one. The
 // retention sweep holds one channel per transaction and sorts its
-// channels too. Deleting a space is the exception: the cascade takes its
-// channels in whatever order it finds them, so a removal from that
-// space at the same instant can fail with a deadlock (or the delete
-// can); either way nothing is half done.
+// channels too. Deleting a space is the exception: its cascade takes the
+// channels in whatever order it finds them.
 //
 // One row may come before the channel rows: a removal from a space
 // takes the departing person's own space_members row first
 // (removeMember), so nobody can add them to a private channel while it
-// lists theirs. That is safe because the only thing holding a channel
-// row that then waits on someone's membership row is adding that person
-// to the channel (the channel_members foreign key), and the removal only
-// waits on channels the person is already in, where an add finds them
-// there and checks nothing (unless, in the instant between the listing
-// and the lock, they were taken out of it and added straight back: then
-// the two wait on each other and Postgres fails one, whole). Nothing
-// else may take a row before the channel rows.
+// lists theirs. It then holds those channels FOR NO KEY UPDATE
+// (LockChannelNoKey), which shuts out every other writer of a channel
+// but lets a foreign-key check through, so nothing that only points a
+// new row at the channel (an alert, a read marker) waits on it. After
+// the locks the removal waits only on rows its own statements and
+// cascade take: the person's activity items, channel memberships and
+// group memberships. Whoever holds one of those must not then wait on
+// the removal, which is why saving a group writes only the difference
+// (UpdateGroup) and never touches a member who stays. Nothing else may
+// take a row before the channel rows.
+//
+// Accepted, each failing one transaction whole with a deadlock error:
+//   - Between the removal listing a channel and locking it (which
+//     includes waiting on its lower-id channels), the person is taken
+//     out of it and added straight back. The re-add waits on the
+//     membership; the removal waits on the channel.
+//   - A reorder against a space delete: the reorder takes the channels
+//     in id order, the delete's cascade in its own.
+//   - A ban whose removal is the one that fails: BanMember commits the
+//     ban first, so the person is banned but still a member; the caller
+//     gets the error, and banning again finishes it.
+// A space delete against a removal does not deadlock: the cascade
+// reaches space_members before channels, and waits on the membership.
 
 // errMessageGone is the row to stamp no longer existing. It rolls the
 // transaction back, so the position it took is not spent. stampMessage
