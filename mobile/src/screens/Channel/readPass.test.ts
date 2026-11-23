@@ -23,6 +23,14 @@ describe("newestToRead", () => {
     expect(newestToRead([message("4"), systemRow("5"), systemRow("6")])).toBe("4");
   });
 
+  it("is the channel's last message when the page shown holds only quiet rows", () => {
+    expect(newestToRead([systemRow("5"), systemRow("6")], "4")).toBe("4");
+  });
+
+  it("is the newest shown message when the channel's last message is older", () => {
+    expect(newestToRead([message("4"), message("6"), systemRow("7")], "5")).toBe("6");
+  });
+
   it("is nothing with no message to read", () => {
     expect(newestToRead([systemRow("5")])).toBe("");
     expect(newestToRead([])).toBe("");

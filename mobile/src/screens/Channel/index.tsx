@@ -217,7 +217,10 @@ export default function Channel({
   // channelRead event is what reloads the badges (src/alerts, the
   // space's screen). It follows the newest row that is not quiet: a
   // system message marks nothing unread (readPass newestToRead).
-  const newestId = useMemo(() => newestToRead(messages), [messages]);
+  // The channel's last message stands in when the page shown holds only
+  // quiet rows.
+  const lastMessageId = header?.channel.lastMessageId ?? "";
+  const newestId = useMemo(() => newestToRead(messages, lastMessageId), [messages, lastMessageId]);
   useEffect(() => {
     void readShown(
       { marked },

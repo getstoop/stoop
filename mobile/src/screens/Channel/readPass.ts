@@ -12,9 +12,13 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 // row (a system message: the channel renamed, its topic set) marks
 // nothing unread, so moving the marker onto one would cost a call, and
 // the refetches its channelRead brings, for nothing; the marker stays
-// below it, which reads as everything read. "" when there is none.
-export function newestToRead(messages: Message[]): string {
-  return messages.findLast((message) => !message.quiet)?.id ?? "";
+// below it, which reads as everything read. The channel's last message
+// (`lastMessageId`, never a quiet row) instead when it is newer: a newest
+// page of nothing but quiet rows still reads the message before them.
+// "" when there is neither.
+export function newestToRead(messages: Message[], lastMessageId = ""): string {
+  const newest = messages.findLast((message) => !message.quiet)?.id ?? "";
+  return lastMessageId > newest ? lastMessageId : newest;
 }
 
 // Whether the newest row is past the reader's marker and not yet marked
