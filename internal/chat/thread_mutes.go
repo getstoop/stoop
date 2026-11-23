@@ -164,6 +164,9 @@ func (s *Service) readableRoot(ctx context.Context, rootID string) (messageRow, 
 		return messageRow{}, dbgen.Channel{}, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("that message is a reply, not a thread's root"))
 	}
+	if err := refuseSystemRow(root); err != nil {
+		return messageRow{}, dbgen.Channel{}, err
+	}
 	return root, channel, nil
 }
 

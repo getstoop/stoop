@@ -612,6 +612,11 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if err != nil {
 		return nil, err
 	}
+	// After the access checks, so the refusal tells only someone who may
+	// write here that the row is a system message.
+	if err := refuseSystemRow(msg); err != nil {
+		return nil, err
+	}
 	// Editing is posting again: a member's old message in what is now an
 	// announcement channel stays as it was, though they may delete it.
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
@@ -672,7 +677,21 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "channel")
 	}
-	if msg.AuthorID != authctx.UserID(ctx) {
+	switch {
+	case msg.Kind != 0:
+		// A system row is moderation's alone, its author's included: an
+		// admin may remove the text it carries (a topic, a channel name),
+		// and nobody may erase the record of their own action.
+		// A DM has no moderator, so nobody: the same answer as for
+		// someone else's message there.
+		if isDM(channel) {
+			return nil, connect.NewError(connect.CodePermissionDenied,
+				errors.New("you can only delete your own messages"))
+		}
+		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
+			return nil, err
+		}
+	case msg.AuthorID != authctx.UserID(ctx):
 		// In a DM there is no moderator: each person deletes only their own.
 		if isDM(channel) {
 			return nil, connect.NewError(connect.CodePermissionDenied,
@@ -681,10 +700,13 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
 			return nil, err
 		}
-	} else if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
-		return nil, err
-	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
-		return nil, err
+	default:
+		if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
+			return nil, err
+		}
+		if err := s.requireChannelMember(ctx, channel.ID); err != nil {
+			return nil, err
+		}
 	}
 	// A placeholder is a tombstone already: it goes with its last reply.
 	if msg.DeletedAt == nil {

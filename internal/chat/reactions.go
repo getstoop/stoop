@@ -56,6 +56,11 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	if err != nil {
 		return nil, err
 	}
+	// After the access checks, so the refusal tells only someone who may
+	// write here that the row is a system message.
+	if err := refuseSystemRow(msg); err != nil {
+		return nil, err
+	}
 
 	params := dbgen.AddReactionParams{MessageID: msg.ID, UserID: userID, Emoji: req.Msg.Emoji}
 	var seq int64

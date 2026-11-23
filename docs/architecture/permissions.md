@@ -150,7 +150,7 @@ Ownership is transferable, and the owner cannot leave without transferring
 | `members.manage` (kick, ban, set role ≤ admin) | ✓ | ✓ | |
 | `space.manage` (name, icon, description, welcome, settings) | ✓ | ✓ | |
 | `messages.notify_entire_channel` (`@channel`, `@here`) | ✓ | ✓ | |
-| `messages.moderate` (delete others' messages; own always) | ✓ | ✓ | |
+| `messages.moderate` (delete others' messages, and any [system message](messaging.md#system-messages); own always) | ✓ | ✓ | |
 | `space.transfer`, `space.delete` | ✓ | | |
 
 Reading, posting and joining voice need membership and nothing else.
