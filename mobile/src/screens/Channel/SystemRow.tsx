@@ -1,8 +1,16 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { type SystemGlyph, type SystemPart, systemLine, systemText } from "@stoop/core/systemMessages";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { memo } from "react";
-import { type ColorValue, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { memo, useState } from "react";
+import {
+  type AccessibilityActionEvent,
+  type ColorValue,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { messageTime } from "./messageTime";
@@ -17,6 +25,9 @@ const LINE = 18;
 // row's message.
 const MENU_ACTION = { name: "longpress", label: "Delete" };
 const VIEW_ACTION = { name: "view", label: "View message" };
+// The screen reader's way to unfold a long list of people, and to fold it.
+const UNFOLD_ACTION = { name: "activate", label: "Show everyone" };
+const FOLD_ACTION = { name: "activate", label: "Show fewer" };
 // A long press that opens nothing, so a hold on the excerpt is not a tap.
 const ignore = () => {};
 
@@ -35,17 +46,22 @@ function actionsHint(actions: { label: string }[]): string | undefined {
 // name of a renamed channel drawn the same, and the time in a column of
 // its own on the right, on the first line, so a sentence that wraps
 // never strands it. No avatar, reactions or thread. Names are plain
-// text, as mobile has no user card; "3 others" is its label alone. A
-// pin's excerpt, and the View after it, go to the pinned message
-// (onJumpTo); not once it has been deleted. To a screen reader it is one
-// element, the sentence and the time. A long press opens its menu
-// (onLongPress), which the screen gives only to someone who may
-// moderate messages (SystemMenu); everyone else gets nothing. A screen
-// reader is offered the menu as an action, Delete, and the jump as
-// another, View message, with a hint naming them. The glyph's box is one line of the sentence tall at
-// the system's text size, so it stays centred on the first line however
-// large the reader's text is. On a
-// menu's card (`card`) it is drawn again with the time's day.
+// text, as mobile has no user card. A row with a long list ("3 others")
+// unfolds to every name when tapped anywhere, a target the size of the
+// row, and folds again (with "Show fewer" after the names) on the next
+// tap; a row with no list to fold takes no tap, so another kind's own
+// tap targets have the row to themselves: a pin's excerpt, and the View
+// after it, go to the pinned message (onJumpTo); not once it has been
+// deleted. To a screen reader it is one element, the sentence as it now
+// reads and the time, whose activate action unfolds or folds the list.
+// A long press opens its menu (onLongPress), which the screen gives only
+// to someone who may moderate messages (SystemMenu); everyone else gets
+// nothing. A screen reader is offered the menu as an action, Delete, and
+// a pin row's jump as another, View message, with a hint naming them.
+// The glyph's box is one line of the sentence tall at the system's text
+// size, so it stays centred on the first line however large the
+// reader's text is. On a menu's card (`card`) it is drawn again with the
+// time's day.
 export default memo(function SystemRow({
   message,
   onLongPress,
@@ -61,26 +77,38 @@ export default memo(function SystemRow({
   const theme = useTheme();
   const styles = makeStyles(theme);
   const { fontScale } = useWindowDimensions();
-  const line = systemLine(message);
+  const [unfolded, setUnfolded] = useState(false);
+  const line = systemLine(message, unfolded);
   if (!line) return null;
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const time = created ? messageTime(created, card) : "";
   const hold = onLongPress && (() => onLongPress(message));
+  const toggle = line.fold && (() => setUnfolded((was) => !was));
   const target = card || !onJumpTo ? "" : jumpTarget(line.parts);
   const view = target ? () => onJumpTo?.(target) : undefined;
-  const actions = [...(view ? [VIEW_ACTION] : []), ...(hold ? [MENU_ACTION] : [])];
+  // The named actions the hint lists; the fold is the row's activate.
+  const named = [...(view ? [VIEW_ACTION] : []), ...(hold ? [MENU_ACTION] : [])];
+  const actions = [...(toggle ? [unfolded ? FOLD_ACTION : UNFOLD_ACTION] : []), ...named];
+  const act = (event: AccessibilityActionEvent) => {
+    if (event.nativeEvent.actionName === "activate") toggle?.();
+    if (event.nativeEvent.actionName === "longpress") hold?.();
+    if (event.nativeEvent.actionName === "view") view?.();
+  };
   return (
     <Pressable
       onLongPress={hold}
       accessible
       accessibilityLabel={time ? `${systemText(line.parts)}, ${time}` : systemText(line.parts)}
-      accessibilityHint={actionsHint(actions)}
+      accessibilityHint={
+        [toggle && (unfolded ? "Shows fewer people" : "Shows everyone added"), actionsHint(named)]
+          .filter(Boolean)
+          .join(". ") || undefined
+      }
+      accessibilityState={toggle ? { expanded: unfolded } : undefined}
       accessibilityActions={actions.length > 0 ? actions : undefined}
-      onAccessibilityAction={(event) => {
-        if (event.nativeEvent.actionName === "longpress") hold?.();
-        else if (event.nativeEvent.actionName === "view") view?.();
-      }}
-      style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!hold && styles.pressed]}
+      onAccessibilityAction={actions.length > 0 ? act : undefined}
+      onPress={toggle}
+      style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!(hold || toggle) && styles.pressed]}
     >
       <View style={[styles.glyph, { height: LINE * fontScale }]}>
         <Glyph glyph={line.glyph} color={theme.textMuted} />
@@ -90,6 +118,12 @@ export default memo(function SystemRow({
           // Keyed by place: a row's parts never reorder.
           <Part key={index} part={part} styles={styles} onView={view} onLongPress={hold} />
         ))}
+        {toggle && unfolded && (
+          <>
+            {" "}
+            <Text style={styles.fold}>Show fewer</Text>
+          </>
+        )}
       </Text>
       {time !== "" && <Text style={styles.time}>{time}</Text>}
     </Pressable>
@@ -224,6 +258,12 @@ function makeStyles(theme: Theme) {
     // The way to a pin's message, after its excerpt: muted and underlined,
     // as on web.
     view: {
+      fontSize: tokens.textSm,
+      textDecorationLine: "underline",
+    },
+    // "Show fewer", after an unfolded list: muted and underlined, as web's.
+    fold: {
+      color: theme.textMuted,
       fontSize: tokens.textSm,
       textDecorationLine: "underline",
     },

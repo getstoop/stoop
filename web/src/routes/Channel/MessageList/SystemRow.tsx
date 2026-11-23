@@ -1,5 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { memo } from "react";
+import { type MouseEvent, memo, useEffect, useRef } from "react";
 import { useAuthorShown } from "../../../api/authors";
 import { BotMark } from "../../../components/BotMark";
 import { DeletedMark } from "../../../components/DeletedMark";
@@ -20,7 +20,11 @@ import type {
 // messages): a glyph in the avatar column, the sentence core/systemMessages
 // words in muted text with names in full ink, and the time after it. No
 // avatar, reactions or thread; a moderator's only action is Delete. A pin
-// row's View goes to the pinned message, until it is deleted.
+// row's View goes to the pinned message, until it is deleted. A
+// long list's "N others" unfolds in place to every name, with "Show
+// fewer" to fold it again; the virtual list measures the row again as
+// its height changes. Which rows are unfolded is the list's to hold
+// (unfolded, onToggleFold), so a row keeps it across leaving the window.
 export const SystemRow = memo(function SystemRow({
   message,
   index,
@@ -33,6 +37,8 @@ export const SystemRow = memo(function SystemRow({
   onCard,
   onDelete,
   onJumpTo,
+  unfolded = false,
+  onToggleFold,
 }: {
   message: Message;
   // Its place in the virtualised list, as a MessageRow's.
@@ -49,8 +55,24 @@ export const SystemRow = memo(function SystemRow({
   onDelete: (message: Message) => void;
   // The in-list jump, for a pin row's View.
   onJumpTo: (id: string) => void;
+  unfolded?: boolean;
+  onToggleFold: (messageId: string) => void;
 }) {
-  const line = systemLine(message);
+  // The row whose control was just used: focus moves to the control that
+  // takes its place, so it is not lost with the one that went.
+  const refocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const row = refocus.current;
+    refocus.current = null;
+    row
+      ?.querySelector<HTMLElement>(unfolded ? ".system-fold" : ".system-others")
+      ?.focus();
+  }, [unfolded]);
+  const toggle = (event: MouseEvent<HTMLElement>) => {
+    refocus.current = event.currentTarget.closest(".system-row");
+    onToggleFold(message.id);
+  };
+  const line = systemLine(message, unfolded);
   if (!line) return null;
   const created = message.createdAt
     ? timestampDate(message.createdAt)
@@ -81,9 +103,20 @@ export const SystemRow = memo(function SystemRow({
             members={members}
             onCard={onCard}
             onJumpTo={onJumpTo}
+            onUnfold={toggle}
           />
         ))}
       </span>
+      {line.fold === "unfolded" && (
+        <button
+          type="button"
+          className="system-fold"
+          aria-expanded="true"
+          onClick={toggle}
+        >
+          Show fewer
+        </button>
+      )}
       <span className="system-time" title={created && fullDateTime(created)}>
         {time}
       </span>
@@ -109,11 +142,13 @@ function Part({
   members,
   onCard,
   onJumpTo,
+  onUnfold,
 }: {
   part: SystemPart;
   members: MentionMembers;
   onCard: (userId: string, anchor: DOMRect) => void;
   onJumpTo: (id: string) => void;
+  onUnfold: (event: MouseEvent<HTMLElement>) => void;
 }) {
   switch (part.kind) {
     case "text":
@@ -121,7 +156,16 @@ function Part({
     case "person":
       return <Person person={part.person} members={members} onCard={onCard} />;
     case "others":
-      return <span className="system-emphasis">{part.label}</span>;
+      return (
+        <button
+          type="button"
+          className="system-person system-others"
+          aria-expanded="false"
+          onClick={onUnfold}
+        >
+          {part.label}
+        </button>
+      );
     case "channel":
       return part.current ? (
         <span className="system-emphasis">#{part.name}</span>

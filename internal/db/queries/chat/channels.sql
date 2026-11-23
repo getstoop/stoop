@@ -60,6 +60,16 @@ RETURNING *;
 -- name: LockChannel :one
 SELECT id FROM channels WHERE id = $1 FOR UPDATE;
 
+-- LockChannelNoKey is LockChannel for a transaction that writes the
+-- channel's messages and membership but must not hold up a row that only
+-- points at the channel. It excludes every other writer of the channel
+-- (NextChannelSeq, LockChannel, ShareChannel, a reorder, a delete) as
+-- LockChannel does, but lets a foreign-key check through: an activity
+-- item or a read marker being written for someone else in the channel
+-- does not wait on it, and so can't be caught in a cycle with it.
+-- name: LockChannelNoKey :one
+SELECT id FROM channels WHERE id = $1 FOR NO KEY UPDATE;
+
 -- ShareChannel is LockChannel for a transaction that only reads the
 -- channel's messages but writes rows a writer there also takes (a read
 -- marker and its activity): it waits for the writers and they for it,

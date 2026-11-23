@@ -991,8 +991,10 @@ happened in its channel: members added to a private channel, a member
 gone from one, the channel renamed, its topic changed, a message pinned,
 announcement mode switched. It is a message row so that paging, the
 channel log, live delivery and retention carry it with no second stream
-to merge. `UpdateChannel` records the three channel changes and `pin` the
-pin; membership and departures from the space follow.
+to merge. `UpdateChannel` records the three channel changes, a private
+channel's membership calls record who was added and who left, every way
+of leaving a space records "left" in its private channels, and `pin`
+records a pin.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
@@ -1026,9 +1028,12 @@ pin; membership and departures from the space follow.
   together: it takes the channel's next seq, inserts the row, sets the
   channel's last message only when the row is not quiet, and returns the
   row. The caller takes the channel row before any other row it writes
-  (`LockChannel`, or a `NextChannelSeq` that is the transaction's first
-  statement; the rule in `seq.go`) and publishes `MessageCreated`
-  after its commit, in seq order with anything else it publishes. The
+  (`LockChannel`, `LockChannelNoKey` on the membership paths, or a
+  `NextChannelSeq` that is the transaction's first statement, as `pin`
+  does; the rule in `seq.go`, whose one exception is a departure from
+  the space taking the person's membership row first) and publishes
+  `MessageCreated` after its commit, in seq order with anything else it
+  publishes. The
   message it publishes is `loadMessage` of the row, which is the row as
   `ListMessages` returns it; `toProtoMessage` alone fills neither the
   event nor the reference.
@@ -1092,6 +1097,88 @@ pin; membership and departures from the space follow.
   since the rows go in its transaction. After the commit the channel's
   `channel_updated` goes out, then each row's `message_created` in seq
   order, to whoever may read the channel.
+- **Membership** (`channel_members.go`, private channels only; a public
+  channel holds everyone in the space, so nobody joins or leaves it).
+  `addMembers`, behind `AddChannelMembers` and a webhook's bot
+  (`AddBotToChannel`), holds the channel row first, inserts the people, and
+  records one "added" row by the caller naming only those it put in:
+  someone already in is left out, and a call that puts nobody in
+  records nothing. An admin outside the channel who adds only
+  themself is the row's author and its one member, which reads
+  "joined". After the commit each new member is sent the channel
+  (`channel_created`) and the join, and only then does the row go to
+  everyone in it, so a new member's client has the channel when the row
+  arrives. `removeFromChannel`, behind `LeaveChannel`,
+  `RemoveChannelMember` and `RemoveBotFromChannel`, holds the channel
+  row before it deletes the member and their activity (a send by the
+  same person takes the channel row and then marks their activity read,
+  so the other order deadlocks), and records a "left" row whose author
+  is the person who went. Both hold it `FOR NO KEY UPDATE`
+  (`LockChannelNoKey`), as a departure from the space does: an alert
+  being written for someone else in the channel, which may hold the
+  departing person's alert, gets its foreign-key check through rather
+  than wait on the removal. A removal records exactly what a leave does:
+  nothing stores or shows who removed them. The people who remain, read
+  in the same transaction, get `channel_member_left` and then the row;
+  the person who went gets only `channel_deleted`. Making a
+  private channel records nothing, as its maker is in it from the
+  start.
+- **Departures from the space** (`removeMember`, `members.go`). Leaving
+  the space, a kick, a ban, a bot's removal and an account deletion
+  (`RemovePerson`, once per space) all end there, and each records one
+  "left" row (`memberLeft`, no data) in every private channel of the
+  space the person was in, text or voice, with the person as its
+  author. Nothing on the row says why they went or who removed them; a
+  public channel records nothing. The one transaction first holds the
+  person's own membership row (`LockSpaceMember`), so nobody can add
+  them to a private channel meanwhile: an add checks that row (the
+  `channel_members` foreign key), so it either finished first and is
+  listed, or waits and is then refused as not a member. Then it lists
+  their private channels (`ListPrivateChannelsOfMember`), since deleting
+  the membership cascades their `channel_members` rows away, and
+  locks them in id order, the order every transaction holding more than
+  one channel row takes them in (`seq.go`; `ReorderChannels` writes its
+  positions in id order for this), so two removals sharing channels, or
+  a removal and a reorder, never wait on each other in a circle. The
+  channels are held `FOR NO KEY UPDATE` (`LockChannelNoKey`): every
+  other writer of the channel waits, but a foreign-key check does not,
+  so an alert being written for someone else there goes through rather
+  than wait on the removal while holding the departing person's alert.
+  Taking the membership row before the channel rows is the one
+  exception to `seq.go`'s rule. After its locks the removal waits only
+  on rows its own statements and cascade take (the person's alerts,
+  channel memberships and group memberships), and nothing holding one
+  of those then waits on a departing person's membership: saving a
+  group (`UpdateGroup`), the one writer of them that also checks
+  memberships, writes only the difference, never touching a member who
+  stays, and adds its new members before it deletes any row, so it
+  holds none while it waits. A space delete waits
+  behind a removal: its cascade reaches the membership before the
+  channels. It reads the list again under the locks, dropping a channel
+  deleted or left meanwhile. Then it deletes the activity and the
+  membership and records the rows. A removal that fails takes its rows
+  back with it; a ban writes the ban first, in its own statement, and
+  the rows go in the removal's transaction. After the commit, the people
+  who remain in each channel get `channel_member_left` and then the
+  row's `message_created`: membership before the row, as a removal from
+  the one channel sends it and as an add sends the join before its row.
+  Then the space gets `member_removed`. The person who left is sent none
+  of it. An account deletion publishes the rows before the account is
+  marked deleted, so they go out with the old name; the web client
+  corrects it when `member_removed` has it refetch the profile (the
+  mobile app shows the row's name as it was sent),
+  and history reads the author as deleted from then on. Every "added"
+  row naming someone who then leaves the space is followed by their
+  "left" row.
+  Accepted, each failing one transaction whole with a deadlock error
+  (`seq.go` lists them): the person taken out of a listed channel and
+  added straight back before the removal locks it (a window that
+  includes waiting on lower-id channels); a space delete against
+  anything that holds a channel or group row and then checks a
+  membership, or holds channels in another order (a reorder, an add to
+  a private channel, a group save), since the delete's cascade takes
+  them in its own order; and a ban whose removal is the one that fails, which leaves the
+  person banned but still a member until the ban is made again.
 - **Pins** (`pin`, `pins.go`). One transaction stamps the pinned message
   (its seq, the first statement, takes the channel row), creates the pin
   and records a row by the
@@ -1112,7 +1199,10 @@ pin; membership and departures from the space follow.
   list leaves out), and `systemText` reads the parts as one line of
   words. A list of people names up to three and otherwise the first two
   and a count, as a group conversation's title does; one person added
-  who is the row's author reads "joined". A kind the client does not
+  who is the row's author reads "joined". The count unfolds:
+  `systemLine(message, true)` names everyone, and the line's `fold`
+  says whether it has a long list and which way it is drawn, so each
+  client offers "N others" to unfold it and "Show fewer" to fold it. A kind the client does not
   know shows nothing when the row is quiet (`withoutHiddenSystemRows`,
   applied where each client builds its list, before grouping, and not
   in the channel log's `isShown`, which range edges and the cap count

@@ -22,6 +22,13 @@ func TestE2EDeleteAccount(t *testing.T) {
 	h.rpc(ada, "stoop.chat.v1.ChatService/SetMemberRole", map[string]any{"spaceId": shared, "userId": h.userID(bea), "role": "SPACE_ROLE_ADMIN"}).expect(t, "ok")
 	alone, _ := h.space(ada, "Alone")
 	h.send(ada, sharedGeneral, "I was here").expect(t, "ok")
+	// A private channel ada and bea share.
+	inner := h.rpc(ada, "stoop.chat.v1.ChatService/CreateChannel", map[string]any{
+		"spaceId": shared, "name": "inner", "kind": "CHANNEL_KIND_TEXT", "private": true,
+	}).expect(t, "ok").str("channel.id")
+	h.rpc(ada, "stoop.chat.v1.ChatService/AddChannelMembers", map[string]any{
+		"channelId": inner, "userIds": []string{h.userID(bea)},
+	}).expect(t, "ok")
 
 	// A token never deletes an account.
 	pat := h.pat(ada, "messages.read")
@@ -47,6 +54,19 @@ func TestE2EDeleteAccount(t *testing.T) {
 	author := m["author"].(map[string]any)
 	if author["deleted"] != true || author["username"] != "ada" || author["displayName"] != "ada" {
 		t.Errorf("author after deletion = %v", author)
+	}
+	// The private channel records that ada left, by a deleted account.
+	var left []map[string]any
+	for _, message := range h.messages(bea, inner) {
+		if event, _ := message["event"].(map[string]any); event != nil && event["memberLeft"] != nil {
+			left = append(left, message)
+		}
+	}
+	if len(left) != 1 {
+		t.Fatalf("left rows in the private channel = %v, want one", left)
+	}
+	if author := left[0]["author"].(map[string]any); author["id"] != adaID || author["deleted"] != true {
+		t.Errorf("left row's author after deletion = %v, want ada, deleted", author)
 	}
 	profile := h.rpc(bea, "stoop.auth.v1.AuthService/GetUserProfile", map[string]any{"userId": adaID}).expect(t, "ok")
 	if !strings.Contains(profile.raw, `"deleted":true`) || strings.Contains(profile.raw, `"bio":`) {

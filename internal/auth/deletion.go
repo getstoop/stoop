@@ -22,8 +22,10 @@ type DeletionPolicy interface {
 // AccountDeparture is auth's port onto chat for what a deleted person
 // leaves behind: the spaces they own go to someone else, and they leave
 // every space. fallbackOwnerID takes a space no space admin can. The
-// announcement is a second call, made once the account reads as
-// deleted, so what clients fetch on hearing it carries the mark.
+// announcement is a second call, made after the account is marked
+// deleted so what clients fetch on hearing it carries the mark; when a
+// step after RemovePerson fails, it is made anyway, for an account still
+// live, since the spaces have been left either way.
 type AccountDeparture interface {
 	RemovePerson(ctx context.Context, userID, fallbackOwnerID string) (spaceIDs []string, err error)
 	AnnounceDeparture(ctx context.Context, userID string, spaceIDs []string)
@@ -93,6 +95,11 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 		if left, err = s.departure.RemovePerson(ctx, id.UserID, fallback); err != nil {
 			return nil, err
 		}
+		// The spaces are left from here on, whatever happens next: they
+		// hear it on the way out, after the account is marked deleted
+		// when that goes through, and with the account still live when a
+		// later step fails (deleting it again finishes the rest).
+		defer s.departure.AnnounceDeparture(ctx, id.UserID, left)
 	}
 	if _, err := s.underAdminGuard(ctx, id.UserID, func(qtx *dbgen.Queries) (dbgen.User, error) {
 		if err := qtx.DeleteUserIdentities(ctx, id.UserID); err != nil {
@@ -107,9 +114,6 @@ func (s *Service) DeleteAccount(ctx context.Context, req *connect.Request[authv1
 	}
 	if err := s.revokeAll(ctx, id.UserID); err != nil {
 		return nil, err
-	}
-	if s.departure != nil {
-		s.departure.AnnounceDeparture(ctx, id.UserID, left)
 	}
 	return connect.NewResponse(&authv1.DeleteAccountResponse{}), nil
 }

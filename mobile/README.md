@@ -771,21 +771,28 @@ and closes the view as it goes. The screens (`src/screens/Channel`,
 `src/screens/Thread`) mark read and draw the rows `core/grouping.ts`
 groups (day lines, the "New" line, which message continues the one
 before). A system message (a channel renamed, its topic set,
-announcement mode switched) is a row of its own
+announcement mode switched, people added to a private channel or gone
+from it) is a row of its own
 (`src/screens/Channel/SystemRow.tsx`), in the wording
 `core/systemMessages.ts` shares with web: a 16pt glyph for its kind in
 the avatar column, the sentence in muted text with the people it names
 and a renamed channel's new name in full ink (a deleted account marked
 "(deleted)", as an author is), and the time in a right-aligned column
 on its first line, so a sentence that wraps never strands it. Names are
-plain text (the app has no user card) and "3 others" is its label
-alone. A pin's excerpt, with a muted View after it, goes to the pinned
-message when tapped: the channel engine's `jumpTo`, as opening the
-screen at a message does, so a message the server no longer has is said
-over the composer; a deleted one reads "(since deleted)" and goes
-nowhere. A screen reader hears the row as one element, the sentence
-and the time, and is offered the jump as an action, View message, and
-for a moderator the menu as another, Delete. The glyph stays
+plain text (the app has no user card). A row with a long list ("3
+others") unfolds to every name on a tap anywhere on it, and folds again
+on the next, with "Show fewer" after the names; a row with nothing to
+fold takes no tap. A pin's excerpt, with a muted View after it, goes to
+the pinned message when tapped: the channel engine's `jumpTo`, as
+opening the screen at a message does, so a message the server no longer
+has is said over the composer; a deleted one reads "(since deleted)"
+and goes nowhere, and a long press on the excerpt is never taken as a
+tap. A screen reader hears the row as one element, the sentence as it
+is now drawn and the time, marked expanded or collapsed when it has a
+long list, which its activate action (a double tap, with a hint saying
+what it does) unfolds or folds; a pin row offers the jump as an action,
+View message, and for a moderator any row offers the menu as another,
+Delete. The glyph stays
 centred on the first line at any text size. A long press opens a menu
 only for someone who may moderate messages (`core/permissions`
 `canDeleteAnyMessage`; being the row's author grants nothing, so it is

@@ -710,7 +710,17 @@ window" is what the view's range holds.
   A pin row's View, after its excerpt, is the list's own `jumpTo`
   (passed as `onJumpTo`, as a quote's is), which loads the page around
   a message the list does not hold; a deleted message's row has no
-  View. A jump to one (`indexOfMessage`) lands on it as on a message. The
+  View.
+  A long list's "N others" is a button (`aria-expanded="false"`) that
+  unfolds the row in place to every name, each with the same overlay and
+  card as the names already shown, and "Show fewer"
+  (`aria-expanded="true"`) after them folds it again; focus moves to
+  whichever control takes the place of the one used. The virtual list
+  observes each row's size, so the row is measured again as it grows or
+  shrinks. The list holds which rows are unfolded, by message id, so a
+  row that leaves the DOM comes back as it was and the height the list
+  remembered for it still holds.
+  A jump to one (`indexOfMessage`) lands on it as on a message. The
   list leaves out quiet rows of a kind it does not know before grouping,
   and an arrival that is quiet does not count on the pill.
 
