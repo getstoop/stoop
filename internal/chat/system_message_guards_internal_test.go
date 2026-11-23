@@ -48,6 +48,11 @@ func TestSystemRowRefusesWhatAPersonWrote(t *testing.T) {
 				t.Errorf("kind %d, %s: err = %v, want the system-message refusal", event.kind(), write, err)
 			}
 		}
+		// Anyone else is refused as for another person's message, before
+		// learning what the row is.
+		if _, err := fixture.svc.EditMessage(fixture.bea, connect.NewRequest(&chatv1.EditMessageRequest{MessageId: row.ID, Content: "rewritten"})); connect.CodeOf(err) != connect.CodePermissionDenied {
+			t.Errorf("kind %d, edit by someone else: err = %v, want PermissionDenied", event.kind(), err)
+		}
 		message := fixture.load(row.ID)
 		if message.Deleted || message.Pinned || len(message.Reactions) > 0 || message.Thread != nil ||
 			message.EditedAt != nil || message.Content != "" {

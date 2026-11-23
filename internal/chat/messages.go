@@ -601,9 +601,6 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if msg.DeletedAt != nil {
 		return nil, placeholderError()
 	}
-	if err := refuseSystemRow(msg); err != nil {
-		return nil, err
-	}
 	if msg.AuthorID != authctx.UserID(ctx) {
 		return nil, connect.NewError(connect.CodePermissionDenied,
 			errors.New("you can only edit your own messages"))
@@ -613,6 +610,11 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	// its links.
 	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
+		return nil, err
+	}
+	// After the access checks, so the refusal tells only someone who may
+	// write here that the row is a system message.
+	if err := refuseSystemRow(msg); err != nil {
 		return nil, err
 	}
 	// Editing is posting again: a member's old message in what is now an
@@ -680,9 +682,11 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 		// A system row is moderation's alone, its author's included: an
 		// admin may remove the text it carries (a topic, a channel name),
 		// and nobody may erase the record of their own action.
+		// A DM has no moderator, so nobody: the same answer as for
+		// someone else's message there.
 		if isDM(channel) {
 			return nil, connect.NewError(connect.CodePermissionDenied,
-				errors.New("direct messages have no moderators"))
+				errors.New("you can only delete your own messages"))
 		}
 		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
 			return nil, err

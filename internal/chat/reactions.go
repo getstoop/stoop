@@ -52,11 +52,13 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	if msg.DeletedAt != nil {
 		return nil, placeholderError()
 	}
-	if err := refuseSystemRow(msg); err != nil {
-		return nil, err
-	}
 	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
+		return nil, err
+	}
+	// After the access checks, so the refusal tells only someone who may
+	// write here that the row is a system message.
+	if err := refuseSystemRow(msg); err != nil {
 		return nil, err
 	}
 
