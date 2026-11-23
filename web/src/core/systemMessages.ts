@@ -24,8 +24,8 @@ export type SystemPart =
   // Someone named in the row, as the row was sent: each client passes
   // them through its live-name overlay, as it does an author.
   | { kind: "person"; person: MessageAuthor }
-  // The people a long list leaves out, as "3 others": drawn as one
-  // phrase now, and the control that unfolds them later.
+  // The people a long list leaves out, as "3 others": the control that
+  // unfolds the list (systemLine with unfolded) to name them all.
   | { kind: "others"; label: string; people: MessageAuthor[] }
   // A channel's name with its #; current is the name it has now (the new
   // one in a rename), drawn in full ink.
@@ -34,7 +34,14 @@ export type SystemPart =
   // "(since deleted)" once the message is gone (deleted).
   | { kind: "excerpt"; messageId: string; text: string; deleted: boolean };
 
-export type SystemLine = { glyph: SystemGlyph; parts: SystemPart[] };
+export type SystemLine = {
+  glyph: SystemGlyph;
+  parts: SystemPart[];
+  // Set only on a line with a list long enough to fold: "folded" while
+  // it counts the rest as others, "unfolded" while it names everyone
+  // (and the client offers to fold it again).
+  fold?: "folded" | "unfolded";
+};
 
 // A kind this client does not know, on a row that is not quiet.
 const UNKNOWN: SystemLine = {
@@ -70,8 +77,12 @@ export function withoutHiddenSystemRows(messages: Message[]): Message[] {
 }
 
 // What a system message says; null for a hidden row, and for a row that
-// is not a system message.
-export function systemLine(message: Message): SystemLine | null {
+// is not a system message. A long list of people is folded to "A, B and
+// N others" unless unfolded, which names them all.
+export function systemLine(
+  message: Message,
+  unfolded = false,
+): SystemLine | null {
   const event = message.event;
   if (!event) return null;
   const actor = person(message.author);
@@ -83,7 +94,10 @@ export function systemLine(message: Message): SystemLine | null {
         return { glyph: "arrow-in", parts: [actor, text(" joined")] };
       return {
         glyph: "person-plus",
-        parts: [actor, text(" added "), ...peopleList(members)],
+        parts: [actor, text(" added "), ...peopleList(members, unfolded)],
+        ...(members.length > NAMED && {
+          fold: unfolded ? "unfolded" : "folded",
+        }),
       };
     }
     case "memberLeft":
@@ -192,10 +206,12 @@ function person(author: MessageAuthor | undefined): SystemPart {
     : { kind: "text", text: "Someone" };
 }
 
-// "A", "A and B", "A, B and C", "A, B and 3 others".
-function peopleList(people: MessageAuthor[]): SystemPart[] {
+// "A", "A and B", "A, B and C", "A, B and 3 others"; unfolded, every
+// name: "A, B, C, D and E".
+function peopleList(people: MessageAuthor[], unfolded: boolean): SystemPart[] {
   if (people.length === 0) return [text("no one")];
-  const named = people.length > NAMED ? people.slice(0, 2) : people;
+  const named =
+    people.length > NAMED && !unfolded ? people.slice(0, 2) : people;
   const parts: SystemPart[] = [];
   named.forEach((member, index) => {
     if (index > 0)

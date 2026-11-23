@@ -771,17 +771,21 @@ and closes the view as it goes. The screens (`src/screens/Channel`,
 `src/screens/Thread`) mark read and draw the rows `core/grouping.ts`
 groups (day lines, the "New" line, which message continues the one
 before). A system message (a channel renamed, its topic set,
-announcement mode switched) is a row of its own
+announcement mode switched, people added to a private channel or gone
+from it) is a row of its own
 (`src/screens/Channel/SystemRow.tsx`), in the wording
 `core/systemMessages.ts` shares with web: a 16pt glyph for its kind in
 the avatar column, the sentence in muted text with the people it names
 and a renamed channel's new name in full ink (a deleted account marked
 "(deleted)", as an author is), and the time in a right-aligned column
 on its first line, so a sentence that wraps never strands it. Names are
-plain text (the app has no user card), "3 others" is its label alone
-and a pin's excerpt is words, for now. A screen reader hears the row
-as one element, the sentence and the time, and for a moderator is
-offered the menu as the row's one action, Delete. The glyph stays
+plain text (the app has no user card) and a pin's excerpt is words,
+for now. A long list's "3 others" unfolds the row to every name when
+tapped, with "Show fewer" after them to fold it again. A screen reader
+hears the row as one element, the sentence as it is now drawn and the
+time, marked expanded or collapsed when it has a long list, which its
+activate action (a double tap, with a hint saying what it does) unfolds
+or folds; for a moderator it also offers the menu as an action, Delete. The glyph stays
 centred on the first line at any text size. A long press opens a menu
 only for someone who may moderate messages (`core/permissions`
 `canDeleteAnyMessage`; being the row's author grants nothing, so it is

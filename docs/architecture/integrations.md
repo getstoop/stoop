@@ -75,7 +75,10 @@ blocks, mentions and the `@channel` refusal apply as they do to anyone.
 A hook into a private channel needs its bot in that channel, so creating
 one adds the bot (`AddBotToChannel`), for a caller who is in the channel
 themself. A create that fails takes the bot back out unless another of
-its hooks posts there.
+its hooks posts there. The channel's people see both: putting the bot in
+records a [system message](messaging.md#system-messages) by the person
+making the hook naming the bot as added, and taking it out records the
+bot as having left, so a failed create leaves the two rows behind.
 
 | Body | Read from |
 | --- | --- |

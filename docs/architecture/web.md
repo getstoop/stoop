@@ -707,6 +707,14 @@ window" is what the view's range holds.
   (`styles/system-messages.css`). No avatar, reactions, thread or
   toolbar, except Delete for someone with `messages.moderate`, with
   its own confirm (`removeSystem` in `MessageList/useRowHandlers.ts`).
+  A long list's "N others" is a button (`aria-expanded="false"`) that
+  unfolds the row in place to every name, each with the same overlay and
+  card as the names already shown, and "Show fewer"
+  (`aria-expanded="true"`) after them folds it again; focus moves to
+  whichever control takes the place of the one used. The virtual list
+  observes each row's size, so the row is measured again as it grows or
+  shrinks. The state is the row's own and is forgotten when the row
+  leaves the DOM.
   A jump to one (`indexOfMessage`) lands on it as on a message. The
   list leaves out quiet rows of a kind it does not know before grouping,
   and an arrival that is quiet does not count on the pill.

@@ -97,15 +97,16 @@ func TestPrivateChannelPeople(t *testing.T) {
 	if err := add(fixture.owner, fixture.secretID, fixture.cal, fixture.bea); err != nil {
 		t.Fatal(err)
 	}
-	if got := received(added); len(got) != 2 {
-		t.Errorf("the person added was sent %v, want the channel and the join", got)
+	if got := received(added); !slices.Equal(got, []string{"other", "other", "message_created"}) {
+		t.Errorf("the person added was sent %v, want the channel, the join and the row", got)
 	}
-	if got := received(inside); len(got) != 1 {
-		t.Errorf("someone already in was sent %v, want one join", got)
+	if got := received(inside); !slices.Equal(got, []string{"other", "message_created"}) {
+		t.Errorf("someone already in was sent %v, want one join and the row", got)
 	}
-	// History is all of it for someone added later.
+	// History is all of it for someone added later, the row that added
+	// them included.
 	history, err := svc.ListMessages(fixture.cal, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: fixture.secretID}))
-	if err != nil || len(history.Msg.Messages) != 1 {
+	if err != nil || len(history.Msg.Messages) != 2 {
 		t.Errorf("history for someone added later: %v %v", history, err)
 	}
 	fixture.send(t, fixture.bea, mentionOf(fixture.cal)+" welcome", "")

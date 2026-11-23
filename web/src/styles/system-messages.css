@@ -51,6 +51,23 @@
   color: var(--text);
 }
 
+/* "Show fewer", after an unfolded list of people. */
+.system-fold {
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.system-fold:hover {
+  color: var(--text);
+}
+
 .system-time {
   margin-left: 8px;
   font-size: var(--text-sm);

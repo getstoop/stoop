@@ -987,7 +987,8 @@ happened in its channel: members added to a private channel, a member
 gone from one, the channel renamed, its topic changed, a message pinned,
 announcement mode switched. It is a message row so that paging, the
 channel log, live delivery and retention carry it with no second stream
-to merge. `UpdateChannel` records the three channel changes; membership,
+to merge. `UpdateChannel` records the three channel changes, and a
+private channel's membership calls record who was added and who left;
 pins and departures from the space follow.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
@@ -1087,6 +1088,28 @@ pins and departures from the space follow.
   since the rows go in its transaction. After the commit the channel's
   `channel_updated` goes out, then each row's `message_created` in seq
   order, to whoever may read the channel.
+- **Membership** (`channel_members.go`, private channels only; a public
+  channel holds everyone in the space, so nobody joins or leaves it).
+  `addMembers`, behind `AddChannelMembers` and a webhook's bot
+  (`AddBotToChannel`), locks the channel row, inserts the people, and
+  records one "added" row by the caller naming only those it put in:
+  someone already in is left out, and a call that puts nobody in
+  records nothing. An admin outside the channel who adds only
+  themself is the row's author and its one member, which reads
+  "joined". After the commit each new member is sent the channel
+  (`channel_created`) and the join, and only then does the row go to
+  everyone in it, so a new member's client has the channel when the row
+  arrives. `removeFromChannel`, behind `LeaveChannel`,
+  `RemoveChannelMember` and `RemoveBotFromChannel`, locks the channel
+  row before it deletes the member and their activity (a send by the
+  same person takes the channel row and then marks their activity read,
+  so the other order deadlocks), and records a "left" row whose author
+  is the person who went. A removal records exactly what a leave does:
+  nothing stores or shows who removed them. The row and
+  `channel_member_left` go to the people who remain, read in the same
+  transaction; the person who went gets only `channel_deleted`. Making a
+  private channel records nothing, as its maker is in it from the
+  start.
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
   list of parts (plain text, a person, a channel name, the excerpt of
@@ -1094,7 +1117,10 @@ pins and departures from the space follow.
   list leaves out), and `systemText` reads the parts as one line of
   words. A list of people names up to three and otherwise the first two
   and a count, as a group conversation's title does; one person added
-  who is the row's author reads "joined". A kind the client does not
+  who is the row's author reads "joined". The count unfolds:
+  `systemLine(message, true)` names everyone, and the line's `fold`
+  says whether it has a long list and which way it is drawn, so each
+  client offers "N others" to unfold it and "Show fewer" to fold it. A kind the client does not
   know shows nothing when the row is quiet (`withoutHiddenSystemRows`,
   applied where each client builds its list, before grouping, and not
   in the channel log's `isShown`, which range edges and the cap count

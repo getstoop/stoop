@@ -83,3 +83,79 @@ test("a rename's system message", async ({ browser }) => {
     "the rename itself stays",
   ).toBeVisible();
 });
+
+// Membership (STOOP-538): adding people to a private channel records one
+// row naming them, which reaches the people in it and nobody outside,
+// and a long list unfolds in place and folds again.
+test("a private channel's membership rows", async ({ browser }) => {
+  const { suffix, tokens } = await seed({
+    users: ["ada", "bea", "cal", "dan", "eve", "fay", "gus", "hal"],
+    channels: ["general"],
+  });
+  const name = (user: string) => `${user}${suffix}`;
+  const open = async (token: string) => {
+    const page = await (await browser.newContext()).newPage();
+    await signIn(page, token);
+    await page.locator(".composer .rich-editor-content").waitFor();
+    return page;
+  };
+  const A = await open(tokens.ada);
+  const B = await open(tokens.bea);
+  const H = await open(tokens.hal);
+  const addPeople = async (...users: string[]) => {
+    await A.getByRole("button", { name: "Add people" }).click();
+    for (const user of users)
+      await A.locator(".candidate-row", { hasText: name(user) })
+        .locator("input")
+        .check();
+    await A.locator(".modal .modal-actions .primary").click();
+  };
+
+  // Ada, the space's owner, makes a private channel and adds two people.
+  await A.locator(".channel-group-heading .channel-add:not(.voice)").click();
+  await A.getByLabel("Channel name").fill("captains");
+  await A.getByRole("switch").check();
+  await A.getByRole("button", { name: "Create" }).click();
+  await expect(A.locator(".channel-header .channel-title")).toHaveText(
+    "captains",
+  );
+  await expect(
+    A.locator(".system-row"),
+    "making the channel records nothing",
+  ).toHaveCount(0);
+  await addPeople("bea", "cal");
+
+  const twoAdded = `${name("ada")} added ${name("bea")} and ${name("cal")}`;
+  await channelLink(B, "captains").click();
+  await expect(
+    B.locator(".system-row", { hasText: twoAdded }),
+    "someone added sees the row naming who was added",
+  ).toBeVisible();
+  await expect(
+    A.locator(".system-row", { hasText: twoAdded }),
+    "…and so does the person who added them",
+  ).toBeVisible();
+
+  // Four more: two named and a count, which unfolds and folds again.
+  await addPeople("dan", "eve", "fay", "gus");
+  const long = B.locator(".system-row", {
+    hasText: `${name("ada")} added ${name("dan")}, ${name("eve")} and 2 others`,
+  });
+  await expect(long).toBeVisible();
+  const others = long.getByRole("button", { name: "2 others" });
+  await expect(others).toHaveAttribute("aria-expanded", "false");
+  await others.click();
+  const all = `${name("ada")} added ${name("dan")}, ${name("eve")}, ${name("fay")} and ${name("gus")}`;
+  const unfolded = B.locator(".system-row", { hasText: all });
+  await expect(unfolded, "the list unfolds in place").toBeVisible();
+  const fewer = unfolded.getByRole("button", { name: "Show fewer" });
+  await expect(fewer).toHaveAttribute("aria-expanded", "true");
+  await expect(fewer, "focus moves to the control that folds it").toBeFocused();
+  await fewer.click();
+  await expect(long, "…and folds again").toBeVisible();
+  await expect(unfolded).toHaveCount(0);
+
+  // Hal, outside the channel, has neither the channel nor its rows.
+  await expect(channelLink(H, "captains")).toHaveCount(0);
+  await expect(H.locator(".system-row")).toHaveCount(0);
+});
