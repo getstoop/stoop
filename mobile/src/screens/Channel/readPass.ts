@@ -12,13 +12,22 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 // row (a system message: the channel renamed, its topic set) marks
 // nothing unread, so moving the marker onto one would cost a call, and
 // the refetches its channelRead brings, for nothing; the marker stays
-// below it, which reads as everything read. The channel's last message
-// (`lastMessageId`, never a quiet row) instead when it is newer: a newest
-// page of nothing but quiet rows still reads the message before them.
-// "" when there is neither.
-export function newestToRead(messages: Message[], lastMessageId = ""): string {
+// below it, which reads as everything read.
+//
+// The channel's last message (`lastMessageId`, the header's, never a
+// quiet row) instead when it is newer than any message shown but not
+// newer than the newest row the log holds (`newestHeld`, the view's
+// newestId, quiet and hidden rows included): then the reader is at the
+// newest of the channel and every row after its last message is quiet,
+// so marking up to it leaves nothing unread behind. That covers a newest
+// page of nothing but quiet rows, whose last message is on an older page.
+// It does not say the reader saw that message's words. A last message
+// beyond what the log holds (a header that answered before the rows, as
+// a reconnect's catch-up can) is never marked: the rows have not reached
+// the screen. "" when there is nothing to mark.
+export function newestToRead(messages: Message[], lastMessageId = "", newestHeld = ""): string {
   const newest = messages.findLast((message) => !message.quiet)?.id ?? "";
-  return lastMessageId > newest ? lastMessageId : newest;
+  return lastMessageId > newest && lastMessageId <= newestHeld ? lastMessageId : newest;
 }
 
 // Whether the newest row is past the reader's marker and not yet marked

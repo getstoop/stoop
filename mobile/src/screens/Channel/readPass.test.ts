@@ -24,11 +24,23 @@ describe("newestToRead", () => {
   });
 
   it("is the channel's last message when the page shown holds only quiet rows", () => {
-    expect(newestToRead([systemRow("5"), systemRow("6")], "4")).toBe("4");
+    expect(newestToRead([systemRow("5"), systemRow("6")], "4", "6")).toBe("4");
   });
 
   it("is the newest shown message when the channel's last message is older", () => {
-    expect(newestToRead([message("4"), message("6"), systemRow("7")], "5")).toBe("6");
+    expect(newestToRead([message("4"), message("6"), systemRow("7")], "5", "7")).toBe("6");
+  });
+
+  // A header that answered before the rows (a reconnect's catch-up): its
+  // last message has not reached the screen, so it is never marked.
+  it("never passes the newest row the log holds", () => {
+    expect(newestToRead([message("4"), systemRow("5")], "8", "5")).toBe("4");
+    expect(newestToRead([systemRow("5"), systemRow("6")], "8", "6")).toBe("");
+  });
+
+  it("is nothing with no rows, whatever the channel's last message", () => {
+    expect(newestToRead([], "4", "")).toBe("");
+    expect(newestToRead([], "4")).toBe("");
   });
 
   it("is nothing with no message to read", () => {
