@@ -987,8 +987,9 @@ happened in its channel: members added to a private channel, a member
 gone from one, the channel renamed, its topic changed, a message pinned,
 announcement mode switched. It is a message row so that paging, the
 channel log, live delivery and retention carry it with no second stream
-to merge. `UpdateChannel` records the three channel changes; membership,
-pins and departures from the space follow.
+to merge. `UpdateChannel` records the three channel changes, and every
+way of leaving a space records "left" in its private channels;
+membership and pins follow.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
@@ -1087,6 +1088,31 @@ pins and departures from the space follow.
   since the rows go in its transaction. After the commit the channel's
   `channel_updated` goes out, then each row's `message_created` in seq
   order, to whoever may read the channel.
+- **Departures from the space** (`removeMember`, `members.go`). Leaving
+  the space, a kick, a ban, a bot's removal and an account deletion
+  (`RemovePerson`, once per space) all end there, and each records one
+  "left" row (`memberLeft`, no data) in every private channel of the
+  space the person was in, text or voice, with the person as its
+  author. Nothing on the row says why they went or who removed them; a
+  public channel records nothing. The one transaction lists those
+  channels (`ListPrivateChannelsOfMember`) before anything else, since
+  deleting the membership cascades their `channel_members` rows away;
+  locks them in id order, so two removals sharing channels never wait
+  on each other in a circle (the retention sweep sorts for the same
+  reason); reads the list again under the locks, dropping a channel
+  deleted or left meanwhile; then deletes the activity and the
+  membership and records the rows. A removal that fails takes its rows
+  back with it; a ban writes the ban first, in its own statement, and
+  the rows go in the removal's transaction. After the commit each row's
+  `message_created` goes to the people who remain in its channel, then
+  `channel_member_left`, as a removal from the one channel sends, then
+  the space's `member_removed`. The person who left is sent none of the
+  rows. An account deletion publishes the rows before the account is
+  marked deleted, so they go out with the old name; clients correct it
+  when `member_removed` has them refetch the profile, and history reads
+  the author as deleted from then on. Someone added to a private channel
+  in the instant between the listing and the membership's delete is
+  taken out of it by the cascade with no row; that race is accepted.
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
   list of parts (plain text, a person, a channel name, the excerpt of

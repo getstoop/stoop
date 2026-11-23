@@ -40,9 +40,15 @@ func (s *Service) RemovePerson(ctx context.Context, userID, fallbackOwnerID stri
 		return nil, fmt.Errorf("list spaces: %w", err)
 	}
 	for _, spaceID := range spaces {
-		if err := s.removeMember(ctx, spaceID, userID); err != nil {
+		left, err := s.removeMember(ctx, spaceID, userID)
+		if err != nil {
 			return nil, fmt.Errorf("leave space: %w", err)
 		}
+		// Now, while the account still reads as itself: each private
+		// channel's "left" row goes out with the person's old name, and
+		// clients correct it through the profile once AnnounceDeparture
+		// has them refetch it.
+		s.announceLeftChannels(ctx, userID, left)
 	}
 	return spaces, nil
 }

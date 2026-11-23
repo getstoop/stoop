@@ -201,6 +201,55 @@ func (q *Queries) ListOwnedSpaceIDs(ctx context.Context, ownerID string) ([]stri
 	return items, nil
 }
 
+const listPrivateChannelsOfMember = `-- name: ListPrivateChannelsOfMember :many
+SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq FROM channels c
+JOIN channel_readers cr ON cr.channel_id = c.id
+WHERE cr.user_id = $1 AND c.space_id = $2::uuid AND c.private
+ORDER BY c.id
+`
+
+type ListPrivateChannelsOfMemberParams struct {
+	UserID  string
+	SpaceID string
+}
+
+// ListPrivateChannelsOfMember is the space's private channels someone is
+// in, in id order: the order a removal from the space locks them in. It
+// is read before the membership goes, since deleting it cascades to
+// their place in each private channel.
+func (q *Queries) ListPrivateChannelsOfMember(ctx context.Context, arg ListPrivateChannelsOfMemberParams) ([]Channel, error) {
+	rows, err := q.db.Query(ctx, listPrivateChannelsOfMember, arg.UserID, arg.SpaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Channel
+	for rows.Next() {
+		var i Channel
+		if err := rows.Scan(
+			&i.ID,
+			&i.SpaceID,
+			&i.Name,
+			&i.Kind,
+			&i.Position,
+			&i.CreatedAt,
+			&i.LastMessageID,
+			&i.DmKey,
+			&i.Topic,
+			&i.PostPolicy,
+			&i.Private,
+			&i.Seq,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSpaceIDsByUser = `-- name: ListSpaceIDsByUser :many
 SELECT space_id FROM space_members WHERE user_id = $1
 `

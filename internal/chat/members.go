@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -173,22 +174,48 @@ func (s *Service) LeaveSpace(ctx context.Context, req *connect.Request[chatv1.Le
 }
 
 // removeFromSpace removes a member, tells the space, and drops them from
-// its voice channels.
+// its voice channels. Leaving, a kick, a ban and a bot's removal all
+// come through here.
 func (s *Service) removeFromSpace(ctx context.Context, spaceID, userID string, kicked bool) error {
-	if err := s.removeMember(ctx, spaceID, userID); err != nil {
+	left, err := s.removeMember(ctx, spaceID, userID)
+	if err != nil {
 		return err
 	}
+	s.announceLeftChannels(ctx, userID, left)
 	s.publishMemberRemoved(spaceID, userID, kicked)
 	s.evictFromSpaceVoice(ctx, spaceID, userID)
 	return nil
+}
+
+// leftChannel is a private channel someone was in when they stopped
+// being a member of its space: the "left" row recorded there, and the
+// people who remain, to publish it to once the removal has committed.
+type leftChannel struct {
+	channel   dbgen.Channel
+	messageID string
+	remaining []string
 }
 
 // removeMember drops a membership, the same user's mute for the space
 // and their alerts from its private channels together: a rejoin starts
 // unmuted. Channel mutes are left alone, as
 // they always have been; they go when the channel does.
-func (s *Service) removeMember(ctx context.Context, spaceID, userID string) error {
-	return s.inTx(ctx, func(qtx *dbgen.Queries) error {
+//
+// Each private channel of the space the person was in records "left"
+// in the same transaction (docs/architecture/messaging.md → System
+// messages), whatever the cause; the caller publishes the rows it
+// returns with announceLeftChannels once it has committed.
+func (s *Service) removeMember(ctx context.Context, spaceID, userID string) ([]leftChannel, error) {
+	var left []leftChannel
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		left = nil
+		// Before anything else, as seq.go requires, and before the
+		// membership goes: its cascade takes the person's channel_members
+		// rows with it, and with them the list of channels to record in.
+		channels, err := lockPrivateChannelsOf(ctx, qtx, spaceID, userID)
+		if err != nil {
+			return err
+		}
 		// Their alerts from the space's private channels go too: each
 		// shows the message as it now reads, and they can't read it.
 		if err := qtx.DeleteActivityForPrivateChannels(ctx, dbgen.DeleteActivityForPrivateChannelsParams{
@@ -196,16 +223,97 @@ func (s *Service) removeMember(ctx context.Context, spaceID, userID string) erro
 		}); err != nil {
 			return fmt.Errorf("drop private channel activity: %w", err)
 		}
-		if _, err := qtx.DeleteSpaceMember(ctx, dbgen.DeleteSpaceMemberParams{
+		removed, err := qtx.DeleteSpaceMember(ctx, dbgen.DeleteSpaceMemberParams{
 			SpaceID: spaceID, UserID: userID,
-		}); err != nil {
+		})
+		if err != nil {
 			return fmt.Errorf("delete member: %w", err)
 		}
 		if err := qtx.UnmuteSpace(ctx, dbgen.UnmuteSpaceParams{UserID: userID, SpaceID: spaceID}); err != nil {
 			return fmt.Errorf("drop space mute: %w", err)
 		}
+		if removed == 0 {
+			return nil
+		}
+		for _, channel := range channels {
+			row, err := recordEvent(ctx, qtx, channel, userID, memberLeft{})
+			if err != nil {
+				return err
+			}
+			remaining, err := qtx.ListPrivateChannelMemberIDs(ctx, channel.ID)
+			if err != nil {
+				return fmt.Errorf("list channel people: %w", err)
+			}
+			left = append(left, leftChannel{channel: channel, messageID: row.ID, remaining: remaining})
+		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return left, nil
+}
+
+// lockPrivateChannelsOf holds the rows of the space's private channels
+// userID is in, in id order, and returns them as they stand once held.
+// Two removals that share channels take them in the same order, so
+// neither waits on the other in a circle; the retention sweep sorts its
+// channels for the same reason. The list is read again under the locks:
+// a channel deleted meanwhile, or one the person was taken out of
+// meanwhile (which recorded its own row), drops out.
+func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, userID string) ([]dbgen.Channel, error) {
+	of := dbgen.ListPrivateChannelsOfMemberParams{UserID: userID, SpaceID: spaceID}
+	listed, err := qtx.ListPrivateChannelsOfMember(ctx, of)
+	if err != nil {
+		return nil, fmt.Errorf("list private channels: %w", err)
+	}
+	if len(listed) == 0 {
+		return nil, nil
+	}
+	held := make(map[string]bool, len(listed))
+	for _, channel := range listed {
+		if _, err := qtx.LockChannel(ctx, channel.ID); errors.Is(err, pgx.ErrNoRows) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("lock channel: %w", err)
+		}
+		held[channel.ID] = true
+	}
+	current, err := qtx.ListPrivateChannelsOfMember(ctx, of)
+	if err != nil {
+		return nil, fmt.Errorf("list private channels: %w", err)
+	}
+	channels := current[:0]
+	for _, channel := range current {
+		if held[channel.ID] {
+			channels = append(channels, channel)
+		}
+	}
+	return channels, nil
+}
+
+// announceLeftChannels publishes each "left" row to the people who
+// remain in its channel, with the channel_member_left a removal from the
+// one channel sends, so their people list and member count follow. The
+// person who left is sent neither: the space's member_removed is how it
+// leaves their list.
+func (s *Service) announceLeftChannels(ctx context.Context, userID string, left []leftChannel) {
+	for _, entry := range left {
+		if message, err := s.loadMessage(ctx, entry.messageID, spaceOf(entry.channel)); err != nil {
+			slog.Default().Warn("leave space: could not load its system message", "message_id", entry.messageID, "err", err)
+		} else {
+			s.publishTo(entry.channel, entry.remaining, events.Stamp(&realtimev1.ServerEvent{
+				Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
+			}))
+		}
+		s.publishTo(entry.channel, entry.remaining, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_ChannelMemberLeft{
+				ChannelMemberLeft: &realtimev1.ChannelMemberChanged{
+					SpaceId: spaceOf(entry.channel), ChannelId: entry.channel.ID, UserId: userID,
+				},
+			},
+		}))
+	}
 }
 
 // actorAndTarget loads both sides of a member-management call and applies

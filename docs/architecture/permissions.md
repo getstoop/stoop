@@ -176,6 +176,11 @@ The rule is one view, `channel_readers` ([data.md](data.md#chat)).
   channel can't, nor can an announcement channel.
 - Its maker is its first person. `channels.manage` adds and removes
   people; anyone in it may leave. It may end up with nobody in it.
+- Leaving the space takes someone out of all of its private channels at
+  once, however it happens: leaving, a kick, a ban, a bot's removal or
+  the account being deleted. Each of those channels records that they
+  left, in the same words for every cause, and the row says nothing of
+  who removed them ([messaging.md](messaging.md#system-messages)).
 - **Managing is not reading.** Someone with `channels.manage` who is not
   in it sees that it exists, its name and who is in it, and may rename,
   reorder or delete it, or add themself. They read nothing in it until
@@ -269,7 +274,9 @@ invite redemption, and `JoinSpace` by id for an instance admin.
 
 A kick, a ban and a leave all disconnect the person from the space's
 LiveKit rooms as well as deleting the row; see
-[voice.md](voice.md#leaving-when-it-isnt-your-idea).
+[voice.md](voice.md#leaving-when-it-isnt-your-idea). All three read
+the same in the person's private channels: "left", with no word of a
+ban, so a ban is not announced in every channel they were in.
 
 The reason is kept for the people who manage members. The banned person
 sees only "removed and can't rejoin" — a moderation note is written for
