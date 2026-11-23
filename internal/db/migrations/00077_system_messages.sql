@@ -25,7 +25,8 @@ CREATE INDEX messages_reference_idx ON messages (reference_message_id)
 
 -- The new columns go at the view's end (CREATE OR REPLACE can only
 -- append), with the referenced message's author, content and first
--- attachment beside them, as the reply's are.
+-- attachment beside them, as the reply's are. Only a message of the same
+-- channel is joined, so no id can show another channel's words.
 CREATE OR REPLACE VIEW message_with_reply AS
 SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel,
     m.reply_to_message_id, m.mentions_here, m.edited_at,
@@ -44,7 +45,8 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_enti
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id AND p.deleted_at IS NULL
 LEFT JOIN threads t ON t.root_message_id = m.id
-LEFT JOIN messages ref ON ref.id = m.reference_message_id AND ref.deleted_at IS NULL;
+LEFT JOIN messages ref ON ref.id = m.reference_message_id AND ref.channel_id = m.channel_id
+    AND ref.deleted_at IS NULL;
 
 -- +goose Down
 DROP VIEW message_with_reply;
@@ -62,8 +64,18 @@ SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_enti
 FROM messages m
 LEFT JOIN messages p ON p.id = m.reply_to_message_id AND p.deleted_at IS NULL
 LEFT JOIN threads t ON t.root_message_id = m.id;
--- System rows mean nothing to the schema below this line.
+-- System rows mean nothing to the schema below this line. A channel
+-- whose last message was one loses the pointer with the row (ON DELETE
+-- SET NULL) and gets its newest shown message back, as
+-- RecomputeChannelLastMessage would choose it.
 DELETE FROM messages WHERE kind <> 0;
+UPDATE channels c
+SET last_message_id = (
+    SELECT m.id FROM messages m
+    WHERE m.channel_id = c.id AND m.in_channel
+      AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
+    ORDER BY m.id DESC LIMIT 1)
+WHERE c.last_message_id IS NULL;
 DROP INDEX messages_reference_idx;
 ALTER TABLE messages
     DROP CONSTRAINT messages_reference_needs_kind,

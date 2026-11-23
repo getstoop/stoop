@@ -430,7 +430,9 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			authorIDs = append(authorIDs, id)
 		}
 	}
-	for _, row := range rows {
+	// Each system row's event, decoded once.
+	rowEvents := make([]systemEvent, len(rows))
+	for index, row := range rows {
 		addAuthor(row.AuthorID)
 		if row.ReplyAuthorID != nil {
 			addAuthor(*row.ReplyAuthorID)
@@ -438,8 +440,13 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		for _, id := range row.ThreadRecentAuthorIds {
 			addAuthor(id)
 		}
-		for _, id := range eventPeople(row.Kind, row.Data) {
-			addAuthor(id)
+		if row.Kind != 0 {
+			rowEvents[index] = storedEvent(row.ID, row.Kind, row.Data)
+		}
+		if rowEvents[index] != nil {
+			for _, id := range rowEvents[index].people() {
+				addAuthor(id)
+			}
 		}
 		if row.ReferenceAuthorID != nil {
 			addAuthor(*row.ReferenceAuthorID)
@@ -511,6 +518,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	rootRefs := map[string]*chatv1.ReplyRef{}
 	for index, row := range rows {
 		message := toProtoMessage(listedMessage(row), authors, mentions[row.ID], spaceID)
+		message.Event = eventProto(row.Kind, rowEvents[index], authors)
 		message.Reactions = reactions[row.ID]
 		message.Attachments = attachments[row.ID]
 		message.LinkPreviews = previews[row.ID]
@@ -712,6 +720,9 @@ func (s *Service) firstAttachmentName(ctx context.Context, messageID string) str
 	return records[ids[0]].label()
 }
 
+// toProtoMessage is the row's own columns. What other rows add
+// (attachments, the reply quote, a system message's event and reference)
+// is hydrateMessages' work.
 func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, mentions []string, spaceID string) *chatv1.Message {
 	out := &chatv1.Message{
 		Id: row.ID, ChannelId: row.ChannelID, Author: authorOrUnknown(authors, row.AuthorID),
@@ -719,7 +730,7 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 		MentionUserIds: mentions, SpaceId: spaceID,
 		MentionsEntireChannel: row.MentionsEntireChannel, MentionsHere: row.MentionsHere,
 		InChannel: row.InChannel, Deleted: row.DeletedAt != nil, Seq: row.Seq,
-		Event: systemEventProto(row.Kind, row.Data, authors), Quiet: row.Quiet,
+		Quiet: row.Quiet,
 	}
 	if row.ThreadRootID != nil {
 		out.ThreadRootId = *row.ThreadRootID

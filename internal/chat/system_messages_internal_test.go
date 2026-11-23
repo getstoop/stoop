@@ -204,6 +204,27 @@ func everyKind(memberID, messageID string) []systemEvent {
 	}
 }
 
+// aboutNoMessage is everyKind less the pin, which needs a message.
+func aboutNoMessage(memberID string) []systemEvent {
+	var events []systemEvent
+	for _, event := range everyKind(memberID, "") {
+		if event.kind() != kindMessagePinned {
+			events = append(events, event)
+		}
+	}
+	return events
+}
+
+// listed is the channel's newest page as reader is sent it.
+func (f *systemRows) listed(reader context.Context) []*chatv1.Message {
+	f.t.Helper()
+	page, err := f.svc.ListMessages(reader, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: f.channel.ID}))
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return page.Msg.Messages
+}
+
 func messageIDs(messages []*chatv1.Message) []string {
 	out := make([]string, len(messages))
 	for index, message := range messages {
@@ -426,7 +447,7 @@ func TestQuietRowsMarkNothingUnread(t *testing.T) {
 // channel holding only quiet rows has no last message at all.
 func TestQuietRowLeavesTheSpaceRead(t *testing.T) {
 	fixture := newSystemRows(t)
-	for _, event := range everyKind(authctx.UserID(fixture.cat), "") {
+	for _, event := range aboutNoMessage(authctx.UserID(fixture.cat)) {
 		fixture.record(fixture.ada, fixture.channel, event)
 	}
 	for name, reader := range map[string]context.Context{"ada": fixture.ada, "bea": fixture.bea} {
@@ -626,5 +647,142 @@ func TestSystemRowPeopleAndReference(t *testing.T) {
 	afterSweep := fixture.load(aboutPhoto.ID)
 	if afterSweep.Event.GetPin() == nil || afterSweep.Reference != nil {
 		t.Errorf("row about a swept message = event %v reference %v, want no reference", afterSweep.Event, afterSweep.Reference)
+	}
+}
+
+// recordEvent refuses what must not be stored, and the action's
+// transaction with it: no event, a pin of no message, of a message that
+// does not exist or of one in another channel, and a member that is not
+// a user id, which would fail every page holding the row.
+func TestRecordEventRefusals(t *testing.T) {
+	fixture := newSystemRows(t)
+	garden, err := fixture.svc.CreateChannel(fixture.ada, connect.NewRequest(&chatv1.CreateChannelRequest{SpaceId: fixture.spaceID, Name: "garden"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	elsewhere := fixture.send(fixture.ada, &chatv1.SendMessageRequest{ChannelId: garden.Msg.Channel.Id, Content: "tomatoes are in"})
+	before := fixture.channelRow(fixture.channel.ID).Seq
+	refused := map[string]systemEvent{
+		"no event":                       nil,
+		"a pin of no message":            messagePinned{},
+		"a pin of a missing message":     messagePinned{MessageID: uuid.NewString()},
+		"a pin from another channel":     messagePinned{MessageID: elsewhere.Id},
+		"a member that is not a user id": membersAdded{UserIDs: []string{authctx.UserID(fixture.bea), "bea"}},
+		"a member with an empty id":      membersAdded{UserIDs: []string{""}},
+	}
+	for name, event := range refused {
+		err := fixture.svc.inTx(context.Background(), func(qtx *dbgen.Queries) error {
+			if _, err := qtx.LockChannel(context.Background(), fixture.channel.ID); err != nil {
+				t.Fatal(err)
+			}
+			_, err := recordEvent(context.Background(), qtx, fixture.channel, authctx.UserID(fixture.ada), event)
+			return err
+		})
+		if err == nil {
+			t.Errorf("%s: recorded", name)
+		}
+	}
+	if rows := fixture.listed(fixture.ada); len(rows) != 0 {
+		t.Errorf("%d rows in the channel after refusals, want none", len(rows))
+	}
+	if after := fixture.channelRow(fixture.channel.ID).Seq; after != before {
+		t.Errorf("channel seq moved from %d to %d on refused events", before, after)
+	}
+
+	// The view joins only a message of the row's own channel, whatever
+	// id the column holds.
+	var rowID string
+	if err := fixture.pool.QueryRow(context.Background(),
+		`INSERT INTO messages (id, channel_id, author_id, content, seq, kind, data, quiet, reference_message_id)
+		 VALUES (gen_random_uuid(), $1, $2, '', 1, $3, '{}', true, $4) RETURNING id`,
+		fixture.channel.ID, authctx.UserID(fixture.ada), kindMessagePinned, elsewhere.Id).Scan(&rowID); err != nil {
+		t.Fatal(err)
+	}
+	if reference := fixture.load(rowID).Reference; reference.GetMessageId() != elsewhere.Id || reference.GetAuthor() != nil || reference.GetPreview() != "" {
+		t.Errorf("reference to another channel's message = %v, want its id alone", reference)
+	}
+}
+
+// The message an action publishes for a recorded row is loadMessage's,
+// and it is the row as ListMessages returns it.
+func TestRecordedRowIsPublishedAsListed(t *testing.T) {
+	fixture := newSystemRows(t)
+	message := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "house rules"})
+	rows := []messageRow{
+		fixture.record(fixture.bea, fixture.channel, messagePinned{MessageID: message.Id}),
+		fixture.record(fixture.ada, fixture.channel, membersAdded{UserIDs: []string{authctx.UserID(fixture.bea), authctx.UserID(fixture.cat)}}),
+	}
+	listed := fixture.listed(fixture.cat)
+	if len(listed) != 3 {
+		t.Fatalf("listed %d rows, want 3", len(listed))
+	}
+	for index, row := range rows {
+		published := fixture.load(row.ID)
+		if !proto.Equal(published, listed[index+1]) {
+			t.Errorf("row %d: published %v, listed %v", index, published, listed[index+1])
+		}
+	}
+	if reference := fixture.load(rows[0].ID).Reference; reference.GetPreview() != "house rules" {
+		t.Errorf("published pin row's reference = %v, want the excerpt", reference)
+	}
+	if members := fixture.load(rows[1].ID).Event.GetMembersAdded().GetMembers(); len(members) != 2 || members[0].Username != "bea" || members[1].Username != "cat" {
+		t.Errorf("published added row's members = %v, want bea and cat by name", members)
+	}
+}
+
+// loudEvent is a kind that is not quiet, registered by its test alone.
+type loudEvent struct{ memberLeft }
+
+const kindLoud int16 = 98
+
+func (loudEvent) kind() int16 { return kindLoud }
+
+// A row that is not quiet takes the ordinary path: it becomes the
+// channel's last message and counts as unread. Nothing is marked read
+// for the actor either.
+func TestLoudRowMarksUnread(t *testing.T) {
+	systemKinds[kindLoud] = systemKind{quiet: false, decode: decodeEvent[loudEvent]}
+	t.Cleanup(func() { delete(systemKinds, kindLoud) })
+	fixture := newSystemRows(t)
+	message := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "hello"})
+	if _, err := fixture.svc.MarkChannelRead(fixture.bea, connect.NewRequest(&chatv1.MarkChannelReadRequest{ChannelId: fixture.channel.ID})); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fixture.state(fixture.bea), (readerState{lastMessageID: message.Id}); got != want {
+		t.Fatalf("bea before = %+v, want %+v", got, want)
+	}
+	row := fixture.record(fixture.ada, fixture.channel, loudEvent{})
+	if row.Quiet {
+		t.Fatal("the row is quiet")
+	}
+	want := readerState{unread: 1, lastMessageID: row.ID, spaceHasUnread: true}
+	for name, reader := range map[string]context.Context{"bea": fixture.bea, "ada": fixture.ada} {
+		if got := fixture.state(reader); got != want {
+			t.Errorf("%s after a loud row = %+v, want %+v", name, got, want)
+		}
+	}
+	if got := fixture.load(row.ID); got.Quiet || got.Event.GetMemberLeft() == nil {
+		t.Errorf("loud row = quiet %v event %v", got.Quiet, got.Event)
+	}
+}
+
+// Data that does not read for its kind costs the row its event, not the
+// page: it is sent as an event with no case.
+func TestUnreadableData(t *testing.T) {
+	fixture := newSystemRows(t)
+	message := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "hello"})
+	var rowID string
+	if err := fixture.pool.QueryRow(context.Background(),
+		`INSERT INTO messages (id, channel_id, author_id, content, seq, kind, data, quiet)
+		 VALUES ($1, $2, $3, '', 2, $4, '{"user_ids": "everyone"}', true) RETURNING id`,
+		uuid.Must(uuid.NewV7()).String(), fixture.channel.ID, authctx.UserID(fixture.ada), kindMembersAdded).Scan(&rowID); err != nil {
+		t.Fatal(err)
+	}
+	listed := fixture.listed(fixture.bea)
+	if got := messageIDs(listed); fmt.Sprint(got) != fmt.Sprint([]string{message.Id, rowID}) {
+		t.Fatalf("listed %v, want the message and the row", got)
+	}
+	if row := listed[1]; row.Event == nil || row.Event.Kind != nil || !row.Quiet {
+		t.Errorf("row with unreadable data = event %v quiet %v, want an event with no case, quiet", row.Event, row.Quiet)
 	}
 }

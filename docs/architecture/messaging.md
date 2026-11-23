@@ -1009,6 +1009,10 @@ helper follow.
   it), which is what the space's `has_unread` and a conversation's
   preview read. So `MarkChannelRead` with no id lands on the last
   message, below any quiet rows after it, and that is everything read.
+  A server rolled back past this change knows none of it and can point
+  a channel's last message at a quiet row; back on this version the
+  space then shows unread beside a count of zero until someone posts
+  there or marks the channel read.
   Alert counts, activity and push need nothing: they come from mentions,
   replies and activity items, and a system row has none.
 - **Writing one** (`internal/chat/system_messages.go`). The registry
@@ -1020,9 +1024,17 @@ helper follow.
   channel's last message only when the row is not quiet, and returns the
   row. The caller locks the channel row before any other row it writes
   (`LockChannel`, the rule in `seq.go`) and publishes `MessageCreated`
-  after its commit, in seq order with anything else it publishes.
+  after its commit, in seq order with anything else it publishes. The
+  message it publishes is `loadMessage` of the row, which is the row as
+  `ListMessages` returns it; `toProtoMessage` alone fills neither the
+  event nor the reference.
   `recordEvent` marks nothing read, records no activity, writes no
-  mentions, and is not subject to the channel's post policy.
+  mentions, and is not subject to the channel's post policy. It refuses
+  an event with nothing in it to store: a pin with no message, a message
+  that is not shown in the same channel, a member that is not a user id.
+  The view joins a reference only within the row's own channel besides.
+  A pin's message id lives in `reference_message_id` and not in `data`,
+  so a pin event decoded from a row does not carry it.
 - **On the wire.** `Message.event` is a `SystemEvent`, a `oneof` with a
   case per kind; `Message.quiet` is the flag; `Message.reference` is a
   `ReplyRef`, the type a reply's quote uses. The server sends no text:

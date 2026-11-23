@@ -3,8 +3,11 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+
+	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/dbgen"
@@ -50,9 +53,12 @@ var systemKinds = map[int16]systemKind{
 // systemEvent is one kind's event. Its JSON form is the row's data.
 type systemEvent interface {
 	kind() int16
+	// check refuses an event that must not be stored.
+	check() error
 	// people are the user ids the event names besides the row's author.
 	people() []string
-	// referenceID is the message the event is about; "" when none.
+	// referenceID is the message the event is about; "" when none. It is
+	// stored on the row, so an event read back does not carry it.
 	referenceID() string
 	// proto is the event as a client reads it, its people from authors.
 	proto(authors map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent
@@ -66,10 +72,11 @@ func decodeEvent[Event systemEvent](data []byte) (systemEvent, error) {
 	return event, nil
 }
 
-// bareEvent is embedded by every event: no people and no message, unless
-// the event says otherwise.
+// bareEvent is embedded by every event: nothing to check, no people and
+// no message, unless the event says otherwise.
 type bareEvent struct{}
 
+func (bareEvent) check() error        { return nil }
 func (bareEvent) people() []string    { return nil }
 func (bareEvent) referenceID() string { return "" }
 
@@ -79,7 +86,18 @@ type membersAdded struct {
 	UserIDs []string `json:"user_ids"`
 }
 
-func (membersAdded) kind() int16            { return kindMembersAdded }
+func (membersAdded) kind() int16 { return kindMembersAdded }
+
+// check: an id that is not a UUID would fail every page holding the row,
+// since the people are looked up by id when it is read.
+func (event membersAdded) check() error {
+	for _, id := range event.UserIDs {
+		if err := uuid.Validate(id); err != nil {
+			return fmt.Errorf("member %q is not a user id", id)
+		}
+	}
+	return nil
+}
 func (event membersAdded) people() []string { return event.UserIDs }
 func (event membersAdded) proto(authors map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent {
 	members := make([]*chatv1.MessageAuthor, len(event.UserIDs))
@@ -128,7 +146,13 @@ type messagePinned struct {
 	MessageID string `json:"-"`
 }
 
-func (messagePinned) kind() int16               { return kindMessagePinned }
+func (messagePinned) kind() int16 { return kindMessagePinned }
+func (event messagePinned) check() error {
+	if event.MessageID == "" {
+		return errors.New("a pin names its message")
+	}
+	return nil
+}
 func (event messagePinned) referenceID() string { return event.MessageID }
 func (messagePinned) proto(map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent {
 	return &chatv1.SystemEvent{Kind: &chatv1.SystemEvent_Pin{Pin: &chatv1.PinEvent{}}}
@@ -160,15 +184,36 @@ func (event postPolicyChanged) proto(map[string]*chatv1.MessageAuthor) *chatv1.S
 //     channel's next seq and would otherwise wait on it out of order.
 //   - After: recordEvent publishes nothing. Once the transaction has
 //     committed the caller publishes MessageCreated for the row, in seq
-//     order with whatever else it publishes.
+//     order with whatever else it publishes. The message to publish is
+//     s.loadMessage(ctx, row.ID, spaceOf(channel)): the row as every
+//     reader is sent it, with the event's people and the reference.
+//     toProtoMessage alone fills neither.
 //
 // It marks nothing read, records no activity and writes no mentions, and
 // the channel's post policy does not apply. A quiet row leaves the
-// channel's last message alone.
+// channel's last message alone. An event about a message is refused
+// unless that message is shown in this channel.
 func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel, actorID string, event systemEvent) (messageRow, error) {
+	if event == nil {
+		return messageRow{}, errors.New("record event: no event")
+	}
 	registered, ok := systemKinds[event.kind()]
 	if !ok {
 		return messageRow{}, fmt.Errorf("record event: kind %d is not registered", event.kind())
+	}
+	if err := event.check(); err != nil {
+		return messageRow{}, fmt.Errorf("record event: %w", err)
+	}
+	var reference *string
+	if id := event.referenceID(); id != "" {
+		about, err := qtx.GetMessage(ctx, id)
+		if err != nil {
+			return messageRow{}, fmt.Errorf("record event: read message %s: %w", id, err)
+		}
+		if about.ChannelID != channel.ID {
+			return messageRow{}, fmt.Errorf("record event: message %s is in another channel", id)
+		}
+		reference = &id
 	}
 	data, err := json.Marshal(event)
 	if err != nil {
@@ -177,10 +222,6 @@ func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel,
 	seq, err := qtx.NextChannelSeq(ctx, channel.ID)
 	if err != nil {
 		return messageRow{}, fmt.Errorf("next channel seq: %w", err)
-	}
-	var reference *string
-	if id := event.referenceID(); id != "" {
-		reference = &id
 	}
 	created, err := qtx.CreateSystemMessage(ctx, dbgen.CreateSystemMessageParams{
 		ID: rowid.New(), ChannelID: channel.ID, AuthorID: actorID, Seq: seq,
@@ -201,40 +242,28 @@ func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel,
 // storedEvent is the event a row holds: nil for a message someone wrote,
 // for a kind this server does not know (a newer server wrote it) and for
 // data that does not read.
-func storedEvent(kind int16, data []byte) systemEvent {
+func storedEvent(messageID string, kind int16, data []byte) systemEvent {
 	registered, ok := systemKinds[kind]
 	if !ok {
 		return nil
 	}
 	event, err := registered.decode(data)
 	if err != nil {
-		slog.Default().Warn("system message: could not read data", "kind", kind, "err", err)
+		slog.Default().Warn("system message: could not read data", "message_id", messageID, "kind", kind, "err", err)
 		return nil
 	}
 	return event
 }
 
-// eventPeople are the user ids a row's event names, for the authors a
-// page resolves.
-func eventPeople(kind int16, data []byte) []string {
-	if kind == 0 {
+// eventProto is Message.event for a row of kind holding event: nil on a
+// message someone wrote, and an event with no case set for a row this
+// server cannot read, which a client treats as a kind it does not know.
+func eventProto(kind int16, event systemEvent, authors map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent {
+	switch {
+	case kind == 0:
 		return nil
+	case event == nil:
+		return &chatv1.SystemEvent{}
 	}
-	if event := storedEvent(kind, data); event != nil {
-		return event.people()
-	}
-	return nil
-}
-
-// systemEventProto is Message.event for a row: nil on a message someone
-// wrote, and an event with no case set for one this server cannot read,
-// which a client treats as a kind it does not know.
-func systemEventProto(kind int16, data []byte, authors map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent {
-	if kind == 0 {
-		return nil
-	}
-	if event := storedEvent(kind, data); event != nil {
-		return event.proto(authors)
-	}
-	return &chatv1.SystemEvent{}
+	return event.proto(authors)
 }
