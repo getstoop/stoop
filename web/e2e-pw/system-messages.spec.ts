@@ -4,6 +4,7 @@ import {
   channelLink,
   expect,
   focus,
+  pastGate,
   rowByText,
   seed,
   sendMessage,
@@ -122,12 +123,20 @@ test("a pin's system message", async ({ browser }) => {
     });
   }
   await chat(tokens.ada, "SendMessage", { channelId, content: "last call" });
+  // Both have read it all, so the channel opens at its newest message
+  // rather than on the "New messages" line.
+  for (const token of [tokens.ada, tokens.bea]) {
+    await chat(token, "MarkChannelRead", { channelId });
+  }
 
   const channelPath = `/s/${space.id}/c/${channelId}`;
   const A = await (await browser.newContext()).newPage();
   const B = await (await browser.newContext()).newPage();
+  // A channel link stops on the desktop-app gate first.
   await signIn(A, tokens.ada, channelPath);
+  await pastGate(A);
   await signIn(B, tokens.bea, channelPath);
+  await pastGate(B);
   await expect(rowByText(A, "last call")).toBeVisible();
   await expect(rowByText(B, "last call")).toBeVisible();
   // Bea reads #general with the page at the front, so it is read.
