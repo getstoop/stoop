@@ -1,5 +1,33 @@
+import { create } from "@bufbuild/protobuf";
+import { MessageSchema, SystemEventSchema, TopicChangedSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { describe, expect, it, vi } from "vitest";
-import { markDue, readShown, type Shown } from "./readPass";
+import { markDue, newestToRead, readShown, type Shown } from "./readPass";
+
+const message = (id: string) => create(MessageSchema, { id, content: "hi" });
+// A topic set: quiet, as every system message is so far.
+const systemRow = (id: string) =>
+  create(MessageSchema, {
+    id,
+    quiet: true,
+    event: create(SystemEventSchema, {
+      kind: { case: "topicChanged", value: create(TopicChangedSchema, { topic: "Friday nights" }) },
+    }),
+  });
+
+describe("newestToRead", () => {
+  it("is the newest row when it is a message", () => {
+    expect(newestToRead([message("4"), systemRow("5"), message("6")])).toBe("6");
+  });
+
+  it("passes over quiet rows to the newest message", () => {
+    expect(newestToRead([message("4"), systemRow("5"), systemRow("6")])).toBe("4");
+  });
+
+  it("is nothing with no message to read", () => {
+    expect(newestToRead([systemRow("5")])).toBe("");
+    expect(newestToRead([])).toBe("");
+  });
+});
 
 describe("markDue", () => {
   it("is due for a row past the marker that this screen has not marked", () => {

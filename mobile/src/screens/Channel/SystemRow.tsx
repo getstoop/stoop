@@ -1,25 +1,176 @@
-import { systemLine, systemText } from "@stoop/core/systemMessages";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { type SystemGlyph, type SystemPart, systemLine, systemText } from "@stoop/core/systemMessages";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { StyleSheet, Text } from "react-native";
+import { memo } from "react";
+import { type ColorValue, Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
+import { authorName } from "../../api/authors";
 import { type Theme, tokens, useTheme } from "../../theme";
+import { messageTime } from "./messageTime";
 
-// A system message (the channel renamed, its topic set), for now as one
-// plain muted line of the shared wording: no glyph, no live names and no
-// menu. The row the design draws comes next.
-export default function SystemRow({ message }: { message: Message }) {
-  const styles = makeStyles(useTheme());
+// The glyph's column, as wide as a message's avatar and its gap
+// (MessageRow), so the two line up.
+const COLUMN = 36;
+const GAP = 10;
+// One line of the sentence.
+const LINE = 18;
+
+// A system message (docs/architecture/messaging.md → System messages):
+// a row that records something that happened in the channel, in the
+// words core/systemMessages gives both apps. A glyph for its kind in the
+// avatar column, the sentence in muted text with the people it names in
+// full ink (a deleted account marked as a message's author is), the new
+// name of a renamed channel drawn the same, and the time in a column of
+// its own on the right, on the first line, so a sentence that wraps
+// never strands it. No avatar, reactions or thread. Names are plain
+// text, as the phone has no user card; "3 others" is its label alone,
+// and a pin's excerpt is words, for now. To a screen reader it is one
+// element, the sentence and the time. A long press opens its menu
+// (onLongPress), which the screen gives only to someone who may
+// moderate messages (SystemMenu); everyone else gets nothing. On a
+// menu's card (`card`) it is drawn again with the time's day.
+export default memo(function SystemRow({
+  message,
+  onLongPress,
+  card = false,
+}: {
+  message: Message;
+  onLongPress?: (message: Message) => void;
+  card?: boolean;
+}) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const line = systemLine(message);
   if (!line) return null;
-  return <Text style={styles.line}>{systemText(line.parts)}</Text>;
+  const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
+  const time = created ? messageTime(created, card) : "";
+  const hold = onLongPress && (() => onLongPress(message));
+  return (
+    <Pressable
+      onLongPress={hold}
+      accessible
+      accessibilityLabel={time ? `${systemText(line.parts)}, ${time}` : systemText(line.parts)}
+      style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!hold && styles.pressed]}
+    >
+      <View style={styles.glyph}>
+        <Glyph glyph={line.glyph} color={theme.textMuted} />
+      </View>
+      <Text style={styles.sentence}>
+        {line.parts.map((part, index) => (
+          // Keyed by place: a row's parts never reorder.
+          <Part key={index} part={part} styles={styles} />
+        ))}
+      </Text>
+      {time !== "" && <Text style={styles.time}>{time}</Text>}
+    </Pressable>
+  );
+});
+
+type Styles = ReturnType<typeof makeStyles>;
+
+function Part({ part, styles }: { part: SystemPart; styles: Styles }) {
+  switch (part.kind) {
+    case "text":
+      return part.text;
+    case "person":
+      return (
+        <>
+          <Text style={styles.strong}>{authorName(part.person)}</Text>
+          {part.person.deleted && <Text style={styles.mark}> (deleted)</Text>}
+        </>
+      );
+    case "others":
+      return <Text style={styles.strong}>{part.label}</Text>;
+    case "channel":
+      return part.current ? <Text style={styles.strong}>#{part.name}</Text> : `#${part.name}`;
+    case "excerpt":
+      return part.deleted ? <Text style={styles.deleted}>{part.text}</Text> : part.text;
+  }
+}
+
+// The glyph for each kind, from the paths web's row draws, at 16 points.
+const GLYPH_PATHS: Record<SystemGlyph, string> = {
+  "person-plus":
+    "M15 20v-1a5 5 0 0 0-5-5H8a5 5 0 0 0-5 5v1M9 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M19 8v6M16 11h6",
+  "arrow-in": "M5 12h12M12 6l6 6-6 6",
+  "arrow-out": "M19 12H7M12 6l-6 6 6 6",
+  pencil: "M4 20h4L19 9l-4-4L4 16v4M13 7l4 4",
+  "text-lines": "M4 7h16M4 12h16M4 17h10",
+  pin: "M9 4h6l-1 6 3 3H7l3-3-1-6M12 13v7",
+  megaphone: "M3 11v2l11 5V6L3 11M14 9h3a3 3 0 0 1 0 6h-3M6 14v4h3v-3",
+  update: "M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18",
+};
+
+function Glyph({ glyph, color }: { glyph: SystemGlyph; color: ColorValue }) {
+  return (
+    <Svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <Path d={GLYPH_PATHS[glyph]} />
+    </Svg>
+  );
 }
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
-    line: {
-      marginHorizontal: 16,
-      marginVertical: 4,
+    // A message row's insets, so the glyph sits where its avatar does.
+    row: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      marginHorizontal: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: tokens.radiusMd,
+    },
+    // The menu's card: a message card's 12 all round.
+    card: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      padding: 12,
+    },
+    pressed: {
+      backgroundColor: theme.hover,
+    },
+    glyph: {
+      width: COLUMN,
+      height: LINE,
+      marginRight: GAP,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sentence: {
+      flex: 1,
+      minWidth: 0,
       color: theme.textMuted,
       fontSize: tokens.textUi,
+      lineHeight: LINE,
+    },
+    strong: {
+      color: theme.text,
+      fontWeight: "600",
+    },
+    // As a message's author marks a deleted account.
+    mark: {
+      color: theme.textMuted,
+      fontWeight: "400",
+      fontSize: tokens.textSm,
+    },
+    deleted: {
+      fontStyle: "italic",
+    },
+    time: {
+      marginLeft: 8,
+      color: theme.textMuted,
+      fontSize: tokens.textSm,
+      lineHeight: LINE,
+      textAlign: "right",
     },
   });
 }

@@ -6,6 +6,17 @@
 // nothing is read here; an item recorded after the marker passed its
 // message is born read.
 
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
+
+// The row the marker follows: the newest shown that is not quiet. A quiet
+// row (a system message: the channel renamed, its topic set) marks
+// nothing unread, so moving the marker onto one would cost a call, and
+// the refetches its channelRead brings, for nothing; the marker stays
+// below it, which reads as everything read. "" when there is none.
+export function newestToRead(messages: Message[]): string {
+  return messages.findLast((message) => !message.quiet)?.id ?? "";
+}
+
 // Whether the newest row is past the reader's marker and not yet marked
 // by this screen.
 export function markDue(newestId: string, readTo: string, marked: string): boolean {

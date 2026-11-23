@@ -96,9 +96,9 @@ export function useMessageActions({
     scrollOnce.current = false;
   }
 
+  // A message's menu, or a system message's (SystemMenu), which the
+  // screen offers only to a moderator.
   const openMenu = useCallback((message: Message) => {
-    // A system message has no menu yet.
-    if (message.event) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setMenuFor(message.id);
   }, []);
@@ -123,6 +123,13 @@ export function useMessageActions({
   const deleteMessage = useCallback(
     (message: Message) => {
       remove(message).catch((err) => notify("Couldn't delete the message", errorText(err)));
+    },
+    [remove, notify],
+  );
+  // A system message, by a moderator: the line goes, not what it records.
+  const deleteSystem = useCallback(
+    (message: Message) => {
+      remove(message).catch((err) => notify("Couldn't delete it", errorText(err)));
     },
     [remove, notify],
   );
@@ -271,6 +278,7 @@ export function useMessageActions({
     notify,
     reactTo,
     deleteMessage,
+    deleteSystem,
     togglePin,
     dismissPreview,
     linkNotCopied,
