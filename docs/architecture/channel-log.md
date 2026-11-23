@@ -35,7 +35,10 @@ ALTER TABLE channels DROP COLUMN swept_seq;            -- 00070, 0.16.0
 
 - **Every render-affecting write stamps the row** in its own transaction:
   send, edit, delete, reaction, pin, link preview arrival, and the root's
-  summary when a reply lands or goes. The seq comes from
+  summary when a reply lands or goes. A
+  [system message](messaging.md#system-messages) is a row like any
+  other: `recordEvent` takes the next seq inside the transaction of the
+  action it records, whose caller holds the channel row first. The seq comes from
   `UPDATE channels SET seq = seq + 1 WHERE id = $1 RETURNING seq`. The row
   lock is the point: a global sequence hands out numbers in allocation
   order but rows commit in another order, so a client could skip one. The
@@ -224,7 +227,8 @@ fetched again to bring it.
    position sees them in its next `ListChanges` only if their seq is
    higher than what it holds. The view `message_with_reply` is not
    recreated (a constraint is not a change to its definition), so sqlc
-   is told the view's `seq` is not null in `sqlc.yaml`; the generated
+   is told the view's `seq` is not null in `sqlc.yaml` (until 00077
+   recreated the view for system messages and the override went); the generated
    `Seq` fields went from `*int64` to `int64` and the nil branches with
    them. Decided here: `channels.swept_seq` goes. Nothing read it, and
    the two cases it would have served (below) cost one stale row until

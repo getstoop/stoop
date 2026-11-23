@@ -226,6 +226,12 @@ against `FILE` — so:
   `ActivityKind`, where a default would otherwise be a silent lie.
 - **`oneof` ranges follow the convention above**, so an event's number
   tells you what kind of thing it is.
+- **A `oneof` case a client does not know reads as unset.** A later
+  server can add a case to `chat.v1.SystemEvent`; a client built before
+  it sees `Message.event` present with no case. It hides the row when
+  `Message.quiet` is set and otherwise shows one line asking the reader
+  to update ([messaging.md](messaging.md#system-messages)). The server
+  sends no fallback text.
 
 ## Errors
 
