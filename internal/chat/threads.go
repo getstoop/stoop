@@ -53,14 +53,22 @@ func (s *Service) threadRootFor(ctx context.Context, channel dbgen.Channel, root
 	if root.DeletedAt != nil {
 		return messageRow{}, placeholderError()
 	}
+	if err := refuseSystemRow(root); err != nil {
+		return messageRow{}, err
+	}
 	return root, nil
 }
 
 // checkQuote enforces where a quoted message may be: inside the same
-// thread for a thread reply, in the channel's timeline otherwise.
+// thread for a thread reply, in the channel's timeline otherwise. A reply
+// is its quote, so this is the one check for both, and neither may name a
+// system row.
 func checkQuote(parent messageRow, threadRoot *messageRow) error {
 	if parent.DeletedAt != nil {
 		return placeholderError()
+	}
+	if err := refuseSystemRow(parent); err != nil {
+		return err
 	}
 	if threadRoot != nil {
 		if parent.ID != threadRoot.ID && (parent.ThreadRootID == nil || *parent.ThreadRootID != threadRoot.ID) {
@@ -141,6 +149,11 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 	if root.ThreadRootID != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			errors.New("that message is a reply, not a thread's root"))
+	}
+	// A system row has no thread, and deleting it here would pass it by
+	// DeleteMessage's own rule.
+	if err := refuseSystemRow(root); err != nil {
+		return nil, err
 	}
 	fileIDs, err := s.q.ListThreadFileIDs(ctx, root.ID)
 	if err != nil {

@@ -192,6 +192,9 @@ func (s *Service) DismissLinkPreview(ctx context.Context, req *connect.Request[c
 	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
 		return nil, err
 	}
+	if err := refuseSystemRow(msg); err != nil {
+		return nil, err
+	}
 	// The stamp holds the message row: an edit reads the dismissed links
 	// and rebuilds the rows while holding it, and would otherwise put back
 	// a card dismissed in between.

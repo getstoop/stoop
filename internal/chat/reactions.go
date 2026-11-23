@@ -52,6 +52,9 @@ func (s *Service) ToggleReaction(ctx context.Context, req *connect.Request[chatv
 	if msg.DeletedAt != nil {
 		return nil, placeholderError()
 	}
+	if err := refuseSystemRow(msg); err != nil {
+		return nil, err
+	}
 	channel, participants, err := s.writableChannel(ctx, msg.ChannelID)
 	if err != nil {
 		return nil, err

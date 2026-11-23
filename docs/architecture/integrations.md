@@ -179,6 +179,15 @@ share work:
 | `channel.deleted` | `{space_id, channel_id}` |
 | `webhook.test` | `{}`, from the Test button |
 
+A [system message](messaging.md#system-messages) (a row that records
+an event, such as a rename, with `Message.event` set) is not something a
+person wrote, which is what a receiver of `message.*` expects, so the
+subscriber drops its `MessageCreated` and `MessageUpdated`; a hook never
+receives one. A delete carries no event to tell it apart, so when an
+admin deletes a system row in a public channel the hook gets a
+`message.deleted` for a message it never received. That is accepted; a
+receiver should ignore a delete for an id it does not hold.
+
 The body is `{id, type, ts, instance, space: {id, name}, data}` with
 `data` as protojson of the existing protos. Headers: `Stoop-Event`,
 `Stoop-Delivery` (stable across attempts), `Stoop-Sequence`,
@@ -200,6 +209,10 @@ receiver dedupes on `Stoop-Delivery` and reads a gap off
 `Stoop-Sequence`, then closes it by re-reading with a bot token
 (`ListMessages(after_id=…)` for messages; `ListMembers` and
 `ListChannels` for the rest). Hard-deleted messages are unrecoverable.
+Reading history is not filtered like the hooks are: a bot or personal
+token that reads `ListMessages` or `ListChanges` receives system rows in
+their places, with `event` set and no `content`, and should skip what it
+does not want.
 
 ## Deliveries as jobs
 

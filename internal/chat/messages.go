@@ -601,6 +601,9 @@ func (s *Service) EditMessage(ctx context.Context, req *connect.Request[chatv1.E
 	if msg.DeletedAt != nil {
 		return nil, placeholderError()
 	}
+	if err := refuseSystemRow(msg); err != nil {
+		return nil, err
+	}
 	if msg.AuthorID != authctx.UserID(ctx) {
 		return nil, connect.NewError(connect.CodePermissionDenied,
 			errors.New("you can only edit your own messages"))
@@ -672,7 +675,19 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "channel")
 	}
-	if msg.AuthorID != authctx.UserID(ctx) {
+	switch {
+	case msg.Kind != 0:
+		// A system row is moderation's alone, its author's included: an
+		// admin may remove the text it carries (a topic, a channel name),
+		// and nobody may erase the record of their own action.
+		if isDM(channel) {
+			return nil, connect.NewError(connect.CodePermissionDenied,
+				errors.New("direct messages have no moderators"))
+		}
+		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
+			return nil, err
+		}
+	case msg.AuthorID != authctx.UserID(ctx):
 		// In a DM there is no moderator: each person deletes only their own.
 		if isDM(channel) {
 			return nil, connect.NewError(connect.CodePermissionDenied,
@@ -681,10 +696,13 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
 			return nil, err
 		}
-	} else if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
-		return nil, err
-	} else if err := s.requireChannelMember(ctx, channel.ID); err != nil {
-		return nil, err
+	default:
+		if err := requireChannelAction(ctx, channel, authctx.MessagesPost, authctx.DMsPost); err != nil {
+			return nil, err
+		}
+		if err := s.requireChannelMember(ctx, channel.ID); err != nil {
+			return nil, err
+		}
 	}
 	// A placeholder is a tombstone already: it goes with its last reply.
 	if msg.DeletedAt == nil {

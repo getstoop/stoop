@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
@@ -237,6 +238,25 @@ func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel,
 		}
 	}
 	return row, nil
+}
+
+// errSystemMessage is a write that only makes sense on a message someone
+// wrote, aimed at a system message. refuseSystemRow wraps it.
+var errSystemMessage = errors.New("that message records something that happened in the channel; it can't be changed")
+
+// refuseSystemRow is the one check for everything that assumes a message
+// is something a person wrote: editing it, reacting to it, threading
+// under it, quoting or replying to it, pinning it, dismissing its
+// previews. It is on the kind, not on a list of kinds, so a new kind is
+// refused all of them without anyone adding it anywhere. It answers as a
+// placeholder is refused, FailedPrecondition. Deleting one is allowed,
+// under its own rule (DeleteMessage). docs/architecture/messaging.md →
+// System messages.
+func refuseSystemRow(row messageRow) error {
+	if row.Kind != 0 {
+		return connect.NewError(connect.CodeFailedPrecondition, errSystemMessage)
+	}
+	return nil
 }
 
 // storedEvent is the event a row holds: nil for a message someone wrote,

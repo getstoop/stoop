@@ -656,7 +656,8 @@ mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
 pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
 activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
 UPDATE messages SET content = '', mentions_entire_channel = false, mentions_here = false,
-    edited_at = NULL, deleted_at = now()
+    edited_at = NULL, deleted_at = now(),
+    data = CASE WHEN kind = 0 THEN NULL ELSE '{}'::jsonb END, reference_message_id = NULL
 WHERE id = $1::uuid AND deleted_at IS NULL
 `
 
@@ -664,8 +665,12 @@ WHERE id = $1::uuid AND deleted_at IS NULL
 // (internal/chat/tombstones.go): the row stays with deleted_at set and no
 // text (the search column follows), and what a hard delete used to
 // cascade goes with it. reply_to_message_id, thread_root_id and
-// in_channel stay. No row means it was a tombstone already. Its files are
-// deleted through the port afterwards.
+// in_channel stay. A system row keeps its kind, so it still reads as one,
+// but not its event: data becomes '{}' (the messages_kind_has_data check
+// wants it non-null) and the reference goes, since the text a row carries
+// (a topic, a channel name) is usually why it was deleted. No row means it
+// was a tombstone already. Its files are deleted through the port
+// afterwards.
 func (q *Queries) TombstoneMessage(ctx context.Context, id string) (int64, error) {
 	result, err := q.db.Exec(ctx, tombstoneMessage, id)
 	if err != nil {
