@@ -874,3 +874,130 @@ func TestGroupSaveWritesTheDifference(t *testing.T) {
 		t.Errorf("saved name = %q", got)
 	}
 }
+
+// Saving a group ends with exactly the people asked for, whatever the
+// change: the same people, some dropped, some added, all replaced.
+func TestGroupSaveEndsWithThePeopleAskedFor(t *testing.T) {
+	cases := []struct {
+		name          string
+		before, after []string
+	}{
+		{"kept", []string{"ada", "bea"}, []string{"ada", "bea"}},
+		{"dropped", []string{"ada", "bea", "cat"}, []string{"bea"}},
+		{"added", []string{"ada"}, []string{"ada", "bea", "cat"}},
+		{"replaced", []string{"ada", "bea"}, []string{"cat"}},
+		{"swapped", []string{"ada", "bea"}, []string{"ada", "cat"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newSystemRows(t)
+			ctx := context.Background()
+			ids := map[string]string{
+				"ada": authctx.UserID(fixture.ada), "bea": authctx.UserID(fixture.bea), "cat": authctx.UserID(fixture.cat),
+			}
+			idsOf := func(names []string) []string {
+				out := make([]string, len(names))
+				for index, name := range names {
+					out[index] = ids[name]
+				}
+				return out
+			}
+			group, err := fixture.svc.CreateGroup(fixture.ada, connect.NewRequest(&chatv1.CreateGroupRequest{
+				SpaceId: fixture.spaceID, Handle: "crew", Name: "Crew", UserIds: idsOf(tc.before),
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			saved, err := fixture.svc.UpdateGroup(fixture.ada, connect.NewRequest(&chatv1.UpdateGroupRequest{
+				GroupId: group.Msg.Group.Id, Handle: "crew", Name: "Crew", UserIds: idsOf(tc.after),
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			members, err := fixture.svc.q.ListGroupMemberIDsByGroupIDs(ctx, []string{group.Msg.Group.Id})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := slices.Sorted(slices.Values(idsOf(tc.after)))
+			if slices.Sort(members); !reflect.DeepEqual(members, want) {
+				t.Errorf("stored members = %v, want %v", members, want)
+			}
+			if got := slices.Sorted(slices.Values(saved.Msg.Group.GetUserIds())); !reflect.DeepEqual(got, want) {
+				t.Errorf("returned members = %v, want %v", got, want)
+			}
+		})
+	}
+}
+
+// RemoveGroupMembersExcept reads a NULL list as an empty one: both keep
+// nobody. Unreachable through UpdateGroup, which needs one person.
+func TestRemoveGroupMembersExceptNullIsEmpty(t *testing.T) {
+	for _, keep := range [][]string{nil, {}} {
+		fixture := newSystemRows(t)
+		ctx := context.Background()
+		group, err := fixture.svc.CreateGroup(fixture.ada, connect.NewRequest(&chatv1.CreateGroupRequest{
+			SpaceId: fixture.spaceID, Handle: "crew", Name: "Crew", UserIds: []string{authctx.UserID(fixture.ada)},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := fixture.svc.q.RemoveGroupMembersExcept(ctx, dbgen.RemoveGroupMembersExceptParams{
+			GroupID: group.Msg.Group.Id, UserIds: keep,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		members, err := fixture.svc.q.ListGroupMemberIDsByGroupIDs(ctx, []string{group.Msg.Group.Id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(members) != 0 {
+			t.Errorf("keep %#v left %v, want nobody", keep, members)
+		}
+	}
+}
+
+// A group save that drops bea and adds cat, while cat and bea are both
+// being removed from the space and share a private channel. cat's
+// removal holds cat's membership and waits on the channel bea's holds;
+// bea's removal waits on bea's group row. A save that deleted bea's row
+// first and then waited on cat's membership for cat's new row closed the
+// circle. Adding first, the save waits on cat's membership holding no
+// member's row: both removals go through, and the save is then refused
+// because cat is no longer a member.
+func TestGroupSwapDuringTwoDeparturesDoesNotDeadlock(t *testing.T) {
+	fixture := newSystemRows(t)
+	adaID, beaID, catID := authctx.UserID(fixture.ada), authctx.UserID(fixture.bea), authctx.UserID(fixture.cat)
+	lower, higher := fixture.twoPrivateChannels(catID)
+	fixture.addTo(higher, beaID)
+	group, err := fixture.svc.CreateGroup(fixture.ada, connect.NewRequest(&chatv1.CreateGroupRequest{
+		SpaceId: fixture.spaceID, Handle: "crew", Name: "Crew", UserIds: []string{adaID, beaID},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, kickedCat := stalledKick(t, fixture, lower)
+	saved := make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.UpdateGroup(fixture.ada, connect.NewRequest(&chatv1.UpdateGroupRequest{
+			GroupId: group.Msg.Group.Id, Handle: "crew", Name: "Crew", UserIds: []string{adaID, catID},
+		}))
+		saved <- err
+	}()
+	time.Sleep(settleFor)
+	kickedBea := make(chan error, 1)
+	go func() {
+		_, err := fixture.svc.KickMember(fixture.ada, connect.NewRequest(&chatv1.KickMemberRequest{SpaceId: fixture.spaceID, UserId: beaID}))
+		kickedBea <- err
+	}()
+	time.Sleep(settleFor)
+	release()
+	if err := <-kickedCat; err != nil {
+		t.Errorf("kick cat: %v", err)
+	}
+	if err := <-kickedBea; err != nil {
+		t.Errorf("kick bea: %v", err)
+	}
+	if err := <-saved; err != nil && connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Errorf("save group: %v, want it through or refused as not a member", err)
+	}
+}

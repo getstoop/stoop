@@ -245,7 +245,8 @@ func (q *Queries) ListSpaceGroupsByIDs(ctx context.Context, arg ListSpaceGroupsB
 
 const removeGroupMembersExcept = `-- name: RemoveGroupMembersExcept :exec
 DELETE FROM group_members
-WHERE group_id = $1::uuid AND user_id <> ALL ($2::uuid[])
+WHERE group_id = $1::uuid
+  AND user_id <> ALL (COALESCE($2::uuid[], '{}'::uuid[]))
 `
 
 type RemoveGroupMembersExceptParams struct {
@@ -255,7 +256,8 @@ type RemoveGroupMembersExceptParams struct {
 
 // RemoveGroupMembersExcept drops the group's members not in user_ids,
 // and touches no other row: saving a group leaves an unchanged member's
-// row alone.
+// row alone. A NULL list counts as empty and keeps nobody, as an empty
+// one does (user_id <> ALL (NULL) would match no row).
 func (q *Queries) RemoveGroupMembersExcept(ctx context.Context, arg RemoveGroupMembersExceptParams) error {
 	_, err := q.db.Exec(ctx, removeGroupMembersExcept, arg.GroupID, arg.UserIds)
 	return err

@@ -37,20 +37,26 @@ import (
 // new row at the channel (an alert, a read marker) waits on it. Adding
 // people to a private channel and taking one person out of it
 // (addMembers, removeFromChannel) hold their one channel the same way,
-// for the same reason. After the locks the removal waits only on rows its own statements and
-// cascade take: the person's activity items, channel memberships and
-// group memberships. Whoever holds one of those must not then wait on
-// the removal, which is why saving a group writes only the difference
-// (UpdateGroup) and never touches a member who stays. Nothing else may
-// take a row before the channel rows.
+// for the same reason; an add against a space delete is among the
+// accepted cases below. After the locks the removal waits only on rows
+// its own statements and cascade take: the person's activity items, channel memberships and
+// group memberships. Whoever holds one of those must not then wait on a
+// departing person's membership. Saving a group (UpdateGroup) is the
+// one writer of those rows that also checks memberships, so it writes
+// only the difference, never touching a member who stays, and adds its
+// new members (each a membership check) before it deletes any row, so
+// it holds none of them while it waits. Nothing else may take a row
+// before the channel rows.
 //
 // Accepted, each failing one transaction whole with a deadlock error:
 //   - Between the removal listing a channel and locking it (which
 //     includes waiting on its lower-id channels), the person is taken
 //     out of it and added straight back. The re-add waits on the
 //     membership; the removal waits on the channel.
-//   - A reorder against a space delete: the reorder takes the channels
-//     in id order, the delete's cascade in its own.
+//   - A space delete against anything that holds a channel or group row
+//     and then checks a membership, or holds channels in another order:
+//     a reorder, an add to a private channel, a group save. The delete's
+//     cascade takes memberships, channels and groups in its own order.
 //   - A ban whose removal is the one that fails: BanMember commits the
 //     ban first, so the person is banned but still a member; the caller
 //     gets the error, and banning again finishes it.

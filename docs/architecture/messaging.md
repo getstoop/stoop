@@ -1139,9 +1139,12 @@ follow.
   Taking the membership row before the channel rows is the one
   exception to `seq.go`'s rule. After its locks the removal waits only
   on rows its own statements and cascade take (the person's alerts,
-  channel memberships and group memberships), and saving a group writes
-  only the difference (`UpdateGroup`), so it never holds a staying
-  member's row while waiting on their membership. A space delete waits
+  channel memberships and group memberships), and nothing holding one
+  of those then waits on a departing person's membership: saving a
+  group (`UpdateGroup`), the one writer of them that also checks
+  memberships, writes only the difference, never touching a member who
+  stays, and adds its new members before it deletes any row, so it
+  holds none while it waits. A space delete waits
   behind a removal: its cascade reaches the membership before the
   channels. It reads the list again under the locks, dropping a channel
   deleted or left meanwhile. Then it deletes the activity and the
@@ -1162,8 +1165,11 @@ follow.
   Accepted, each failing one transaction whole with a deadlock error
   (`seq.go` lists them): the person taken out of a listed channel and
   added straight back before the removal locks it (a window that
-  includes waiting on lower-id channels); a reorder against a space
-  delete; and a ban whose removal is the one that fails, which leaves the
+  includes waiting on lower-id channels); a space delete against
+  anything that holds a channel or group row and then checks a
+  membership, or holds channels in another order (a reorder, an add to
+  a private channel, a group save), since the delete's cascade takes
+  them in its own order; and a ban whose removal is the one that fails, which leaves the
   person banned but still a member until the ban is made again.
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
