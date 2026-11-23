@@ -97,6 +97,8 @@ export function useMessageActions({
   }
 
   const openMenu = useCallback((message: Message) => {
+    // A system message has no menu yet.
+    if (message.event) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setMenuFor(message.id);
   }, []);

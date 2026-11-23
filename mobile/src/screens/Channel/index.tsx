@@ -1,6 +1,7 @@
 import { headerBeginning, headerPlace } from "@stoop/core/channelHeader";
 import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
+import { withoutHiddenSystemRows } from "@stoop/core/systemMessages";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useIsFocused, useRouter } from "expo-router";
@@ -34,6 +35,7 @@ import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
+import SystemRow from "./SystemRow";
 import type { ChannelEngine } from "./channelEngine";
 import { channelMute } from "./headerActions";
 import { readShown } from "./readPass";
@@ -176,8 +178,10 @@ export default function Channel({
   const { flashId, flash } = useFlash();
 
   // The channel's shown rows, oldest first; the same array while nothing
-  // shown changed.
-  const messages = channelItems(log);
+  // shown changed. A system row of a kind this app does not know that is
+  // quiet shows nothing, so it is left out before grouping.
+  const shown = channelItems(log);
+  const messages = useMemo(() => withoutHiddenSystemRows(shown), [shown]);
 
   // A screen pushed over the channel (a thread, the search), one at a
   // time.
@@ -275,7 +279,7 @@ export default function Channel({
       list.current?.scrollToOffset({ offset: 0, animated: false });
       setAway(false);
     } else {
-      const index = items.findIndex((item) => item.kind === "message" && item.message.id === landOn.id);
+      const index = items.findIndex((item) => "message" in item && item.message.id === landOn.id);
       if (index >= 0) {
         list.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false });
         flash(landOn.id);
@@ -411,7 +415,9 @@ export default function Channel({
               data={items}
               keyExtractor={(item) => item.key}
               renderItem={({ item }) =>
-                item.kind === "message" ? (
+                item.kind === "system" ? (
+                  <SystemRow message={item.message} />
+                ) : item.kind === "message" ? (
                   <MessageRow
                     message={item.message}
                     continued={item.continued}

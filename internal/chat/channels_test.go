@@ -127,6 +127,9 @@ func TestChannelManagement(t *testing.T) {
 	if ev := (<-sub.Events()).GetChannelUpdated(); ev == nil || ev.Name != "lounge" {
 		t.Error("expected ChannelUpdated")
 	}
+	if ev := (<-sub.Events()).GetMessageCreated(); ev.GetEvent().GetChannelRenamed().GetNewName() != "lounge" {
+		t.Errorf("expected the rename's system message, got %v", ev)
+	}
 	empty := ""
 	if _, err := svc.UpdateChannel(owner, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: general, Name: &empty})); code(err) != connect.CodeInvalidArgument {
 		t.Errorf("empty rename: %v", err)
@@ -145,6 +148,9 @@ func TestChannelManagement(t *testing.T) {
 	if ev := (<-sub.Events()).GetChannelUpdated(); ev == nil || ev.Topic != "Cards and complaints" {
 		t.Error("expected the topic on ChannelUpdated")
 	}
+	if ev := (<-sub.Events()).GetMessageCreated(); ev.GetEvent().GetTopicChanged().GetTopic() != "Cards and complaints" {
+		t.Errorf("expected the topic's system message, got %v", ev)
+	}
 	long := strings.Repeat("x", 251)
 	if _, err := svc.UpdateChannel(owner, connect.NewRequest(&chatv1.UpdateChannelRequest{ChannelId: general, Topic: &long})); code(err) != connect.CodeInvalidArgument {
 		t.Errorf("over-long topic: %v", err)
@@ -160,6 +166,9 @@ func TestChannelManagement(t *testing.T) {
 		t.Fatalf("clear topic: %v %v", up, err)
 	}
 	<-sub.Events()
+	if ev := (<-sub.Events()).GetMessageCreated(); ev.GetEvent().GetTopicChanged() == nil {
+		t.Errorf("expected the cleared topic's system message, got %v", ev)
+	}
 
 	// Reorder: must list all exactly once; result and event reflect the order.
 	if _, err := svc.ReorderChannels(owner, connect.NewRequest(&chatv1.ReorderChannelsRequest{SpaceId: spaceID, ChannelIds: []string{general}})); code(err) != connect.CodeInvalidArgument {

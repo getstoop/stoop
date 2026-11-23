@@ -279,6 +279,18 @@ describe("a created row and the views", () => {
     expect(log.rows.has(id(20))).toBe(true);
   });
 
+  it("does not count a quiet row on the pill", () => {
+    const log = withEvent(
+      openedOn(rows(0, 10), { hasNewer: true }),
+      created(id(20), 11, {
+        quiet: true,
+        event: { kind: { case: "memberLeft", value: {} } },
+      }),
+    );
+    expect(log.channel.pendingNewer).toBe(0);
+    expect(log.rows.has(id(20))).toBe(true);
+  });
+
   it("reaches an open thread, and the channel when also sent there", () => {
     const root = id(3);
     const withThread = openedThread(live(), root, [], { hasNewer: false });

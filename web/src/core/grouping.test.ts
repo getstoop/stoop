@@ -5,6 +5,7 @@ import {
   type Message,
   MessageAuthorSchema,
   MessageSchema,
+  SystemEventSchema,
   ThreadSummarySchema,
 } from "../gen/stoop/chat/v1/message_pb";
 import {
@@ -56,6 +57,17 @@ describe("continues", () => {
     const reply = message("m2", "10:00:40", { replyTo: { messageId: "m1" } });
     expect(continues(reply, first, undefined, false)).toBe(false);
     expect(continues(message("m2", "10:00:40"), first, "m2", false)).toBe(
+      false,
+    );
+  });
+
+  it("starts afresh at a system row and after one, by the same person", () => {
+    const system = message("m2", "10:00:20", {
+      quiet: true,
+      event: { kind: { case: "memberLeft", value: {} } },
+    });
+    expect(continues(system, first, undefined, false)).toBe(false);
+    expect(continues(message("m3", "10:00:40"), system, undefined, false)).toBe(
       false,
     );
   });
@@ -130,6 +142,22 @@ describe("firstNewMessageId", () => {
     expect(firstNewMessageId([from("02", "me")], "01", "me")).toBeUndefined();
   });
 
+  it("skips quiet rows, which mark nothing unread", () => {
+    const quiet = message("02", "10:00:00", {
+      author: { id: "ada" },
+      quiet: true,
+      event: { kind: { case: "topicChanged", value: { topic: "" } } },
+    });
+    expect(
+      firstNewMessageId(
+        [from("01", "ada"), quiet, from("03", "bea")],
+        "01",
+        "me",
+      ),
+    ).toBe("03");
+    expect(firstNewMessageId([quiet], "01", "me")).toBeUndefined();
+  });
+
   it("is none when nothing is new, or no marker was taken", () => {
     expect(firstNewMessageId(list, "03", "me")).toBeUndefined();
     expect(firstNewMessageId(list, null, "me")).toBeUndefined();
@@ -145,11 +173,21 @@ describe("groupedRows", () => {
       author: { id: authorId },
       createdAt: timestampFromDate(when),
     });
+  const system = (id: string, when: Date): Message => {
+    const made = dated(id, when);
+    made.quiet = true;
+    made.event = create(SystemEventSchema, {
+      kind: { case: "memberLeft", value: {} },
+    });
+    return made;
+  };
   const drawn = (rows: ReturnType<typeof groupedRows>) =>
     rows.map((row) =>
       row.kind === "message"
         ? `${row.key}${row.continued ? " +" : ""}`
-        : `[${row.label}]`,
+        : row.kind === "system"
+          ? `${row.key} (system)`
+          : `[${row.label}]`,
     );
 
   it("puts a day line above each day and runs a minute's messages on", () => {
@@ -185,6 +223,23 @@ describe("groupedRows", () => {
       "01",
       "02 +",
       "03 +",
+    ]);
+  });
+
+  it("draws a system row as its own kind, between groups", () => {
+    const messages = [
+      dated("01", new Date(2026, 9, 21, 9, 0)),
+      system("02", new Date(2026, 9, 21, 9, 0, 10)),
+      dated("03", new Date(2026, 9, 21, 9, 0, 20)),
+      dated("04", new Date(2026, 9, 21, 9, 0, 30)),
+    ];
+    expect(drawn(groupedRows(messages, "01", "me", now))).toEqual([
+      "[Today]",
+      "01",
+      "02 (system)",
+      "[New]",
+      "03",
+      "04 +",
     ]);
   });
 
@@ -239,7 +294,9 @@ describe("threadRows", () => {
     rows.map((row) =>
       row.kind === "message"
         ? `${row.key}${row.continued ? " +" : ""}`
-        : `[${row.label}]`,
+        : row.kind === "system"
+          ? `${row.key} (system)`
+          : `[${row.label}]`,
     );
 
   it("draws no day lines, runs a minute's replies on, and puts New above firstNewId", () => {

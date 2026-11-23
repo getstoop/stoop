@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
@@ -206,20 +207,77 @@ func (s *Service) UpdateChannel(ctx context.Context, req *connect.Request[chatv1
 		}
 		policy = &p
 	}
-	row, err := s.q.UpdateChannel(ctx, dbgen.UpdateChannelParams{
-		ID: channel.ID, Name: name, Topic: topic, PostPolicy: policy,
-	})
+	row, recorded, err := s.updateChannel(ctx, channel.ID, authctx.UserID(ctx), name, topic, policy)
 	if db.HasCode(err, db.UniqueViolation) {
 		return nil, errChannelNameTaken
 	}
 	if err != nil {
-		return nil, fmt.Errorf("update channel: %w", err)
+		return nil, err
 	}
 	out := toProtoChannel(row)
 	s.publishChannel(ctx, row, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelUpdated{ChannelUpdated: out},
 	}))
+	// In seq order: a client applies a live row only when it is the next.
+	for _, id := range recorded {
+		message, err := s.loadMessage(ctx, id, spaceOf(row))
+		if err != nil {
+			slog.Default().Warn("update channel: could not load its system message", "message_id", id, "err", err)
+			continue
+		}
+		s.publishChannel(ctx, row, events.Stamp(&realtimev1.ServerEvent{
+			Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
+		}))
+	}
 	return connect.NewResponse(&chatv1.UpdateChannelResponse{Channel: out}), nil
+}
+
+// updateChannel writes the values given (nil leaves one alone) and
+// records a system message for each that changed, in one transaction
+// under the channel lock. It returns the channel and the ids of the rows
+// recorded, in seq order.
+func (s *Service) updateChannel(ctx context.Context, channelID, actorID string, name, topic, policy *string) (dbgen.Channel, []string, error) {
+	var (
+		row      dbgen.Channel
+		recorded []string
+	)
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		if _, err := qtx.LockChannel(ctx, channelID); err != nil {
+			return fmt.Errorf("lock channel: %w", err)
+		}
+		before, err := qtx.GetChannel(ctx, channelID)
+		if err != nil {
+			return fmt.Errorf("read channel: %w", err)
+		}
+		var changes []systemEvent
+		if name != nil && *name != before.Name {
+			changes = append(changes, channelRenamed{OldName: before.Name, NewName: *name})
+		}
+		if topic != nil && *topic != before.Topic {
+			changes = append(changes, topicChanged{Topic: *topic})
+		}
+		if policy != nil && *policy != before.PostPolicy {
+			changes = append(changes, postPolicyChanged{PostPolicy: *policy})
+		}
+		row, err = qtx.UpdateChannel(ctx, dbgen.UpdateChannelParams{
+			ID: channelID, Name: name, Topic: topic, PostPolicy: policy,
+		})
+		if err != nil {
+			return err
+		}
+		for _, event := range changes {
+			message, err := recordEvent(ctx, qtx, row, actorID, event)
+			if err != nil {
+				return err
+			}
+			recorded = append(recorded, message.ID)
+		}
+		return nil
+	})
+	if err != nil && !db.HasCode(err, db.UniqueViolation) {
+		err = fmt.Errorf("update channel: %w", err)
+	}
+	return row, recorded, err
 }
 
 func (s *Service) DeleteChannel(ctx context.Context, req *connect.Request[chatv1.DeleteChannelRequest]) (*connect.Response[chatv1.DeleteChannelResponse], error) {

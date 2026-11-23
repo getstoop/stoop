@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import { dayLabel, sameDay } from "./dates";
+import { isSystemRow } from "./systemMessages";
 
 // A day separator goes above the first message of each calendar day.
 export const startsDay = (m: Message, prev: Message | undefined) =>
@@ -10,7 +11,8 @@ export const startsDay = (m: Message, prev: Message | undefined) =>
 
 // Where the "New messages" line goes: above the first message after the
 // read marker as it was when the channel opened, skipping the reader's
-// own (sending one is reading up to it). None when afterId is null.
+// own (sending one is reading up to it) and quiet rows, which mark
+// nothing unread. None when afterId is null.
 export const firstNewMessageId = (
   messages: Message[],
   afterId: string | null,
@@ -19,7 +21,10 @@ export const firstNewMessageId = (
   afterId === null
     ? undefined
     : messages.find(
-        (message) => message.id > afterId && message.author?.id !== myUserId,
+        (message) =>
+          message.id > afterId &&
+          !message.quiet &&
+          message.author?.id !== myUserId,
       )?.id;
 
 // A message continues the previous one when it's from the same author
@@ -27,6 +32,8 @@ export const firstNewMessageId = (
 // messages" line — then we skip its author/time row. Not after a deleted
 // root's placeholder or a thread's summary line, and not for a placeholder
 // or (in the channel) a reply also sent there, which draw lines of their own.
+// A system message neither continues nor is continued: it has no author
+// line to share.
 export const continues = (
   m: Message,
   prev: Message | undefined,
@@ -34,6 +41,8 @@ export const continues = (
   inThread: boolean,
 ) =>
   !!prev &&
+  !m.event &&
+  !prev.event &&
   prev.author?.id === m.author?.id &&
   !m.replyTo &&
   !m.deleted &&
@@ -55,13 +64,15 @@ export function sameMinute(a: Date, b: Date): boolean {
   );
 }
 
-// A channel's rows for a list, oldest first: each message, a day line
-// above the first of each day, and the "New" line above the first message
-// after the read marker as it was on opening (null for no "New" line). The
+// A channel's rows for a list, oldest first: each message (a system
+// message is a row of its own kind), a day line above the first of each
+// day, and the "New" line above the first message after the read marker
+// as it was on opening (null for no "New" line). The
 // mobile app's channel screen draws these; web's list has a form of its
 // own with a thread's rules (routes/Channel/MessageList/items.ts).
 export type GroupedRow =
   | { kind: "message"; key: string; message: Message; continued: boolean }
+  | { kind: "system"; key: string; message: Message }
   | { kind: "day" | "new"; key: string; label: string };
 
 export function groupedRows(
@@ -88,12 +99,16 @@ export function groupedRows(
     } else if (day) {
       rows.push({ kind: "day", key: `day-${message.id}`, label: day });
     }
-    rows.push({
-      kind: "message",
-      key: message.id,
-      message,
-      continued: continues(message, previous, firstNew, false),
-    });
+    rows.push(
+      isSystemRow(message)
+        ? { kind: "system", key: message.id, message }
+        : {
+            kind: "message",
+            key: message.id,
+            message,
+            continued: continues(message, previous, firstNew, false),
+          },
+    );
   });
   return rows;
 }

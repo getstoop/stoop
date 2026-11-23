@@ -224,6 +224,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "messageCreated": {
       const m = payload.value;
       applyToLog(event);
+      // A quiet row (a system message) is in the timeline and nothing
+      // more: it marks nothing read or unread and alerts no one.
+      if (m.quiet) break;
       noteMentionInThread(queryClient, m);
       const { userId, activeChannelId } = useConnectionStore.getState();
       const mine = m.author?.id === userId;

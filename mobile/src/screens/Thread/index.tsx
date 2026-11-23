@@ -30,6 +30,7 @@ import Divider from "../Channel/Divider";
 import MessageMenu from "../Channel/MessageMenu";
 import MessageRow from "../Channel/MessageRow";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "../Channel/ScreenHeader";
+import SystemRow from "../Channel/SystemRow";
 import { threadMute } from "../Channel/headerActions";
 import { useChannelLinks } from "../Channel/useChannelLinks";
 import Unavailable from "../Channel/Unavailable";
@@ -312,7 +313,9 @@ export default function Thread({
               data={rows}
               keyExtractor={(row) => row.key}
               renderItem={({ item }) =>
-                item.kind === "message" ? (
+                item.kind === "system" ? (
+                  <SystemRow message={item.message} />
+                ) : item.kind === "message" ? (
                   <MessageRow
                     message={item.message}
                     continued={item.continued}

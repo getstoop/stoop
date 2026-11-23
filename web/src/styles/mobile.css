@@ -199,6 +199,17 @@
     left: 8px;
   }
 
+  .system-row {
+    /* off-scale: the avatar column, 8 + 36 + 10, as .message */
+    padding-left: 54px;
+  }
+
+  .system-glyph {
+    left: 8px;
+    /* off-scale: the phone's avatar width */
+    width: 36px;
+  }
+
   .skeleton-row {
     /* off-scale: the avatar column, 8 + 36 + 10, as .message */
     padding-left: 54px;

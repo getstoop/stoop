@@ -81,21 +81,26 @@ export function shownRows(
 
 // A row new to the log, in each view that lists it: inside the range it
 // is shown already; beyond the newest end it extends a live range and is
-// counted on one that stops short; below the oldest end it joins only a
-// range nothing older lies beyond.
+// counted on one that stops short (unless it is quiet: a quiet row is
+// nothing new to read); below the oldest end it joins only a range
+// nothing older lies beyond.
 export function placed(log: ChannelLog, row: Message): ChannelLog {
   let next = log;
   if (showsInChannel(row))
-    next = withView(next, undefined, extended(next.channel, row.id));
+    next = withView(next, undefined, extended(next.channel, row));
   const thread = row.threadRootId ? next.threads[row.threadRootId] : undefined;
-  if (thread) next = withView(next, row.threadRootId, extended(thread, row.id));
+  if (thread) next = withView(next, row.threadRootId, extended(thread, row));
   return next;
 }
 
-function extended(view: View, id: string): View {
+function extended(view: View, row: Message): View {
+  const id = row.id;
   if (inRange(view, id)) return view;
   if (view.newestId === null || id > view.newestId) {
-    if (view.hasNewer) return { ...view, pendingNewer: view.pendingNewer + 1 };
+    if (view.hasNewer)
+      return row.quiet
+        ? view
+        : { ...view, pendingNewer: view.pendingNewer + 1 };
     return { ...view, newestId: id, oldestId: view.oldestId ?? id };
   }
   if (!view.hasOlder) return { ...view, oldestId: id };
