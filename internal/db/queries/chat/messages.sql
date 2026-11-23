@@ -10,14 +10,23 @@
 INSERT INTO messages (id, channel_id, author_id, content, mentions_entire_channel, mentions_here, reply_to_message_id,
     thread_root_id, in_channel, seq)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, sqlc.arg(seq)::bigint)
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq;
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id;
+
+-- CreateSystemMessage inserts a row that records an event in a channel
+-- (internal/chat/system_messages.go): top-level, no text, and never a
+-- reply. data is the kind's JSON, '{}' when it carries nothing.
+-- name: CreateSystemMessage :one
+INSERT INTO messages (id, channel_id, author_id, content, in_channel, seq, kind, data, quiet, reference_message_id)
+VALUES (sqlc.arg(id), sqlc.arg(channel_id), sqlc.arg(author_id), '', true, sqlc.arg(seq)::bigint,
+    sqlc.arg(kind), sqlc.arg(data), sqlc.arg(quiet), sqlc.narg(reference_message_id))
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id;
 
 -- GetMessage is the message an RPC starts from, so it finds only what a
 -- reader is shown: a live message, or a deleted root whose thread still
 -- has live replies (kept as a placeholder). Any other tombstone is not
 -- found, as a hard-deleted message was.
 -- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id
 FROM messages m
 WHERE id = $1
   AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id));
@@ -78,7 +87,7 @@ WHERE message_id = ANY($1::uuid[]);
 -- check.
 -- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq;
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id;
 
 -- StampMessageSeq records the channel log position a row last changed at
 -- (NextChannelSeq in channels.sql); no row means the message is gone.
@@ -110,12 +119,13 @@ WHERE id = sqlc.arg(id)::uuid AND deleted_at IS NULL;
 
 -- RecomputeChannelLastMessage repoints a channel at its newest message
 -- that shows in the channel, after a delete: not a tombstone, unless it
--- is the placeholder of a thread with live replies.
+-- is the placeholder of a thread with live replies, and never a quiet
+-- row, which marks nothing unread.
 -- name: RecomputeChannelLastMessage :exec
 UPDATE channels c
 SET last_message_id = (
     SELECT m.id FROM messages m
-    WHERE m.channel_id = c.id AND m.in_channel
+    WHERE m.channel_id = c.id AND m.in_channel AND NOT m.quiet
       AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
     ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1;

@@ -140,7 +140,9 @@ unmuted; channel mutes are left alone and go when the channel does.
 
 **`messages`** — `channel_id`, `author_id`, `content`, `created_at`,
 `edited_at`, `reply_to_message_id`, `mentions_entire_channel`, `mentions_here`,
-`thread_root_id`, `in_channel`, `deleted_at`, `seq`, and `search`, a stored column Postgres generates from `content`
+`thread_root_id`, `in_channel`, `deleted_at`, `seq`, the four
+[system message](messaging.md#system-messages) columns (`kind`, `data`,
+`quiet`, `reference_message_id`), and `search`, a stored column Postgres generates from `content`
 (`to_tsvector('simple', content)`) for message search. The index that
 matters for history:
 
@@ -208,6 +210,18 @@ a channel page and a thread page are each one range scan.
 channel starts from the reader's own messages to find the replies to
 them ([messaging.md](messaging.md#alert-counts)).
 
+System messages add four columns (00077). `kind smallint NOT NULL
+DEFAULT 0` is 0 for a message someone wrote; `data jsonb` is the kind's
+values; `quiet boolean NOT NULL DEFAULT false` keeps a row out of unread
+counts and `last_message_id`; `reference_message_id` points at the
+message the row is about, `ON DELETE SET NULL`. Two checks tie them
+together:
+
+```sql
+CHECK ((kind = 0) = (data IS NULL))                    -- messages_kind_has_data
+CHECK (reference_message_id IS NULL OR kind <> 0)      -- messages_reference_needs_kind
+```
+
 **`threads`** — one row per root with live replies: `reply_count`,
 `last_reply_id`, `last_reply_at` and `recent_author_ids`, the summary
 under the root, kept by the send and delete paths so a page of history
@@ -221,8 +235,10 @@ reply. Who is in a thread is not stored: it comes from the thread's
 messages.
 
 **`message_with_reply`** is a view: every `messages` column but `search`,
-plus the replied-to message's author, content and first attachment, and
-its own thread summary from `threads`.
+plus the replied-to message's author, content and first attachment, its
+own thread summary from `threads`, and the same three columns for the
+message a system row is about (`reference_message_id`, a second join on
+`messages`).
 Queries that hand a message to a client read it
 ([messaging.md](messaging.md#search)). Postgres refuses to drop or retype
 a column a view reads, so a migration that does either recreates the view
@@ -385,12 +401,14 @@ deleted in bulk and the child table grows with use.** Messages are the
 parent that qualifies, since the retention sweep deletes them a thousand
 at a time and deleting a channel cascades through all of its messages.
 Every table that grows and references `messages` leads an index with
-that column. Most do through their primary key; the two nullable columns
+that column. Most do through their primary key; the three nullable columns
 use partial indexes:
 
 ```sql
 CREATE INDEX messages_reply_to_idx ON messages (reply_to_message_id)
     WHERE reply_to_message_id IS NOT NULL;
+CREATE INDEX messages_reference_idx ON messages (reference_message_id)
+    WHERE reference_message_id IS NOT NULL;
 CREATE INDEX activity_items_message_idx ON activity_items (message_id)
     WHERE message_id IS NOT NULL;
 ```
@@ -508,6 +526,12 @@ plain build took a third of a second per million rows on a laptop, and
 nothing else writes during migration. `CONCURRENTLY` is not an option:
 it waits for every open transaction, including a second instance queued
 behind the migration lock, so the two wait on each other forever.
+A check constraint or a foreign key added to `messages` is in the same
+class: each reads every row once and rewrites nothing. 00077 adds two
+checks, a foreign key and a partial index, and took 0.37 s for the
+`ALTER TABLE` and 0.09 s for the index at two million rows (868 MB, in
+cache, on a laptop). Goose runs the file in one transaction, so a start
+killed midway leaves nothing behind and runs it again from the top.
 
 A **patch release carries no migrations.** A fix that needs the schema
 ships as a minor ([releasing.md → Versions](../releasing.md#versions)).

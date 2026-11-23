@@ -4,6 +4,7 @@ package stoop.chat.v1;
 
 import "google/protobuf/timestamp.proto";
 import "stoop/access/v1/access.proto";
+import "stoop/chat/v1/channel.proto";
 import "stoop/chat/v1/reaction.proto";
 
 // MessageAuthor is a denormalized snapshot of the author, resolved by the
@@ -116,6 +117,58 @@ message Message {
   // Higher is newer; a client keeps the copy with the higher seq. Always
   // set: every row has been stamped since the column became required.
   int64 seq = 21;
+  // Set only on a system message: a row that records something that
+  // happened in the channel, by author, with no text anyone wrote. All
+  // wording is the client's. A case the client does not know leaves the
+  // oneof unset: it hides the row when quiet is set and otherwise asks
+  // the reader to update.
+  SystemEvent event = 22;
+  // The row marks nothing unread: it is left out of unread counts and is
+  // never a channel's last message. Written once, from the row's kind.
+  bool quiet = 23;
+  // The message a system message is about, as a reply's quote is sent:
+  // only message_id once that message is deleted, and unset once the
+  // retention sweep has removed it.
+  ReplyRef reference = 24;
+}
+
+// SystemEvent is what a system message records.
+message SystemEvent {
+  oneof kind {
+    MembersAdded members_added = 1;
+    MemberLeft member_left = 2;
+    ChannelRenamed channel_renamed = 3;
+    TopicChanged topic_changed = 4;
+    PinEvent pin = 5;
+    PostPolicyChanged post_policy_changed = 6;
+  }
+}
+
+// MembersAdded: the author added these people to a private channel. One
+// member who is the author reads as "joined".
+message MembersAdded {
+  repeated MessageAuthor members = 1;
+}
+
+// MemberLeft: the author left the channel or was removed from it.
+message MemberLeft {}
+
+message ChannelRenamed {
+  string old_name = 1;
+  string new_name = 2;
+}
+
+// TopicChanged: the new topic, empty when it was cleared.
+message TopicChanged {
+  string topic = 1;
+}
+
+// PinEvent: the author pinned the message in Message.reference.
+message PinEvent {}
+
+// PostPolicyChanged: who may post now.
+message PostPolicyChanged {
+  ChannelPostPolicy post_policy = 1;
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no

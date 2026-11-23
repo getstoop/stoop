@@ -241,6 +241,10 @@ type Message struct {
 	InChannel             bool
 	DeletedAt             *time.Time
 	Seq                   int64
+	Kind                  int16
+	Data                  []byte
+	Quiet                 bool
+	ReferenceMessageID    *string
 }
 
 type MessageAttachment struct {
@@ -288,6 +292,13 @@ type MessageWithReply struct {
 	ThreadLastReplyAt     *time.Time
 	ThreadRecentAuthorIds []string
 	Seq                   int64
+	Kind                  int16
+	Data                  []byte
+	Quiet                 bool
+	ReferenceMessageID    *string
+	ReferenceAuthorID     *string
+	ReferenceContent      *string
+	ReferenceFirstFileID  string
 }
 
 type OutgoingWebhook struct {

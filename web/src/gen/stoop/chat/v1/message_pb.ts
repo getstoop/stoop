@@ -8,6 +8,8 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { IdentityKind } from "../../access/v1/access_pb";
 import { file_stoop_access_v1_access } from "../../access/v1/access_pb";
+import type { ChannelPostPolicy } from "./channel_pb";
+import { file_stoop_chat_v1_channel } from "./channel_pb";
 import type { Reaction } from "./reaction_pb";
 import { file_stoop_chat_v1_reaction } from "./reaction_pb";
 import type { Message as Message$1 } from "@bufbuild/protobuf";
@@ -16,7 +18,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/message.proto.
  */
 export const file_stoop_chat_v1_message: GenFile = /*@__PURE__*/
-  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSKaAQoKQXR0YWNobWVudBIPCgdmaWxlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgwKBHNpemUYBCABKAMSDwoHZXhwaXJlZBgFIAEoCBINCgV3aWR0aBgGIAEoBRIOCgZoZWlnaHQYByABKAUSGQoRdGh1bWJuYWlsX2ZpbGVfaWQYCCABKAkimwUKB01lc3NhZ2USCgoCaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIsCgZhdXRob3IYAyABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHY29udGVudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBtZW50aW9uX3VzZXJfaWRzGAYgAygJEhAKCHNwYWNlX2lkGAcgASgJEh8KF21lbnRpb25zX2VudGlyZV9jaGFubmVsGAggASgIEikKCHJlcGx5X3RvGAkgASgLMhcuc3Rvb3AuY2hhdC52MS5SZXBseVJlZhIVCg1tZW50aW9uc19oZXJlGAogASgIEi0KCWVkaXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoJcmVhY3Rpb25zGAwgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbhIuCgthdHRhY2htZW50cxgNIAMoCzIZLnN0b29wLmNoYXQudjEuQXR0YWNobWVudBIxCg1saW5rX3ByZXZpZXdzGA4gAygLMhouc3Rvb3AuY2hhdC52MS5MaW5rUHJldmlldxIOCgZwaW5uZWQYDyABKAgSFgoOdGhyZWFkX3Jvb3RfaWQYECABKAkSLAoGdGhyZWFkGBEgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5Eg8KB2RlbGV0ZWQYEiABKAgSEgoKaW5fY2hhbm5lbBgTIAEoCBIsCgt0aHJlYWRfcm9vdBgUIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSCwoDc2VxGBUgASgDIskBCg1UaHJlYWRTdW1tYXJ5EhMKC3JlcGx5X2NvdW50GAEgASgFEjEKDWxhc3RfcmVwbHlfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjQKDnJlY2VudF9hdXRob3JzGAMgAygLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEhUKDXBhcnRpY2lwYXRpbmcYBCABKAgSDQoFbXV0ZWQYBSABKAgSFAoMdW5yZWFkX2NvdW50GAYgASgFIpMBCgtMaW5rUHJldmlldxILCgN1cmwYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEQoJc2l0ZV9uYW1lGAQgASgJEhUKDWltYWdlX2ZpbGVfaWQYBSABKAkSEwoLaW1hZ2Vfd2lkdGgYBiABKAUSFAoMaW1hZ2VfaGVpZ2h0GAcgASgFQqsBChFjb20uc3Rvb3AuY2hhdC52MUIMTWVzc2FnZVByb3RvUAFaMmdpdGh1Yi5jb20vZ2V0c3Rvb3Avc3Rvb3AvZ2VuL3N0b29wL2NoYXQvdjE7Y2hhdHYxogIDU0NYqgINU3Rvb3AuQ2hhdC5WMcoCDVN0b29wXENoYXRcVjHiAhlTdG9vcFxDaGF0XFYxXEdQQk1ldGFkYXRh6gIPU3Rvb3A6OkNoYXQ6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_reaction]);
+  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSKaAQoKQXR0YWNobWVudBIPCgdmaWxlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgwKBHNpemUYBCABKAMSDwoHZXhwaXJlZBgFIAEoCBINCgV3aWR0aBgGIAEoBRIOCgZoZWlnaHQYByABKAUSGQoRdGh1bWJuYWlsX2ZpbGVfaWQYCCABKAkigQYKB01lc3NhZ2USCgoCaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIsCgZhdXRob3IYAyABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHY29udGVudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBtZW50aW9uX3VzZXJfaWRzGAYgAygJEhAKCHNwYWNlX2lkGAcgASgJEh8KF21lbnRpb25zX2VudGlyZV9jaGFubmVsGAggASgIEikKCHJlcGx5X3RvGAkgASgLMhcuc3Rvb3AuY2hhdC52MS5SZXBseVJlZhIVCg1tZW50aW9uc19oZXJlGAogASgIEi0KCWVkaXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoJcmVhY3Rpb25zGAwgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbhIuCgthdHRhY2htZW50cxgNIAMoCzIZLnN0b29wLmNoYXQudjEuQXR0YWNobWVudBIxCg1saW5rX3ByZXZpZXdzGA4gAygLMhouc3Rvb3AuY2hhdC52MS5MaW5rUHJldmlldxIOCgZwaW5uZWQYDyABKAgSFgoOdGhyZWFkX3Jvb3RfaWQYECABKAkSLAoGdGhyZWFkGBEgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5Eg8KB2RlbGV0ZWQYEiABKAgSEgoKaW5fY2hhbm5lbBgTIAEoCBIsCgt0aHJlYWRfcm9vdBgUIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSCwoDc2VxGBUgASgDEikKBWV2ZW50GBYgASgLMhouc3Rvb3AuY2hhdC52MS5TeXN0ZW1FdmVudBINCgVxdWlldBgXIAEoCBIqCglyZWZlcmVuY2UYGCABKAsyFy5zdG9vcC5jaGF0LnYxLlJlcGx5UmVmItYCCgtTeXN0ZW1FdmVudBI0Cg1tZW1iZXJzX2FkZGVkGAEgASgLMhsuc3Rvb3AuY2hhdC52MS5NZW1iZXJzQWRkZWRIABIwCgttZW1iZXJfbGVmdBgCIAEoCzIZLnN0b29wLmNoYXQudjEuTWVtYmVyTGVmdEgAEjgKD2NoYW5uZWxfcmVuYW1lZBgDIAEoCzIdLnN0b29wLmNoYXQudjEuQ2hhbm5lbFJlbmFtZWRIABI0Cg10b3BpY19jaGFuZ2VkGAQgASgLMhsuc3Rvb3AuY2hhdC52MS5Ub3BpY0NoYW5nZWRIABImCgNwaW4YBSABKAsyFy5zdG9vcC5jaGF0LnYxLlBpbkV2ZW50SAASPwoTcG9zdF9wb2xpY3lfY2hhbmdlZBgGIAEoCzIgLnN0b29wLmNoYXQudjEuUG9zdFBvbGljeUNoYW5nZWRIAEIGCgRraW5kIj0KDE1lbWJlcnNBZGRlZBItCgdtZW1iZXJzGAEgAygLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yIgwKCk1lbWJlckxlZnQiNAoOQ2hhbm5lbFJlbmFtZWQSEAoIb2xkX25hbWUYASABKAkSEAoIbmV3X25hbWUYAiABKAkiHQoMVG9waWNDaGFuZ2VkEg0KBXRvcGljGAEgASgJIgoKCFBpbkV2ZW50IkoKEVBvc3RQb2xpY3lDaGFuZ2VkEjUKC3Bvc3RfcG9saWN5GAEgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeSLJAQoNVGhyZWFkU3VtbWFyeRITCgtyZXBseV9jb3VudBgBIAEoBRIxCg1sYXN0X3JlcGx5X2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0Cg5yZWNlbnRfYXV0aG9ycxgDIAMoCzIcLnN0b29wLmNoYXQudjEuTWVzc2FnZUF1dGhvchIVCg1wYXJ0aWNpcGF0aW5nGAQgASgIEg0KBW11dGVkGAUgASgIEhQKDHVucmVhZF9jb3VudBgGIAEoBSKTAQoLTGlua1ByZXZpZXcSCwoDdXJsGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhEKCXNpdGVfbmFtZRgEIAEoCRIVCg1pbWFnZV9maWxlX2lkGAUgASgJEhMKC2ltYWdlX3dpZHRoGAYgASgFEhQKDGltYWdlX2hlaWdodBgHIAEoBUKrAQoRY29tLnN0b29wLmNoYXQudjFCDE1lc3NhZ2VQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_channel, file_stoop_chat_v1_reaction]);
 
 /**
  * MessageAuthor is a denormalized snapshot of the author, resolved by the
@@ -337,6 +339,34 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
    * @generated from field: int64 seq = 21;
    */
   seq: bigint;
+
+  /**
+   * Set only on a system message: a row that records something that
+   * happened in the channel, by author, with no text anyone wrote. All
+   * wording is the client's. A case the client does not know leaves the
+   * oneof unset: it hides the row when quiet is set and otherwise asks
+   * the reader to update.
+   *
+   * @generated from field: stoop.chat.v1.SystemEvent event = 22;
+   */
+  event?: SystemEvent | undefined;
+
+  /**
+   * The row marks nothing unread: it is left out of unread counts and is
+   * never a channel's last message. Written once, from the row's kind.
+   *
+   * @generated from field: bool quiet = 23;
+   */
+  quiet: boolean;
+
+  /**
+   * The message a system message is about, as a reply's quote is sent:
+   * only message_id once that message is deleted, and unset once the
+   * retention sweep has removed it.
+   *
+   * @generated from field: stoop.chat.v1.ReplyRef reference = 24;
+   */
+  reference?: ReplyRef | undefined;
 };
 
 /**
@@ -345,6 +375,171 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
  */
 export const MessageSchema: GenMessage<Message> = /*@__PURE__*/
   messageDesc(file_stoop_chat_v1_message, 3);
+
+/**
+ * SystemEvent is what a system message records.
+ *
+ * @generated from message stoop.chat.v1.SystemEvent
+ */
+export type SystemEvent = Message$1<"stoop.chat.v1.SystemEvent"> & {
+  /**
+   * @generated from oneof stoop.chat.v1.SystemEvent.kind
+   */
+  kind: {
+    /**
+     * @generated from field: stoop.chat.v1.MembersAdded members_added = 1;
+     */
+    value: MembersAdded;
+    case: "membersAdded";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.MemberLeft member_left = 2;
+     */
+    value: MemberLeft;
+    case: "memberLeft";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.ChannelRenamed channel_renamed = 3;
+     */
+    value: ChannelRenamed;
+    case: "channelRenamed";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.TopicChanged topic_changed = 4;
+     */
+    value: TopicChanged;
+    case: "topicChanged";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.PinEvent pin = 5;
+     */
+    value: PinEvent;
+    case: "pin";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.PostPolicyChanged post_policy_changed = 6;
+     */
+    value: PostPolicyChanged;
+    case: "postPolicyChanged";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message stoop.chat.v1.SystemEvent.
+ * Use `create(SystemEventSchema)` to create a new message.
+ */
+export const SystemEventSchema: GenMessage<SystemEvent> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 4);
+
+/**
+ * MembersAdded: the author added these people to a private channel. One
+ * member who is the author reads as "joined".
+ *
+ * @generated from message stoop.chat.v1.MembersAdded
+ */
+export type MembersAdded = Message$1<"stoop.chat.v1.MembersAdded"> & {
+  /**
+   * @generated from field: repeated stoop.chat.v1.MessageAuthor members = 1;
+   */
+  members: MessageAuthor[];
+};
+
+/**
+ * Describes the message stoop.chat.v1.MembersAdded.
+ * Use `create(MembersAddedSchema)` to create a new message.
+ */
+export const MembersAddedSchema: GenMessage<MembersAdded> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 5);
+
+/**
+ * MemberLeft: the author left the channel or was removed from it.
+ *
+ * @generated from message stoop.chat.v1.MemberLeft
+ */
+export type MemberLeft = Message$1<"stoop.chat.v1.MemberLeft"> & {
+};
+
+/**
+ * Describes the message stoop.chat.v1.MemberLeft.
+ * Use `create(MemberLeftSchema)` to create a new message.
+ */
+export const MemberLeftSchema: GenMessage<MemberLeft> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 6);
+
+/**
+ * @generated from message stoop.chat.v1.ChannelRenamed
+ */
+export type ChannelRenamed = Message$1<"stoop.chat.v1.ChannelRenamed"> & {
+  /**
+   * @generated from field: string old_name = 1;
+   */
+  oldName: string;
+
+  /**
+   * @generated from field: string new_name = 2;
+   */
+  newName: string;
+};
+
+/**
+ * Describes the message stoop.chat.v1.ChannelRenamed.
+ * Use `create(ChannelRenamedSchema)` to create a new message.
+ */
+export const ChannelRenamedSchema: GenMessage<ChannelRenamed> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 7);
+
+/**
+ * TopicChanged: the new topic, empty when it was cleared.
+ *
+ * @generated from message stoop.chat.v1.TopicChanged
+ */
+export type TopicChanged = Message$1<"stoop.chat.v1.TopicChanged"> & {
+  /**
+   * @generated from field: string topic = 1;
+   */
+  topic: string;
+};
+
+/**
+ * Describes the message stoop.chat.v1.TopicChanged.
+ * Use `create(TopicChangedSchema)` to create a new message.
+ */
+export const TopicChangedSchema: GenMessage<TopicChanged> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 8);
+
+/**
+ * PinEvent: the author pinned the message in Message.reference.
+ *
+ * @generated from message stoop.chat.v1.PinEvent
+ */
+export type PinEvent = Message$1<"stoop.chat.v1.PinEvent"> & {
+};
+
+/**
+ * Describes the message stoop.chat.v1.PinEvent.
+ * Use `create(PinEventSchema)` to create a new message.
+ */
+export const PinEventSchema: GenMessage<PinEvent> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 9);
+
+/**
+ * PostPolicyChanged: who may post now.
+ *
+ * @generated from message stoop.chat.v1.PostPolicyChanged
+ */
+export type PostPolicyChanged = Message$1<"stoop.chat.v1.PostPolicyChanged"> & {
+  /**
+   * @generated from field: stoop.chat.v1.ChannelPostPolicy post_policy = 1;
+   */
+  postPolicy: ChannelPostPolicy;
+};
+
+/**
+ * Describes the message stoop.chat.v1.PostPolicyChanged.
+ * Use `create(PostPolicyChangedSchema)` to create a new message.
+ */
+export const PostPolicyChangedSchema: GenMessage<PostPolicyChanged> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 10);
 
 /**
  * ThreadSummary is what the line under a root shows, so it renders with no
@@ -401,7 +596,7 @@ export type ThreadSummary = Message$1<"stoop.chat.v1.ThreadSummary"> & {
  * Use `create(ThreadSummarySchema)` to create a new message.
  */
 export const ThreadSummarySchema: GenMessage<ThreadSummary> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 4);
+  messageDesc(file_stoop_chat_v1_message, 11);
 
 /**
  * LinkPreview is the unfurled metadata of a URL in a message.
@@ -452,5 +647,5 @@ export type LinkPreview = Message$1<"stoop.chat.v1.LinkPreview"> & {
  * Use `create(LinkPreviewSchema)` to create a new message.
  */
 export const LinkPreviewSchema: GenMessage<LinkPreview> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 5);
+  messageDesc(file_stoop_chat_v1_message, 12);
 

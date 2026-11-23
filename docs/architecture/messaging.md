@@ -622,7 +622,9 @@ they have seen. It only moves forward.
 Because ids are UUIDv7 and therefore ordered, **"unread" is an id
 comparison** — `channels.last_message_id > channel_reads.last_read_message_id`
 — not a count and not a scan. The space rail's dot, the channel's bold, and
-the "anything new?" query are all that one comparison.
+the "anything new?" query are all that one comparison. A quiet
+[system message](#system-messages) is never the channel's last message
+and is left out of `unread_count`, so it changes none of them.
 
 `ChannelRead` is published to the reader's own `user:` topic so their other
 devices stay in step.
@@ -880,8 +882,8 @@ batch's roots there and the replies under them — tombstones included,
 since a deleted row past the cutoff is just a row — and recomputes
 `last_message_id`. The files go through the port once the
 batch is done. Foreign keys do the rest: a reply's
-`reply_to_message_id` goes `NULL`, and the thread summary, mutes and
-read markers cascade. Read markers have no foreign key and compare by
+`reply_to_message_id` and a system message's `reference_message_id` go
+`NULL`, and the thread summary, mutes and read markers cascade. Read markers have no foreign key and compare by
 id, so unread counts stay right with the marker's message gone.
 
 No events are published. A swept message is old enough to be off almost
@@ -906,7 +908,9 @@ cursor. What the code does:
   (migration 00051), which is every other column plus the reply quote,
   so listing, search, pins and resent messages share one generated row
   type. A new `messages` column goes in the view and in the few queries
-  that read `messages` directly.
+  that read `messages` directly. Only messages someone wrote are
+  searched (`kind = 0`): a [system message](#system-messages) has no
+  text, and a query of nothing but negations matches exactly that.
 - **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
   `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
   (quoted values allowed, `in:"front steps"`); the rest is websearch
@@ -975,6 +979,86 @@ An incoming webhook posts as its bot, so one pointed at an announcement
 channel just works.
 
 Voice channels and DMs are always `everyone`.
+
+## System messages
+
+A system message is a row in `messages` that records something that
+happened in its channel: members added to a private channel, a member
+gone from one, the channel renamed, its topic changed, a message pinned,
+announcement mode switched. It is a message row so that paging, the
+channel log, live delivery and retention carry it with no second stream
+to merge. Nothing records one yet: the storage, the wire shape, the
+write helper and the read path are in, and the actions that call the
+helper follow.
+
+- **The row.** `kind` is 0 for a message someone wrote and the kind's
+  number otherwise; `data` is the kind's own values as JSON (user ids,
+  old and new names, the topic), `'{}'` for a kind that carries nothing
+  and `NULL` only on kind 0. `author_id` is who did it, or who left.
+  `content` is empty and `reply_to_message_id` is null; the row is
+  top-level. `reference_message_id` is the message the row is about (the
+  pinned one), `ON DELETE SET NULL`. Two checks hold the columns
+  together ([data.md](data.md#chat)).
+- **Quiet.** `quiet` says the row marks nothing unread. It is written
+  once at insert, from the kind, and stored so that SQL and both clients
+  filter on it without knowing the list of kinds; a row keeps the
+  behaviour it was written with. All six kinds are quiet. A quiet row is
+  left out of `unread_count` (`ListChannelsBySpace`,
+  `ListDMChannelsByUser`) and never becomes `channels.last_message_id`
+  (`recordEvent` does not set it, `RecomputeChannelLastMessage` skips
+  it), which is what the space's `has_unread` and a conversation's
+  preview read. So `MarkChannelRead` with no id lands on the last
+  message, below any quiet rows after it, and that is everything read.
+  A server rolled back past this change knows none of it and can point
+  a channel's last message at a quiet row; back on this version the
+  space then shows unread beside a count of zero until someone posts
+  there or marks the channel read.
+  Alert counts, activity and push need nothing: they come from mentions,
+  replies and activity items, and a system row has none.
+- **Writing one** (`internal/chat/system_messages.go`). The registry
+  `systemKinds` lists each kind's number and whether it is quiet; each
+  kind has an event type whose JSON is the row's `data`.
+  `recordEvent(ctx, qtx, channel, actorID, event)` runs inside the
+  transaction of the action it records, so the two succeed or fail
+  together: it takes the channel's next seq, inserts the row, sets the
+  channel's last message only when the row is not quiet, and returns the
+  row. The caller locks the channel row before any other row it writes
+  (`LockChannel`, the rule in `seq.go`) and publishes `MessageCreated`
+  after its commit, in seq order with anything else it publishes. The
+  message it publishes is `loadMessage` of the row, which is the row as
+  `ListMessages` returns it; `toProtoMessage` alone fills neither the
+  event nor the reference.
+  `recordEvent` marks nothing read, records no activity, writes no
+  mentions, and is not subject to the channel's post policy. It refuses
+  an event with nothing in it to store: a pin with no message, a message
+  that is not shown in the same channel, a member that is not a user id.
+  The view joins a reference only within the row's own channel besides.
+  A pin's message id lives in `reference_message_id` and not in `data`,
+  so a pin event decoded from a row does not carry it.
+- **On the wire.** `Message.event` is a `SystemEvent`, a `oneof` with a
+  case per kind; `Message.quiet` is the flag; `Message.reference` is a
+  `ReplyRef`, the type a reply's quote uses. The server sends no text:
+  every word is the client's, built from `event`. People in an event are
+  stored as ids and sent as `MessageAuthor`, resolved when the row is
+  read like any author, so a renamed or deleted account shows as it is
+  now. The reference's excerpt reads mentions as current handles and
+  falls back to the first attachment's name, as a quote does; once the
+  message is deleted the reference is its id alone, and once the
+  retention sweep has removed it there is no reference (the foreign key
+  clears the column, with no new seq). A kind the server does not know,
+  written by a newer one before a rollback, is sent as an event with no
+  case set.
+- **Readers.** History, `ListChanges`, pins and resent messages carry
+  the new columns through the `message_with_reply` view. Search matches
+  only kind 0: a system row has no text, but a query of nothing but
+  negations matches a row with no text. The retention sweep takes system
+  rows with the messages around them. No code may assume a system row's
+  `content` is empty: a server rolled back past this change lets the
+  author edit one.
+
+Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
+its event type, a `recordEvent` call in the action's transaction, and
+the clients' wording.
 
 ## Edits, deletions, reactions, replies
 
