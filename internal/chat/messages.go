@@ -414,12 +414,13 @@ func listedMessage(row dbgen.MessageWithReply) messageRow {
 		CreatedAt: row.CreatedAt, MentionsEntireChannel: row.MentionsEntireChannel,
 		ReplyToMessageID: row.ReplyToMessageID, MentionsHere: row.MentionsHere, EditedAt: row.EditedAt,
 		ThreadRootID: row.ThreadRootID, InChannel: row.InChannel, DeletedAt: row.DeletedAt, Seq: row.Seq,
+		Kind: row.Kind, Data: row.Data, Quiet: row.Quiet, ReferenceMessageID: row.ReferenceMessageID,
 	}
 }
 
 // hydrateMessages turns rows into protos, in the same order, with authors,
-// mentions, reactions, attachments, link previews, reply quotes and
-// thread summaries.
+// mentions, reactions, attachments, link previews, reply quotes, thread
+// summaries, and a system message's people and the message it is about.
 func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.MessageWithReply) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
@@ -436,6 +437,12 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		}
 		for _, id := range row.ThreadRecentAuthorIds {
 			addAuthor(id)
+		}
+		for _, id := range eventPeople(row.Kind, row.Data) {
+			addAuthor(id)
+		}
+		if row.ReferenceAuthorID != nil {
+			addAuthor(*row.ReferenceAuthorID)
 		}
 	}
 	roots, err := s.threadRootsOf(ctx, rows)
@@ -475,11 +482,15 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 	if err != nil {
 		return nil, err
 	}
-	// Quoted messages without text preview as their first attachment.
+	// Quoted and referenced messages without text preview as their first
+	// attachment.
 	var replyFileIDs []string
 	for _, row := range rows {
 		if row.ReplyFirstFileID != "" {
 			replyFileIDs = append(replyFileIDs, row.ReplyFirstFileID)
+		}
+		if row.ReferenceFirstFileID != "" {
+			replyFileIDs = append(replyFileIDs, row.ReferenceFirstFileID)
 		}
 	}
 	replyFiles, err := s.fileRecords(ctx, replyFileIDs)
@@ -520,18 +531,29 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			}
 			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, names.currentOf(row.ReplyContent), replyFiles[row.ReplyFirstFileID].label())
 		}
+		if row.ReferenceMessageID != nil {
+			var author *chatv1.MessageAuthor
+			if row.ReferenceAuthorID != nil {
+				author = authors[*row.ReferenceAuthorID]
+			}
+			message.Reference = replyRef(*row.ReferenceMessageID, author, names.currentOf(row.ReferenceContent), replyFiles[row.ReferenceFirstFileID].label())
+		}
 		messages[index] = message
 	}
 	return messages, nil
 }
 
 // previewedContents is every content a page of messages previews: its
-// reply quotes and its thread roots.
+// reply quotes, the messages its system rows are about, and its thread
+// roots.
 func previewedContents(rows []dbgen.MessageWithReply, roots map[string]dbgen.ThreadRootRefsRow) []string {
 	contents := make([]string, 0, len(rows)+len(roots))
 	for _, row := range rows {
 		if row.ReplyContent != nil {
 			contents = append(contents, *row.ReplyContent)
+		}
+		if row.ReferenceContent != nil {
+			contents = append(contents, *row.ReferenceContent)
 		}
 	}
 	for _, root := range roots {
@@ -697,6 +719,7 @@ func toProtoMessage(row messageRow, authors map[string]*chatv1.MessageAuthor, me
 		MentionUserIds: mentions, SpaceId: spaceID,
 		MentionsEntireChannel: row.MentionsEntireChannel, MentionsHere: row.MentionsHere,
 		InChannel: row.InChannel, Deleted: row.DeletedAt != nil, Seq: row.Seq,
+		Event: systemEventProto(row.Kind, row.Data, authors), Quiet: row.Quiet,
 	}
 	if row.ThreadRootID != nil {
 		out.ThreadRootId = *row.ThreadRootID

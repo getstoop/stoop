@@ -178,7 +178,7 @@ const listChannelsBySpace = `-- name: ListChannelsBySpace :many
 SELECT c.id, c.space_id, c.name, c.kind, c.position, c.created_at, c.last_message_id, c.dm_key, c.topic, c.post_policy, c.private, c.seq, r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = $1) AS muted,
     (SELECT count(*) FROM messages m
-     WHERE m.channel_id = c.id AND m.in_channel
+     WHERE m.channel_id = c.id AND m.in_channel AND NOT m.quiet
        AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
 FROM channels c
@@ -204,7 +204,7 @@ type ListChannelsBySpaceRow struct {
 // ones the caller is in, with the caller's read marker, how many shown
 // messages are newer than it (all of them if they've never opened it; a
 // tombstone counts only as the placeholder of a thread with live
-// replies), and whether they muted it.
+// replies, and a quiet row never counts), and whether they muted it.
 func (q *Queries) ListChannelsBySpace(ctx context.Context, arg ListChannelsBySpaceParams) ([]ListChannelsBySpaceRow, error) {
 	rows, err := q.db.Query(ctx, listChannelsBySpace, arg.UserID, arg.SpaceID)
 	if err != nil {

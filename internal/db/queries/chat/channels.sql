@@ -13,12 +13,12 @@ SELECT * FROM channels WHERE id = $1;
 -- ones the caller is in, with the caller's read marker, how many shown
 -- messages are newer than it (all of them if they've never opened it; a
 -- tombstone counts only as the placeholder of a thread with live
--- replies), and whether they muted it.
+-- replies, and a quiet row never counts), and whether they muted it.
 -- name: ListChannelsBySpace :many
 SELECT sqlc.embed(c), r.last_read_message_id,
     EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.channel_id = c.id AND cm.user_id = sqlc.arg(user_id)) AS muted,
     (SELECT count(*) FROM messages m
-     WHERE m.channel_id = c.id AND m.in_channel
+     WHERE m.channel_id = c.id AND m.in_channel AND NOT m.quiet
        AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
        AND (r.last_read_message_id IS NULL OR m.id > r.last_read_message_id)) AS unread_count
 FROM channels c

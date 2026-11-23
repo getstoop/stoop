@@ -35,7 +35,7 @@ const createMessage = `-- name: CreateMessage :one
 INSERT INTO messages (id, channel_id, author_id, content, mentions_entire_channel, mentions_here, reply_to_message_id,
     thread_root_id, in_channel, seq)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::bigint)
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id
 `
 
 type CreateMessageParams struct {
@@ -65,6 +65,10 @@ type CreateMessageRow struct {
 	InChannel             bool
 	DeletedAt             *time.Time
 	Seq                   int64
+	Kind                  int16
+	Data                  []byte
+	Quiet                 bool
+	ReferenceMessageID    *string
 }
 
 // Messages. Owned by the chat module.
@@ -102,6 +106,85 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 		&i.InChannel,
 		&i.DeletedAt,
 		&i.Seq,
+		&i.Kind,
+		&i.Data,
+		&i.Quiet,
+		&i.ReferenceMessageID,
+	)
+	return i, err
+}
+
+const createSystemMessage = `-- name: CreateSystemMessage :one
+INSERT INTO messages (id, channel_id, author_id, content, in_channel, seq, kind, data, quiet, reference_message_id)
+VALUES ($1, $2, $3, '', true, $4::bigint,
+    $5, $6, $7, $8)
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id
+`
+
+type CreateSystemMessageParams struct {
+	ID                 string
+	ChannelID          string
+	AuthorID           string
+	Seq                int64
+	Kind               int16
+	Data               []byte
+	Quiet              bool
+	ReferenceMessageID *string
+}
+
+type CreateSystemMessageRow struct {
+	ID                    string
+	ChannelID             string
+	AuthorID              string
+	Content               string
+	CreatedAt             time.Time
+	MentionsEntireChannel bool
+	ReplyToMessageID      *string
+	MentionsHere          bool
+	EditedAt              *time.Time
+	ThreadRootID          *string
+	InChannel             bool
+	DeletedAt             *time.Time
+	Seq                   int64
+	Kind                  int16
+	Data                  []byte
+	Quiet                 bool
+	ReferenceMessageID    *string
+}
+
+// CreateSystemMessage inserts a row that records an event in a channel
+// (internal/chat/system_messages.go): top-level, no text, and never a
+// reply. data is the kind's JSON, '{}' when it carries nothing.
+func (q *Queries) CreateSystemMessage(ctx context.Context, arg CreateSystemMessageParams) (CreateSystemMessageRow, error) {
+	row := q.db.QueryRow(ctx, createSystemMessage,
+		arg.ID,
+		arg.ChannelID,
+		arg.AuthorID,
+		arg.Seq,
+		arg.Kind,
+		arg.Data,
+		arg.Quiet,
+		arg.ReferenceMessageID,
+	)
+	var i CreateSystemMessageRow
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelID,
+		&i.AuthorID,
+		&i.Content,
+		&i.CreatedAt,
+		&i.MentionsEntireChannel,
+		&i.ReplyToMessageID,
+		&i.MentionsHere,
+		&i.EditedAt,
+		&i.ThreadRootID,
+		&i.InChannel,
+		&i.DeletedAt,
+		&i.Seq,
+		&i.Kind,
+		&i.Data,
+		&i.Quiet,
+		&i.ReferenceMessageID,
 	)
 	return i, err
 }
@@ -123,7 +206,7 @@ func (q *Queries) DeleteExpiredMessages(ctx context.Context, ids []string) (int6
 }
 
 const getMessage = `-- name: GetMessage :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id
 FROM messages m
 WHERE id = $1
   AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
@@ -143,6 +226,10 @@ type GetMessageRow struct {
 	InChannel             bool
 	DeletedAt             *time.Time
 	Seq                   int64
+	Kind                  int16
+	Data                  []byte
+	Quiet                 bool
+	ReferenceMessageID    *string
 }
 
 // GetMessage is the message an RPC starts from, so it finds only what a
@@ -166,12 +253,16 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 		&i.InChannel,
 		&i.DeletedAt,
 		&i.Seq,
+		&i.Kind,
+		&i.Data,
+		&i.Quiet,
+		&i.ReferenceMessageID,
 	)
 	return i, err
 }
 
 const getMessageWithReply = `-- name: GetMessageWithReply :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
 WHERE m.id = $1
 `
 
@@ -200,6 +291,13 @@ func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (MessageWi
 		&i.ThreadLastReplyAt,
 		&i.ThreadRecentAuthorIds,
 		&i.Seq,
+		&i.Kind,
+		&i.Data,
+		&i.Quiet,
+		&i.ReferenceMessageID,
+		&i.ReferenceAuthorID,
+		&i.ReferenceContent,
+		&i.ReferenceFirstFileID,
 	)
 	return i, err
 }
@@ -289,7 +387,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessageChanges = `-- name: ListMessageChanges :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.seq > $2::bigint
 ORDER BY m.seq
@@ -335,6 +433,13 @@ func (q *Queries) ListMessageChanges(ctx context.Context, arg ListMessageChanges
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
 			&i.Seq,
+			&i.Kind,
+			&i.Data,
+			&i.Quiet,
+			&i.ReferenceMessageID,
+			&i.ReferenceAuthorID,
+			&i.ReferenceContent,
+			&i.ReferenceFirstFileID,
 		); err != nil {
 			return nil, err
 		}
@@ -347,7 +452,7 @@ func (q *Queries) ListMessageChanges(ctx context.Context, arg ListMessageChanges
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
   AND (m.deleted_at IS NULL OR m.thread_reply_count > 0)
@@ -399,6 +504,13 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
 			&i.Seq,
+			&i.Kind,
+			&i.Data,
+			&i.Quiet,
+			&i.ReferenceMessageID,
+			&i.ReferenceAuthorID,
+			&i.ReferenceContent,
+			&i.ReferenceFirstFileID,
 		); err != nil {
 			return nil, err
 		}
@@ -411,7 +523,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
   AND (m.deleted_at IS NULL OR m.thread_reply_count > 0)
@@ -460,6 +572,13 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
 			&i.Seq,
+			&i.Kind,
+			&i.Data,
+			&i.Quiet,
+			&i.ReferenceMessageID,
+			&i.ReferenceAuthorID,
+			&i.ReferenceContent,
+			&i.ReferenceFirstFileID,
 		); err != nil {
 			return nil, err
 		}
@@ -475,7 +594,7 @@ const recomputeChannelLastMessage = `-- name: RecomputeChannelLastMessage :exec
 UPDATE channels c
 SET last_message_id = (
     SELECT m.id FROM messages m
-    WHERE m.channel_id = c.id AND m.in_channel
+    WHERE m.channel_id = c.id AND m.in_channel AND NOT m.quiet
       AND (m.deleted_at IS NULL OR EXISTS (SELECT 1 FROM threads t WHERE t.root_message_id = m.id))
     ORDER BY m.id DESC LIMIT 1)
 WHERE c.id = $1
@@ -483,7 +602,8 @@ WHERE c.id = $1
 
 // RecomputeChannelLastMessage repoints a channel at its newest message
 // that shows in the channel, after a delete: not a tombstone, unless it
-// is the placeholder of a thread with live replies.
+// is the placeholder of a thread with live replies, and never a quiet
+// row, which marks nothing unread.
 func (q *Queries) RecomputeChannelLastMessage(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, recomputeChannelLastMessage, id)
 	return err
@@ -556,7 +676,7 @@ func (q *Queries) TombstoneMessage(ctx context.Context, id string) (int64, error
 
 const updateMessageContent = `-- name: UpdateMessageContent :one
 UPDATE messages SET content = $2, edited_at = now() WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq
+RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id
 `
 
 type UpdateMessageContentParams struct {
@@ -578,6 +698,10 @@ type UpdateMessageContentRow struct {
 	InChannel             bool
 	DeletedAt             *time.Time
 	Seq                   int64
+	Kind                  int16
+	Data                  []byte
+	Quiet                 bool
+	ReferenceMessageID    *string
 }
 
 // UpdateMessageContent never writes onto a root kept as a placeholder: no
@@ -600,6 +724,10 @@ func (q *Queries) UpdateMessageContent(ctx context.Context, arg UpdateMessageCon
 		&i.InChannel,
 		&i.DeletedAt,
 		&i.Seq,
+		&i.Kind,
+		&i.Data,
+		&i.Quiet,
+		&i.ReferenceMessageID,
 	)
 	return i, err
 }

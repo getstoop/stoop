@@ -351,7 +351,20 @@ type Message struct {
 	// or unpinned it, gave it a link preview, or changed its thread summary.
 	// Higher is newer; a client keeps the copy with the higher seq. Always
 	// set: every row has been stamped since the column became required.
-	Seq           int64 `protobuf:"varint,21,opt,name=seq,proto3" json:"seq,omitempty"`
+	Seq int64 `protobuf:"varint,21,opt,name=seq,proto3" json:"seq,omitempty"`
+	// Set only on a system message: a row that records something that
+	// happened in the channel, by author, with no text anyone wrote. All
+	// wording is the client's. A case the client does not know leaves the
+	// oneof unset: it hides the row when quiet is set and otherwise asks
+	// the reader to update.
+	Event *SystemEvent `protobuf:"bytes,22,opt,name=event,proto3" json:"event,omitempty"`
+	// The row marks nothing unread: it is left out of unread counts and is
+	// never a channel's last message. Written once, from the row's kind.
+	Quiet bool `protobuf:"varint,23,opt,name=quiet,proto3" json:"quiet,omitempty"`
+	// The message a system message is about, as a reply's quote is sent:
+	// only message_id once that message is deleted, and unset once the
+	// retention sweep has removed it.
+	Reference     *ReplyRef `protobuf:"bytes,24,opt,name=reference,proto3" json:"reference,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,6 +546,436 @@ func (x *Message) GetSeq() int64 {
 	return 0
 }
 
+func (x *Message) GetEvent() *SystemEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *Message) GetQuiet() bool {
+	if x != nil {
+		return x.Quiet
+	}
+	return false
+}
+
+func (x *Message) GetReference() *ReplyRef {
+	if x != nil {
+		return x.Reference
+	}
+	return nil
+}
+
+// SystemEvent is what a system message records.
+type SystemEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*SystemEvent_MembersAdded
+	//	*SystemEvent_MemberLeft
+	//	*SystemEvent_ChannelRenamed
+	//	*SystemEvent_TopicChanged
+	//	*SystemEvent_Pin
+	//	*SystemEvent_PostPolicyChanged
+	Kind          isSystemEvent_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemEvent) Reset() {
+	*x = SystemEvent{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemEvent) ProtoMessage() {}
+
+func (x *SystemEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemEvent.ProtoReflect.Descriptor instead.
+func (*SystemEvent) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SystemEvent) GetKind() isSystemEvent_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *SystemEvent) GetMembersAdded() *MembersAdded {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_MembersAdded); ok {
+			return x.MembersAdded
+		}
+	}
+	return nil
+}
+
+func (x *SystemEvent) GetMemberLeft() *MemberLeft {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_MemberLeft); ok {
+			return x.MemberLeft
+		}
+	}
+	return nil
+}
+
+func (x *SystemEvent) GetChannelRenamed() *ChannelRenamed {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_ChannelRenamed); ok {
+			return x.ChannelRenamed
+		}
+	}
+	return nil
+}
+
+func (x *SystemEvent) GetTopicChanged() *TopicChanged {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_TopicChanged); ok {
+			return x.TopicChanged
+		}
+	}
+	return nil
+}
+
+func (x *SystemEvent) GetPin() *PinEvent {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_Pin); ok {
+			return x.Pin
+		}
+	}
+	return nil
+}
+
+func (x *SystemEvent) GetPostPolicyChanged() *PostPolicyChanged {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_PostPolicyChanged); ok {
+			return x.PostPolicyChanged
+		}
+	}
+	return nil
+}
+
+type isSystemEvent_Kind interface {
+	isSystemEvent_Kind()
+}
+
+type SystemEvent_MembersAdded struct {
+	MembersAdded *MembersAdded `protobuf:"bytes,1,opt,name=members_added,json=membersAdded,proto3,oneof"`
+}
+
+type SystemEvent_MemberLeft struct {
+	MemberLeft *MemberLeft `protobuf:"bytes,2,opt,name=member_left,json=memberLeft,proto3,oneof"`
+}
+
+type SystemEvent_ChannelRenamed struct {
+	ChannelRenamed *ChannelRenamed `protobuf:"bytes,3,opt,name=channel_renamed,json=channelRenamed,proto3,oneof"`
+}
+
+type SystemEvent_TopicChanged struct {
+	TopicChanged *TopicChanged `protobuf:"bytes,4,opt,name=topic_changed,json=topicChanged,proto3,oneof"`
+}
+
+type SystemEvent_Pin struct {
+	Pin *PinEvent `protobuf:"bytes,5,opt,name=pin,proto3,oneof"`
+}
+
+type SystemEvent_PostPolicyChanged struct {
+	PostPolicyChanged *PostPolicyChanged `protobuf:"bytes,6,opt,name=post_policy_changed,json=postPolicyChanged,proto3,oneof"`
+}
+
+func (*SystemEvent_MembersAdded) isSystemEvent_Kind() {}
+
+func (*SystemEvent_MemberLeft) isSystemEvent_Kind() {}
+
+func (*SystemEvent_ChannelRenamed) isSystemEvent_Kind() {}
+
+func (*SystemEvent_TopicChanged) isSystemEvent_Kind() {}
+
+func (*SystemEvent_Pin) isSystemEvent_Kind() {}
+
+func (*SystemEvent_PostPolicyChanged) isSystemEvent_Kind() {}
+
+// MembersAdded: the author added these people to a private channel. One
+// member who is the author reads as "joined".
+type MembersAdded struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Members       []*MessageAuthor       `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MembersAdded) Reset() {
+	*x = MembersAdded{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MembersAdded) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MembersAdded) ProtoMessage() {}
+
+func (x *MembersAdded) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MembersAdded.ProtoReflect.Descriptor instead.
+func (*MembersAdded) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *MembersAdded) GetMembers() []*MessageAuthor {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
+// MemberLeft: the author left the channel or was removed from it.
+type MemberLeft struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemberLeft) Reset() {
+	*x = MemberLeft{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemberLeft) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemberLeft) ProtoMessage() {}
+
+func (x *MemberLeft) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemberLeft.ProtoReflect.Descriptor instead.
+func (*MemberLeft) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{6}
+}
+
+type ChannelRenamed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OldName       string                 `protobuf:"bytes,1,opt,name=old_name,json=oldName,proto3" json:"old_name,omitempty"`
+	NewName       string                 `protobuf:"bytes,2,opt,name=new_name,json=newName,proto3" json:"new_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChannelRenamed) Reset() {
+	*x = ChannelRenamed{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChannelRenamed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChannelRenamed) ProtoMessage() {}
+
+func (x *ChannelRenamed) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChannelRenamed.ProtoReflect.Descriptor instead.
+func (*ChannelRenamed) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ChannelRenamed) GetOldName() string {
+	if x != nil {
+		return x.OldName
+	}
+	return ""
+}
+
+func (x *ChannelRenamed) GetNewName() string {
+	if x != nil {
+		return x.NewName
+	}
+	return ""
+}
+
+// TopicChanged: the new topic, empty when it was cleared.
+type TopicChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TopicChanged) Reset() {
+	*x = TopicChanged{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TopicChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TopicChanged) ProtoMessage() {}
+
+func (x *TopicChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TopicChanged.ProtoReflect.Descriptor instead.
+func (*TopicChanged) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *TopicChanged) GetTopic() string {
+	if x != nil {
+		return x.Topic
+	}
+	return ""
+}
+
+// PinEvent: the author pinned the message in Message.reference.
+type PinEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PinEvent) Reset() {
+	*x = PinEvent{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PinEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PinEvent) ProtoMessage() {}
+
+func (x *PinEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PinEvent.ProtoReflect.Descriptor instead.
+func (*PinEvent) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{9}
+}
+
+// PostPolicyChanged: who may post now.
+type PostPolicyChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PostPolicy    ChannelPostPolicy      `protobuf:"varint,1,opt,name=post_policy,json=postPolicy,proto3,enum=stoop.chat.v1.ChannelPostPolicy" json:"post_policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PostPolicyChanged) Reset() {
+	*x = PostPolicyChanged{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PostPolicyChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PostPolicyChanged) ProtoMessage() {}
+
+func (x *PostPolicyChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PostPolicyChanged.ProtoReflect.Descriptor instead.
+func (*PostPolicyChanged) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PostPolicyChanged) GetPostPolicy() ChannelPostPolicy {
+	if x != nil {
+		return x.PostPolicy
+	}
+	return ChannelPostPolicy_CHANNEL_POST_POLICY_UNSPECIFIED
+}
+
 // ThreadSummary is what the line under a root shows, so it renders with no
 // fetch of the thread.
 type ThreadSummary struct {
@@ -557,7 +1000,7 @@ type ThreadSummary struct {
 
 func (x *ThreadSummary) Reset() {
 	*x = ThreadSummary{}
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -569,7 +1012,7 @@ func (x *ThreadSummary) String() string {
 func (*ThreadSummary) ProtoMessage() {}
 
 func (x *ThreadSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[4]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -582,7 +1025,7 @@ func (x *ThreadSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreadSummary.ProtoReflect.Descriptor instead.
 func (*ThreadSummary) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{4}
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ThreadSummary) GetReplyCount() int32 {
@@ -644,7 +1087,7 @@ type LinkPreview struct {
 
 func (x *LinkPreview) Reset() {
 	*x = LinkPreview{}
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[5]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -656,7 +1099,7 @@ func (x *LinkPreview) String() string {
 func (*LinkPreview) ProtoMessage() {}
 
 func (x *LinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[5]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -669,7 +1112,7 @@ func (x *LinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
 func (*LinkPreview) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{5}
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *LinkPreview) GetUrl() string {
@@ -725,7 +1168,7 @@ var File_stoop_chat_v1_message_proto protoreflect.FileDescriptor
 
 const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1bstoop/chat/v1/message.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x1cstoop/chat/v1/reaction.proto\"\xd1\x01\n" +
+	"\x1bstoop/chat/v1/message.proto\x12\rstoop.chat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cstoop/access/v1/access.proto\x1a\x1bstoop/chat/v1/channel.proto\x1a\x1cstoop/chat/v1/reaction.proto\"\xd1\x01\n" +
 	"\rMessageAuthor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
@@ -747,7 +1190,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\aexpired\x18\x05 \x01(\bR\aexpired\x12\x14\n" +
 	"\x05width\x18\x06 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\a \x01(\x05R\x06height\x12*\n" +
-	"\x11thumbnail_file_id\x18\b \x01(\tR\x0fthumbnailFileId\"\x80\a\n" +
+	"\x11thumbnail_file_id\x18\b \x01(\tR\x0fthumbnailFileId\"\xff\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -774,7 +1217,33 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"in_channel\x18\x13 \x01(\bR\tinChannel\x128\n" +
 	"\vthread_root\x18\x14 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\n" +
 	"threadRoot\x12\x10\n" +
-	"\x03seq\x18\x15 \x01(\x03R\x03seq\"\x94\x02\n" +
+	"\x03seq\x18\x15 \x01(\x03R\x03seq\x120\n" +
+	"\x05event\x18\x16 \x01(\v2\x1a.stoop.chat.v1.SystemEventR\x05event\x12\x14\n" +
+	"\x05quiet\x18\x17 \x01(\bR\x05quiet\x125\n" +
+	"\treference\x18\x18 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\treference\"\xa6\x03\n" +
+	"\vSystemEvent\x12B\n" +
+	"\rmembers_added\x18\x01 \x01(\v2\x1b.stoop.chat.v1.MembersAddedH\x00R\fmembersAdded\x12<\n" +
+	"\vmember_left\x18\x02 \x01(\v2\x19.stoop.chat.v1.MemberLeftH\x00R\n" +
+	"memberLeft\x12H\n" +
+	"\x0fchannel_renamed\x18\x03 \x01(\v2\x1d.stoop.chat.v1.ChannelRenamedH\x00R\x0echannelRenamed\x12B\n" +
+	"\rtopic_changed\x18\x04 \x01(\v2\x1b.stoop.chat.v1.TopicChangedH\x00R\ftopicChanged\x12+\n" +
+	"\x03pin\x18\x05 \x01(\v2\x17.stoop.chat.v1.PinEventH\x00R\x03pin\x12R\n" +
+	"\x13post_policy_changed\x18\x06 \x01(\v2 .stoop.chat.v1.PostPolicyChangedH\x00R\x11postPolicyChangedB\x06\n" +
+	"\x04kind\"F\n" +
+	"\fMembersAdded\x126\n" +
+	"\amembers\x18\x01 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\amembers\"\f\n" +
+	"\n" +
+	"MemberLeft\"F\n" +
+	"\x0eChannelRenamed\x12\x19\n" +
+	"\bold_name\x18\x01 \x01(\tR\aoldName\x12\x19\n" +
+	"\bnew_name\x18\x02 \x01(\tR\anewName\"$\n" +
+	"\fTopicChanged\x12\x14\n" +
+	"\x05topic\x18\x01 \x01(\tR\x05topic\"\n" +
+	"\n" +
+	"\bPinEvent\"V\n" +
+	"\x11PostPolicyChanged\x12A\n" +
+	"\vpost_policy\x18\x01 \x01(\x0e2 .stoop.chat.v1.ChannelPostPolicyR\n" +
+	"postPolicy\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
 	"\vreply_count\x18\x01 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
@@ -806,37 +1275,55 @@ func file_stoop_chat_v1_message_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_message_proto_rawDescData
 }
 
-var file_stoop_chat_v1_message_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_stoop_chat_v1_message_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_stoop_chat_v1_message_proto_goTypes = []any{
 	(*MessageAuthor)(nil),         // 0: stoop.chat.v1.MessageAuthor
 	(*ReplyRef)(nil),              // 1: stoop.chat.v1.ReplyRef
 	(*Attachment)(nil),            // 2: stoop.chat.v1.Attachment
 	(*Message)(nil),               // 3: stoop.chat.v1.Message
-	(*ThreadSummary)(nil),         // 4: stoop.chat.v1.ThreadSummary
-	(*LinkPreview)(nil),           // 5: stoop.chat.v1.LinkPreview
-	(v1.IdentityKind)(0),          // 6: stoop.access.v1.IdentityKind
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
-	(*Reaction)(nil),              // 8: stoop.chat.v1.Reaction
+	(*SystemEvent)(nil),           // 4: stoop.chat.v1.SystemEvent
+	(*MembersAdded)(nil),          // 5: stoop.chat.v1.MembersAdded
+	(*MemberLeft)(nil),            // 6: stoop.chat.v1.MemberLeft
+	(*ChannelRenamed)(nil),        // 7: stoop.chat.v1.ChannelRenamed
+	(*TopicChanged)(nil),          // 8: stoop.chat.v1.TopicChanged
+	(*PinEvent)(nil),              // 9: stoop.chat.v1.PinEvent
+	(*PostPolicyChanged)(nil),     // 10: stoop.chat.v1.PostPolicyChanged
+	(*ThreadSummary)(nil),         // 11: stoop.chat.v1.ThreadSummary
+	(*LinkPreview)(nil),           // 12: stoop.chat.v1.LinkPreview
+	(v1.IdentityKind)(0),          // 13: stoop.access.v1.IdentityKind
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(*Reaction)(nil),              // 15: stoop.chat.v1.Reaction
+	(ChannelPostPolicy)(0),        // 16: stoop.chat.v1.ChannelPostPolicy
 }
 var file_stoop_chat_v1_message_proto_depIdxs = []int32{
-	6,  // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
+	13, // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
 	0,  // 1: stoop.chat.v1.ReplyRef.author:type_name -> stoop.chat.v1.MessageAuthor
 	0,  // 2: stoop.chat.v1.Message.author:type_name -> stoop.chat.v1.MessageAuthor
-	7,  // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	14, // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: stoop.chat.v1.Message.reply_to:type_name -> stoop.chat.v1.ReplyRef
-	7,  // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
-	8,  // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
+	14, // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
+	15, // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
 	2,  // 7: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
-	5,  // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
-	4,  // 9: stoop.chat.v1.Message.thread:type_name -> stoop.chat.v1.ThreadSummary
+	12, // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
+	11, // 9: stoop.chat.v1.Message.thread:type_name -> stoop.chat.v1.ThreadSummary
 	1,  // 10: stoop.chat.v1.Message.thread_root:type_name -> stoop.chat.v1.ReplyRef
-	7,  // 11: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
-	0,  // 12: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	4,  // 11: stoop.chat.v1.Message.event:type_name -> stoop.chat.v1.SystemEvent
+	1,  // 12: stoop.chat.v1.Message.reference:type_name -> stoop.chat.v1.ReplyRef
+	5,  // 13: stoop.chat.v1.SystemEvent.members_added:type_name -> stoop.chat.v1.MembersAdded
+	6,  // 14: stoop.chat.v1.SystemEvent.member_left:type_name -> stoop.chat.v1.MemberLeft
+	7,  // 15: stoop.chat.v1.SystemEvent.channel_renamed:type_name -> stoop.chat.v1.ChannelRenamed
+	8,  // 16: stoop.chat.v1.SystemEvent.topic_changed:type_name -> stoop.chat.v1.TopicChanged
+	9,  // 17: stoop.chat.v1.SystemEvent.pin:type_name -> stoop.chat.v1.PinEvent
+	10, // 18: stoop.chat.v1.SystemEvent.post_policy_changed:type_name -> stoop.chat.v1.PostPolicyChanged
+	0,  // 19: stoop.chat.v1.MembersAdded.members:type_name -> stoop.chat.v1.MessageAuthor
+	16, // 20: stoop.chat.v1.PostPolicyChanged.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
+	14, // 21: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	0,  // 22: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_message_proto_init() }
@@ -844,14 +1331,23 @@ func file_stoop_chat_v1_message_proto_init() {
 	if File_stoop_chat_v1_message_proto != nil {
 		return
 	}
+	file_stoop_chat_v1_channel_proto_init()
 	file_stoop_chat_v1_reaction_proto_init()
+	file_stoop_chat_v1_message_proto_msgTypes[4].OneofWrappers = []any{
+		(*SystemEvent_MembersAdded)(nil),
+		(*SystemEvent_MemberLeft)(nil),
+		(*SystemEvent_ChannelRenamed)(nil),
+		(*SystemEvent_TopicChanged)(nil),
+		(*SystemEvent_Pin)(nil),
+		(*SystemEvent_PostPolicyChanged)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_message_proto_rawDesc), len(file_stoop_chat_v1_message_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

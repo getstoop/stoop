@@ -50,9 +50,10 @@ func (q *Queries) GetChannelInSpaceByName(ctx context.Context, arg GetChannelInS
 
 const searchMessages = `-- name: SearchMessages :many
 
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, m.seq FROM message_with_reply m
+SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at, m.mentions_entire_channel, m.reply_to_message_id, m.mentions_here, m.edited_at, m.reply_author_id, m.reply_content, m.reply_first_file_id, m.thread_root_id, m.in_channel, m.deleted_at, m.thread_reply_count, m.thread_last_reply_at, m.thread_recent_author_ids, m.seq, m.kind, m.data, m.quiet, m.reference_message_id, m.reference_author_id, m.reference_content, m.reference_first_file_id FROM message_with_reply m
 JOIN messages indexed ON indexed.id = m.id
 WHERE m.deleted_at IS NULL
+  AND m.kind = 0
   AND m.channel_id IN (SELECT c.id FROM channels c WHERE c.space_id = $1::uuid
         AND ($2::bool OR c.kind <> 2)
         AND EXISTS (SELECT 1 FROM channel_readers cr WHERE cr.channel_id = c.id AND cr.user_id = $3::uuid))
@@ -93,7 +94,8 @@ type SearchMessagesParams struct {
 // syntax; `prefix` is a quoted lexeme with :* or "" (see
 // internal/chat/search_query.go). Dates bound created_at; the cursor
 // bounds id. Hidden voice channels (kind 2) are left out, and so is
-// every tombstone.
+// every tombstone. Only messages someone wrote (kind 0): a system row
+// has no text, and a query of nothing but negations matches no text.
 func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) ([]MessageWithReply, error) {
 	rows, err := q.db.Query(ctx, searchMessages,
 		arg.SpaceID,
@@ -135,6 +137,13 @@ func (q *Queries) SearchMessages(ctx context.Context, arg SearchMessagesParams) 
 			&i.ThreadLastReplyAt,
 			&i.ThreadRecentAuthorIds,
 			&i.Seq,
+			&i.Kind,
+			&i.Data,
+			&i.Quiet,
+			&i.ReferenceMessageID,
+			&i.ReferenceAuthorID,
+			&i.ReferenceContent,
+			&i.ReferenceFirstFileID,
 		); err != nil {
 			return nil, err
 		}
