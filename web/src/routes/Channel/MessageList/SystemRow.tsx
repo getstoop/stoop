@@ -105,7 +105,7 @@ function Part({
 }) {
   switch (part.kind) {
     case "text":
-      return <>{part.text}</>;
+      return part.text;
     case "person":
       return <Person person={part.person} members={members} onCard={onCard} />;
     case "others":
@@ -114,13 +114,13 @@ function Part({
       return part.current ? (
         <span className="system-emphasis">#{part.name}</span>
       ) : (
-        <>#{part.name}</>
+        `#${part.name}`
       );
     case "excerpt":
       return part.deleted ? (
         <span className="deleted-body">{part.text}</span>
       ) : (
-        <>{part.text}</>
+        part.text
       );
   }
 }
