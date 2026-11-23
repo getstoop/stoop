@@ -1094,20 +1094,30 @@ membership and pins follow.
   "left" row (`memberLeft`, no data) in every private channel of the
   space the person was in, text or voice, with the person as its
   author. Nothing on the row says why they went or who removed them; a
-  public channel records nothing. The one transaction lists those
-  channels (`ListPrivateChannelsOfMember`) before anything else, since
-  deleting the membership cascades their `channel_members` rows away;
+  public channel records nothing. The one transaction first holds the
+  person's own membership row (`LockSpaceMember`), so nobody can add
+  them to a private channel meanwhile: an add checks that row (the
+  `channel_members` foreign key), so it either finished first and is
+  listed, or waits and is then refused as not a member. Then it lists
+  their private channels (`ListPrivateChannelsOfMember`), since deleting
+  the membership cascades their `channel_members` rows away, and
   locks them in id order, the order every transaction holding more than
   one channel row takes them in (`seq.go`; `ReorderChannels` writes its
   positions in id order for this), so two removals sharing channels, or
   a removal and a reorder, never wait on each other in a circle.
   Deleting a space is the exception: its cascade takes the channels in
   no set order, so a removal from that space at the same instant can
-  fail with a deadlock, or the delete can, with nothing half done. It
-  reads the list again under the locks, dropping a channel deleted or
-  left meanwhile; a channel the person was added to meanwhile holds no
-  lock and can't be taken out of order, so the transaction starts again
-  once, listing it from the start. Then it deletes the activity and the
+  fail with a deadlock, or the delete can, with nothing half done.
+  Taking the membership row before the channel rows is the one
+  exception to `seq.go`'s rule, and it is safe: nothing that holds a
+  channel row waits on a membership row except adding that person to
+  the channel, and the removal only waits on channels the person is
+  already in, where an add finds them and checks nothing. (If, between
+  the listing and the lock, someone takes them out of one of those
+  channels and adds them straight back, the add and the removal wait on
+  each other; Postgres fails one of the two, whole.) It reads the list
+  again under the locks, dropping a channel deleted or left meanwhile.
+  Then it deletes the activity and the
   membership and records the rows. A removal that fails takes its rows
   back with it; a ban writes the ban first, in its own statement, and
   the rows go in the removal's transaction. After the commit each row's
@@ -1118,11 +1128,9 @@ membership and pins follow.
   marked deleted, so they go out with the old name; the web client
   corrects it when `member_removed` has it refetch the profile (the
   mobile app shows the row's name as it was sent),
-  and history reads the author as deleted from then on. Two races are
-  accepted. Someone added to a private channel after the second listing
-  and before the membership's delete is taken out of it by the cascade
-  with no row; so is someone added during the retry's own locking. Both
-  windows are the time it takes to lock a few rows.
+  and history reads the author as deleted from then on. Every "added"
+  row naming someone who then leaves the space is followed by their
+  "left" row.
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
   list of parts (plain text, a person, a channel name, the excerpt of

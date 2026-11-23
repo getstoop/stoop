@@ -50,6 +50,13 @@ UPDATE space_members SET role = $3 WHERE space_id = $1 AND user_id = $2;
 -- name: DeleteSpaceMember :execrows
 DELETE FROM space_members WHERE space_id = $1 AND user_id = $2;
 
+-- LockSpaceMember holds a membership row until the transaction ends. A
+-- removal from the space takes it first: adding the person to a private
+-- channel checks the row (a foreign key), so it waits until the removal
+-- has finished and then fails, or finishes first and is listed.
+-- name: LockSpaceMember :one
+SELECT user_id FROM space_members WHERE space_id = $1 AND user_id = $2 FOR UPDATE;
+
 -- ListPrivateChannelsOfMember is the space's private channels someone is
 -- in, in id order: the order a removal from the space locks them in. It
 -- is read before the membership goes, since deleting it cascades to

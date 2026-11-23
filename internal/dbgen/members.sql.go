@@ -305,6 +305,26 @@ func (q *Queries) ListSpaceMembers(ctx context.Context, spaceID string) ([]Space
 	return items, nil
 }
 
+const lockSpaceMember = `-- name: LockSpaceMember :one
+SELECT user_id FROM space_members WHERE space_id = $1 AND user_id = $2 FOR UPDATE
+`
+
+type LockSpaceMemberParams struct {
+	SpaceID string
+	UserID  string
+}
+
+// LockSpaceMember holds a membership row until the transaction ends. A
+// removal from the space takes it first: adding the person to a private
+// channel checks the row (a foreign key), so it waits until the removal
+// has finished and then fails, or finishes first and is listed.
+func (q *Queries) LockSpaceMember(ctx context.Context, arg LockSpaceMemberParams) (string, error) {
+	row := q.db.QueryRow(ctx, lockSpaceMember, arg.SpaceID, arg.UserID)
+	var user_id string
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
 const longestServingAdmin = `-- name: LongestServingAdmin :one
 SELECT user_id FROM space_members
 WHERE space_id = $1 AND role = 'admin'

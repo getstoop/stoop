@@ -29,6 +29,18 @@ import (
 // channels in whatever order it finds them, so a removal from that
 // space at the same instant can fail with a deadlock (or the delete
 // can); either way nothing is half done.
+//
+// One row may come before the channel rows: a removal from a space
+// takes the departing person's own space_members row first
+// (removeMember), so nobody can add them to a private channel while it
+// lists theirs. That is safe because the only thing holding a channel
+// row that then waits on someone's membership row is adding that person
+// to the channel (the channel_members foreign key), and the removal only
+// waits on channels the person is already in, where an add finds them
+// there and checks nothing (unless, in the instant between the listing
+// and the lock, they were taken out of it and added straight back: then
+// the two wait on each other and Postgres fails one, whole). Nothing
+// else may take a row before the channel rows.
 
 // errMessageGone is the row to stamp no longer existing. It rolls the
 // transaction back, so the position it took is not spent. stampMessage

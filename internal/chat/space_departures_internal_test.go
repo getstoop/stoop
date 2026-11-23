@@ -396,6 +396,83 @@ func TestConcurrentDeparturesDoNotDeadlock(t *testing.T) {
 	}
 }
 
+// Someone added to a private channel while they leave the space either
+// goes in first, and that channel records them leaving, or is refused
+// as no longer a member. Every "added" row naming them is followed by a
+// "left" row. On this branch the add path records no "added" row, so
+// the test reads an add that went through as the person having been in
+// the channel; once membership rows land it checks those too.
+func TestAddDuringDepartureIsNotLost(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	catID := authctx.UserID(fixture.cat)
+	other := fixture.privateChannel("other")
+	invite, err := fixture.svc.CreateInvite(fixture.ada, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: fixture.spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const rounds = 40
+	landed := 0
+	for round := range rounds {
+		if round > 0 {
+			if _, err := fixture.svc.JoinSpace(fixture.cat, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invite.Msg.Invite.Code})); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// A channel they are already in, so the removal has locks to take
+		// while the add runs.
+		fixture.addTo(other, catID)
+		target := fixture.privateChannel(fmt.Sprintf("target-%d", round))
+		var wait sync.WaitGroup
+		var addErr, leaveErr error
+		start := make(chan struct{})
+		wait.Add(2)
+		go func() {
+			defer wait.Done()
+			<-start
+			_, addErr = fixture.svc.AddChannelMembers(fixture.ada, connect.NewRequest(&chatv1.AddChannelMembersRequest{
+				ChannelId: target, UserIds: []string{catID},
+			}))
+		}()
+		go func() {
+			defer wait.Done()
+			<-start
+			// Spread the leave across the add's own steps.
+			time.Sleep(time.Duration(round%8) * 250 * time.Microsecond)
+			_, leaveErr = fixture.svc.LeaveSpace(fixture.cat, connect.NewRequest(&chatv1.LeaveSpaceRequest{SpaceId: fixture.spaceID}))
+		}()
+		close(start)
+		wait.Wait()
+		if leaveErr != nil {
+			t.Fatalf("round %d, leave: %v", round, leaveErr)
+		}
+		var added int
+		if err := fixture.pool.QueryRow(ctx,
+			`SELECT count(*) FROM messages WHERE channel_id = $1 AND kind = $2 AND data->'user_ids' ? $3`,
+			target, kindMembersAdded, catID).Scan(&added); err != nil {
+			t.Fatal(err)
+		}
+		left := len(fixture.leftRows(target))
+		switch {
+		case addErr == nil:
+			landed++
+			if left != 1 {
+				t.Errorf("round %d: the add went in, then %d left rows, want 1", round, left)
+			}
+		case connect.CodeOf(addErr) == connect.CodeFailedPrecondition:
+			if left != 0 || added != 0 {
+				t.Errorf("round %d: the add was refused, yet %d added and %d left rows", round, added, left)
+			}
+		default:
+			t.Fatalf("round %d, add: %v", round, addErr)
+		}
+		if added > left {
+			t.Errorf("round %d: %d added rows naming cat, only %d left rows after", round, added, left)
+		}
+	}
+	t.Logf("%d of %d adds went in before the leave", landed, rounds)
+}
+
 // A reorder that puts the newest channel first, running while someone in
 // all of them is kicked, holds the same channel rows; both go through.
 // A reorder that wrote its positions in the order asked for would take
