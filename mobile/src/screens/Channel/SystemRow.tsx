@@ -13,8 +13,10 @@ const COLUMN = 36;
 const GAP = 10;
 // One line of the sentence, at the system's default text size.
 const LINE = 18;
-// The screen reader's way to the menu a long press opens.
-const MENU_ACTIONS = [{ name: "longpress", label: "Delete" }];
+// The screen reader's ways to the menu a long press opens and to a pin
+// row's message.
+const MENU_ACTION = { name: "longpress", label: "Delete" };
+const VIEW_ACTION = { name: "view", label: "View message" };
 
 // A system message (docs/architecture/messaging.md → System messages):
 // a row that records something that happened in the channel, in the
@@ -24,23 +26,27 @@ const MENU_ACTIONS = [{ name: "longpress", label: "Delete" }];
 // name of a renamed channel drawn the same, and the time in a column of
 // its own on the right, on the first line, so a sentence that wraps
 // never strands it. No avatar, reactions or thread. Names are plain
-// text, as mobile has no user card; "3 others" is its label alone,
-// and a pin's excerpt is words, for now. To a screen reader it is one
+// text, as mobile has no user card; "3 others" is its label alone. A
+// pin's excerpt, and the View after it, go to the pinned message
+// (onJumpTo); not once it has been deleted. To a screen reader it is one
 // element, the sentence and the time. A long press opens its menu
 // (onLongPress), which the screen gives only to someone who may
 // moderate messages (SystemMenu); everyone else gets nothing. A screen
-// reader is offered the same menu as the row's one action, Delete, with
-// a hint saying so. The glyph's box is one line of the sentence tall at
+// reader is offered the menu as an action, Delete, and the jump as
+// another, View message, with a hint naming them. The glyph's box is one line of the sentence tall at
 // the system's text size, so it stays centred on the first line however
 // large the reader's text is. On a
 // menu's card (`card`) it is drawn again with the time's day.
 export default memo(function SystemRow({
   message,
   onLongPress,
+  onJumpTo,
   card = false,
 }: {
   message: Message;
   onLongPress?: (message: Message) => void;
+  // Goes to the message the row is about (a pin's).
+  onJumpTo?: (messageId: string) => void;
   card?: boolean;
 }) {
   const theme = useTheme();
@@ -51,14 +57,20 @@ export default memo(function SystemRow({
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
   const time = created ? messageTime(created, card) : "";
   const hold = onLongPress && (() => onLongPress(message));
+  const target = card || !onJumpTo ? "" : jumpTarget(line.parts);
+  const view = target ? () => onJumpTo?.(target) : undefined;
+  const actions = [...(view ? [VIEW_ACTION] : []), ...(hold ? [MENU_ACTION] : [])];
   return (
     <Pressable
       onLongPress={hold}
       accessible
       accessibilityLabel={time ? `${systemText(line.parts)}, ${time}` : systemText(line.parts)}
-      accessibilityHint={hold ? "Has a Delete action" : undefined}
-      accessibilityActions={hold ? MENU_ACTIONS : undefined}
-      onAccessibilityAction={hold && ((event) => event.nativeEvent.actionName === "longpress" && hold())}
+      accessibilityHint={actions.length > 0 ? `Has ${actions.map((action) => action.label).join(" and ")} actions` : undefined}
+      accessibilityActions={actions.length > 0 ? actions : undefined}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "longpress") hold?.();
+        else if (event.nativeEvent.actionName === "view") view?.();
+      }}
       style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!hold && styles.pressed]}
     >
       <View style={[styles.glyph, { height: LINE * fontScale }]}>
@@ -67,7 +79,7 @@ export default memo(function SystemRow({
       <Text style={styles.sentence}>
         {line.parts.map((part, index) => (
           // Keyed by place: a row's parts never reorder.
-          <Part key={index} part={part} styles={styles} />
+          <Part key={index} part={part} styles={styles} onView={view} onLongPress={hold} />
         ))}
       </Text>
       {time !== "" && <Text style={styles.time}>{time}</Text>}
@@ -77,7 +89,26 @@ export default memo(function SystemRow({
 
 type Styles = ReturnType<typeof makeStyles>;
 
-function Part({ part, styles }: { part: SystemPart; styles: Styles }) {
+// The message a pin row's excerpt goes to: "" when there is none, or it
+// has been deleted.
+function jumpTarget(parts: SystemPart[]): string {
+  for (const part of parts) {
+    if (part.kind === "excerpt" && !part.deleted) return part.messageId;
+  }
+  return "";
+}
+
+function Part({
+  part,
+  styles,
+  onView,
+  onLongPress,
+}: {
+  part: SystemPart;
+  styles: Styles;
+  onView?: () => void;
+  onLongPress?: () => void;
+}) {
   switch (part.kind) {
     case "text":
       return part.text;
@@ -93,7 +124,15 @@ function Part({ part, styles }: { part: SystemPart; styles: Styles }) {
     case "channel":
       return part.current ? <Text style={styles.strong}>#{part.name}</Text> : `#${part.name}`;
     case "excerpt":
-      return part.deleted ? <Text style={styles.deleted}>{part.text}</Text> : part.text;
+      if (part.deleted) return <Text style={styles.deleted}>{part.text}</Text>;
+      if (!onView) return part.text;
+      // The excerpt and View go to the message; a long press on them still
+      // opens the row's menu.
+      return (
+        <Text onPress={onView} onLongPress={onLongPress}>
+          {part.text} <Text style={styles.view}>View</Text>
+        </Text>
+      );
   }
 }
 
@@ -172,6 +211,12 @@ function makeStyles(theme: Theme) {
     },
     deleted: {
       fontStyle: "italic",
+    },
+    // The way to a pin's message, after its excerpt: muted and underlined,
+    // as on web.
+    view: {
+      fontSize: tokens.textSm,
+      textDecorationLine: "underline",
     },
     time: {
       marginLeft: 8,

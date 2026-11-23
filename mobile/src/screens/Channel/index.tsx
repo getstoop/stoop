@@ -97,7 +97,8 @@ import { useScrollRetry } from "./useScrollRetry";
 // back if posting reopens. A system message (the channel renamed, its
 // topic set) is a row of its own (SystemRow); a long press on one opens
 // its menu, Delete alone, for a moderator (SystemMenu), and nothing for
-// anyone else.
+// anyone else. A pin row's excerpt goes to the pinned message, as a link
+// to it does.
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with
@@ -267,21 +268,27 @@ export default function Channel({
     items,
   });
   const { menuFor, menuMessage, notify } = actions;
+  // Going to a message: the log lands on it (channelEngine jumpTo), or on
+  // its root, with the thread pushed on the reply; one the server no
+  // longer has is said over the composer, the channel staying as it was.
+  const jumpToMessage = useCallback(
+    (messageId: string) =>
+      void engine.jumpTo(messageId).then(({ outcome, threadRootId }) => {
+        if (!alive.current) return;
+        if (outcome === "missing") notify("Couldn't find that message");
+        else if (outcome === "failed") notify("Couldn't open that message");
+        else if (threadRootId) pushThread(threadRootId, messageId);
+      }),
+    [engine, notify, pushThread],
+  );
   // Opening at a message, once per message on the log shown (the search
   // dismissing to this screen changes the param on it, rather than
-  // mounting it again): the log lands on it (channelEngine jumpTo), or
-  // on its root, with the thread pushed on the reply; one the server no
-  // longer has is said over the composer, the channel opening as usual.
+  // mounting it again).
   useEffect(() => {
     if (!focusId || (jumped.current?.engine === engine && jumped.current.id === focusId)) return;
     jumped.current = { engine, id: focusId };
-    void engine.jumpTo(focusId).then(({ outcome, threadRootId }) => {
-      if (!alive.current) return;
-      if (outcome === "missing") notify("Couldn't find that message");
-      else if (outcome === "failed") notify("Couldn't open that message");
-      else if (threadRootId) pushThread(threadRootId, focusId);
-    });
-  }, [focusId, engine, notify, pushThread]);
+    jumpToMessage(focusId);
+  }, [focusId, engine, jumpToMessage]);
   // Where the log says to land, once this screen is the one on top: at
   // the bottom (the newest page back), or on a row, scrolled to the
   // middle and ringed for a moment. Explicit after a replaced range,
@@ -432,7 +439,11 @@ export default function Channel({
               keyExtractor={(item) => item.key}
               renderItem={({ item }) =>
                 item.kind === "system" ? (
-                  <SystemRow message={item.message} onLongPress={moderates ? actions.openMenu : undefined} />
+                  <SystemRow
+                    message={item.message}
+                    onLongPress={moderates ? actions.openMenu : undefined}
+                    onJumpTo={jumpToMessage}
+                  />
                 ) : item.kind === "message" ? (
                   <MessageRow
                     message={item.message}

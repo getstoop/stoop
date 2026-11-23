@@ -778,10 +778,14 @@ the avatar column, the sentence in muted text with the people it names
 and a renamed channel's new name in full ink (a deleted account marked
 "(deleted)", as an author is), and the time in a right-aligned column
 on its first line, so a sentence that wraps never strands it. Names are
-plain text (the app has no user card), "3 others" is its label alone
-and a pin's excerpt is words, for now. A screen reader hears the row
-as one element, the sentence and the time, and for a moderator is
-offered the menu as the row's one action, Delete. The glyph stays
+plain text (the app has no user card) and "3 others" is its label
+alone. A pin's excerpt, with a muted View after it, goes to the pinned
+message when tapped: the channel engine's `jumpTo`, as opening the
+screen at a message does, so a message the server no longer has is said
+over the composer; a deleted one reads "(since deleted)" and goes
+nowhere. A screen reader hears the row as one element, the sentence
+and the time, and is offered the jump as an action, View message, and
+for a moderator the menu as another, Delete. The glyph stays
 centred on the first line at any text size. A long press opens a menu
 only for someone who may moderate messages (`core/permissions`
 `canDeleteAnyMessage`; being the row's author grants nothing, so it is

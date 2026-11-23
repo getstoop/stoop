@@ -19,7 +19,8 @@ import type {
 // A system message in the timeline (docs/architecture/web.md → System
 // messages): a glyph in the avatar column, the sentence core/systemMessages
 // words in muted text with names in full ink, and the time after it. No
-// avatar, reactions or thread; a moderator's only action is Delete.
+// avatar, reactions or thread; a moderator's only action is Delete. A pin
+// row's View goes to the pinned message, until it is deleted.
 export const SystemRow = memo(function SystemRow({
   message,
   index,
@@ -31,6 +32,7 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix = "msg-",
   onCard,
   onDelete,
+  onJumpTo,
 }: {
   message: Message;
   // Its place in the virtualised list, as a MessageRow's.
@@ -45,6 +47,8 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix?: string;
   onCard: (userId: string, anchor: DOMRect) => void;
   onDelete: (message: Message) => void;
+  // The in-list jump, for a pin row's View.
+  onJumpTo: (id: string) => void;
 }) {
   const line = systemLine(message);
   if (!line) return null;
@@ -70,8 +74,14 @@ export const SystemRow = memo(function SystemRow({
       </span>
       <span className="system-sentence">
         {line.parts.map((part, partIndex) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a row's parts never reorder
-          <Part key={partIndex} part={part} members={members} onCard={onCard} />
+          <Part
+            // biome-ignore lint/suspicious/noArrayIndexKey: a row's parts never reorder
+            key={partIndex}
+            part={part}
+            members={members}
+            onCard={onCard}
+            onJumpTo={onJumpTo}
+          />
         ))}
       </span>
       <span className="system-time" title={created && fullDateTime(created)}>
@@ -98,10 +108,12 @@ function Part({
   part,
   members,
   onCard,
+  onJumpTo,
 }: {
   part: SystemPart;
   members: MentionMembers;
   onCard: (userId: string, anchor: DOMRect) => void;
+  onJumpTo: (id: string) => void;
 }) {
   switch (part.kind) {
     case "text":
@@ -117,10 +129,20 @@ function Part({
         `#${part.name}`
       );
     case "excerpt":
+      // A deleted message has nothing to go to.
       return part.deleted ? (
         <span className="deleted-body">{part.text}</span>
       ) : (
-        part.text
+        <>
+          {part.text}
+          <button
+            type="button"
+            className="system-view"
+            onClick={() => onJumpTo(part.messageId)}
+          >
+            View
+          </button>
+        </>
       );
   }
 }

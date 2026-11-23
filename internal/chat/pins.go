@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5"
@@ -58,10 +59,21 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 	return s.unpin(ctx, msg, channel)
 }
 
+// pin pins msg and records the pin in the channel's timeline, a system row
+// by the pinner that refers to the message (docs/architecture/messaging.md
+// → System messages). Both are one transaction under the channel row,
+// which the stamp takes first: the pinned message is stamped and the row
+// after it, so MessagePinned is published before the row's
+// MessageCreated. A message already pinned, or a refused pin, records
+// nothing.
 func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel) (*connect.Response[chatv1.SetMessagePinnedResponse], error) {
 	var row dbgen.ChannelPin
 	var seq int64
+	var recorded messageRow
+	actorID := authctx.UserID(ctx)
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		// The stamp's seq is the first write, so it takes the channel row
+		// before any other (seq.go), and the row's seq after it.
 		var err error
 		if seq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
@@ -71,12 +83,14 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 		if _, err := liveMessage(ctx, qtx, msg.ID); err != nil {
 			return err
 		}
-		pinned, err := qtx.PinMessage(ctx, dbgen.PinMessageParams{
+		if row, err = qtx.PinMessage(ctx, dbgen.PinMessageParams{
 			MessageID: msg.ID, ChannelID: channel.ID,
-			PinnedBy: authctx.UserID(ctx), Cap: maxChannelPins,
-		})
-		row = pinned
-		return err // no row rolls the stamp back: nothing changed
+			PinnedBy: actorID, Cap: maxChannelPins,
+		}); err != nil {
+			return err // no row rolls the stamp back: nothing changed
+		}
+		recorded, err = recordEvent(ctx, qtx, channel, actorID, messagePinned{MessageID: msg.ID})
+		return err
 	})
 	switch {
 	case errors.Is(err, errMessageGone), errors.Is(err, errPlaceholder):
@@ -95,7 +109,10 @@ func (s *Service) pin(ctx context.Context, msg messageRow, channel dbgen.Channel
 	case err != nil:
 		return nil, fmt.Errorf("pin message: %w", err)
 	default:
+		// In seq order: a client applies a live event only when it is the
+		// next.
 		s.publishPin(ctx, channel, row, true, seq)
+		s.publishPinRow(ctx, channel, recorded.ID)
 	}
 
 	pin, err := s.pinProto(ctx, msg, channel, row)
@@ -211,6 +228,19 @@ func (s *Service) pinProto(ctx context.Context, msg messageRow, channel dbgen.Ch
 		PinnedBy: pinners[row.PinnedBy],
 		PinnedAt: timestamppb.New(row.PinnedAt),
 	}, nil
+}
+
+// publishPinRow publishes the system row a pin recorded, as every reader
+// is sent it (recordEvent).
+func (s *Service) publishPinRow(ctx context.Context, channel dbgen.Channel, rowID string) {
+	message, err := s.loadMessage(ctx, rowID, spaceOf(channel))
+	if err != nil {
+		slog.Default().Warn("pin: could not load its system message", "message_id", rowID, "err", err)
+		return
+	}
+	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
+	}))
 }
 
 // publishPin broadcasts the change, not the list: a channel's pins can be

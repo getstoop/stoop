@@ -707,7 +707,10 @@ window" is what the view's range holds.
   (`styles/system-messages.css`). No avatar, reactions, thread or
   toolbar, except Delete for someone with `messages.moderate`, with
   its own confirm (`removeSystem` in `MessageList/useRowHandlers.ts`).
-  A jump to one (`indexOfMessage`) lands on it as on a message. The
+  A pin row's View, after its excerpt, is the list's own `jumpTo`
+  (passed as `onJumpTo`, as a quote's is), which loads the page around
+  a message the list does not hold; a deleted message's row has no
+  View. A jump to one (`indexOfMessage`) lands on it as on a message. The
   list leaves out quiet rows of a kind it does not know before grouping,
   and an arrival that is quiet does not count on the pill.
 

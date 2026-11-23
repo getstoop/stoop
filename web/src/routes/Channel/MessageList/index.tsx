@@ -793,6 +793,7 @@ export function MessageList({
                       rowIdPrefix={rowIdPrefix}
                       onCard={rows.showCard}
                       onDelete={rows.removeSystem}
+                      onJumpTo={jumpTo}
                     />
                   );
                 default:

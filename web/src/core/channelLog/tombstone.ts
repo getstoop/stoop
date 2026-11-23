@@ -40,9 +40,10 @@ export function tombstoneOf(
   };
 }
 
-// Rows quoting a deleted message, and replies in the channel answering its
-// thread, read as a deleted message's: no author, no preview. The server
-// does the same on the next read.
+// Rows quoting a deleted message, replies in the channel answering its
+// thread, and system rows about it (a pin row's excerpt) read as a deleted
+// message's: no author, no preview. The server does the same on the next
+// read.
 export function withQuotesBlanked(
   rows: ReadonlyMap<string, Message>,
   deletedId: string,
@@ -60,6 +61,12 @@ export function withQuotesBlanked(
       changed = {
         ...changed,
         threadRoot: { ...row.threadRoot, author: undefined, preview: "" },
+      };
+    }
+    if (row.reference?.messageId === deletedId && named(row.reference)) {
+      changed = {
+        ...changed,
+        reference: { ...row.reference, author: undefined, preview: "" },
       };
     }
     if (changed === row) continue;

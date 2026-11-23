@@ -51,6 +51,23 @@
   color: var(--text);
 }
 
+/* A pin row's way to the pinned message, after its excerpt. */
+.system-view {
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.system-view:hover {
+  color: var(--text);
+}
+
 .system-time {
   margin-left: 8px;
   font-size: var(--text-sm);

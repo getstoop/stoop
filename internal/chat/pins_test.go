@@ -88,6 +88,10 @@ func TestPins(t *testing.T) {
 	if stamped := messageSeq(t, pool, rules); ev.Seq != stamped || res.Pin.Message.Seq != stamped {
 		t.Errorf("MessagePinned seq %d, answer seq %d, want the row's %d", ev.Seq, res.Pin.Message.Seq, stamped)
 	}
+	// Then the pin's system row, at the next seq (pin_rows_internal_test.go).
+	if row := (<-sub.Events()).GetMessageCreated(); row.GetEvent().GetPin() == nil || row.Seq != ev.Seq+1 {
+		t.Errorf("after MessagePinned, want the pin's row at seq %d, got %v", ev.Seq+1, row)
+	}
 
 	// Pinning again is a no-op: the same pin back, and nothing broadcast.
 	again, err := setPinned(owner, rules, true)
