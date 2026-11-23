@@ -17,6 +17,15 @@ const LINE = 18;
 // row's message.
 const MENU_ACTION = { name: "longpress", label: "Delete" };
 const VIEW_ACTION = { name: "view", label: "View message" };
+// A long press that opens nothing, so a hold on the excerpt is not a tap.
+const ignore = () => {};
+
+// "Has a Delete action", or "Has View message and Delete actions".
+function actionsHint(actions: { label: string }[]): string | undefined {
+  if (actions.length === 0) return undefined;
+  if (actions.length === 1) return `Has a ${actions[0].label} action`;
+  return `Has ${actions.map((action) => action.label).join(" and ")} actions`;
+}
 
 // A system message (docs/architecture/messaging.md → System messages):
 // a row that records something that happened in the channel, in the
@@ -65,7 +74,7 @@ export default memo(function SystemRow({
       onLongPress={hold}
       accessible
       accessibilityLabel={time ? `${systemText(line.parts)}, ${time}` : systemText(line.parts)}
-      accessibilityHint={actions.length > 0 ? `Has ${actions.map((action) => action.label).join(" and ")} actions` : undefined}
+      accessibilityHint={actionsHint(actions)}
       accessibilityActions={actions.length > 0 ? actions : undefined}
       onAccessibilityAction={(event) => {
         if (event.nativeEvent.actionName === "longpress") hold?.();
@@ -126,10 +135,10 @@ function Part({
     case "excerpt":
       if (part.deleted) return <Text style={styles.deleted}>{part.text}</Text>;
       if (!onView) return part.text;
-      // The excerpt and View go to the message; a long press on them still
-      // opens the row's menu.
+      // The excerpt and View go to the message; a long press on them opens
+      // the row's menu where there is one, and is never taken as a tap.
       return (
-        <Text onPress={onView} onLongPress={onLongPress}>
+        <Text onPress={onView} onLongPress={onLongPress ?? ignore}>
           {part.text} <Text style={styles.view}>View</Text>
         </Text>
       );

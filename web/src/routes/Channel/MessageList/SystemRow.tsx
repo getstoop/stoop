@@ -138,6 +138,7 @@ function Part({
           <button
             type="button"
             className="system-view"
+            aria-label="View pinned message"
             onClick={() => onJumpTo(part.messageId)}
           >
             View

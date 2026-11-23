@@ -1025,8 +1025,9 @@ pin; membership and departures from the space follow.
   transaction of the action it records, so the two succeed or fail
   together: it takes the channel's next seq, inserts the row, sets the
   channel's last message only when the row is not quiet, and returns the
-  row. The caller locks the channel row before any other row it writes
-  (`LockChannel`, the rule in `seq.go`) and publishes `MessageCreated`
+  row. The caller takes the channel row before any other row it writes
+  (`LockChannel`, or a `NextChannelSeq` that is the transaction's first
+  statement; the rule in `seq.go`) and publishes `MessageCreated`
   after its commit, in seq order with anything else it publishes. The
   message it publishes is `loadMessage` of the row, which is the row as
   `ListMessages` returns it; `toProtoMessage` alone fills neither the
@@ -1091,8 +1092,9 @@ pin; membership and departures from the space follow.
   since the rows go in its transaction. After the commit the channel's
   `channel_updated` goes out, then each row's `message_created` in seq
   order, to whoever may read the channel.
-- **Pins** (`pin`, `pins.go`). One transaction locks the channel row,
-  stamps the pinned message, creates the pin and records a row by the
+- **Pins** (`pin`, `pins.go`). One transaction stamps the pinned message
+  (its seq, the first statement, takes the channel row), creates the pin
+  and records a row by the
   pinner whose reference is the message. The message is stamped first,
   so after the commit `message_pinned` goes out before the row's
   `message_created`, the two seqs one after the other. Pinning a message

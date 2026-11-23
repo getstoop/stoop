@@ -130,6 +130,8 @@ test("a pin's system message", async ({ browser }) => {
   await signIn(B, tokens.bea, channelPath);
   await expect(rowByText(A, "last call")).toBeVisible();
   await expect(rowByText(B, "last call")).toBeVisible();
+  // Bea reads #general with the page at the front, so it is read.
+  await focus(B);
 
   const pinRow = (page: typeof A, excerpt: string) =>
     page.locator(".system-row", { hasText: `pinned a message: ${excerpt}` });
@@ -144,39 +146,56 @@ test("a pin's system message", async ({ browser }) => {
     pinRow(B, "last call"),
     "the row reaches Bea live",
   ).toBeVisible();
-  await pinRow(B, "last call").getByRole("button", { name: "View" }).click();
+  await pinRow(B, "last call")
+    .getByRole("button", { name: "View pinned message" })
+    .click();
   await expect(
     B.locator(".message.flash", { hasText: "last call" }),
     "View lands on the pinned message",
   ).toBeVisible();
 
-  // The old message is pinned from elsewhere: its row is the newest, the
-  // message more than a page above it.
+  // Bea goes to #random, and the old message is pinned from elsewhere:
+  // its row is the newest in #general, the message more than a page
+  // above it. A message in #random after the pin is the sign Bea has
+  // handled the row too, since one socket delivers both in order; she
+  // reads it where it lands, so it leaves nothing unread of its own.
+  await channelLink(B, "random").click();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
+  await expect(
+    channelLink(B, "general"),
+    "Bea has read #general before the pin",
+  ).not.toHaveClass(/unread/);
   await chat(tokens.ada, "SetMessagePinned", {
     messageId: old.message.id,
     pinned: true,
   });
+  await sendMessage(tokens.ada, channels.random, "after the pin");
+  await expect(rowByText(B, "after the pin")).toBeVisible();
+  await expect(
+    channelLink(B, "general"),
+    "the pin marks the channel unread for no one",
+  ).not.toHaveClass(/unread/);
+  await expect(
+    B.locator(".space-rail-list .pill-dot"),
+    "…and lights no space dot",
+  ).toHaveCount(0);
+
+  await channelLink(B, "general").click();
   await expect(
     pinRow(B, "house rules"),
-    "the second row arrives",
+    "the second row is in the channel",
   ).toBeVisible();
   await expect(
     B.locator(".message-list"),
     "Bea's list holds the newest page, not the old message",
   ).not.toHaveAttribute("data-oldest", old.message.id);
-  await pinRow(B, "house rules").getByRole("button", { name: "View" }).click();
+  await pinRow(B, "house rules")
+    .getByRole("button", { name: "View pinned message" })
+    .click();
   await expect(
     B.locator(".message.flash", { hasText: "house rules" }),
     "View goes to a message the list did not hold",
   ).toBeVisible();
-
-  // Neither pin marked the channel unread for Bea.
-  await channelLink(B, "random").click();
-  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
-  await expect(
-    channelLink(B, "general"),
-    "pinning marks the channel unread for no one",
-  ).not.toHaveClass(/unread/);
 
   // Deleting the pinned message leaves the row, which says so and goes
   // nowhere, on Ada's page without a reload.
@@ -187,7 +206,7 @@ test("a pin's system message", async ({ browser }) => {
     "pinned a message (since deleted)",
   );
   await expect(
-    row.getByRole("button", { name: "View" }),
+    row.getByRole("button", { name: "View pinned message" }),
     "…with nothing to view",
   ).toHaveCount(0);
 });
