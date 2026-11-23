@@ -1108,7 +1108,7 @@ pins and departures from the space follow.
   too. Code that asks "is the newest row mine" (following the bottom on
   my own send, ArrowUp to edit my last message) skips system rows.
 - **Delete** is offered to someone with `messages.moderate` alone,
-  with its own confirm, on web (the row's toolbar) and on the phone (a
+  with its own confirm, on web (the row's toolbar) and on mobile (a
   long press opens a menu with Delete only, `mobile/README.md`); being
   the row's author grants nothing on either.
 

@@ -780,7 +780,9 @@ and a renamed channel's new name in full ink (a deleted account marked
 on its first line, so a sentence that wraps never strands it. Names are
 plain text (the app has no user card), "3 others" is its label alone
 and a pin's excerpt is words, for now. A screen reader hears the row
-as one element, the sentence and the time. A long press opens a menu
+as one element, the sentence and the time, and for a moderator is
+offered the menu as the row's one action, Delete. The glyph stays
+centred on the first line at any text size. A long press opens a menu
 only for someone who may moderate messages (`core/permissions`
 `canDeleteAnyMessage`; being the row's author grants nothing, so it is
 not the message menu): the row as a card over a sheet with Delete alone

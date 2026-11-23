@@ -2,9 +2,8 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { type SystemGlyph, type SystemPart, systemLine, systemText } from "@stoop/core/systemMessages";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
-import { type ColorValue, Pressable, StyleSheet, Text, View } from "react-native";
+import { type ColorValue, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { authorName } from "../../api/authors";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { messageTime } from "./messageTime";
 
@@ -12,8 +11,10 @@ import { messageTime } from "./messageTime";
 // (MessageRow), so the two line up.
 const COLUMN = 36;
 const GAP = 10;
-// One line of the sentence.
+// One line of the sentence, at the system's default text size.
 const LINE = 18;
+// The screen reader's way to the menu a long press opens.
+const MENU_ACTIONS = [{ name: "longpress", label: "Delete" }];
 
 // A system message (docs/architecture/messaging.md → System messages):
 // a row that records something that happened in the channel, in the
@@ -23,11 +24,15 @@ const LINE = 18;
 // name of a renamed channel drawn the same, and the time in a column of
 // its own on the right, on the first line, so a sentence that wraps
 // never strands it. No avatar, reactions or thread. Names are plain
-// text, as the phone has no user card; "3 others" is its label alone,
+// text, as mobile has no user card; "3 others" is its label alone,
 // and a pin's excerpt is words, for now. To a screen reader it is one
 // element, the sentence and the time. A long press opens its menu
 // (onLongPress), which the screen gives only to someone who may
-// moderate messages (SystemMenu); everyone else gets nothing. On a
+// moderate messages (SystemMenu); everyone else gets nothing. A screen
+// reader is offered the same menu as the row's one action, Delete, with
+// a hint saying so. The glyph's box is one line of the sentence tall at
+// the system's text size, so it stays centred on the first line however
+// large the reader's text is. On a
 // menu's card (`card`) it is drawn again with the time's day.
 export default memo(function SystemRow({
   message,
@@ -40,6 +45,7 @@ export default memo(function SystemRow({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const { fontScale } = useWindowDimensions();
   const line = systemLine(message);
   if (!line) return null;
   const created = message.createdAt ? timestampDate(message.createdAt) : undefined;
@@ -50,9 +56,12 @@ export default memo(function SystemRow({
       onLongPress={hold}
       accessible
       accessibilityLabel={time ? `${systemText(line.parts)}, ${time}` : systemText(line.parts)}
+      accessibilityHint={hold ? "Has a Delete action" : undefined}
+      accessibilityActions={hold ? MENU_ACTIONS : undefined}
+      onAccessibilityAction={hold && ((event) => event.nativeEvent.actionName === "longpress" && hold())}
       style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!hold && styles.pressed]}
     >
-      <View style={styles.glyph}>
+      <View style={[styles.glyph, { height: LINE * fontScale }]}>
         <Glyph glyph={line.glyph} color={theme.textMuted} />
       </View>
       <Text style={styles.sentence}>
@@ -75,7 +84,7 @@ function Part({ part, styles }: { part: SystemPart; styles: Styles }) {
     case "person":
       return (
         <>
-          <Text style={styles.strong}>{authorName(part.person)}</Text>
+          <Text style={styles.strong}>{part.person.displayName || part.person.username || "Someone"}</Text>
           {part.person.deleted && <Text style={styles.mark}> (deleted)</Text>}
         </>
       );
@@ -140,7 +149,6 @@ function makeStyles(theme: Theme) {
     },
     glyph: {
       width: COLUMN,
-      height: LINE,
       marginRight: GAP,
       alignItems: "center",
       justifyContent: "center",
