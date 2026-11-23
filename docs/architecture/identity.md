@@ -74,8 +74,12 @@ owner. Then they leave every space, and each private channel they were
 in records that they left
 ([messaging.md](messaging.md#system-messages)). Those rows go out
 before the account is marked deleted, so they arrive with the person's
-old name; clients correct it from the profile when the departure is
-announced, and history shows the author as a deleted account.
+old name; the web client corrects it from the profile when the
+departure is announced, the mobile app shows the row's name as it was
+sent, and history shows the author as a deleted
+account. If leaving one space fails, the spaces already left stay left
+and hear `member_removed` as from a leave, the account stays usable,
+and deleting it again finishes the rest.
 Conversations are left as they are.
 The hand-over runs first because it is not undone: a failure after it
 leaves an account that still works and can be deleted again.

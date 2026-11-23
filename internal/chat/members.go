@@ -206,13 +206,24 @@ type leftChannel struct {
 // messages), whatever the cause; the caller publishes the rows it
 // returns with announceLeftChannels once it has committed.
 func (s *Service) removeMember(ctx context.Context, spaceID, userID string) ([]leftChannel, error) {
+	left, err := s.removeMemberOnce(ctx, spaceID, userID, true)
+	if errors.Is(err, errChannelsMoved) {
+		// Someone added them to a private channel while the first try
+		// was taking the locks. The second lists it from the start; one
+		// added again in that instant goes without a row.
+		left, err = s.removeMemberOnce(ctx, spaceID, userID, false)
+	}
+	return left, err
+}
+
+func (s *Service) removeMemberOnce(ctx context.Context, spaceID, userID string, strict bool) ([]leftChannel, error) {
 	var left []leftChannel
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		left = nil
 		// Before anything else, as seq.go requires, and before the
 		// membership goes: its cascade takes the person's channel_members
 		// rows with it, and with them the list of channels to record in.
-		channels, err := lockPrivateChannelsOf(ctx, qtx, spaceID, userID)
+		channels, err := lockPrivateChannelsOf(ctx, qtx, spaceID, userID, strict)
 		if err != nil {
 			return err
 		}
@@ -254,21 +265,26 @@ func (s *Service) removeMember(ctx context.Context, spaceID, userID string) ([]l
 	return left, nil
 }
 
+// errChannelsMoved is lockPrivateChannelsOf finding, under its locks, a
+// private channel the person was added to after it listed them: it holds
+// no lock on that one and can't take it out of order, so the removal
+// starts again.
+var errChannelsMoved = errors.New("private channels changed while locking them")
+
 // lockPrivateChannelsOf holds the rows of the space's private channels
 // userID is in, in id order, and returns them as they stand once held.
-// Two removals that share channels take them in the same order, so
-// neither waits on the other in a circle; the retention sweep sorts its
-// channels for the same reason. The list is read again under the locks:
-// a channel deleted meanwhile, or one the person was taken out of
-// meanwhile (which recorded its own row), drops out.
-func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, userID string) ([]dbgen.Channel, error) {
+// Any transaction that holds more than one channel row takes them in id
+// order (seq.go), so two removals that share channels, or a removal and
+// a reorder, never wait on each other in a circle. The list is read
+// again under the locks: a channel deleted meanwhile, or one the person
+// was taken out of meanwhile (which recorded its own row), drops out. A
+// channel they were added to meanwhile is errChannelsMoved when strict,
+// and otherwise drops out too.
+func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, userID string, strict bool) ([]dbgen.Channel, error) {
 	of := dbgen.ListPrivateChannelsOfMemberParams{UserID: userID, SpaceID: spaceID}
 	listed, err := qtx.ListPrivateChannelsOfMember(ctx, of)
 	if err != nil {
 		return nil, fmt.Errorf("list private channels: %w", err)
-	}
-	if len(listed) == 0 {
-		return nil, nil
 	}
 	held := make(map[string]bool, len(listed))
 	for _, channel := range listed {
@@ -285,8 +301,11 @@ func lockPrivateChannelsOf(ctx context.Context, qtx *dbgen.Queries, spaceID, use
 	}
 	channels := current[:0]
 	for _, channel := range current {
-		if held[channel.ID] {
+		switch {
+		case held[channel.ID]:
 			channels = append(channels, channel)
+		case strict:
+			return nil, errChannelsMoved
 		}
 	}
 	return channels, nil

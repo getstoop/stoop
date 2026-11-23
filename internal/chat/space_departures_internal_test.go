@@ -396,6 +396,69 @@ func TestConcurrentDeparturesDoNotDeadlock(t *testing.T) {
 	}
 }
 
+// A reorder that puts the newest channel first, running while someone in
+// all of them is kicked, holds the same channel rows; both go through.
+// A reorder that wrote its positions in the order asked for would take
+// the rows newest first and the kick oldest first, and wait in a circle.
+func TestReorderDuringDepartureDoesNotDeadlock(t *testing.T) {
+	fixture := newSystemRows(t)
+	catID := authctx.UserID(fixture.cat)
+	channels := []string{fixture.channel.ID}
+	for index := range 6 {
+		channels = append(channels, fixture.privateChannel(fmt.Sprintf("room-%d", index)))
+	}
+	newestFirst := slices.Clone(channels)
+	slices.Reverse(newestFirst)
+	invite, err := fixture.svc.CreateInvite(fixture.ada, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: fixture.spaceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const rounds = 8
+	for round := range rounds {
+		if round > 0 {
+			if _, err := fixture.svc.JoinSpace(fixture.cat, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invite.Msg.Invite.Code})); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, channelID := range channels[1:] {
+			fixture.addTo(channelID, catID)
+		}
+		var wait sync.WaitGroup
+		errs := make([]error, 2)
+		start := make(chan struct{})
+		wait.Add(2)
+		go func() {
+			defer wait.Done()
+			<-start
+			_, errs[0] = fixture.svc.ReorderChannels(fixture.ada, connect.NewRequest(&chatv1.ReorderChannelsRequest{
+				SpaceId: fixture.spaceID, ChannelIds: newestFirst,
+			}))
+		}()
+		go func() {
+			defer wait.Done()
+			<-start
+			_, errs[1] = fixture.svc.KickMember(fixture.ada, connect.NewRequest(&chatv1.KickMemberRequest{SpaceId: fixture.spaceID, UserId: catID}))
+		}()
+		close(start)
+		wait.Wait()
+		for index, err := range errs {
+			if err != nil {
+				t.Fatalf("round %d, %s: %v", round, []string{"reorder", "kick"}[index], err)
+			}
+		}
+	}
+	for index, channelID := range newestFirst {
+		if got := fixture.channelRow(channelID).Position; got != int32(index) {
+			t.Errorf("channel %s at %d, want %d", channelID, got, index)
+		}
+	}
+	for _, channelID := range channels[1:] {
+		if got := len(fixture.leftRows(channelID)); got != rounds {
+			t.Errorf("channel %s: %d left rows, want %d", channelID, got, rounds)
+		}
+	}
+}
+
 // An account deleted leaves a row in every space it was in, sent with
 // the person's name; read back once the account is marked deleted, the
 // row's author reads as a deleted account.
@@ -447,5 +510,81 @@ func TestAccountDeletionLeavesAcrossSpaces(t *testing.T) {
 	read := fixture.load(heardRows[here].GetId())
 	if !read.Author.GetDeleted() || read.Event.GetMemberLeft() == nil {
 		t.Errorf("row read after the deletion = %v, want a left row by a deleted account", read)
+	}
+}
+
+// An account deletion that fails in one space leaves the person in that
+// one, and every space they had already left hears member_removed, as
+// from a leave; the failed one hears nothing.
+func TestAccountDeletionFailingPartWayAnnouncesWhatWasLeft(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	catID := authctx.UserID(fixture.cat)
+	for _, name := range []string{"Attic", "Cellar"} {
+		other, err := fixture.svc.CreateSpace(fixture.ada, connect.NewRequest(&chatv1.CreateSpaceRequest{Name: name}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		invite, err := fixture.svc.CreateInvite(fixture.ada, connect.NewRequest(&chatv1.CreateInviteRequest{SpaceId: other.Msg.Space.Id}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fixture.svc.JoinSpace(fixture.cat, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invite.Msg.Invite.Code})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The removal from the last space RemovePerson comes to fails as it
+	// records its row.
+	spaces, err := fixture.svc.q.ListSpaceIDsByUser(ctx, catID)
+	if err != nil || len(spaces) != 3 {
+		t.Fatalf("cat's spaces = %v, %v", spaces, err)
+	}
+	failing, err := fixture.svc.CreateChannel(fixture.ada, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: spaces[2], Name: "failing", Kind: chatv1.ChannelKind_CHANNEL_KIND_TEXT, Private: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture.addTo(failing.Msg.Channel.Id, catID)
+	if _, err := fixture.pool.Exec(ctx, fmt.Sprintf(`
+		CREATE FUNCTION refuse_left() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN RAISE EXCEPTION 'refused'; END $$;
+		CREATE TRIGGER refuse_left BEFORE INSERT ON messages
+		FOR EACH ROW WHEN (NEW.kind = %d AND NEW.channel_id = '%s') EXECUTE FUNCTION refuse_left();`,
+		kindMemberLeft, failing.Msg.Channel.Id)); err != nil {
+		t.Fatal(err)
+	}
+	bus := fixture.svc.bus.(*events.InProcBus)
+	subs := make([]*events.Subscription, len(spaces))
+	for index, spaceID := range spaces {
+		subs[index] = bus.Subscribe(events.SpaceTopic(spaceID))
+		defer subs[index].Close()
+	}
+
+	if _, err := fixture.svc.RemovePerson(ctx, catID, ""); err == nil {
+		t.Fatal("removal went through a refused row")
+	}
+	for index, spaceID := range spaces {
+		member, err := fixture.svc.IsSpaceMember(ctx, catID, spaceID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		removed := 0
+		for done := false; !done; {
+			select {
+			case event := <-subs[index].Events():
+				if gone := event.GetMemberRemoved(); gone != nil && gone.UserId == catID {
+					removed++
+				}
+			case <-time.After(300 * time.Millisecond):
+				done = true
+			}
+		}
+		if member != (index == 2) {
+			t.Errorf("space %d: cat a member %v, want only the failed one kept", index, member)
+		}
+		if want := map[bool]int{true: 0, false: 1}[member]; removed != want {
+			t.Errorf("space %d: cat a member %v, heard member_removed %d times, want %d", index, member, removed, want)
+		}
 	}
 }

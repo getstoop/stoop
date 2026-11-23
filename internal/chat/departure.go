@@ -39,9 +39,14 @@ func (s *Service) RemovePerson(ctx context.Context, userID, fallbackOwnerID stri
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
 	}
-	for _, spaceID := range spaces {
+	for index, spaceID := range spaces {
 		left, err := s.removeMember(ctx, spaceID, userID)
 		if err != nil {
+			// The spaces already left stay left, and the account stays
+			// live: those spaces hear that the person has gone, as they
+			// would from a leave, rather than wait on a deletion that
+			// may not come.
+			s.AnnounceDeparture(ctx, userID, spaces[:index])
 			return nil, fmt.Errorf("leave space: %w", err)
 		}
 		// Now, while the account still reads as itself: each private

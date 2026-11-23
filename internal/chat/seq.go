@@ -18,6 +18,17 @@ import (
 // one row is written) before any message row, and no two of them wait on
 // each other's rows. The retention sweep, the one hard delete, holds the
 // channel row the same way (retention_sweep.go).
+//
+// A transaction that holds more than one channel row takes them in id
+// order: a removal from a space locks each private channel the person
+// was in (lockPrivateChannelsOf), and a reorder updates every channel of
+// the space (ReorderChannels). Two of them taking the same rows in
+// different orders would deadlock, and Postgres would fail one. The
+// retention sweep holds one channel per transaction and sorts its
+// channels too. Deleting a space is the exception: the cascade takes its
+// channels in whatever order it finds them, so a removal from that
+// space at the same instant can fail with a deadlock (or the delete
+// can); either way nothing is half done.
 
 // errMessageGone is the row to stamp no longer existing. It rolls the
 // transaction back, so the position it took is not spent. stampMessage
