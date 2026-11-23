@@ -1,5 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { type MouseEvent, memo, useEffect, useRef, useState } from "react";
+import { type MouseEvent, memo, useEffect, useRef } from "react";
 import { useAuthorShown } from "../../../api/authors";
 import { BotMark } from "../../../components/BotMark";
 import { DeletedMark } from "../../../components/DeletedMark";
@@ -22,7 +22,8 @@ import type {
 // avatar, reactions or thread; a moderator's only action is Delete. A
 // long list's "N others" unfolds in place to every name, with "Show
 // fewer" to fold it again; the virtual list measures the row again as
-// its height changes.
+// its height changes. Which rows are unfolded is the list's to hold
+// (unfolded, onToggleFold), so a row keeps it across leaving the window.
 export const SystemRow = memo(function SystemRow({
   message,
   index,
@@ -34,6 +35,8 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix = "msg-",
   onCard,
   onDelete,
+  unfolded = false,
+  onToggleFold,
 }: {
   message: Message;
   // Its place in the virtualised list, as a MessageRow's.
@@ -48,8 +51,9 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix?: string;
   onCard: (userId: string, anchor: DOMRect) => void;
   onDelete: (message: Message) => void;
+  unfolded?: boolean;
+  onToggleFold: (messageId: string) => void;
 }) {
-  const [unfolded, setUnfolded] = useState(false);
   // The row whose control was just used: focus moves to the control that
   // takes its place, so it is not lost with the one that went.
   const refocus = useRef<HTMLElement | null>(null);
@@ -62,7 +66,7 @@ export const SystemRow = memo(function SystemRow({
   }, [unfolded]);
   const toggle = (event: MouseEvent<HTMLElement>) => {
     refocus.current = event.currentTarget.closest(".system-row");
-    setUnfolded((was) => !was);
+    onToggleFold(message.id);
   };
   const line = systemLine(message, unfolded);
   if (!line) return null;

@@ -713,8 +713,9 @@ window" is what the view's range holds.
   (`aria-expanded="true"`) after them folds it again; focus moves to
   whichever control takes the place of the one used. The virtual list
   observes each row's size, so the row is measured again as it grows or
-  shrinks. The state is the row's own and is forgotten when the row
-  leaves the DOM.
+  shrinks. The list holds which rows are unfolded, by message id, so a
+  row that leaves the DOM comes back as it was and the height the list
+  remembered for it still holds.
   A jump to one (`indexOfMessage`) lands on it as on a message. The
   list leaves out quiet rows of a kind it does not know before grouping,
   and an arrival that is quiet does not count on the pill.

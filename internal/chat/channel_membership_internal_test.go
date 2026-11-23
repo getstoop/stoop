@@ -423,7 +423,9 @@ func TestRemovalDuringASendDoesNotDeadlock(t *testing.T) {
 		if removeErr != nil {
 			t.Fatalf("round %d: removal: %v", round, removeErr)
 		}
-		// The send either went first or found her gone.
+		// The send went first, found her gone, or (checked before its
+		// transaction and not under the lock, as before this change)
+		// landed after the removal; none of them is a deadlock.
 		if sendErr != nil && connect.CodeOf(sendErr) != connect.CodeNotFound {
 			t.Fatalf("round %d: send: %v", round, sendErr)
 		}

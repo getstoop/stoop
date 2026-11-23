@@ -780,8 +780,9 @@ and a renamed channel's new name in full ink (a deleted account marked
 "(deleted)", as an author is), and the time in a right-aligned column
 on its first line, so a sentence that wraps never strands it. Names are
 plain text (the app has no user card) and a pin's excerpt is words,
-for now. A long list's "3 others" unfolds the row to every name when
-tapped, with "Show fewer" after them to fold it again. A screen reader
+for now. A row with a long list ("3 others") unfolds to every name on a
+tap anywhere on it, and folds again on the next, with "Show fewer"
+after the names; a row with nothing to fold takes no tap. A screen reader
 hears the row as one element, the sentence as it is now drawn and the
 time, marked expanded or collapsed when it has a long list, which its
 activate action (a double tap, with a hint saying what it does) unfolds

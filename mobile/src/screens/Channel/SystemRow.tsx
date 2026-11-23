@@ -36,8 +36,11 @@ const FOLD_ACTION = { name: "activate", label: "Show fewer" };
 // its own on the right, on the first line, so a sentence that wraps
 // never strands it. No avatar, reactions or thread. Names are plain
 // text, as mobile has no user card, and a pin's excerpt is words, for
-// now. A long list's "3 others" unfolds to every name when tapped, and
-// "Show fewer" after them folds it again. To a screen reader it is one
+// now. A row with a long list ("3 others") unfolds to every name when
+// tapped anywhere, a target the size of the row, and folds again (with
+// "Show fewer" after the names) on the next tap; a row with no list to
+// fold takes no tap, so another kind's own tap targets (a pin's
+// excerpt) have the row to themselves. To a screen reader it is one
 // element, the sentence as it now reads and the time, whose activate
 // action unfolds or folds the list. A long press opens its menu
 // (onLongPress), which the screen gives only to someone who may
@@ -87,7 +90,8 @@ export default memo(function SystemRow({
       accessibilityState={toggle ? { expanded: unfolded } : undefined}
       accessibilityActions={actions.length > 0 ? actions : undefined}
       onAccessibilityAction={actions.length > 0 ? act : undefined}
-      style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!hold && styles.pressed]}
+      onPress={toggle}
+      style={({ pressed }) => [card ? styles.card : styles.row, pressed && !!(hold || toggle) && styles.pressed]}
     >
       <View style={[styles.glyph, { height: LINE * fontScale }]}>
         <Glyph glyph={line.glyph} color={theme.textMuted} />
@@ -95,14 +99,12 @@ export default memo(function SystemRow({
       <Text style={styles.sentence}>
         {line.parts.map((part, index) => (
           // Keyed by place: a row's parts never reorder.
-          <Part key={index} part={part} styles={styles} onUnfold={toggle} onHold={hold} />
+          <Part key={index} part={part} styles={styles} />
         ))}
         {toggle && unfolded && (
           <>
             {" "}
-            <Text style={styles.fold} onPress={toggle} onLongPress={hold}>
-              Show fewer
-            </Text>
+            <Text style={styles.fold}>Show fewer</Text>
           </>
         )}
       </Text>
@@ -113,17 +115,7 @@ export default memo(function SystemRow({
 
 type Styles = ReturnType<typeof makeStyles>;
 
-function Part({
-  part,
-  styles,
-  onUnfold,
-  onHold,
-}: {
-  part: SystemPart;
-  styles: Styles;
-  onUnfold?: () => void;
-  onHold?: () => void;
-}) {
+function Part({ part, styles }: { part: SystemPart; styles: Styles }) {
   switch (part.kind) {
     case "text":
       return part.text;
@@ -135,12 +127,7 @@ function Part({
         </>
       );
     case "others":
-      // A long press on it still opens the row's menu.
-      return (
-        <Text style={styles.strong} onPress={onUnfold} onLongPress={onHold}>
-          {part.label}
-        </Text>
-      );
+      return <Text style={styles.strong}>{part.label}</Text>;
     case "channel":
       return part.current ? <Text style={styles.strong}>#{part.name}</Text> : `#${part.name}`;
     case "excerpt":

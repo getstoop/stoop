@@ -207,6 +207,20 @@ export function MessageList({
   // every scroll, and once a landing has put the view somewhere.
   const [atBottom, setAtBottom] = useState(true);
   const [unseen, setUnseen] = useState(0);
+  // The system rows whose list of people is unfolded, by message id. Held
+  // here, not in the row: a row unmounts when it leaves the window, and
+  // the list remembers its unfolded height, so a row coming back must
+  // come back unfolded or the view jumps.
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const toggleFold = useCallback((messageId: string) => {
+    setUnfolded((was) => {
+      const next = new Set(was);
+      if (!next.delete(messageId)) next.add(messageId);
+      return next;
+    });
+  }, []);
   const atBottomRef = useRef(true);
   const noteBottom = useCallback(() => {
     const list = listRef.current;
@@ -793,6 +807,8 @@ export function MessageList({
                       rowIdPrefix={rowIdPrefix}
                       onCard={rows.showCard}
                       onDelete={rows.removeSystem}
+                      unfolded={unfolded.has(item.message.id)}
+                      onToggleFold={toggleFold}
                     />
                   );
                 default:

@@ -3,6 +3,7 @@ import {
   channelLink,
   expect,
   focus,
+  gotoShared,
   rowByText,
   seed,
   sendMessage,
@@ -123,6 +124,7 @@ test("a private channel's membership rows", async ({ browser }) => {
     A.locator(".system-row"),
     "making the channel records nothing",
   ).toHaveCount(0);
+  const address = A.url();
   await addPeople("bea", "cal");
 
   const twoAdded = `${name("ada")} added ${name("bea")} and ${name("cal")}`;
@@ -155,7 +157,19 @@ test("a private channel's membership rows", async ({ browser }) => {
   await expect(long, "…and folds again").toBeVisible();
   await expect(unfolded).toHaveCount(0);
 
-  // Hal, outside the channel, has neither the channel nor its rows.
+  // Hal, outside the channel, has neither the channel nor its rows: not
+  // in his sidebar, nothing at its address, and its history refused.
+  // (Who receives which row live is internal/app's e2e test.)
   await expect(channelLink(H, "captains")).toHaveCount(0);
-  await expect(H.locator(".system-row")).toHaveCount(0);
+  await gotoShared(H, address);
+  await expect(channelLink(H, "general")).toBeVisible();
+  await expect(H.getByText(twoAdded)).toHaveCount(0);
+  const history = await H.request.post(
+    `${new URL(H.url()).origin}/stoop.chat.v1.ChatService/ListMessages`,
+    {
+      headers: { authorization: `Bearer ${tokens.hal}` },
+      data: { channelId: new URL(address).pathname.split("/").pop() },
+    },
+  );
+  expect(history.status(), "its history is refused").toBe(404);
 });
