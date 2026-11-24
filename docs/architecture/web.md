@@ -627,9 +627,9 @@ window" is what the view's range holds.
 - **One item per row** (`MessageList/items.ts`): the head (the window's
   older edge — skeleton rows while more lies older, the beginning marker
   with the first-run card, or a thread's root above its reply count), a day line,
-  the "New messages" line, each message, a system message as an item of
-  its own kind (`MessageList/SystemRow.tsx`, below), and the foot (the
-  newer edge).
+  the "New messages" line, each message, a poll and any other system
+  message as items of their own kinds (`MessageList/PollRow/` and
+  `MessageList/SystemRow.tsx`, below), and the foot (the newer edge).
   Dividers are rows beside the messages, never wrappers round them
   (`.new-divider + *` is still the message it introduces). The head and
   foot carry the list's top and bottom padding, so the body's height is
@@ -722,7 +722,41 @@ window" is what the view's range holds.
   remembered for it still holds.
   A jump to one (`indexOfMessage`) lands on it as on a message. The
   list leaves out quiet rows of a kind it does not know before grouping,
-  and an arrival that is quiet does not count on the pill.
+  and an arrival that is quiet does not count on the pill. A poll's
+  closing row reads "closed the poll:", the question and the outcome
+  from its own snapshot ("Winner: A, 3 votes", "Tied: A and B, 3 votes
+  each", "Nobody voted"), with View to the poll while it is there; its
+  wording is `systemLine`'s, shared with mobile.
+- **Polls** ([messaging.md](messaging.md#polls)) are a system message on
+  the wire but a card on screen: `pollOf` in `core/polls.ts` picks them
+  out before `isSystemRow` would, and `MessageList/PollRow/` draws one
+  as a `.message` (avatar, name, time, hover toolbar) whose body is the
+  card (`styles/polls.css`). A poll always heads its own group, and the
+  list follows the reader's own as it follows their message
+  (`newestMine`). Everything that is not drawing is in `core/polls.ts`,
+  shared with mobile: the reader's selection and the selection a press
+  sends (one choice: the pressed option, or nothing when it is already
+  theirs; several: that one added or removed), each option's count and
+  bar (its votes over the people who voted, so several choices' bars add
+  up past the whole), the winner rule, the "You, Jun and 12 others"
+  naming, and who may close, delete and pin. A press is not applied
+  ahead of the server: the option shows it is pending, and
+  `setPollVote` in `api/polls.ts` holds the answer (`holdRow`, by seq),
+  since a vote that changed nothing has no event to settle it; a
+  refusal is a notice. While open, options are buttons with
+  `role="radio"` or `role="checkbox"` and `aria-checked`, each a tab
+  stop, named with their count and "your vote"; not native inputs,
+  whose arrow keys would send a vote at every step. "N others" opens
+  everyone who chose that option, anchored as a user card is. The
+  toolbar has Copy link, Pin (whoever pins here) and Delete (the author,
+  or `messages.moderate` in a space), and no reaction, reply, thread or
+  edit; Close poll is in the card's foot, with its question in a
+  popover under it. A vote's `message_updated` does not refetch a
+  linked message's copy (`api/ws.ts`), the deleter's own delete takes
+  the closing row with the poll (`withQuotesBlanked`), and where a
+  message is shown in brief (a pin, a search result, a linked message's
+  card) a poll is its preview line (`components/PollPreview.tsx`), not
+  Markdown.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:
