@@ -3,6 +3,8 @@ import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { withoutHiddenSystemRows } from "@stoop/core/systemMessages";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
+import type { PollRequest } from "@stoop/core/pollForm";
+import { isPollRow, pollPermissions } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +35,10 @@ import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
+import PollForm from "./PollForm";
+import PollMenu from "./PollMenu";
+import PollRow from "./PollRow";
+import PollVotes from "./PollVotes";
 import PostingClosed from "./PostingClosed";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
 import SystemMenu from "./SystemMenu";
@@ -47,6 +53,7 @@ import { useFlash } from "./useFlash";
 import { useFollowSend } from "./useFollowSend";
 import { useMentionNames } from "./useMentionNames";
 import { useMessageActions } from "./useMessageActions";
+import { usePollActions } from "./usePollActions";
 import { useScrollRetry } from "./useScrollRetry";
 
 // A channel, pushed over its space: its messages newest at the bottom,
@@ -268,6 +275,7 @@ export default function Channel({
     items,
   });
   const { menuFor, menuMessage, notify } = actions;
+  const polls = usePollActions({ scope: channelId, shown: messages, myUserId: readerId, engine, notify });
   // Going to a message: the log lands on it (channelEngine jumpTo), or on
   // its root, with the thread pushed on the reply; one the server no
   // longer has is said over the composer, the channel staying as it was.
@@ -323,6 +331,33 @@ export default function Channel({
     threadAfterMenu.current = null;
     pushThread(rootId);
   }, [menuFor, pushThread]);
+  // The poll's form, from Poll in the attach sheet, held with the channel
+  // and the log it was opened on: it posts there whatever the screen
+  // shows by then, and goes when the screen shows another channel, as the
+  // menus and the votes sheet do. The reader's own poll is followed as
+  // their message is, while the form that posted it is still up; one
+  // refused after the form has gone is said over the composer.
+  const [pollFor, setPollFor] = useState<{ channelId: string; engine: ChannelEngine } | null>(null);
+  if (pollFor && pollFor.channelId !== channelId) setPollFor(null);
+  const openPollForm = useCallback(() => setPollFor({ channelId, engine }), [channelId, engine]);
+  const closePollForm = useCallback(() => setPollFor(null), []);
+  const postPoll = useCallback(
+    ({ question, options, multiple }: PollRequest) => {
+      if (!pollFor) return Promise.reject(new Error("The form has gone."));
+      return pollFor.engine.createPoll(question, options, multiple);
+    },
+    [pollFor],
+  );
+  const pollPosted = useCallback(() => {
+    if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
+    else followSend();
+  }, [engine, followSend]);
+  const pollRefusedLate = useCallback(
+    (err: unknown) => {
+      if (alive.current) notify("Couldn't post the poll", errorText(err));
+    },
+    [notify],
+  );
   const sendHere = useCallback(
     async (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) => {
       await send(content, { replyToMessageId, attachmentIds });
@@ -424,6 +459,12 @@ export default function Channel({
   // A system message's menu is a moderator's alone (SystemMenu); for
   // anyone else a long press on one does nothing.
   const moderates = !!space && canDeleteAnyMessage(space);
+  // Where the reader may pin: in a space, with manage_channels, as web
+  // decides it. Never in a direct message.
+  const pins = !!space && canManageChannels(space);
+  const pollMay = menuMessage
+    ? pollPermissions({ message: menuMessage, myUserId, inSpace: !!space, canModerate: moderates, canPin: pins })
+    : undefined;
 
   return (
     <View style={styles.screen}>
@@ -438,7 +479,18 @@ export default function Channel({
               data={items}
               keyExtractor={(item) => item.key}
               renderItem={({ item }) =>
-                item.kind === "system" ? (
+                item.kind === "poll" ? (
+                  <PollRow
+                    message={item.message}
+                    myUserId={myUserId}
+                    origin={server.origin}
+                    token={token}
+                    flashed={item.message.id === flashId}
+                    onVote={polls.vote}
+                    onViewVotes={polls.viewVotes}
+                    onLongPress={actions.openMenu}
+                  />
+                ) : item.kind === "system" ? (
                   <SystemRow
                     message={item.message}
                     onLongPress={moderates ? actions.openMenu : undefined}
@@ -457,9 +509,9 @@ export default function Channel({
                     onReact={actions.reactTo}
                     target={actions.targetOf(item.message) ?? (item.message.id === flashId ? "focus" : undefined)}
                   />
-                ) : (
+                ) : item.kind === "day" || item.kind === "new" ? (
                   <Divider label={item.label} fresh={item.kind === "new"} />
-                )
+                ) : null
               }
               // Pages for the screen on top only: a channel under a thread is
               // laid out afresh when its range is replaced, and would page
@@ -535,6 +587,7 @@ export default function Channel({
               ref={actions.composer}
               key={channelId}
               place={headerPlace(header)}
+              onPoll={openPollForm}
               mentionNames={mentionNames}
               origin={server.origin}
               token={token}
@@ -556,7 +609,20 @@ export default function Channel({
         }
       />
       <MessageContexts links={links} previews={previews}>
-        {menuMessage?.event ? (
+        {menuMessage && pollMay && isPollRow(menuMessage) ? (
+          <PollMenu
+            message={menuMessage}
+            myUserId={myUserId}
+            origin={server.origin}
+            token={token}
+            link={messageLink(server.origin, spaceId, menuMessage)}
+            onCopyFailed={actions.linkNotCopied}
+            onPin={pollMay.pin ? () => actions.togglePin(menuMessage) : undefined}
+            onClosePoll={pollMay.close ? () => polls.close(menuMessage) : undefined}
+            onDelete={pollMay.delete ? () => polls.deletePoll(menuMessage) : undefined}
+            onClose={actions.closeMenu}
+          />
+        ) : menuMessage?.event ? (
           <SystemMenu
             message={menuMessage}
             onDelete={() => actions.deleteSystem(menuMessage)}
@@ -584,7 +650,7 @@ export default function Channel({
             onPin={
               // As web's: where the reader manages channels, and not on a
               // reply also sent here; never in a thread.
-              space && canManageChannels(space) && !menuMessage.threadRootId
+              pins && !menuMessage.threadRootId
                 ? () => actions.togglePin(menuMessage)
                 : undefined
             }
@@ -595,6 +661,27 @@ export default function Channel({
           />
         ) : null}
       </MessageContexts>
+      {/* Kept open should posting close meanwhile: the server's refusal
+          is then said in it, with what was typed. */}
+      {pollFor && (
+        <PollForm
+          key={pollFor.channelId}
+          channelId={pollFor.channelId}
+          onPost={postPoll}
+          onPosted={pollPosted}
+          onLateFailure={pollRefusedLate}
+          onClose={closePollForm}
+        />
+      )}
+      {polls.votesMessage && (
+        <PollVotes
+          message={polls.votesMessage}
+          myUserId={myUserId}
+          origin={server.origin}
+          token={token}
+          onClose={polls.closeVotes}
+        />
+      )}
       {viewer.viewing && (
         <Viewer
           key={itemKey(viewer.viewing.items[viewer.viewing.index])}

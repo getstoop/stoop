@@ -76,6 +76,19 @@ describe("touchesAlerts", () => {
     expect(touchesAlerts(event(payload))).toBe(false);
   });
 
+  // Every vote is a poll's whole row as an update; a vote marks nothing
+  // unread and addresses nobody.
+  it("leaves a poll's update: a vote changes no count", () => {
+    const payload = {
+      case: "messageUpdated",
+      value: create(MessageSchema, {
+        spaceId: "s1",
+        event: { kind: { case: "poll", value: { question: "Friday?" } } },
+      }),
+    } as const;
+    expect(touchesAlerts(event(payload))).toBe(false);
+  });
+
   it("leaves what changes no count", () => {
     expect(touchesAlerts(event({ case: "presenceChanged", value: create(PresenceChangedSchema, {}) }))).toBe(false);
     expect(touchesAlerts(event({ case: "memberUpdated", value: create(MemberUpdatedSchema, {}) }))).toBe(false);

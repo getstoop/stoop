@@ -68,6 +68,9 @@ import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 // message may be files alone. With the keyboard down the pill shows a
 // paperclip and how many files are held, before the draft. A refused
 // send puts its files back with the draft, ahead of any picked since.
+// Where the screen offers a poll (`onPoll`: a channel's or a
+// conversation's composer, never a thread's), the sheet has Poll under
+// its sources, which hands over to the screen once the sheet has gone.
 //
 // A message being quoted (`replyTo`, the screen's to hold) is the card's
 // first line, the reply strip: "Replying to NAME · the first words", and
@@ -142,6 +145,8 @@ export default forwardRef<
     token: string;
     // A thread's composer, with Also send to the channel.
     inThread?: boolean;
+    // Poll in the attach sheet: the screen opens the poll's form.
+    onPoll?: () => void;
     // Whose draft this is, and where: the server, the account, the
     // channel and the root (api/drafts).
     draftAddress: DraftAddress;
@@ -170,6 +175,7 @@ export default forwardRef<
     origin,
     token,
     inThread = false,
+    onPoll,
     draftAddress,
     onRestoreQuote,
     send,
@@ -207,7 +213,7 @@ export default forwardRef<
   const [before, setBefore] = useState<string | null>(null);
   const [formats, setFormats] = useState<Format[]>([]);
   // The files held, and the attach sheet; back to the card after a pick.
-  const attachments = useAttachments(upload, maxUploadBytes, () => openCard());
+  const attachments = useAttachments(upload, maxUploadBytes, () => openCard(), onPoll);
   const input = useRef<RichFieldHandle>(null);
   // The draft set aside while a message is edited, to come back after,
   // and a send's refusal that waits with it.
@@ -455,7 +461,7 @@ export default forwardRef<
   // Keyed, so it stays the same sheet when the field's blur swaps the card
   // for the pill, which hold it at different positions. Remounted, the iOS
   // modal being dismissed reports its dismissal to the new sheet.
-  const sheet = attachments.attaching && <AttachSheet key="attach-sheet" onClose={attachments.sheetClosed} />;
+  const sheet = attachments.attaching && <AttachSheet key="attach-sheet" poll={!!onPoll} onClose={attachments.sheetClosed} />;
 
   if (!writing) {
     const words = plainText(draft);

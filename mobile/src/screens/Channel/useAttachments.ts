@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Keyboard } from "react-native";
 import { errorText } from "../../api/errors";
 import type { LocalFile } from "../../api/files";
-import type { AttachSource } from "./AttachSheet";
+import type { AttachChoice, AttachSource } from "./AttachSheet";
 import { type Picked, type PickResult, pickFrom } from "./pickers";
 
 // The files a composer holds for its next message, as web's composer
@@ -24,7 +24,9 @@ import { type Picked, type PickResult, pickFrom } from "./pickers";
 // the photo library, the camera or files), and `reopen` (the card with
 // focus) is called when there is something to show or the card was up
 // before. A picker's refusal, such as the camera not allowed, is said
-// in the card as too many files are.
+// in the card as too many files are. Poll, offered where the composer
+// is given `onPoll`, hands over to it once the sheet has gone, the card
+// left down: the poll's form is a sheet of its own.
 
 export type PendingFile = {
   key: string;
@@ -46,6 +48,7 @@ export function useAttachments(
   upload: (file: LocalFile, signal: AbortSignal) => Promise<UploadedFile>,
   maxBytes: number,
   reopen: () => void,
+  onPoll?: () => void,
 ) {
   const [files, setFiles] = useState<PendingFile[]>([]);
   // A pick refused as a whole: too many, or the picker failing.
@@ -145,14 +148,20 @@ export function useAttachments(
   const cardBefore = useRef(false);
   const reopenLatest = useRef(reopen);
   reopenLatest.current = reopen;
+  const pollLatest = useRef(onPoll);
+  pollLatest.current = onPoll;
   const openSheet = (cardUp: boolean) => {
     cardBefore.current = cardUp;
     Keyboard.dismiss();
     setAttaching(true);
   };
-  const sheetClosed = async (source: AttachSource | null) => {
+  const sheetClosed = async (choice: AttachChoice | null) => {
     setAttaching(false);
-    const shown = source !== null && (await pick(source));
+    if (choice === "poll") {
+      if (mounted.current) pollLatest.current?.();
+      return;
+    }
+    const shown = choice !== null && (await pick(choice));
     if (mounted.current && (shown || cardBefore.current)) reopenLatest.current();
   };
 

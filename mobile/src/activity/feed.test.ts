@@ -1,7 +1,9 @@
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { type ActivityItem, ActivityKind } from "@stoop/gen/stoop/chat/v1/activity_pb";
+import { MessageAuthorSchema, MessageSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { describe, expect, it } from "vitest";
-import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed";
+import { deletionMayClearActivity, olderAfterLoad, olderAfterRead, ownPostRead } from "./feed";
 
 const stamp = (seconds: number): Timestamp =>
   ({ $typeName: "google.protobuf.Timestamp", seconds: BigInt(seconds), nanos: 0 }) as Timestamp;
@@ -88,5 +90,34 @@ describe("deletionMayClearActivity", () => {
 
   it("is true when the server counts unread past the first page", () => {
     expect(deletionMayClearActivity({ ...data, unreadCount: 4 }, [], "m-q")).toBe(true);
+  });
+});
+
+describe("ownPostRead", () => {
+  const row = (init: MessageInitShape<typeof MessageSchema>) => {
+    const made = create(MessageSchema, init);
+    made.channelId = "c1";
+    made.author ??= create(MessageAuthorSchema, { id: "me" });
+    return made;
+  };
+
+  it("moves the marker for the reader's own message, and nobody else's", () => {
+    expect(ownPostRead(row({}), "me")).toBe("c1");
+    expect(ownPostRead(row({ author: { id: "them" } }), "me")).toBeNull();
+    expect(ownPostRead(row({}), undefined)).toBeNull();
+  });
+
+  it("moves none for a reply only in its thread", () => {
+    expect(ownPostRead(row({ threadRootId: "root", inChannel: false }), "me")).toBeNull();
+    expect(ownPostRead(row({ threadRootId: "root", inChannel: true }), "me")).toBe("c1");
+  });
+
+  it("skips quiet system rows only: the reader's poll and its closing row count", () => {
+    const quiet = row({ quiet: true, event: { kind: { case: "channelRenamed", value: {} } } });
+    const poll = row({ event: { kind: { case: "poll", value: { question: "Friday?" } } } });
+    const closed = row({ event: { kind: { case: "pollClosed", value: { question: "Friday?" } } } });
+    expect(ownPostRead(quiet, "me")).toBeNull();
+    expect(ownPostRead(poll, "me")).toBe("c1");
+    expect(ownPostRead(closed, "me")).toBe("c1");
   });
 });

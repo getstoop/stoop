@@ -328,9 +328,9 @@ export default function Thread({
                     alsoSentTo={item.message.inChannel ? headerPlace(header) : undefined}
                     withDay
                   />
-                ) : (
+                ) : item.kind === "day" || item.kind === "new" ? (
                   <Divider label={item.label} fresh={item.kind === "new"} />
-                )
+                ) : null
               }
               onEndReached={() => engine.olderReplies(rootId)}
               onEndReachedThreshold={0.5}

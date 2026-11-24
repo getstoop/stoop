@@ -1,3 +1,4 @@
+import { isPollRow } from "@stoop/core/polls";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { MessageAuthor } from "@stoop/gen/stoop/chat/v1/message_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
@@ -38,15 +39,17 @@ export async function closeConversation(origin: string, token: string, channelId
 // newest message, its unread count, its mute, a new one, or the people
 // in them (a renamed person, a new avatar). A direct message is a
 // channel with no space. Ready follows a reconnect, when anything may
-// have been missed.
+// have been missed. A poll's update is a vote, which changes none of
+// that.
 export function touchesConversations(event: ServerEvent): boolean {
   const payload = event.payload;
   switch (payload.case) {
     case "ready":
     case "memberUpdated":
       return true;
-    case "messageCreated":
     case "messageUpdated":
+      return payload.value.spaceId === "" && !isPollRow(payload.value);
+    case "messageCreated":
     case "channelCreated":
     case "messageDeleted":
     case "channelRead":

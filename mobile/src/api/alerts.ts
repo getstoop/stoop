@@ -1,3 +1,4 @@
+import { isPollRow } from "@stoop/core/polls";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
@@ -32,13 +33,15 @@ export async function loadAlertLists(origin: string, token: string): Promise<Ale
 // changing (what the reader can read is what is counted). Someone
 // leaving a space is rare enough to ask on without knowing whether it
 // was the reader. Ready follows a reconnect, when anything may have been
-// missed. An activity item is not here: its message already counts.
+// missed. An activity item is not here: its message already counts; nor
+// is a poll's update, a vote, which marks nothing unread.
 export function touchesAlerts(event: ServerEvent): boolean {
   const payload = event.payload;
   switch (payload.case) {
+    case "messageUpdated":
+      return !isPollRow(payload.value);
     case "ready":
     case "messageCreated":
-    case "messageUpdated":
     case "messageDeleted":
     case "channelRead":
     case "threadRead":

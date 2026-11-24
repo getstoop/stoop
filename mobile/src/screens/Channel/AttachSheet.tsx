@@ -3,21 +3,25 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CameraIcon, FileIcon, PhotoIcon } from "../../components/Icons";
+import { CameraIcon, FileIcon, PhotoIcon, PollIcon } from "../../components/Icons";
 import SheetFrame from "../../components/SheetFrame";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // Where the composer's Attach (the + in the pill or the card) picks files
 // from: a sheet over a scrim, drawn as the message menu's is (useSheet),
-// with the photo library, the camera and files. A pick closes the sheet
-// and is handed over (onClose) once it has gone: on iOS once the modal
-// itself is dismissed, since a picker presented over it would be
-// dismissed with it, or after a moment should that never be said, so a
-// pick is never lost and the sheet never stays up. A tap on the scrim, a
-// swipe down or Android's back closes it with nothing.
+// with the photo library, the camera and files, and under a rule Poll,
+// where the composer offers one (`poll`: a channel's or a conversation's,
+// never a thread's). A pick closes the sheet and is handed over (onClose)
+// once it has gone: on iOS once the modal itself is dismissed, since a
+// picker, or the poll's form, presented over it would be dismissed with
+// it, or after a moment should that never be said, so a pick is never
+// lost and the sheet never stays up. A tap on the scrim, a swipe down or
+// Android's back closes it with nothing.
 
 export type AttachSource = "library" | "camera" | "files";
+// What the sheet hands over: a source of files, or the poll's form.
+export type AttachChoice = AttachSource | "poll";
 
 const ITEMS = [
   { source: "library", label: "Photo library", Icon: PhotoIcon },
@@ -28,12 +32,18 @@ const ITEMS = [
 // How long iOS gets to say the modal has gone before it is taken as gone.
 const DISMISS_FALLBACK_MS = 1000;
 
-export default function AttachSheet({ onClose }: { onClose: (source: AttachSource | null) => void }) {
+export default function AttachSheet({
+  poll = false,
+  onClose,
+}: {
+  poll?: boolean;
+  onClose: (choice: AttachChoice | null) => void;
+}) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
   const shown = useSharedValue(0);
-  const picked = useRef<AttachSource | null>(null);
+  const picked = useRef<AttachChoice | null>(null);
   const [visible, setVisible] = useState(true);
   // Handed over once, whichever of the two says it has gone.
   const handed = useRef(false);
@@ -60,9 +70,9 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
   const sheet = useSheet(shown, closed);
   const { dismiss, closing, fade } = sheet;
 
-  const pick = (source: AttachSource) => {
+  const pick = (choice: AttachChoice) => {
     if (closing()) return;
-    picked.current = source;
+    picked.current = choice;
     dismiss();
   };
 
@@ -104,6 +114,21 @@ export default function AttachSheet({ onClose }: { onClose: (source: AttachSourc
               <Text style={styles.label}>{label}</Text>
             </Pressable>
           ))}
+          {poll && (
+            <>
+              <View style={styles.rule} />
+              <Pressable
+                accessibilityRole="menuitem"
+                accessibilityLabel="Poll"
+                testID="attach-sheet-poll"
+                onPress={() => pick("poll")}
+                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+              >
+                <PollIcon color={theme.textMuted} size={22} />
+                <Text style={styles.label}>Poll</Text>
+              </Pressable>
+            </>
+          )}
         </SheetFrame>
       </GestureHandlerRootView>
     </Modal>
@@ -148,6 +173,12 @@ function makeStyles(theme: Theme) {
     },
     pressed: {
       backgroundColor: theme.hover,
+    },
+    rule: {
+      height: StyleSheet.hairlineWidth,
+      marginVertical: 4,
+      marginHorizontal: 12,
+      backgroundColor: theme.border,
     },
     label: {
       flex: 1,

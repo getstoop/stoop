@@ -6,11 +6,11 @@ import { fetchWithoutCookies } from "./fetch";
 // both clients accept and refuse the same addresses:
 // docs/architecture/desktop.md → GET /version.
 
-// The oldest server this app works with: the one whose space and channel
-// lists carry the alert counts the badges show (api/alerts.ts). "dev"
-// and anything else without a version number passes: a build without a
-// stamp is newer than any release.
-export const MIN_SERVER_VERSION = "0.21.0";
+// The oldest server this app works with: the one that carries polls
+// (CreatePoll, SetPollVote, ClosePoll), which the channel screen draws and
+// writes. "dev" and anything else without a version number passes: a
+// build without a stamp is newer than any release.
+export const MIN_SERVER_VERSION = "0.23.0";
 
 const TIMEOUT_MS = 6000;
 

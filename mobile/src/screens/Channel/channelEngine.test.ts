@@ -2,9 +2,10 @@ import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { ChannelHeader } from "@stoop/core/channelHeader";
 import { channelItems } from "@stoop/core/channelLog";
-import { CHANNEL, id, ids, message, page, rows } from "@stoop/core/channelLog/testing";
+import { CHANNEL, event, id, ids, message, page, rows } from "@stoop/core/channelLog/testing";
 import { NO_CHANNELS } from "@stoop/core/mentions";
 import { ChannelSchema } from "@stoop/gen/stoop/chat/v1/channel_pb";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { SpaceSchema } from "@stoop/gen/stoop/chat/v1/space_pb";
 import { CredentialRevokedSchema, type ServerEvent, ServerEventSchema } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,12 +18,14 @@ import {
   loadRoot,
   sendMessage,
 } from "../../api/messages";
+import { closePoll, createPoll, setPollVote } from "../../api/polls";
 import type { SavedServer } from "../../servers";
 import { channelEngine, holdEngine } from "./channelEngine";
 
 vi.mock("react-native", () => ({ AppState: { currentState: "active" } }));
 vi.mock("../../api/files", () => ({ uploadAttachment: vi.fn() }));
 vi.mock("../../api/servers", () => ({ sessionToken: async () => "t1" }));
+vi.mock("../../api/polls", () => ({ createPoll: vi.fn(), setPollVote: vi.fn(), closePoll: vi.fn() }));
 vi.mock("../../api/messages", () => ({
   ChannelGone: class extends Error {},
   PAGE: 50,
@@ -370,5 +373,139 @@ describe("a new sign-in to the same server", () => {
     const signedInAgain = { ...SERVER, session: (SERVER.session ?? 0) + 1 };
     expect(channelEngine(SERVER, "s1", CHANNEL, () => () => {})).toBe(engine);
     expect(channelEngine(signedInAgain, "s1", CHANNEL, () => () => {})).not.toBe(engine);
+  });
+});
+
+// A channel of ten rows (seqs 1 to 10) and a poll at seq 11, the channel at
+// seq 11, with the socket's events in the test's hand.
+const POLL = id(20);
+const pollRow = (seq: number, voters: string[] = [], closed = false): Message =>
+  message(POLL, {
+    seq: BigInt(seq),
+    content: "Friday?",
+    event: {
+      kind: {
+        case: "poll",
+        value: {
+          question: "Friday?",
+          options: [
+            { id: 1, text: "A", voters: voters.map((voter) => ({ id: voter })) },
+            { id: 2, text: "B" },
+          ],
+          voterCount: voters.length,
+          ...(closed ? { closedAt: { seconds: 1n } } : {}),
+        },
+      },
+    },
+  });
+
+async function openPollEngine() {
+  vi.mocked(loadChannel).mockResolvedValue({
+    header,
+    page: page([...rows(10, 20), pollRow(11)], { hasOlder: true, channelSeq: 11 }),
+    found: false,
+  });
+  vi.mocked(loadOlder).mockRejectedValue(new Error("offline"));
+  let say: (event: ServerEvent) => void = () => {};
+  const { engine, release } = holdEngine(
+    channelEngine(SERVER, "s1", CHANNEL, (_serverId, listener) => {
+      say = listener;
+      return () => {};
+    }),
+  );
+  releases.push(release);
+  await vi.waitFor(() => expect(engine.current().header).not.toBeNull());
+  await flush();
+  const held = () => engine.current().log.rows.get(POLL);
+  const voters = () => {
+    const kind = held()?.event?.kind;
+    return kind?.case === "poll" ? kind.value.options[0].voters.map((voter) => voter.id) : [];
+  };
+  return { engine, release, say: (row: Message) => say(event({ case: "messageUpdated", value: row })), held, voters };
+}
+
+describe("a vote", () => {
+  it("settles from its answer, which is all there is when nothing changed", async () => {
+    const { engine, held } = await openPollEngine();
+    // The server held this selection already: the poll as it was, no event.
+    const unchanged = pollRow(11);
+    vi.mocked(setPollVote).mockResolvedValue(unchanged);
+    await engine.vote(pollRow(11), []);
+    expect(setPollVote).toHaveBeenCalledWith(SERVER.origin, "t1", POLL, []);
+    expect(held()?.seq).toBe(11n);
+  });
+
+  it("merges a changed poll from the answer when the event has not come", async () => {
+    const { engine, held, voters } = await openPollEngine();
+    vi.mocked(setPollVote).mockResolvedValue(pollRow(12, ["me"]));
+    await engine.vote(pollRow(11), [1]);
+    expect(held()?.seq).toBe(12n);
+    expect(voters()).toEqual(["me"]);
+  });
+
+  it("loses to a newer event that came first", async () => {
+    const { engine, say, held, voters } = await openPollEngine();
+    let answer: (row: Message) => void = () => {};
+    vi.mocked(setPollVote).mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const voting = engine.vote(pollRow(11), [1]);
+    // The reader's vote at 12, then someone else's at 13, before the answer.
+    say(pollRow(12, ["me"]));
+    say(pollRow(13, ["me", "them"]));
+    answer(pollRow(12, ["me"]));
+    await voting;
+    expect(held()?.seq).toBe(13n);
+    expect(voters()).toEqual(["me", "them"]);
+  });
+
+  it("passes a refusal on, and says nothing once the log has gone", async () => {
+    const { engine, release } = await openPollEngine();
+    vi.mocked(setPollVote).mockRejectedValue(new ConnectError("the poll is closed", Code.FailedPrecondition));
+    await expect(engine.vote(pollRow(11), [1])).rejects.toThrow("the poll is closed");
+    let refuse: (err: Error) => void = () => {};
+    vi.mocked(setPollVote).mockReturnValue(new Promise((_resolve, reject) => (refuse = reject)));
+    const late = engine.vote(pollRow(11), [1]);
+    release();
+    refuse(new ConnectError("the poll is closed", Code.FailedPrecondition));
+    await expect(late).resolves.toBeUndefined();
+  });
+});
+
+describe("creating a poll", () => {
+  it("merges the new poll from the answer", async () => {
+    const { engine } = await openPollEngine();
+    const made = message(id(30), { seq: 12n, content: "Saturday?" });
+    vi.mocked(createPoll).mockResolvedValue(made);
+    await engine.createPoll("Saturday?", ["A", "B"], false);
+    expect(createPoll).toHaveBeenCalledWith(SERVER.origin, "t1", CHANNEL, "Saturday?", ["A", "B"], false);
+    expect(engine.current().log.rows.get(id(30))?.seq).toBe(12n);
+  });
+
+  it("passes a refusal on and adds nothing", async () => {
+    const { engine } = await openPollEngine();
+    const before = engine.current().log;
+    vi.mocked(createPoll).mockRejectedValue(new ConnectError("only admins can post", Code.PermissionDenied));
+    await expect(engine.createPoll("Saturday?", ["A", "B"], false)).rejects.toThrow("only admins can post");
+    expect(engine.current().log.rows).toBe(before.rows);
+    expect(engine.current().outcome).toBeNull();
+  });
+});
+
+describe("closing a poll", () => {
+  it("merges the closed poll from the answer", async () => {
+    const { engine, held } = await openPollEngine();
+    vi.mocked(closePoll).mockResolvedValue(pollRow(12, [], true));
+    await engine.closePoll(pollRow(11));
+    const kind = held()?.event?.kind;
+    expect(kind?.case === "poll" && !!kind.value.closedAt).toBe(true);
+  });
+
+  it("says nothing of a refusal once the log has gone", async () => {
+    const { engine, release } = await openPollEngine();
+    let refuse: (err: Error) => void = () => {};
+    vi.mocked(closePoll).mockReturnValue(new Promise((_resolve, reject) => (refuse = reject)));
+    const late = engine.closePoll(pollRow(11));
+    release();
+    refuse(new ConnectError("already closed", Code.FailedPrecondition));
+    await expect(late).resolves.toBeUndefined();
   });
 });
