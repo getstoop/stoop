@@ -118,7 +118,7 @@ function VoterList({
   opener: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }) {
-  const { ref, style } = useAnchoredCard(anchor, onClose);
+  const { ref, style } = useAnchoredCard(anchor, onClose, 280, opener);
   useEffect(() => ref.current?.focus(), [ref]);
   const ordered = [
     ...result.voters.filter((voter) => voter.id === myUserId),

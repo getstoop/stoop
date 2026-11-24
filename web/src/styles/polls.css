@@ -271,10 +271,14 @@
 }
 
 /* Everyone who chose an option, anchored under "N others". */
+/* Its own ink and size: it sits in the voters line's muted small text. */
 .poll-voter-list {
   position: fixed;
   z-index: var(--z-popover);
   padding: 6px;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text);
   display: flex;
   flex-direction: column;
 }
@@ -330,13 +334,15 @@
   color: var(--accent);
 }
 
-/* Close poll's question, under the button. */
+/* Close poll's question, under the button: in full ink, though it sits
+   in the foot's muted small text. */
 .poll-confirm {
   position: fixed;
   z-index: var(--z-popover);
   padding: 12px;
   font-size: var(--text-ui);
   line-height: var(--leading-ui);
+  color: var(--text);
 }
 
 .poll-confirm p {

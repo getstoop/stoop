@@ -45,7 +45,7 @@ import {
   canDeleteAnyMessage,
   canManageChannels,
 } from "../../../core/permissions";
-import { isPollRow, pollPermissions } from "../../../core/polls";
+import { pollPermissions } from "../../../core/polls";
 import { withoutHiddenSystemRows } from "../../../core/systemMessages";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { openSidePanel, useSidePanelStore } from "../../../stores/sidePanel";
@@ -61,6 +61,7 @@ import {
   estimateSize,
   indexOfMessage,
   indexOfNewLine,
+  isOwnPost,
   listItems,
 } from "./items";
 import { ListHead } from "./ListHead";
@@ -596,12 +597,7 @@ export function MessageList({
   const seenNewest = useRef<string | undefined>(undefined);
   const newest = messages[messages.length - 1];
   const newestId = newest?.id;
-  // A system row is never "mine": recording my rename is not my sending.
-  // A poll is: it is posted as a message is.
-  const newestMine =
-    !!newest &&
-    (!newest.event || isPollRow(newest)) &&
-    newest.author?.id === me?.id;
+  const newestMine = isOwnPost(newest, me?.id);
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
   useLayoutEffect(() => {
     // Nothing to land on yet (the first page is still out), or nothing

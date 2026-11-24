@@ -15,16 +15,24 @@ export function ClosePoll({ message }: { message: Message }) {
   const [closing, setClosing] = useState(false);
   const stop = useCallback(() => setAsking(null), []);
 
+  // Afterwards focus goes where the reader can carry on: to the poll's
+  // row once it is closed (this button goes with the open poll), back to
+  // the button when the server refused, before the notice saying so
+  // (which gives focus back to what had it when it opened).
   const close = async () => {
+    const row = button.current?.closest<HTMLElement>(".poll-row");
     setClosing(true);
     try {
       await closePoll(message);
+      setAsking(null);
+      row?.focus();
       announce("Poll closed");
     } catch (err) {
-      notice({ title: "Couldn't close the poll", body: errorText(err) });
+      setAsking(null);
+      button.current?.focus();
+      void notice({ title: "Couldn't close the poll", body: errorText(err) });
     } finally {
       setClosing(false);
-      setAsking(null);
     }
   };
 
@@ -76,6 +84,7 @@ function Confirm({
     new DOMRect(anchor.right - WIDTH, anchor.top, WIDTH, anchor.height),
     onCancel,
     WIDTH,
+    opener,
   );
   const titleId = useId();
   const cancel = useRef<HTMLButtonElement>(null);
@@ -93,6 +102,7 @@ function Confirm({
       aria-labelledby={titleId}
       onKeyDown={(event) => {
         if (event.key === "Escape") opener.current?.focus();
+        if (event.key === "Tab") keepFocusIn(event);
       }}
     >
       <p>
@@ -114,4 +124,19 @@ function Confirm({
       </div>
     </div>
   );
+}
+
+// Tab and Shift+Tab go round the question's two buttons, never out of
+// it, while it is open: it is an alertdialog.
+function keepFocusIn(event: React.KeyboardEvent<HTMLElement>) {
+  const buttons = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>(
+      "button:not(:disabled)",
+    ),
+  );
+  if (buttons.length === 0) return;
+  const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  const step = event.shiftKey ? -1 : 1;
+  event.preventDefault();
+  buttons[(at + step + buttons.length) % buttons.length].focus();
 }

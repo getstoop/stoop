@@ -10,6 +10,7 @@ import {
   estimateSize,
   indexOfMessage,
   indexOfNewLine,
+  isOwnPost,
   type ListItem,
   listItems,
 } from "./items";
@@ -270,5 +271,42 @@ describe("estimateSize", () => {
     for (const item of [head, day, foot]) {
       expect(estimateSize(item)).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("isOwnPost", () => {
+  const at = new Date(2026, 9, 21, 9, 0);
+  const of = (
+    kind: "poll" | "pollClosed" | "memberLeft" | undefined,
+    authorId = "dee",
+  ) => {
+    const made = message("01", at, authorId);
+    if (kind === "poll")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "poll", value: { question: "Friday?" } },
+      });
+    if (kind === "pollClosed")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "pollClosed", value: { question: "Friday?" } },
+      });
+    if (kind === "memberLeft")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "memberLeft", value: {} },
+      });
+    return made;
+  };
+
+  it("is my message, my poll and my poll's closing row", () => {
+    expect(isOwnPost(of(undefined), "dee")).toBe(true);
+    expect(isOwnPost(of("poll"), "dee")).toBe(true);
+    expect(isOwnPost(of("pollClosed"), "dee")).toBe(true);
+  });
+
+  it("is not another system row of mine, nor anyone else's row", () => {
+    expect(isOwnPost(of("memberLeft"), "dee")).toBe(false);
+    expect(isOwnPost(of("pollClosed", "eve"), "dee")).toBe(false);
+    expect(isOwnPost(of("poll", "eve"), "dee")).toBe(false);
+    expect(isOwnPost(of(undefined), undefined)).toBe(false);
+    expect(isOwnPost(undefined, "dee")).toBe(false);
   });
 });

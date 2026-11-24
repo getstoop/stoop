@@ -1,3 +1,4 @@
+import { isPollRow } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Alert, Pressable, StyleSheet, Text } from "react-native";
 import { TrashIcon } from "../../components/Icons";
@@ -40,7 +41,12 @@ export default function SystemMenu({
           testID="system-menu-delete"
           onPress={() => {
             if (closing()) return;
-            Alert.alert("Delete this line from the channel?", "It's removed for everyone. What it records stays as it is.", [
+            // A poll is a line here until its card comes, but deleting it
+            // takes the poll itself, its votes and its result.
+            const [title, body] = isPollRow(message)
+              ? ["Delete this poll?", "It's removed for everyone, with its votes and its result."]
+              : ["Delete this line from the channel?", "It's removed for everyone. What it records stays as it is."];
+            Alert.alert(title, body, [
               { text: "Cancel", style: "cancel" },
               {
                 text: "Delete",

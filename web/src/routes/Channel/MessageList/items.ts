@@ -127,3 +127,16 @@ export function estimateSize(item: ListItem): number {
       return 150 + 64 * item.options;
   }
 }
+
+// The reader's own row, which the list follows to the bottom as it does
+// their send: a message, a poll they asked, or the closing row of a poll
+// they closed. Not another system row: recording my rename is not my
+// sending.
+export function isOwnPost(
+  message: Message | undefined,
+  myUserId: string | undefined,
+): boolean {
+  if (!message || !myUserId || message.author?.id !== myUserId) return false;
+  const kind = message.event?.kind.case;
+  return !message.event || kind === "poll" || kind === "pollClosed";
+}

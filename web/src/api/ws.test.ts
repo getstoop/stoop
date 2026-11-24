@@ -99,6 +99,46 @@ describe("events about a message", () => {
     expect(state(id(391))?.isInvalidated).toBe(false);
   });
 
+  it("leave the copy alone when the update is a vote on a poll", () => {
+    const queryClient = new QueryClient();
+    const poll = postOnServer(id(401), {
+      event: {
+        kind: {
+          case: "poll",
+          value: { question: "Friday?", options: [{ id: 1, text: "Yes" }] },
+        },
+      },
+    });
+    queryClient.setQueryData(linkedMessageKey(CHANNEL, poll.id), []);
+    server.seq += 1;
+    receive(queryClient, {
+      case: "messageUpdated",
+      value: { ...poll, seq: BigInt(server.seq) },
+    });
+    expect(
+      queryClient.getQueryState(linkedMessageKey(CHANNEL, poll.id))
+        ?.isInvalidated,
+    ).toBe(false);
+    // The update itself reached the log.
+    expect(logOf().rows.get(poll.id)?.seq).toBe(BigInt(server.seq));
+  });
+
+  it("ask again for a message's copy on its update", () => {
+    const queryClient = new QueryClient();
+    const held = logOf().rows.get(id(390));
+    if (!held) throw new Error("no row");
+    queryClient.setQueryData(linkedMessageKey(CHANNEL, id(390)), []);
+    server.seq += 1;
+    receive(queryClient, {
+      case: "messageUpdated",
+      value: { ...held, content: "reworded", seq: BigInt(server.seq) },
+    });
+    expect(
+      queryClient.getQueryState(linkedMessageKey(CHANNEL, id(390)))
+        ?.isInvalidated,
+    ).toBe(true);
+  });
+
   it("drop a deleted channel's log", () => {
     const queryClient = new QueryClient();
     receive(queryClient, {

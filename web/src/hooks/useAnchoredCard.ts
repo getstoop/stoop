@@ -1,12 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { dialogOpen } from "../stores/dialogs";
 
 // A card anchored below the element that opened it (a member's or a
 // group's): placed on screen, and closed by Escape or a click outside it.
+// A click on `opener` is left to the opener, which toggles the card: were
+// it taken as outside, it would close the card and the click reopen it.
 export function useAnchoredCard(
   anchor: DOMRect,
   onClose: () => void,
   width = 280,
+  opener?: RefObject<HTMLElement | null>,
 ) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -19,7 +28,9 @@ export function useAnchoredCard(
     };
     const onClick = (event: MouseEvent) => {
       if (dialogOpen()) return;
-      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
+      const target = event.target as Node;
+      if (opener?.current?.contains(target)) return;
+      if (ref.current && !ref.current.contains(target)) onClose();
     };
     window.addEventListener("keydown", onKey);
     // Deferred so the click that opened the card doesn't immediately close it.
@@ -29,7 +40,7 @@ export function useAnchoredCard(
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onClick);
     };
-  }, [onClose]);
+  }, [onClose, opener]);
 
   // Below the anchor, clamped to the viewport, and never off the bottom:
   // measured after each render, since a card grows as what it shows loads.

@@ -1,8 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { memo, useId, useState } from "react";
+import { memo, useId } from "react";
 import { useAuthorShown } from "../../../../api/authors";
-import { errorText } from "../../../../api/errors";
-import { setPollVote } from "../../../../api/polls";
+import { pressPollOption, usePendingVote } from "../../../../api/polls";
 import { Avatar } from "../../../../components/Avatar";
 import { BotMark } from "../../../../components/BotMark";
 import { DeletedMark } from "../../../../components/DeletedMark";
@@ -13,15 +12,12 @@ import type { MentionMembers } from "../../../../core/mentions";
 import {
   isPollOpen,
   mySelection,
-  nextSelection,
   outcomeOf,
   pollOf,
   pollResults,
   votersLabel,
 } from "../../../../core/polls";
 import type { Message } from "../../../../gen/stoop/chat/v1/message_pb";
-import { announce } from "../../../../stores/announcer";
-import { notice } from "../../../../stores/dialogs";
 import { ClosePoll } from "./ClosePoll";
 import { PollActions } from "./PollActions";
 import { PollOption } from "./PollOption";
@@ -71,37 +67,23 @@ export const PollRow = memo(function PollRow({
   onTogglePin: (message: Message) => void;
 }) {
   const questionId = useId();
-  // The option pressed, until the server answers.
-  const [pending, setPending] = useState<number | null>(null);
+  // The option pressed, until the server answers (api/polls.ts holds it,
+  // so a card the list drew again while it was out still shows it).
+  const pending = usePendingVote(message.id);
   const author = useAuthorShown(message.author, members);
   const poll = pollOf(message);
   if (!poll) return null;
   const open = isPollOpen(poll);
   const results = pollResults(poll, myUserId);
   const outcome = outcomeOf(poll, results);
-  const mine = mySelection(poll, myUserId);
+  const voted = mySelection(poll, myUserId).length > 0;
   const authorName = author?.displayName || author?.username || "?";
   const created = message.createdAt
     ? timestampDate(message.createdAt)
     : undefined;
 
-  const vote = async (optionId: number) => {
-    if (pending !== null) return;
-    const next = nextSelection(poll, mine, optionId);
-    const pressed = poll.options.find((option) => option.id === optionId);
-    setPending(optionId);
-    try {
-      await setPollVote(message, next);
-      announce(
-        next.includes(optionId)
-          ? `Voted for ${pressed?.text}`
-          : `Vote for ${pressed?.text} taken back`,
-      );
-    } catch (err) {
-      notice({ title: "Couldn't vote", body: errorText(err) });
-    } finally {
-      setPending(null);
-    }
+  const vote = (optionId: number) => {
+    void pressPollOption(message, optionId, myUserId);
   };
 
   const multiple = poll.multiple;
@@ -229,7 +211,7 @@ export const PollRow = memo(function PollRow({
         <div className="poll-foot">
           <span className="poll-foot-text">
             {open
-              ? footOpen(poll.voterCount, mine.length > 0, multiple)
+              ? footOpen(poll.voterCount, voted, multiple)
               : [
                   `Closed by ${closer?.displayName || closer?.username || "someone"}`,
                   closedAt ? dayAndTime(closedAt) : "",

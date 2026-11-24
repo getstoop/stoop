@@ -733,7 +733,8 @@ window" is what the view's range holds.
   as a `.message` (avatar, name, time, hover toolbar) whose body is the
   card (`styles/polls.css`). A poll always heads its own group, and the
   list follows the reader's own as it follows their message
-  (`newestMine`). Everything that is not drawing is in `core/polls.ts`,
+  (`newestMine`, `isOwnPost` in `items.ts`, which counts their closing
+  row too). Everything that is not drawing is in `core/polls.ts`,
   shared with mobile: the reader's selection and the selection a press
   sends (one choice: the pressed option, or nothing when it is already
   theirs; several: that one added or removed), each option's count and
@@ -741,9 +742,11 @@ window" is what the view's range holds.
   up past the whole), the winner rule, the "You, Jun and 12 others"
   naming, and who may close, delete and pin. A press is not applied
   ahead of the server: the option shows it is pending, and
-  `setPollVote` in `api/polls.ts` holds the answer (`holdRow`, by seq),
-  since a vote that changed nothing has no event to settle it; a
-  refusal is a notice. While open, options are buttons with
+  `pressPollOption` in `api/polls.ts` holds the answer (`holdRow`, by
+  seq), since a vote that changed nothing has no event to settle it; a
+  refusal is a notice. The pending vote is kept there by poll, not in
+  the card, so a card the list drew again while it was out still shows
+  it and takes no second press. While open, options are buttons with
   `role="radio"` or `role="checkbox"` and `aria-checked`, each a tab
   stop, named with their count and "your vote"; not native inputs,
   whose arrow keys would send a vote at every step. "N others" opens
