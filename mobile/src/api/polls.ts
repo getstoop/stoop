@@ -4,13 +4,16 @@ import { chatClient } from "./clients";
 
 // A poll's writes (docs/architecture/messaging.md → Polls). Each answers
 // with the poll as it stands after the write, for the screen to merge as
-// it merges a send's answer (core/channelScreen `sent`). They wait as
-// long as a send does (api/messages).
+// it merges a send's answer (core/channelScreen `sent`). A vote and a
+// close wait as long as a send does (api/messages); creating one waits
+// for the server however long it takes, as web's does: there is no
+// idempotency key, so a create given up on while the server saved it
+// would offer Post again and make a second poll.
 
 const TIMEOUT_MS = SEND_STALL_MS;
 
-// A new poll in the channel. The server checks what the form checks, and
-// whether the reader may post here.
+// A new poll in the channel, with no deadline (above). The server checks
+// what the form checks, and whether the reader may post here.
 export async function createPoll(
   origin: string,
   token: string,
@@ -19,10 +22,7 @@ export async function createPoll(
   options: string[],
   multiple: boolean,
 ): Promise<Message> {
-  const { message } = await chatClient(origin, token).createPoll(
-    { channelId, question, options, multiple },
-    { timeoutMs: TIMEOUT_MS },
-  );
+  const { message } = await chatClient(origin, token).createPoll({ channelId, question, options, multiple });
   if (!message) throw new Error("The server answered with nothing.");
   return message;
 }

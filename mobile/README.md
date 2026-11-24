@@ -843,7 +843,10 @@ the card over a sheet with Copy link, Pin message (where the reader
 pins, never in a conversation), Close poll (its author, or a moderator
 in a space; the one place mobile offers it) and Delete poll (the same
 people), each asking first where it can't be undone, in web's words;
-no reactions, reply, thread, quote, edit or Copy text. Deleting takes
+no reactions, reply, thread, quote, edit or Copy text. A screen reader
+reaches the menu from the question, one element with a Poll actions
+action, open or closed, voted or not; the menu's card is cut at its
+foot past 45% of the screen. Deleting takes
 the poll's closing row from the reader's view at once
 (`withOwnDelete`). The closing row is a system row ("closed the poll:",
 the question and the outcome, from its own snapshot), whose View lands
@@ -854,9 +857,17 @@ several directly under it, the options with "N of 10", Add option and a
 remove button each (`PollFormOptions.tsx`), and Post poll, with web's
 rules (`core/pollForm`): a field the server would refuse says why under
 it, and Post is on only for a question and two options with nothing
-wrong, and off while the request is out. A refusal is said over Post
-with everything kept; the list follows the new poll as it follows a
-send. A vote's `message_updated` does not mark the conversations,
+wrong. While the request is out Post reads "Posting…" and the fields
+are locked; it has no client deadline, as on web, since there is no
+idempotency key and a create given up on while the server saved it
+would invite a second. A refusal is said over Post with everything
+kept; Cancel works while the request is out, and a refusal landing after
+the sheet has gone is said over the composer, while a poll saved then
+simply appears. The question takes the caret a moment after the
+modal shows (autoFocus, in a modal on Android, focused it with no
+keyboard). The form is held with the channel it was opened in,
+posts there, and goes when the screen shows another. The list follows
+the new poll as it follows a send. A vote's `message_updated` does not mark the conversations,
 channels or alerts lists stale (`touchesConversations`,
 `eventSpaceId`, `touchesAlerts`), and a search result shows a poll as
 its preview line, "Poll: " and the question as typed.

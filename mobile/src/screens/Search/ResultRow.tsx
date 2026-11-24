@@ -21,7 +21,7 @@ const GAP = 10;
 // name, "in #channel" and when, then the message's words as the channel
 // draws them, and one muted line per file. The row is one button that
 // opens the channel on the message. The matched words are not marked:
-// the phone's MessageBody has no highlight yet. A poll is found by its
+// mobile's MessageBody has no highlight yet. A poll is found by its
 // question and shown as its preview line ("Poll: " and the question, as
 // typed, never as Markdown), after the poll's glyph, as web's row shows
 // it.

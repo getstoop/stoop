@@ -331,18 +331,32 @@ export default function Channel({
     threadAfterMenu.current = null;
     pushThread(rootId);
   }, [menuFor, pushThread]);
-  // The poll's form, from Poll in the attach sheet; the reader's own poll
-  // is followed as their message is.
-  const [makingPoll, setMakingPoll] = useState(false);
-  const openPollForm = useCallback(() => setMakingPoll(true), []);
-  const closePollForm = useCallback(() => setMakingPoll(false), []);
+  // The poll's form, from Poll in the attach sheet, held with the channel
+  // and the log it was opened on: it posts there whatever the screen
+  // shows by then, and goes when the screen shows another channel, as the
+  // menus and the votes sheet do. The reader's own poll is followed as
+  // their message is, while the form that posted it is still up; one
+  // refused after the form has gone is said over the composer.
+  const [pollFor, setPollFor] = useState<{ channelId: string; engine: ChannelEngine } | null>(null);
+  if (pollFor && pollFor.channelId !== channelId) setPollFor(null);
+  const openPollForm = useCallback(() => setPollFor({ channelId, engine }), [channelId, engine]);
+  const closePollForm = useCallback(() => setPollFor(null), []);
   const postPoll = useCallback(
-    async ({ question, options, multiple }: PollRequest) => {
-      await engine.createPoll(question, options, multiple);
-      if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
-      else followSend();
+    ({ question, options, multiple }: PollRequest) => {
+      if (!pollFor) return Promise.reject(new Error("The form has gone."));
+      return pollFor.engine.createPoll(question, options, multiple);
     },
-    [engine, followSend],
+    [pollFor],
+  );
+  const pollPosted = useCallback(() => {
+    if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
+    else followSend();
+  }, [engine, followSend]);
+  const pollRefusedLate = useCallback(
+    (err: unknown) => {
+      if (alive.current) notify("Couldn't post the poll", errorText(err));
+    },
+    [notify],
   );
   const sendHere = useCallback(
     async (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) => {
@@ -649,7 +663,16 @@ export default function Channel({
       </MessageContexts>
       {/* Kept open should posting close meanwhile: the server's refusal
           is then said in it, with what was typed. */}
-      {makingPoll && <PollForm channelId={channelId} onPost={postPoll} onClose={closePollForm} />}
+      {pollFor && (
+        <PollForm
+          key={pollFor.channelId}
+          channelId={pollFor.channelId}
+          onPost={postPoll}
+          onPosted={pollPosted}
+          onLateFailure={pollRefusedLate}
+          onClose={closePollForm}
+        />
+      )}
       {polls.votesMessage && (
         <PollVotes
           message={polls.votesMessage}

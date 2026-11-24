@@ -9,7 +9,6 @@ import {
   withActivityRead,
   withOlderPages,
 } from "@stoop/core/activity";
-import { isSystemRow } from "@stoop/core/systemMessages";
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +18,7 @@ import { useLoadOnReturn } from "../hooks/useLoadOnReturn";
 import { dismissNotifications } from "../notifications/dismiss";
 import { useServerEvents } from "../realtime/RealtimeProvider";
 import type { SavedServer } from "../servers";
-import { deletionMayClearActivity, olderAfterLoad, olderAfterRead } from "./feed";
+import { deletionMayClearActivity, olderAfterLoad, olderAfterRead, ownPostRead } from "./feed";
 
 // One server's activity feed, as web keeps it in its query cache
 // (web/src/api/activity.ts): the first page of ListActivity and the
@@ -297,15 +296,9 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
         afterRead({ threadRootId: payload.value.rootMessageId });
         break;
       case "messageCreated": {
-        // Sending moves the sender's marker without a ChannelRead; a reply
-        // only in its thread moves no channel marker, as web's ws.ts; nor
-        // does a quiet system message recording the reader's own action (a
-        // rename, a topic), which is not a send. A row that is not quiet
-        // (a poll, or its closing row) moves its author's marker as a
-        // send does (CreatePoll, ClosePoll).
-        const m = payload.value;
-        if ((m.threadRootId && !m.inChannel) || (isSystemRow(m) && m.quiet)) break;
-        if (m.author?.id && m.author.id === reader.current?.id) afterRead({ channelId: m.channelId });
+        // The reader's own post moved their marker (feed ownPostRead).
+        const channelId = ownPostRead(payload.value, reader.current?.id);
+        if (channelId) afterRead({ channelId });
         break;
       }
       case "messageDeleted": {

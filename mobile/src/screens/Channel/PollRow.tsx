@@ -15,6 +15,9 @@ const AVATAR = 36;
 const GAP = 10;
 // One line of the question, at the system's default text size.
 const LINE = 21;
+// The screen reader's way to the menu a long press opens (PollMenu), as a
+// system row offers its own.
+const MENU_ACTION = { name: "longpress", label: "Poll actions" };
 // Past this text size View votes goes under the foot's words, as each
 // option's count goes under its text (PollOption).
 const LARGE_TEXT = 1.3;
@@ -31,7 +34,9 @@ const LARGE_TEXT = 1.3;
 // (onViewVotes), which lists everyone. Closed, the card is the final
 // results, the reader's own vote ticked and the winner, or each tied
 // option, badged. A poll always heads its own group. A long press opens
-// its menu (PollMenu); Close poll is there alone, not on the card. On
+// its menu (PollMenu); Close poll is there alone, not on the card. A
+// screen reader reaches the menu from the question, which is one element
+// with a Poll actions action. On
 // the menu's card (`card`) it takes no vote, has no View votes, and its
 // time carries its day. A row a jump landed on (`flashed`, a closing
 // row's View) is ringed for a moment, as a message is.
@@ -117,13 +122,28 @@ export default memo(function PollRow({
             </Text>
             {created && <Text style={styles.time}>{messageTime(created, card)}</Text>}
           </View>
-          <View style={styles.head}>
+          <View
+            style={styles.head}
+            // One element to a screen reader: the question and whether it
+            // is open, and the way to the poll's menu, whatever state the
+            // card is in (a closed poll nobody voted on has no other).
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel={`${open ? "Poll" : "Closed poll"}: ${poll.question}`}
+            accessibilityHint={hold ? "Has a Poll actions action" : undefined}
+            accessibilityActions={hold ? [MENU_ACTION] : undefined}
+            onAccessibilityAction={
+              hold
+                ? (event) => {
+                    if (event.nativeEvent.actionName === MENU_ACTION.name) hold();
+                  }
+                : undefined
+            }
+          >
             <View style={[styles.glyph, { height: LINE * fontScale }]}>
               <PollIcon color={theme.textMuted} size={18} />
             </View>
-            <Text style={styles.question} accessibilityRole="header">
-              {poll.question}
-            </Text>
+            <Text style={styles.question}>{poll.question}</Text>
             <View style={styles.state}>
               <Text style={styles.stateText}>{open ? "Poll" : "Closed"}</Text>
             </View>

@@ -2,7 +2,7 @@ import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import type { ReactNode } from "react";
-import { Alert, Pressable, StyleSheet, Text } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LinkIcon, LockIcon, PinIcon, TrashIcon } from "../../components/Icons";
 import Sheet from "../../components/Sheet";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -17,7 +17,13 @@ import PollRow from "./PollRow";
 // closed (onDelete). No reactions, reply, thread, quote, edit or Copy
 // text: a poll takes none. Close and Delete ask first, in the system's
 // confirm, in web's words; Cancel leaves the sheet open. What each does
-// to the log, and saying when the server refuses, is the screen's.
+// to the log, and saying when the server refuses, is the screen's. A
+// card taller than its share of the screen (ten options with their
+// voters, a large text size) is cut at its foot, so its author and
+// question stay in view over the sheet.
+
+// The most of the screen's height the card takes.
+const CARD_SHARE = 0.45;
 export default function PollMenu({
   message,
   myUserId,
@@ -44,13 +50,18 @@ export default function PollMenu({
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const most = useWindowDimensions().height * CARD_SHARE;
 
   return (
     <Sheet
       label="Poll actions"
       menu
       closeTestID="poll-menu-close"
-      card={<PollRow message={message} myUserId={myUserId} origin={origin} token={token} card />}
+      card={
+        <View style={[styles.cut, { maxHeight: most }]}>
+          <PollRow message={message} myUserId={myUserId} origin={origin} token={token} card />
+        </View>
+      }
       onClose={onClose}
     >
       {({ dismiss, closing }) => {
@@ -139,6 +150,11 @@ export default function PollMenu({
 // As the message menu's items.
 function makeStyles(theme: Theme) {
   return StyleSheet.create({
+    // Within the card's own corners.
+    cut: {
+      overflow: "hidden",
+      borderRadius: tokens.radiusLg,
+    },
     item: {
       flexDirection: "row",
       alignItems: "center",

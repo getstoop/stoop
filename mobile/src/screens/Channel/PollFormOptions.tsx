@@ -27,6 +27,7 @@ export default function PollFormOptions({
   problems,
   focusKey,
   first,
+  locked,
   onChange,
   onFocusKey,
 }: {
@@ -36,6 +37,8 @@ export default function PollFormOptions({
   focusKey: number | null;
   // The first field, for the question's Next.
   first: RefObject<TextInputInstance | null>;
+  // While the request is out: nothing changes.
+  locked: boolean;
   onChange: (update: (form: PollForm) => PollForm) => void;
   onFocusKey: (key: number | null) => void;
 }) {
@@ -49,8 +52,8 @@ export default function PollFormOptions({
     fields.current.get(added.current)?.focus();
     added.current = null;
   });
-  const removable = canRemoveOption(form);
-  const addable = canAddOption(form);
+  const removable = canRemoveOption(form) && !locked;
+  const addable = canAddOption(form) && !locked;
 
   return (
     <View style={styles.group}>
@@ -72,6 +75,7 @@ export default function PollFormOptions({
                 }}
                 value={option.text}
                 onChangeText={(text) => onChange((now) => withOptionText(now, option.key, text))}
+                editable={!locked}
                 placeholder={`Option ${index + 1}`}
                 placeholderTextColor={theme.textMuted}
                 accessibilityLabel={`Option ${index + 1}`}
@@ -112,7 +116,7 @@ export default function PollFormOptions({
         accessibilityRole="button"
         accessibilityLabel="Add option"
         accessibilityState={{ disabled: !addable }}
-        accessibilityHint={addable ? undefined : POLL_OPTIONS_FULL}
+        accessibilityHint={canAddOption(form) ? undefined : POLL_OPTIONS_FULL}
         disabled={!addable}
         testID="poll-add-option"
         onPress={() => {
@@ -124,7 +128,7 @@ export default function PollFormOptions({
         <PlusIcon color={theme.text} size={18} />
         <Text style={styles.addText}>Add option</Text>
       </Pressable>
-      {!addable && <Text style={styles.note}>{POLL_OPTIONS_FULL}</Text>}
+      {!canAddOption(form) && <Text style={styles.note}>{POLL_OPTIONS_FULL}</Text>}
     </View>
   );
 }

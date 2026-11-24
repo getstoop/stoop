@@ -8,7 +8,7 @@ import {
   withMultiple,
   withQuestion,
 } from "@stoop/core/pollForm";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -33,6 +33,8 @@ import PollFormOptions from "./PollFormOptions";
 
 // What the sheet leaves above itself, over the keyboard, of the channel.
 const ABOVE = 48;
+// How long after the modal shows the question takes the caret (above).
+const FOCUS_DELAY_MS = 300;
 
 // Creating a poll, from Poll in the attach sheet (docs/architecture/
 // messaging.md → Polls): a sheet over a scrim, as the attach sheet is
@@ -40,10 +42,14 @@ const ABOVE = 48;
 // or several directly under it, then the options (PollFormOptions), and
 // Post poll. The rules are web's, shared (core/pollForm): a field the
 // server would refuse says why under it, and Post is on once there is a
-// question and two options and nothing is wrong. Post is off while the
-// request is out; the screen sends it (onPost), and the sheet goes once
-// the server has the poll. A refusal is said over Post, everything typed
-// kept. The sheet sits on the keyboard while a field has it, Post with
+// question and two options and nothing is wrong. While the request is
+// out Post reads "Posting…" and the fields are locked; the screen sends
+// it (onPost), and once the server has the poll the sheet goes and the
+// screen follows it (onPosted). A refusal is said over Post, everything
+// typed kept. Cancel still works while the request is out: the poll is
+// then the server's to keep or refuse, and a refusal arriving after the
+// sheet has gone is the screen's to say (onLateFailure); a poll saved
+// then simply appears. The sheet sits on the keyboard while a field has it, Post with
 // it, and what does not fit scrolls; a swipe down on the fields scrolls
 // them, so only the sheet's top drags it away. Cancel, a tap on the
 // scrim, a swipe down from the top or Android's back closes it with
@@ -51,10 +57,16 @@ const ABOVE = 48;
 export default function PollForm({
   channelId,
   onPost,
+  onPosted,
+  onLateFailure,
   onClose,
 }: {
   channelId: string;
   onPost: (request: PollRequest) => Promise<void>;
+  // The poll was saved while the sheet was still up.
+  onPosted: () => void;
+  // The request was refused after the sheet had gone.
+  onLateFailure: (err: unknown) => void;
   onClose: () => void;
 }) {
   const theme = useTheme();
@@ -69,10 +81,20 @@ export default function PollForm({
   const [posting, setPosting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [focus, setFocus] = useState<"question" | number | null>(null);
+  const question = useRef<TextInputInstance>(null);
   const firstOption = useRef<TextInputInstance>(null);
+  // Whether the sheet is still there to say what became of the request.
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
   const check = checkPollForm(form);
 
   const change = (update: (now: typeof form) => typeof form) => {
+    if (posting) return;
     setFailure(null);
     setForm(update);
   };
@@ -83,11 +105,14 @@ export default function PollForm({
     setFailure(null);
     try {
       await onPost(pollRequest(form, channelId));
+      if (!mounted.current || closing()) return;
+      onPosted();
       dismiss();
     } catch (err) {
-      setFailure(refusal(err));
+      if (!mounted.current || closing()) onLateFailure(err);
+      else setFailure(refusal(err));
     } finally {
-      setPosting(false);
+      if (mounted.current) setPosting(false);
     }
   };
 
@@ -97,7 +122,21 @@ export default function PollForm({
   const questionProblem = check.question;
 
   return (
-    <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
+    <Modal
+      transparent
+      visible
+      animationType="none"
+      onRequestClose={dismiss}
+      // The question takes the caret once the modal is up, a moment
+      // after: autoFocus, or a focus as it shows, focuses it on Android
+      // before the modal's window has the input method, and the keyboard
+      // never comes.
+      onShow={() => {
+        setTimeout(() => question.current?.focus(), FOCUS_DELAY_MS);
+      }}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
       <GestureHandlerRootView style={styles.fill} onAccessibilityEscape={dismiss}>
         <Animated.View style={[styles.scrim, fade]} pointerEvents="none" />
         <Pressable
@@ -136,14 +175,15 @@ export default function PollForm({
               <View style={styles.field}>
                 <Text style={styles.label}>Question</Text>
                 <TextInput
+                  ref={question}
                   value={form.question}
                   onChangeText={(text) => change((now) => withQuestion(now, text))}
+                  editable={!posting}
                   placeholder="Ask a question"
                   placeholderTextColor={theme.textMuted}
                   accessibilityLabel="Question"
                   accessibilityHint={questionProblem ? pollProblemText(questionProblem, "question") : undefined}
                   testID="poll-question"
-                  autoFocus
                   maxLength={POLL_QUESTION_MAX * 2}
                   returnKeyType="next"
                   submitBehavior="submit"
@@ -165,6 +205,7 @@ export default function PollForm({
                     label="One option"
                     on={!form.multiple}
                     onPress={() => change((now) => withMultiple(now, false))}
+                    disabled={posting}
                     styles={styles}
                     theme={theme}
                   />
@@ -172,6 +213,7 @@ export default function PollForm({
                     label="Several options"
                     on={form.multiple}
                     onPress={() => change((now) => withMultiple(now, true))}
+                    disabled={posting}
                     styles={styles}
                     theme={theme}
                   />
@@ -182,6 +224,7 @@ export default function PollForm({
                 problems={check.options}
                 focusKey={typeof focus === "number" ? focus : null}
                 first={firstOption}
+                locked={posting}
                 onChange={change}
                 onFocusKey={setFocus}
               />
@@ -193,14 +236,14 @@ export default function PollForm({
             )}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Post poll"
+              accessibilityLabel={posting ? "Posting" : "Post poll"}
               accessibilityState={{ disabled: !postable, busy: posting }}
               disabled={!postable}
               testID="poll-post"
               onPress={post}
               style={({ pressed }) => [styles.post, !postable && styles.off, pressed && styles.postPressed]}
             >
-              <Text style={styles.postText}>Post poll</Text>
+              <Text style={styles.postText}>{posting ? "Posting…" : "Post poll"}</Text>
             </Pressable>
           </SheetFrame>
         </View>
@@ -225,12 +268,14 @@ function Half({
   label,
   on,
   onPress,
+  disabled,
   styles,
   theme,
 }: {
   label: string;
   on: boolean;
   onPress: () => void;
+  disabled: boolean;
   styles: Styles;
   theme: Theme;
 }) {
@@ -238,7 +283,8 @@ function Half({
     <Pressable
       accessibilityRole="radio"
       accessibilityLabel={label}
-      accessibilityState={{ checked: on }}
+      accessibilityState={{ checked: on, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={[styles.half, on && styles.halfOn]}
     >

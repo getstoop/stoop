@@ -1,6 +1,8 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { type ActivityData, withActivityRead, withoutRefreshed } from "@stoop/core/activity";
+import { isSystemRow } from "@stoop/core/systemMessages";
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
+import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 
 // The store's rules for the older pages it holds beside the first
 // (ActivityProvider). The first page's rules are core/activity.ts. Both
@@ -39,4 +41,17 @@ export function deletionMayClearActivity(data: ActivityData, older: ActivityItem
   if (data.items.some((item) => item.messageId === messageId)) return true;
   if (older.some((item) => item.messageId === messageId)) return true;
   return data.unreadCount > data.items.filter((item) => !item.readAt).length;
+}
+
+// The channel whose marker a new row moved for the reader, as their own
+// posting moves it, or null. Sending moves the sender's marker without a
+// ChannelRead; a reply only in its thread moves no channel marker, as
+// web's ws.ts; nor does a quiet system message recording the reader's own
+// action (a rename, a topic), which is not a send. A row that is not
+// quiet (a poll, or its closing row) moves its author's marker as a send
+// does (CreatePoll, ClosePoll).
+export function ownPostRead(message: Message, readerId: string | undefined): string | null {
+  if (message.threadRootId && !message.inChannel) return null;
+  if (isSystemRow(message) && message.quiet) return null;
+  return readerId && message.author?.id === readerId ? message.channelId : null;
 }

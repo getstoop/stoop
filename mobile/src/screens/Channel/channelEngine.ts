@@ -965,14 +965,16 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
     // nothing is written to the held row before the server answers, and
     // the answer, the poll as it now stands, is merged like a send's. It
     // is what settles a vote that changed nothing, which no event
-    // follows. A refusal is the caller's to show, as above.
+    // follows. A refusal is the caller's to show, as above, and nothing
+    // once the log has gone.
     async vote(message: Message, optionIds: number[]) {
       const mine = life;
       let answer: Message | undefined;
       try {
         answer = await polls.setPollVote(server.origin, state.token, message.id, optionIds);
       } catch (err) {
-        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
         throw err;
       }
       if (answer && !mine.ended) dispatch({ type: "sent", message: answer });
@@ -980,14 +982,16 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
 
     // Closes a poll for good: the answer is the closed poll, merged like a
     // send's; the closing row arrives as its own message_created. A
-    // refusal is the caller's to show, as above.
+    // refusal is the caller's to show, as above, and nothing once the log
+    // has gone.
     async closePoll(message: Message) {
       const mine = life;
       let answer: Message | undefined;
       try {
         answer = await polls.closePoll(server.origin, state.token, message.id);
       } catch (err) {
-        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        if (mine.ended) return;
+        if (ended(err)) dispatch({ type: "failed", outcome: "ended" });
         throw err;
       }
       if (answer && !mine.ended) dispatch({ type: "sent", message: answer });

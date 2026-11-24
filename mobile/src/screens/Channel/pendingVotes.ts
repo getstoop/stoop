@@ -29,8 +29,10 @@ const subscribe = (listener: () => void) => {
 };
 
 // The option whose vote is on its way on this poll, or null.
+export const pendingVote = (messageId: string): number | null => pending.get(messageId) ?? null;
+
 export function usePendingVote(messageId: string): number | null {
-  return useSyncExternalStore(subscribe, () => pending.get(messageId) ?? null);
+  return useSyncExternalStore(subscribe, () => pendingVote(messageId));
 }
 
 // Sends the selection a press on optionId makes, through `vote` (the
