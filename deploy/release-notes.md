@@ -1,5 +1,144 @@
 Stoop 0.22.0
 
+Stoop 0.22.0 is still a beta: the API and schema may change between minor
+versions. It upgrades in place from 0.21.0, and `stoop upgrade rollback`
+takes it back: its three migrations only add, so 0.21.0 starts against
+the result. What 0.21.0 makes of the new rows is under "For operators".
+
+**What's in it.**
+
+- **A channel records what happens to it.** A rename, a new or cleared
+  topic, announcement mode switched on or off and a pinned message each
+  leave a line in the channel's timeline, in place among the messages:
+  who did it, what changed and when. A line is not a message: it has no
+  avatar, reactions, replies or thread, and nobody can edit it.
+- **Private channels record who joins and who goes.** Adding people
+  writes one line naming them ("joined" when an admin adds themself),
+  and a long list folds to "N others", which unfolds in place. Leaving
+  writes "left". Being removed from the channel, leaving the space, a
+  kick, a ban and a deleted account all read as "left" too: nothing
+  says who removed someone or why, so a ban is not announced in every
+  channel the person was in. Public channels record no joins or leaves,
+  since everyone in the space is in them. Making a private channel
+  records nothing either.
+- **These lines never mark anything unread.** They are left out of
+  unread counts, badges, the Activity page and desktop banners, a
+  channel's preview never shows one, and the "New messages" line sits
+  above the first unread message someone wrote. Search does not match
+  them.
+- **A pin's line goes to its message.** "pinned a message" carries an
+  excerpt and View, which jumps to the message even when it is far up
+  the channel. Unpinning writes nothing. Deleting the message removes
+  its pin lines with it.
+- **Only admins and the owner can delete one of these lines**, with its
+  own confirmation. Causing a line gives no right to delete it. The
+  usual reason to delete one is the text it holds (a topic, a channel
+  name), so the server forgets that text when it goes. Nobody can
+  delete one in a direct message.
+- **Clicking a desktop banner no longer ends a voice call.** The click
+  used to reload the page it pointed to, and the call lives in the
+  page. It now changes the view and leaves the call running.
+- **Icons have rounded corners** where the platform draws them as given:
+  the Windows app and tray icons, and the web app's installed icon.
+
+**For operators.**
+
+- **Expand migrations.** 00075 and 00076 add the `push_keys` and
+  `push_subscriptions` tables. 00077 adds four columns to `messages`
+  (`kind`, `data`, `quiet`, `reference_message_id`) with two checks, a
+  foreign key and a partial index, and extends the `message_with_reply`
+  view. The checks and the foreign key each read every message once and
+  rewrite nothing: 0.37 s for the table and 0.09 s for the index at two
+  million messages on a laptop, so a large instance takes a little
+  longer than usual to come back. The floor stays at 70.
+- **Rolling back to 0.21.0** needs nothing undone, but 0.21.0 does not
+  know the new lines. The ones already written show as empty messages
+  from the person who caused them, count as unread, and can be edited
+  by that person. Back on 0.22.0, a channel whose last message 0.21.0
+  set to one of them shows its space as unread beside a count of zero
+  until someone posts there or marks the channel read.
+- **Push notifications, server side only.** The server can now send a
+  mention, a reply, a direct message or a thread reply to a registered
+  device as an encrypted Web Push message, signed with a key pair it
+  makes on first use and keeps in `push_keys`. No released client
+  registers a device yet, so on an upgraded instance nothing is sent
+  and the server makes no new outbound connections. There is no
+  setting for it. The Diagnostics tab gains a `push` row, off while no
+  device is registered.
+- **Background jobs.** Push deliveries share the cap outgoing webhook
+  deliveries already had: together they take at most three quarters of
+  `STOOP_JOBS_WORKERS`, and each kind at most half of that, so a
+  backlog of one never shuts out the other.
+- **Outgoing webhooks never deliver one of the new lines.** A hook can
+  still receive a `message.deleted` for an id it was never sent, when a
+  moderator deletes a line or a pinned message's lines go with it. A
+  receiver should ignore a delete for an id it does not hold. Adding a
+  hook's bot to a private channel now shows there as "added", and
+  removing it as "left".
+- **Bots and personal tokens that read history** (`ListMessages`,
+  `ListChanges`) receive the new lines in their places, with `event`
+  set and no text, and should skip what they do not want.
+- **No dependency moves** in the server or the web app. Only the
+  build's GitHub Actions were bumped.
+- **The desktop app** is not told to update by this release. The bridge
+  level the server publishes is unchanged.
+
+**API changes.**
+
+- `Message` carries `event`, a `SystemEvent` with one case per kind of
+  line (`members_added`, `member_left`, `channel_renamed`,
+  `topic_changed`, `pin`, `post_policy_changed`); `quiet`, set on a row
+  that marks nothing unread; and `reference`, the message the row is
+  about, as a reply's quote is sent. The server sends no wording:
+  `content` is empty and the client builds the sentence. A client that
+  meets a case it does not know hides the row when `quiet` is set and
+  otherwise asks the reader to update.
+- A row with `event` set refuses edits, reactions, replies, quotes,
+  threads, pins and link preview dismissal with `FailedPrecondition`.
+  Deleting one needs `messages.moderate`, whoever caused it.
+- `UpdateChannel`, `AddChannelMembers`, `RemoveChannelMember`,
+  `LeaveChannel`, a pin and every way of leaving a space are now
+  followed by a `message_created` for each line they record, after
+  their own event. `channel_updated` also reaches the people in a
+  private channel on their own topics.
+- `GetSpace` fills `Space.muted`, the caller's own mute of the space.
+  Only `ListSpaces` did.
+- New: `stoop.push.v1.PushService` (`GetPushConfig`,
+  `RegisterPushSubscription`, `UpdatePushSubscription`,
+  `DeletePushSubscription`), one Web Push subscription per signed-in
+  session, removed with the session. A token is refused.
+- `activity_item_created` carries `user_id`, the recipient. Additive.
+
+**Schema.** 77, from 74; the floor stays at 70.
+
+**Pinned alongside this release:** LiveKit v1.13.6, Postgres 16 and
+`cloudflared` 2026.9.3, all unchanged from 0.21.0.
+
+**Known issues.** As 0.21.0's: deleting a message above the part of a
+channel you are reading shifts the view by its height; an audio
+attachment starts over if its row is scrolled far enough away to be
+removed from the page and then comes back; two quick jumps land on
+whichever the server answers first; a display name change reaches other
+people's open tabs on reload; with everything in a channel unread, the
+"New messages" line can move as older messages load; older pages of the
+Activity page do not refresh when items are read elsewhere, and in a
+narrow race an activity item coalesced just as it is read can come back
+unread; an Activity row on an older page whose message is deleted while
+the inbox is open stays until the inbox is reopened; the welcome editor
+cannot stop typing at the 4,000-character limit, so its counter turns
+red past it and Save is refused; after a block or unblock made in one
+tab, the badges in another open tab can stay as they were until that
+tab is reloaded. New: when the retention sweep removes a pinned message,
+an open tab keeps showing its pin line's excerpt until it is reloaded;
+taking someone out of a space can fail with an error when it collides
+with another change to the same channels at the same moment (trying
+again works), and a ban that fails this way leaves the person banned
+but still a member until the ban is made again.
+
+Report problems in [GitHub issues](https://github.com/getstoop/stoop/issues);
+security problems go through
+[private reporting](https://github.com/getstoop/stoop/security/advisories/new).
+
 Changes since 0.21.0:
 
 - Mobile: Notifications screen with do not disturb (78ee56d7)
