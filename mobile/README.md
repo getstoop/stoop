@@ -235,7 +235,10 @@ import a screen; the screens themselves live in `src/screens`, so
   that gives them work.
 - Attach (the + in the pill or the card) puts the keyboard away and
   opens the app's own sheet (`src/screens/Channel/AttachSheet.tsx`),
-  drawn as the message menu's is, with Photo library, Camera and Files.
+  drawn as the message menu's is, with Photo library, Camera and Files,
+  and under a rule Poll, in a channel's or a conversation's composer
+  (never a thread's; nor where the reader can't post, which has no
+  composer). Poll opens the poll's form once the sheet has gone (below).
   Each opens its system picker (`src/screens/Channel/pickers.ts`;
   `expo-image-picker` and `expo-document-picker`, native modules, so a
   build on the phone needs `make mobile-ios` again) once the sheet's
@@ -805,7 +808,60 @@ is not quiet (`readPass.ts` `newestToRead`): a quiet row marks nothing
 unread, so marking read up to one would cost a call and the refetches
 its `channelRead` brings for nothing. A system message recording the
 reader's own action is not a send, so the activity feed does not treat
-it as one (`ActivityProvider`). Sending is send-then-merge, as on web: the
+it as one (`ActivityProvider`); a poll and its closing row are not
+quiet, and the server moves their author's marker, so those are.
+
+A poll ([messaging.md](../docs/architecture/messaging.md#polls)) is a
+system message on the wire but a card on screen: `core/grouping`
+gives it a row kind of its own (`poll`, asked before `system`), and
+`src/screens/Channel/PollRow.tsx` draws it as the design's 2.16 to 2.20
+draw it: the author's face, name and time, the question with a Poll or
+Closed badge, and the card across the row's whole width under them.
+Each option (`PollOption.tsx`) has its share of the voters as a bar
+behind it, its text and count, and who chose it under them (the
+reader first as "You", up to three named by display name, past that two
+and "N others", after the first three faces); everything that is not
+drawing is `core/polls`, shared with web. While the poll is open an
+option is a radio (one choice) or a checkbox (several) to a screen
+reader, read with its count and "your vote", and a tap sends the
+reader's whole selection (`SetPollVote`; one choice moves or takes back
+the vote, several adds or removes that one). Nothing is shown ahead of
+the server: the option's edge goes dashed while the vote is out, the
+card takes no other tap meanwhile, and the answer is merged as a send's
+is (`sent`), since a vote that changed nothing has no event to settle
+it (`pendingVotes.ts` holds the vote by poll, so a card the list drew
+again still shows it). A refusal is said over the composer ("Couldn't
+vote"). A screen reader hears "Voted for …" or "Vote for … taken back".
+The foot says "No votes yet", how many voted (and "You can change your
+vote" once the reader has), or who closed it and when; View votes opens
+the votes sheet (`PollVotes.tsx`): every option with its count and the
+people who chose it, the reader marked "(you)", following the votes as
+they arrive and going with the poll. Closed, the card is the final
+results: the reader's own vote ticked, the winner or each tied option
+badged with its bar in the accent. A long press opens `PollMenu.tsx`:
+the card over a sheet with Copy link, Pin message (where the reader
+pins, never in a conversation), Close poll (its author, or a moderator
+in a space; the one place mobile offers it) and Delete poll (the same
+people), each asking first where it can't be undone, in web's words;
+no reactions, reply, thread, quote, edit or Copy text. Deleting takes
+the poll's closing row from the reader's view at once
+(`withOwnDelete`). The closing row is a system row ("closed the poll:",
+the question and the outcome, from its own snapshot), whose View lands
+on the card and rings it, and which a screen reader is offered as View
+poll. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
+on the keyboard: "Create a poll" and Cancel, the question, one option or
+several directly under it, the options with "N of 10", Add option and a
+remove button each (`PollFormOptions.tsx`), and Post poll, with web's
+rules (`core/pollForm`): a field the server would refuse says why under
+it, and Post is on only for a question and two options with nothing
+wrong, and off while the request is out. A refusal is said over Post
+with everything kept; the list follows the new poll as it follows a
+send. A vote's `message_updated` does not mark the conversations,
+channels or alerts lists stale (`touchesConversations`,
+`eventSpaceId`, `touchesAlerts`), and a search result shows a poll as
+its preview line, "Poll: " and the question as typed.
+
+Sending is send-then-merge, as on web: the
 composer clears the draft, awaits `SendMessage`, and the answer's row is
 dispatched as `sent` and merged by seq like an event's (the socket's
 copy usually lands first; either order leaves one row). There are no
@@ -1664,8 +1720,8 @@ phone is the phone.
 
 The check follows the desktop app's (`docs/architecture/desktop.md` →
 `GET /version`): the server must answer as Stoop and be at least
-`MIN_SERVER_VERSION` (`src/api/probe.ts`). A dev build reports `dev`,
-which always passes.
+`MIN_SERVER_VERSION` (`src/api/probe.ts`), now 0.23.0, the release that
+carries polls. A dev build reports `dev`, which always passes.
 
 ## Signing for iOS
 

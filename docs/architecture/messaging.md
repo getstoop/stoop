@@ -1280,14 +1280,18 @@ unread counts, the "New messages" line and a channel's last message
 treat both as a message, with no code of their own. The code is
 `internal/chat/polls.go` and `queries/chat/polls.sql`.
 
-Built so far: the server side, whole, and web, whole. A poll is
-created, read with its votes, voted on, closed, pinned and deleted over
-the API. Web creates one from the composer's poll button, draws it as a
-card that votes, closes and deletes, and draws the closing row as a
-system line ([web.md](web.md) → The message list). The form's rules
-are `core/pollForm.ts`, shared with mobile. Mobile draws neither
-yet: a poll is a system line, "posted a poll:" and the question, and
-the closing row reads as on web (`systemLine`, shared).
+Built: the server side, web and mobile. A poll is created, read with
+its votes, voted on, closed, pinned and deleted over the API. Web
+creates one from the composer's poll button, draws it as a card that
+votes, closes and deletes, and draws the closing row as a system line
+([web.md](web.md) → The message list). Mobile creates one from Poll in
+the composer's attach sheet, draws it as a card that votes, with a
+votes sheet, and closes, pins and deletes it from its long-press menu
+([mobile/README.md](../../mobile/README.md) → Realtime). Both apps share
+what is not drawing: `core/polls.ts` (reading a poll, the selection a
+press sends, the results and who may do what), `core/pollForm.ts` (the
+form's rules) and the closing row's wording (`systemLine`). The mobile
+app needs a server of 0.23.0 or newer, the release that carries polls.
 
 - **The poll row.** `data` is the definition, which never changes, and
   the closed state: `{question, options: [{id, text}], multiple,
