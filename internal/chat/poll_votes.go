@@ -71,10 +71,12 @@ func (s *Service) SetPollVote(ctx context.Context, req *connect.Request[chatv1.S
 	if err != nil {
 		return nil, err
 	}
+	var seq int64
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		// The stamp's seq is the first write, so it takes the channel row
 		// before any other (seq.go).
-		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+		var err error
+		if seq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
 		}
 		// A close or a delete may have committed since the check above.
@@ -115,6 +117,10 @@ func (s *Service) SetPollVote(ctx context.Context, req *connect.Request[chatv1.S
 		return connect.NewResponse(&chatv1.SetPollVoteResponse{}), nil
 	}
 	if !unchanged {
+		// At the seq this vote took, whatever the reload read: a vote that
+		// committed since has stamped the row again and publishes that
+		// seq itself, so no position goes unsent or is sent twice.
+		out.Seq = seq
 		s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
 		}))

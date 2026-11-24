@@ -466,3 +466,63 @@ func TestClosingRowIsOnlyAboutAClosedPoll(t *testing.T) {
 		t.Errorf("a closing row about a closed poll: %v", err)
 	}
 }
+
+// In a group conversation, as in a direct message, only the poll's
+// author closes it: another participant is refused.
+func TestOtherParticipantCannotCloseAGroupPoll(t *testing.T) {
+	fixture := newSystemRows(t)
+	group := fixture.conversation(fixture.ada, fixture.bea, fixture.cat)
+	poll := fixture.poll(fixture.bea, &chatv1.CreatePollRequest{ChannelId: group.ID, Question: "Lunch?", Options: yesNo})
+	for name, other := range map[string]context.Context{"the opener": fixture.ada, "another participant": fixture.cat} {
+		if _, err := fixture.closePoll(other, poll.Id); connect.CodeOf(err) != connect.CodePermissionDenied {
+			t.Errorf("%s closing someone else's poll in a group: err = %v, want PermissionDenied", name, err)
+		}
+	}
+	if fixture.load(poll.Id).Event.GetPoll().GetClosedAt() != nil || fixture.closingRows(group.ID) != 0 {
+		t.Error("a refused close in a group went through")
+	}
+	if _, err := fixture.closePoll(fixture.bea, poll.Id); err != nil {
+		t.Errorf("the author closing their poll in a group: %v", err)
+	}
+}
+
+// messages.moderate does not reach into a private channel its holder is
+// not in: an admin outside one neither closes nor deletes a poll there,
+// and is told it is not found, as anyone outside is.
+func TestAdminOutsideAPrivateChannelCannotCloseOrDeleteItsPoll(t *testing.T) {
+	fixture := newSystemRows(t)
+	if _, err := fixture.svc.SetMemberRole(fixture.ada, connect.NewRequest(&chatv1.SetMemberRoleRequest{
+		SpaceId: fixture.spaceID, UserId: authctx.UserID(fixture.bea), Role: chatv1.SpaceRole_SPACE_ROLE_ADMIN,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	private, err := fixture.svc.CreateChannel(fixture.ada, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: fixture.spaceID, Name: "back-room", Private: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	backRoom := private.Msg.Channel.Id
+	if _, err := fixture.svc.AddChannelMembers(fixture.ada, connect.NewRequest(&chatv1.AddChannelMembersRequest{
+		ChannelId: backRoom, UserIds: []string{authctx.UserID(fixture.cat)},
+	})); err != nil {
+		t.Fatal(err)
+	}
+	poll := fixture.poll(fixture.cat, &chatv1.CreatePollRequest{ChannelId: backRoom, Question: "Friday?", Options: yesNo})
+	// The same admin closes a member's poll where she can read it.
+	public := fixture.poll(fixture.cat, &chatv1.CreatePollRequest{Question: "Friday?", Options: yesNo})
+	if _, err := fixture.closePoll(fixture.bea, public.Id); err != nil {
+		t.Fatalf("an admin closing a member's poll in a public channel: %v", err)
+	}
+
+	if _, err := fixture.closePoll(fixture.bea, poll.Id); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("an admin outside a private channel closing its poll: err = %v, want NotFound", err)
+	}
+	if _, err := fixture.svc.DeleteMessage(fixture.bea, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: poll.Id})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Errorf("an admin outside a private channel deleting its poll: err = %v, want NotFound", err)
+	}
+	after, err := fixture.svc.loadMessage(context.Background(), poll.Id, fixture.spaceID)
+	if err != nil || after.Deleted || after.Event.GetPoll().GetClosedAt() != nil {
+		t.Errorf("the poll after the refusals = %v, %v; want it open and there", after, err)
+	}
+}

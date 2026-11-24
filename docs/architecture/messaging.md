@@ -1348,7 +1348,11 @@ close.
   changes nothing returns `errUnchanged` from inside the transaction, so
   the stamp rolls back: no seq is spent and nothing is published, and
   the answer is the poll as it stands. Otherwise the poll goes out whole
-  as `message_updated`, as a fresh read has it. A vote marks nothing
+  as `message_updated`, reloaded after the commit but carrying the seq
+  this vote's transaction took, as `reactions_changed` does: two votes
+  that overlap each publish their own seq, where the reloaded row's seq
+  would send the newer one twice and the older never, and every client
+  into a catch-up. The answer is the same row. A vote marks nothing
   unread, records no activity, alerts nobody, reopens no conversation
   and leaves the channel's last message alone. A new vote's
   `created_at` is the clock's time at the insert, under the channel
@@ -1375,7 +1379,7 @@ close.
   number of distinct people who voted; with no votes `winners` is an
   empty list. After the commit a closed conversation is put back on its
   lists, the poll goes out as `message_updated` and then the closing row
-  as `message_created`, and in a direct message or group conversation
+  as `message_created`, each at the seq the transaction gave it, and in a direct message or group conversation
   the other participants get a `dm` activity item for the closing row,
   as for a new poll. In a channel a close marks unread and alerts
   nobody. `recordEvent` refuses a closing row about anything but a

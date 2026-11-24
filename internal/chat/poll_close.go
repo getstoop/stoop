@@ -81,6 +81,7 @@ func (s *Service) ClosePoll(ctx context.Context, req *connect.Request[chatv1.Clo
 		return nil, err
 	}
 	var closing messageRow
+	var pollSeq int64
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		// The channel row before any other (seq.go).
 		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
@@ -115,7 +116,7 @@ func (s *Service) ClosePoll(ctx context.Context, req *connect.Request[chatv1.Clo
 		}
 		// The poll is stamped first and its closing row next, so their
 		// events go out in that order.
-		if _, err := stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
+		if pollSeq, err = stampMessage(ctx, qtx, channel.ID, msg.ID); err != nil {
 			return err
 		}
 		winners, voters := poll.outcome(votes)
@@ -141,6 +142,9 @@ func (s *Service) ClosePoll(ctx context.Context, req *connect.Request[chatv1.Clo
 	if err != nil {
 		slog.Default().Warn("poll close: could not reload the poll", "message_id", msg.ID, "err", err)
 	} else {
+		// Each row at the seq this transaction gave it, whatever the
+		// reload read: a later write to the row publishes its own.
+		out.Seq = pollSeq
 		s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
 		}))
@@ -149,6 +153,7 @@ func (s *Service) ClosePoll(ctx context.Context, req *connect.Request[chatv1.Clo
 	if err != nil {
 		slog.Default().Warn("poll close: could not reload its closing row", "message_id", closing.ID, "err", err)
 	} else {
+		row.Seq = closing.Seq
 		s.publishTo(channel, participants, events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: row},
 		}))

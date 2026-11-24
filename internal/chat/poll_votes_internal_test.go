@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
@@ -450,11 +452,147 @@ func TestConcurrentVotesFromOnePerson(t *testing.T) {
 	if final.Event.GetPoll().GetVoterCount() != 1 || final.Seq != channelSeq+votes {
 		t.Errorf("the poll = %v at seq %d, want one voter and seq %d", tally(final), final.Seq, channelSeq+votes)
 	}
-	// The vote that stands is the one let in last.
-	for index, seq := range seqs {
-		if seq == final.Seq && len(final.Event.GetPoll().GetOptions()[index].GetVoters()) != 1 {
-			t.Errorf("the last vote in was for option %d, but the poll reads %s", index+1, tally(final))
+	// Each answer carries the seq its own vote took, so together they are
+	// the next four, and the vote that stands is the one let in last.
+	sorted := slices.Sorted(slices.Values(seqs))
+	if want := []int64{channelSeq + 1, channelSeq + 2, channelSeq + 3, channelSeq + 4}; !slices.Equal(sorted, want) {
+		t.Fatalf("the votes answered with seqs %v, want each its own of %v", seqs, want)
+	}
+	last := slices.Index(seqs, final.Seq)
+	if len(final.Event.GetPoll().GetOptions()[last].GetVoters()) != 1 {
+		t.Errorf("the last vote in was for option %d, but the poll reads %s", last+1, tally(final))
+	}
+}
+
+// holdReloads keeps every read of a message through the view waiting
+// until the returned release is called, while writes go through: it
+// holds a table only the view reads. It is how a test makes a write's
+// reload run after a later write has committed.
+func (f *systemRows) holdReloads() (release func()) {
+	f.t.Helper()
+	ctx := context.Background()
+	held, err := f.pool.Begin(ctx)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	if _, err := held.Exec(ctx, `LOCK TABLE message_attachments IN ACCESS EXCLUSIVE MODE`); err != nil {
+		f.t.Fatal(err)
+	}
+	var once sync.Once
+	release = func() {
+		once.Do(func() {
+			if err := held.Rollback(ctx); err != nil {
+				f.t.Error(err)
+			}
+		})
+	}
+	f.t.Cleanup(release)
+	return release
+}
+
+// waitForSeq waits until the channel's seq is want: the writes a test
+// started have committed.
+func (f *systemRows) waitForSeq(want int64) {
+	f.t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for f.channelRow(f.channel.ID).Seq != want {
+		if time.Now().After(deadline) {
+			f.t.Fatalf("the channel's seq is %d, want %d", f.channelRow(f.channel.ID).Seq, want)
 		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// Two votes whose reloads both run after both have committed are still
+// published one per seq: each event and answer carries the seq its own
+// transaction took, not the row's newest. Both at the newer seq would
+// leave the older one unsent, and every client catching up.
+func TestOverlappingVotesPublishTheirOwnSeqs(t *testing.T) {
+	fixture := newSystemRows(t)
+	poll := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{Question: "Friday?", Options: yesNo})
+	space := fixture.subscribeSpace()
+	channelSeq := fixture.channelRow(fixture.channel.ID).Seq
+	release := fixture.holdReloads()
+	voters := []context.Context{fixture.bea, fixture.cat}
+	answers := make([]*chatv1.Message, len(voters))
+	errs := make([]error, len(voters))
+	var wg sync.WaitGroup
+	for index, voter := range voters {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			answers[index], errs[index] = fixture.setVote(voter, poll.Id, 1)
+		}()
+		// Committed, and waiting to reload, before the next begins.
+		fixture.waitForSeq(channelSeq + int64(index) + 1)
+	}
+	release()
+	wg.Wait()
+	for index, err := range errs {
+		if err != nil {
+			t.Fatalf("vote %d: %v", index, err)
+		}
+		if answers[index].Seq != channelSeq+int64(index)+1 {
+			t.Errorf("vote %d answered at seq %d, want its own, %d", index, answers[index].Seq, channelSeq+int64(index)+1)
+		}
+	}
+	var published []int64
+	for _, heard := range heardRows(space) {
+		if heard.kind != "message_updated" || heard.id != poll.Id {
+			t.Errorf("heard %+v, want only the poll updated", heard)
+		}
+		published = append(published, heard.seq)
+	}
+	slices.Sort(published)
+	if want := []int64{channelSeq + 1, channelSeq + 2}; !slices.Equal(published, want) {
+		t.Errorf("published seqs %v, want one event at each of %v", published, want)
+	}
+}
+
+// A close whose reloads run after a later write to the poll has
+// committed still publishes the poll at the close's seq and the closing
+// row at the next.
+func TestCloseIsPublishedAtItsOwnSeqs(t *testing.T) {
+	fixture := newSystemRows(t)
+	poll := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{Question: "Friday?", Options: yesNo})
+	space := fixture.subscribeSpace()
+	channelSeq := fixture.channelRow(fixture.channel.ID).Seq
+	release := fixture.holdReloads()
+	var answered *chatv1.Message
+	var closeErr, pinErr error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		answered, closeErr = fixture.closePoll(fixture.ada, poll.Id)
+	}()
+	fixture.waitForSeq(channelSeq + 2)
+	// A pin stamps the poll again, and records its own row.
+	go func() {
+		defer wg.Done()
+		pinErr = fixture.setPinned(fixture.ada, poll.Id, true)
+	}()
+	fixture.waitForSeq(channelSeq + 4)
+	release()
+	wg.Wait()
+	if closeErr != nil || pinErr != nil {
+		t.Fatalf("close: %v, pin: %v", closeErr, pinErr)
+	}
+	if answered.Seq != channelSeq+1 {
+		t.Errorf("the close answered the poll at seq %d, want its own, %d", answered.Seq, channelSeq+1)
+	}
+	closingID := fixture.closingRowOf(poll.Id).ID
+	seqs := map[string]int64{}
+	for _, heard := range heardRows(space) {
+		switch {
+		case heard.kind == "message_updated" && heard.id == poll.Id:
+			seqs["poll"] = heard.seq
+		case heard.kind == "message_created" && heard.id == closingID:
+			seqs["closing row"] = heard.seq
+		}
+	}
+	if seqs["poll"] != channelSeq+1 || seqs["closing row"] != channelSeq+2 {
+		t.Errorf("published %v, want the poll at %d and its closing row at %d", seqs, channelSeq+1, channelSeq+2)
 	}
 }
 
