@@ -857,9 +857,9 @@ poll. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
 on the keyboard: "Create a poll" and Cancel, the question, one option or
 several directly under it, the options with "N of 10", Add option and a
 remove button each (`PollFormOptions.tsx`), and Post poll on a strip of
-the sheet's own under the fields, ruled while they scroll under it; a
-field taking the caret is scrolled into view, the last one with Add
-option under it, with web's
+the sheet's own under the fields, which fade into it (EdgeFade) while
+they scroll under it; a field taking the caret is scrolled clear of the
+fade, the last one with Add option under it, with web's
 rules (`core/pollForm`): a field the server would refuse says why under
 it, and Post is on only for a question and two options with nothing
 wrong. While the request is out Post reads "Posting…" and the fields

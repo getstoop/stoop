@@ -30,14 +30,18 @@ import SheetFrame from "../../components/SheetFrame";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
+import EdgeFade from "./EdgeFade";
 import PollFormOptions from "./PollFormOptions";
 
 // What the sheet leaves above itself, over the keyboard, of the channel.
 const ABOVE = 48;
 // How long after the modal shows the question takes the caret (above).
 const FOCUS_DELAY_MS = 300;
-// Room kept around a field scrolled into view.
+// Room kept around a field scrolled into view; under it the fade over
+// the fields' foot too, so a field with the caret clears it.
 const REVEAL_MARGIN = 8;
+// How tall the fade the fields scroll under is, above Post poll.
+const FADE = 24;
 
 // Creating a poll, from Poll in the attach sheet (docs/architecture/
 // messaging.md → Polls): a sheet over a scrim, as the attach sheet is
@@ -95,7 +99,7 @@ export default function PollForm({
   const overflows = contentHeight > shownHeight + 1;
   const reveal = (top: number, bottom: number) => {
     const from = optionsAt.current + top - REVEAL_MARGIN;
-    const to = optionsAt.current + bottom + REVEAL_MARGIN;
+    const to = optionsAt.current + bottom + REVEAL_MARGIN + FADE;
     if (to > scrolled.current + shownHeight) scroll.current?.scrollTo({ y: to - shownHeight, animated: true });
     else if (from < scrolled.current) scroll.current?.scrollTo({ y: Math.max(0, from), animated: true });
   };
@@ -264,8 +268,13 @@ export default function PollForm({
               </View>
             </ScrollView>
             {/* Post on a strip of the sheet's own, the list ending above
-                it, with a rule while the fields scroll under it. */}
-            <View style={[styles.foot, overflows && styles.footRuled]}>
+                it, fading out into it while the fields scroll under it. */}
+            <View style={styles.foot}>
+              {overflows && (
+                <View style={styles.fade} pointerEvents="none">
+                  <EdgeFade edge="bottom" height={FADE} color={theme.panel} />
+                </View>
+              )}
               {failure && (
                 <Text style={[styles.error, styles.failure]} accessibilityRole="alert">
                   {failure}
@@ -420,12 +429,15 @@ function makeStyles(theme: Theme) {
     },
     foot: {
       paddingTop: 12,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: "transparent",
       backgroundColor: theme.panel,
     },
-    footRuled: {
-      borderTopColor: theme.border,
+    // Over the fields' foot, just above the strip.
+    fade: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: -FADE,
+      height: FADE,
     },
     failure: {
       marginHorizontal: 8,
