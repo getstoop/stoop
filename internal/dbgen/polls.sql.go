@@ -9,6 +9,51 @@ import (
 	"context"
 )
 
+const addPollVotes = `-- name: AddPollVotes :execrows
+INSERT INTO poll_votes (message_id, user_id, option_id, created_at)
+SELECT $1::uuid, $2::uuid, option_id, clock_timestamp()
+FROM unnest($3::smallint[]) AS chosen(option_id)
+ON CONFLICT DO NOTHING
+`
+
+type AddPollVotesParams struct {
+	MessageID string
+	UserID    string
+	OptionIds []int16
+}
+
+// AddPollVotes is the second half: the options chosen that the person
+// had not chosen already. The time is the clock's, not the
+// transaction's start: the caller holds the channel row, so votes are
+// ordered as they were let in.
+func (q *Queries) AddPollVotes(ctx context.Context, arg AddPollVotesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, addPollVotes, arg.MessageID, arg.UserID, arg.OptionIds)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const closePoll = `-- name: ClosePoll :execrows
+UPDATE messages SET data = $1
+WHERE id = $2::uuid AND kind = 7 AND deleted_at IS NULL
+`
+
+type ClosePollParams struct {
+	Data []byte
+	ID   string
+}
+
+// ClosePoll writes a poll's data with its closed state in it. Only a
+// live poll takes it; no row means it was deleted meanwhile.
+func (q *Queries) ClosePoll(ctx context.Context, arg ClosePollParams) (int64, error) {
+	result, err := q.db.Exec(ctx, closePoll, arg.Data, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listPollVotesForMessages = `-- name: ListPollVotesForMessages :many
 
 SELECT message_id, user_id, option_id, created_at
@@ -48,4 +93,27 @@ func (q *Queries) ListPollVotesForMessages(ctx context.Context, messageIds []str
 		return nil, err
 	}
 	return items, nil
+}
+
+const removePollVotesExcept = `-- name: RemovePollVotesExcept :execrows
+DELETE FROM poll_votes
+WHERE message_id = $1::uuid AND user_id = $2::uuid
+  AND NOT (option_id = ANY($3::smallint[]))
+`
+
+type RemovePollVotesExceptParams struct {
+	MessageID string
+	UserID    string
+	Kept      []int16
+}
+
+// RemovePollVotesExcept takes back every option a person chose on a poll
+// but those in kept: the first half of setting a selection. An empty
+// kept takes the whole vote back.
+func (q *Queries) RemovePollVotesExcept(ctx context.Context, arg RemovePollVotesExceptParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removePollVotesExcept, arg.MessageID, arg.UserID, arg.Kept)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

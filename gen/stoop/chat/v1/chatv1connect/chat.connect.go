@@ -145,6 +145,10 @@ const (
 	ChatServiceSendMessageProcedure = "/stoop.chat.v1.ChatService/SendMessage"
 	// ChatServiceCreatePollProcedure is the fully-qualified name of the ChatService's CreatePoll RPC.
 	ChatServiceCreatePollProcedure = "/stoop.chat.v1.ChatService/CreatePoll"
+	// ChatServiceSetPollVoteProcedure is the fully-qualified name of the ChatService's SetPollVote RPC.
+	ChatServiceSetPollVoteProcedure = "/stoop.chat.v1.ChatService/SetPollVote"
+	// ChatServiceClosePollProcedure is the fully-qualified name of the ChatService's ClosePoll RPC.
+	ChatServiceClosePollProcedure = "/stoop.chat.v1.ChatService/ClosePoll"
 	// ChatServiceListMessagesProcedure is the fully-qualified name of the ChatService's ListMessages
 	// RPC.
 	ChatServiceListMessagesProcedure = "/stoop.chat.v1.ChatService/ListMessages"
@@ -331,6 +335,15 @@ type ChatServiceClient interface {
 	// channel unread as a message does. See docs/architecture/messaging.md
 	// → Polls.
 	CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error)
+	// SetPollVote sets the caller's whole selection on an open poll; an
+	// empty one takes the vote back. Whoever may react here may vote, a
+	// member of an announcement channel included. A vote marks nothing
+	// unread and alerts nobody; the poll goes out as message_updated.
+	SetPollVote(context.Context, *connect.Request[v1.SetPollVoteRequest]) (*connect.Response[v1.SetPollVoteResponse], error)
+	// ClosePoll closes a poll for good, and records a row naming the
+	// outcome that marks the channel unread as a message does. Its author
+	// may, or in a space someone with messages.moderate.
+	ClosePoll(context.Context, *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// ListChanges catches a channel up from a log position: every row with
 	// a higher seq, tombstones and thread replies included. Same access as
@@ -684,6 +697,18 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("CreatePoll")),
 			connect.WithClientOptions(opts...),
 		),
+		setPollVote: connect.NewClient[v1.SetPollVoteRequest, v1.SetPollVoteResponse](
+			httpClient,
+			baseURL+ChatServiceSetPollVoteProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("SetPollVote")),
+			connect.WithClientOptions(opts...),
+		),
+		closePoll: connect.NewClient[v1.ClosePollRequest, v1.ClosePollResponse](
+			httpClient,
+			baseURL+ChatServiceClosePollProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("ClosePoll")),
+			connect.WithClientOptions(opts...),
+		),
 		listMessages: connect.NewClient[v1.ListMessagesRequest, v1.ListMessagesResponse](
 			httpClient,
 			baseURL+ChatServiceListMessagesProcedure,
@@ -842,6 +867,8 @@ type chatServiceClient struct {
 	listThreadMutes             *connect.Client[v1.ListThreadMutesRequest, v1.ListThreadMutesResponse]
 	sendMessage                 *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
 	createPoll                  *connect.Client[v1.CreatePollRequest, v1.CreatePollResponse]
+	setPollVote                 *connect.Client[v1.SetPollVoteRequest, v1.SetPollVoteResponse]
+	closePoll                   *connect.Client[v1.ClosePollRequest, v1.ClosePollResponse]
 	listMessages                *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	listChanges                 *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
 	searchMessages              *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
@@ -1087,6 +1114,16 @@ func (c *chatServiceClient) CreatePoll(ctx context.Context, req *connect.Request
 	return c.createPoll.CallUnary(ctx, req)
 }
 
+// SetPollVote calls stoop.chat.v1.ChatService.SetPollVote.
+func (c *chatServiceClient) SetPollVote(ctx context.Context, req *connect.Request[v1.SetPollVoteRequest]) (*connect.Response[v1.SetPollVoteResponse], error) {
+	return c.setPollVote.CallUnary(ctx, req)
+}
+
+// ClosePoll calls stoop.chat.v1.ChatService.ClosePoll.
+func (c *chatServiceClient) ClosePoll(ctx context.Context, req *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error) {
+	return c.closePoll.CallUnary(ctx, req)
+}
+
 // ListMessages calls stoop.chat.v1.ChatService.ListMessages.
 func (c *chatServiceClient) ListMessages(ctx context.Context, req *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return c.listMessages.CallUnary(ctx, req)
@@ -1309,6 +1346,15 @@ type ChatServiceHandler interface {
 	// channel unread as a message does. See docs/architecture/messaging.md
 	// → Polls.
 	CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error)
+	// SetPollVote sets the caller's whole selection on an open poll; an
+	// empty one takes the vote back. Whoever may react here may vote, a
+	// member of an announcement channel included. A vote marks nothing
+	// unread and alerts nobody; the poll goes out as message_updated.
+	SetPollVote(context.Context, *connect.Request[v1.SetPollVoteRequest]) (*connect.Response[v1.SetPollVoteResponse], error)
+	// ClosePoll closes a poll for good, and records a row naming the
+	// outcome that marks the channel unread as a message does. Its author
+	// may, or in a space someone with messages.moderate.
+	ClosePoll(context.Context, *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// ListChanges catches a channel up from a log position: every row with
 	// a higher seq, tombstones and thread replies included. Same access as
@@ -1658,6 +1704,18 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("CreatePoll")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceSetPollVoteHandler := connect.NewUnaryHandler(
+		ChatServiceSetPollVoteProcedure,
+		svc.SetPollVote,
+		connect.WithSchema(chatServiceMethods.ByName("SetPollVote")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceClosePollHandler := connect.NewUnaryHandler(
+		ChatServiceClosePollProcedure,
+		svc.ClosePoll,
+		connect.WithSchema(chatServiceMethods.ByName("ClosePoll")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceListMessagesHandler := connect.NewUnaryHandler(
 		ChatServiceListMessagesProcedure,
 		svc.ListMessages,
@@ -1858,6 +1916,10 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
 		case ChatServiceCreatePollProcedure:
 			chatServiceCreatePollHandler.ServeHTTP(w, r)
+		case ChatServiceSetPollVoteProcedure:
+			chatServiceSetPollVoteHandler.ServeHTTP(w, r)
+		case ChatServiceClosePollProcedure:
+			chatServiceClosePollHandler.ServeHTTP(w, r)
 		case ChatServiceListMessagesProcedure:
 			chatServiceListMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceListChangesProcedure:
@@ -2081,6 +2143,14 @@ func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.CreatePoll is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) SetPollVote(context.Context, *connect.Request[v1.SetPollVoteRequest]) (*connect.Response[v1.SetPollVoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SetPollVote is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) ClosePoll(context.Context, *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ClosePoll is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {

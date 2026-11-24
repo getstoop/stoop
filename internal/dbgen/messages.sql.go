@@ -367,19 +367,20 @@ func (q *Queries) ListExpiredMessages(ctx context.Context, arg ListExpiredMessag
 
 const listLiveRowsAbout = `-- name: ListLiveRowsAbout :many
 SELECT id FROM messages
-WHERE reference_message_id = $1::uuid AND kind = $2 AND deleted_at IS NULL
+WHERE reference_message_id = $1::uuid AND kind = ANY($2::smallint[]) AND deleted_at IS NULL
 ORDER BY id
 `
 
 type ListLiveRowsAboutParams struct {
 	MessageID string
-	Kind      int16
+	Kinds     []int16
 }
 
-// ListLiveRowsAbout is the live system rows of one kind that refer to a
-// message, oldest first: a deleted message's pin rows, which go with it.
+// ListLiveRowsAbout is the live system rows of the given kinds that refer
+// to a message, oldest first: a deleted message's pin rows and a deleted
+// poll's closing row, which go with it.
 func (q *Queries) ListLiveRowsAbout(ctx context.Context, arg ListLiveRowsAboutParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, listLiveRowsAbout, arg.MessageID, arg.Kind)
+	rows, err := q.db.Query(ctx, listLiveRowsAbout, arg.MessageID, arg.Kinds)
 	if err != nil {
 		return nil, err
 	}

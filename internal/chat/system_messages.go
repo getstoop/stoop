@@ -73,6 +73,9 @@ type systemEvent interface {
 	// content is the row's content: "" but for a kind that keeps text
 	// there for search and previews.
 	content() string
+	// checkAbout refuses the event when the message it is about, read in
+	// the transaction that records it, is not one it may be about.
+	checkAbout(about messageRow) error
 	// proto is the event as a client reads it, its people from authors.
 	proto(authors map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent
 }
@@ -89,10 +92,11 @@ func decodeEvent[Event systemEvent](data []byte) (systemEvent, error) {
 // message and no content, unless the event says otherwise.
 type bareEvent struct{}
 
-func (bareEvent) check() error        { return nil }
-func (bareEvent) people() []string    { return nil }
-func (bareEvent) referenceID() string { return "" }
-func (bareEvent) content() string     { return "" }
+func (bareEvent) check() error                { return nil }
+func (bareEvent) people() []string            { return nil }
+func (bareEvent) referenceID() string         { return "" }
+func (bareEvent) content() string             { return "" }
+func (bareEvent) checkAbout(messageRow) error { return nil }
 
 // membersAdded: the author added these people to a private channel.
 type membersAdded struct {
@@ -210,7 +214,8 @@ func (event postPolicyChanged) proto(map[string]*chatv1.MessageAuthor) *chatv1.S
 // the channel's post policy does not apply: a caller whose row is not
 // quiet does what of those it needs (CreatePoll). A quiet row leaves the
 // channel's last message alone. An event about a message is refused
-// unless that message is shown in this channel.
+// unless that message is shown in this channel and is one the event may
+// be about (checkAbout): a closing row is only ever about a closed poll.
 func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel, actorID string, event systemEvent) (messageRow, error) {
 	if event == nil {
 		return messageRow{}, errors.New("record event: no event")
@@ -230,6 +235,9 @@ func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel,
 		}
 		if about.ChannelID != channel.ID {
 			return messageRow{}, fmt.Errorf("record event: message %s is in another channel", id)
+		}
+		if err := event.checkAbout(about); err != nil {
+			return messageRow{}, fmt.Errorf("record event: message %s: %w", id, err)
 		}
 		reference = &id
 	}
@@ -261,6 +269,18 @@ func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel,
 // wrote, aimed at a system message. refuseSystemRow wraps it.
 var errSystemMessage = errors.New("that message records something that happened in the channel; it can't be changed")
 
+// errPollRow is the same write aimed at a poll, which someone did write
+// and can change: by voting on it, closing it, pinning or deleting it.
+var errPollRow = errors.New("that message is a poll; it can be voted on, closed, pinned or deleted, and nothing else")
+
+// systemRowRefusal is the refusal's wording for a row of kind.
+func systemRowRefusal(kind int16) error {
+	if kind == kindPoll {
+		return connect.NewError(connect.CodeFailedPrecondition, errPollRow)
+	}
+	return connect.NewError(connect.CodeFailedPrecondition, errSystemMessage)
+}
+
 // refuseSystemRow is the one check for everything that assumes a message
 // is something a person wrote: editing it, reacting to it, threading
 // under it, quoting or replying to it, dismissing its previews. It is on
@@ -271,7 +291,7 @@ var errSystemMessage = errors.New("that message records something that happened 
 // docs/architecture/messaging.md → System messages.
 func refuseSystemRow(row messageRow) error {
 	if row.Kind != 0 {
-		return connect.NewError(connect.CodeFailedPrecondition, errSystemMessage)
+		return systemRowRefusal(row.Kind)
 	}
 	return nil
 }
@@ -280,7 +300,7 @@ func refuseSystemRow(row messageRow) error {
 // marked pinnable, as refuseSystemRow would.
 func refuseUnpinnable(row messageRow) error {
 	if row.Kind != 0 && !systemKinds[row.Kind].pinnable {
-		return connect.NewError(connect.CodeFailedPrecondition, errSystemMessage)
+		return systemRowRefusal(row.Kind)
 	}
 	return nil
 }
