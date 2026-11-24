@@ -30,6 +30,7 @@ export default function PollFormOptions({
   locked,
   onChange,
   onFocusKey,
+  onReveal,
 }: {
   form: PollForm;
   problems: Record<number, PollFieldProblem>;
@@ -41,6 +42,10 @@ export default function PollFormOptions({
   locked: boolean;
   onChange: (update: (form: PollForm) => PollForm) => void;
   onFocusKey: (key: number | null) => void;
+  // Asks the form to scroll this stretch of the options into view (points
+  // from the top of the options): a field taking the caret, and with the
+  // last one, Add option under it, so it stays reachable.
+  onReveal: (top: number, bottom: number) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -52,6 +57,16 @@ export default function PollFormOptions({
     fields.current.get(added.current)?.focus();
     added.current = null;
   });
+  // Where each field's line and Add option sit, for onReveal.
+  const rows = useRef(new Map<number, { y: number; height: number }>());
+  const addAt = useRef({ y: 0, height: 0 });
+  const lastKey = form.options[form.options.length - 1]?.key;
+  const reveal = (key: number) => {
+    const row = rows.current.get(key);
+    if (!row) return;
+    const bottom = key === lastKey ? addAt.current.y + addAt.current.height : row.y + row.height;
+    onReveal(row.y, Math.max(bottom, row.y + row.height));
+  };
   const removable = canRemoveOption(form) && !locked;
   const addable = canAddOption(form) && !locked;
 
@@ -65,7 +80,14 @@ export default function PollFormOptions({
         const problem = problems[option.key];
         const next = form.options[index + 1];
         return (
-          <View key={option.key} style={styles.option}>
+          <View
+            key={option.key}
+            style={styles.option}
+            onLayout={(event) => {
+              const { y, height } = event.nativeEvent.layout;
+              rows.current.set(option.key, { y, height });
+            }}
+          >
             <View style={styles.line}>
               <TextInput
                 ref={(input) => {
@@ -85,7 +107,10 @@ export default function PollFormOptions({
                 returnKeyType={next ? "next" : "done"}
                 submitBehavior={next ? "submit" : "blurAndSubmit"}
                 onSubmitEditing={() => next && fields.current.get(next.key)?.focus()}
-                onFocus={() => onFocusKey(option.key)}
+                onFocus={() => {
+                  onFocusKey(option.key);
+                  reveal(option.key);
+                }}
                 onBlur={() => onFocusKey(null)}
                 style={[
                   styles.input,
@@ -119,6 +144,12 @@ export default function PollFormOptions({
         accessibilityHint={canAddOption(form) ? undefined : POLL_OPTIONS_FULL}
         disabled={!addable}
         testID="poll-add-option"
+        onLayout={(event) => {
+          const { y, height } = event.nativeEvent.layout;
+          addAt.current = { y, height };
+          // A field just added moves Add option down: keep both in view.
+          if (focusKey !== null && focusKey === lastKey) reveal(focusKey);
+        }}
         onPress={() => {
           added.current = form.nextKey;
           onChange(addOption);

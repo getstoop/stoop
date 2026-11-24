@@ -818,7 +818,9 @@ gives it a row kind of its own (`poll`, asked before `system`), and
 draw it: the author's face, name and time, the question with a Poll or
 Closed badge, and the card across the row's whole width under them.
 Each option (`PollOption.tsx`) has its share of the voters as a bar
-behind it, its text and count, and who chose it under them (the
+behind it (which moves to a new share as votes change while the card is
+up, a Reanimated transition of its scale over `tokens.dur`, not on first
+draw and not under Reduce Motion), its text and count, and who chose it under them (the
 reader first as "You", up to three named by display name, past that two
 and "N others", after the first three faces); everything that is not
 drawing is `core/polls`, shared with web. While the poll is open an
@@ -854,7 +856,10 @@ on the card and rings it, and which a screen reader is offered as View
 poll. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
 on the keyboard: "Create a poll" and Cancel, the question, one option or
 several directly under it, the options with "N of 10", Add option and a
-remove button each (`PollFormOptions.tsx`), and Post poll, with web's
+remove button each (`PollFormOptions.tsx`), and Post poll on a strip of
+the sheet's own under the fields, ruled while they scroll under it; a
+field taking the caret is scrolled into view, the last one with Add
+option under it, with web's
 rules (`core/pollForm`): a field the server would refuse says why under
 it, and Post is on only for a question and two options with nothing
 wrong. While the request is out Post reads "Posting…" and the fields

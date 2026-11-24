@@ -13,6 +13,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   TextInput,
@@ -35,6 +36,8 @@ import PollFormOptions from "./PollFormOptions";
 const ABOVE = 48;
 // How long after the modal shows the question takes the caret (above).
 const FOCUS_DELAY_MS = 300;
+// Room kept around a field scrolled into view.
+const REVEAL_MARGIN = 8;
 
 // Creating a poll, from Poll in the attach sheet (docs/architecture/
 // messaging.md → Polls): a sheet over a scrim, as the attach sheet is
@@ -82,6 +85,20 @@ export default function PollForm({
   const [failure, setFailure] = useState<string | null>(null);
   const [focus, setFocus] = useState<"question" | number | null>(null);
   const question = useRef<TextInputInstance>(null);
+  // The fields' scroll: where it is, how much shows, how much there is,
+  // and where the options start in it, to keep a field in view.
+  const scroll = useRef<ScrollViewInstance>(null);
+  const scrolled = useRef(0);
+  const [shownHeight, setShownHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const optionsAt = useRef(0);
+  const overflows = contentHeight > shownHeight + 1;
+  const reveal = (top: number, bottom: number) => {
+    const from = optionsAt.current + top - REVEAL_MARGIN;
+    const to = optionsAt.current + bottom + REVEAL_MARGIN;
+    if (to > scrolled.current + shownHeight) scroll.current?.scrollTo({ y: to - shownHeight, animated: true });
+    else if (from < scrolled.current) scroll.current?.scrollTo({ y: Math.max(0, from), animated: true });
+  };
   const firstOption = useRef<TextInputInstance>(null);
   // Whether the sheet is still there to say what became of the request.
   const mounted = useRef(true);
@@ -166,11 +183,21 @@ export default function PollForm({
               </Pressable>
             </View>
             <ScrollView
+              ref={scroll}
               style={styles.scroll}
               contentContainerStyle={styles.fields}
               keyboardShouldPersistTaps="handled"
+              persistentScrollbar
               // Swipes on the fields are the fields', from where they start.
-              onLayout={(event) => hold(event.nativeEvent.layout.y)}
+              onLayout={(event) => {
+                hold(event.nativeEvent.layout.y);
+                setShownHeight(event.nativeEvent.layout.height);
+              }}
+              onContentSizeChange={(_width, height) => setContentHeight(height)}
+              onScroll={(event) => {
+                scrolled.current = event.nativeEvent.contentOffset.y;
+              }}
+              scrollEventThrottle={16}
             >
               <View style={styles.field}>
                 <Text style={styles.label}>Question</Text>
@@ -219,32 +246,43 @@ export default function PollForm({
                   />
                 </View>
               </View>
-              <PollFormOptions
-                form={form}
-                problems={check.options}
-                focusKey={typeof focus === "number" ? focus : null}
-                first={firstOption}
-                locked={posting}
-                onChange={change}
-                onFocusKey={setFocus}
-              />
+              <View
+                onLayout={(event) => {
+                  optionsAt.current = event.nativeEvent.layout.y;
+                }}
+              >
+                <PollFormOptions
+                  form={form}
+                  problems={check.options}
+                  focusKey={typeof focus === "number" ? focus : null}
+                  first={firstOption}
+                  locked={posting}
+                  onChange={change}
+                  onFocusKey={setFocus}
+                  onReveal={reveal}
+                />
+              </View>
             </ScrollView>
-            {failure && (
-              <Text style={[styles.error, styles.failure]} accessibilityRole="alert">
-                {failure}
-              </Text>
-            )}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={posting ? "Posting" : "Post poll"}
-              accessibilityState={{ disabled: !postable, busy: posting }}
-              disabled={!postable}
-              testID="poll-post"
-              onPress={post}
-              style={({ pressed }) => [styles.post, !postable && styles.off, pressed && styles.postPressed]}
-            >
-              <Text style={styles.postText}>{posting ? "Posting…" : "Post poll"}</Text>
-            </Pressable>
+            {/* Post on a strip of the sheet's own, the list ending above
+                it, with a rule while the fields scroll under it. */}
+            <View style={[styles.foot, overflows && styles.footRuled]}>
+              {failure && (
+                <Text style={[styles.error, styles.failure]} accessibilityRole="alert">
+                  {failure}
+                </Text>
+              )}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={posting ? "Posting" : "Post poll"}
+                accessibilityState={{ disabled: !postable, busy: posting }}
+                disabled={!postable}
+                testID="poll-post"
+                onPress={post}
+                style={({ pressed }) => [styles.post, !postable && styles.off, pressed && styles.postPressed]}
+              >
+                <Text style={styles.postText}>{posting ? "Posting…" : "Post poll"}</Text>
+              </Pressable>
+            </View>
           </SheetFrame>
         </View>
       </GestureHandlerRootView>
@@ -350,7 +388,7 @@ function makeStyles(theme: Theme) {
     fields: {
       gap: 12,
       paddingHorizontal: 8,
-      paddingBottom: 12,
+      paddingBottom: 4,
     },
     field: {
       gap: 6,
@@ -379,6 +417,15 @@ function makeStyles(theme: Theme) {
     error: {
       color: theme.danger,
       fontSize: tokens.textSm,
+    },
+    foot: {
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: "transparent",
+      backgroundColor: theme.panel,
+    },
+    footRuled: {
+      borderTopColor: theme.border,
     },
     failure: {
       marginHorizontal: 8,

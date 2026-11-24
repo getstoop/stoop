@@ -2,6 +2,7 @@ import { type OptionResult, votersShown, votesLabel } from "@stoop/core/polls";
 import type { MessageAuthor } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { Fragment } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import Animated, { useReducedMotion } from "react-native-reanimated";
 import Avatar from "../../components/Avatar";
 import { CheckIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -24,6 +25,9 @@ const FACE = 20;
 // Closed, it is a line of the results: the reader's own vote ticked, and
 // the winner, or each tied option, badged with its bar in the accent.
 // Who chose it is plain text: on mobile the votes sheet lists everyone.
+// The bar moves to a new share as votes change while the card is up (a
+// transition of its scale, so nothing is laid out again); not as it first
+// draws, and not at all under Reduce Motion.
 export default function PollOption({
   result,
   open,
@@ -59,6 +63,7 @@ export default function PollOption({
   const count = votesLabel(result.votes);
   const line = { height: LINE * fontScale };
   const large = fontScale > LARGE_TEXT;
+  const reduced = useReducedMotion();
 
   const top = (
     <>
@@ -94,7 +99,14 @@ export default function PollOption({
 
   return (
     <View style={[styles.option, result.mine && styles.mine, pending && styles.pending]}>
-      <View style={[styles.bar, badge && styles.barWon, { width: `${result.ratio * 100}%` }]} />
+      <Animated.View
+        style={[
+          styles.bar,
+          badge && styles.barWon,
+          { transform: [{ scaleX: result.ratio }] },
+          { ...BAR_MOTION, transitionDuration: reduced ? 0 : tokens.dur },
+        ]}
+      />
       {open && onVote ? (
         <Pressable
           accessibilityRole={multiple ? "checkbox" : "radio"}
@@ -137,6 +149,12 @@ export default function PollOption({
     </View>
   );
 }
+
+// The bar's change of share, as the app's other small changes move.
+const BAR_MOTION = {
+  transitionProperty: ["transform"],
+  transitionTimingFunction: "ease-out" as const,
+};
 
 type Styles = ReturnType<typeof makeStyles>;
 
@@ -215,11 +233,14 @@ function makeStyles(theme: Theme) {
       borderStyle: "dashed",
       borderColor: theme.accent,
     },
+    // The whole width, scaled to the option's share from its left edge.
     bar: {
       position: "absolute",
       top: 0,
       bottom: 0,
       left: 0,
+      width: "100%",
+      transformOrigin: "left",
       backgroundColor: theme.raised,
     },
     barWon: {
