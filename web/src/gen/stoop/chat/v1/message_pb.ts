@@ -18,7 +18,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/message.proto.
  */
 export const file_stoop_chat_v1_message: GenFile = /*@__PURE__*/
-  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSKaAQoKQXR0YWNobWVudBIPCgdmaWxlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgwKBHNpemUYBCABKAMSDwoHZXhwaXJlZBgFIAEoCBINCgV3aWR0aBgGIAEoBRIOCgZoZWlnaHQYByABKAUSGQoRdGh1bWJuYWlsX2ZpbGVfaWQYCCABKAkigQYKB01lc3NhZ2USCgoCaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIsCgZhdXRob3IYAyABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHY29udGVudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBtZW50aW9uX3VzZXJfaWRzGAYgAygJEhAKCHNwYWNlX2lkGAcgASgJEh8KF21lbnRpb25zX2VudGlyZV9jaGFubmVsGAggASgIEikKCHJlcGx5X3RvGAkgASgLMhcuc3Rvb3AuY2hhdC52MS5SZXBseVJlZhIVCg1tZW50aW9uc19oZXJlGAogASgIEi0KCWVkaXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoJcmVhY3Rpb25zGAwgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbhIuCgthdHRhY2htZW50cxgNIAMoCzIZLnN0b29wLmNoYXQudjEuQXR0YWNobWVudBIxCg1saW5rX3ByZXZpZXdzGA4gAygLMhouc3Rvb3AuY2hhdC52MS5MaW5rUHJldmlldxIOCgZwaW5uZWQYDyABKAgSFgoOdGhyZWFkX3Jvb3RfaWQYECABKAkSLAoGdGhyZWFkGBEgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5Eg8KB2RlbGV0ZWQYEiABKAgSEgoKaW5fY2hhbm5lbBgTIAEoCBIsCgt0aHJlYWRfcm9vdBgUIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSCwoDc2VxGBUgASgDEikKBWV2ZW50GBYgASgLMhouc3Rvb3AuY2hhdC52MS5TeXN0ZW1FdmVudBINCgVxdWlldBgXIAEoCBIqCglyZWZlcmVuY2UYGCABKAsyFy5zdG9vcC5jaGF0LnYxLlJlcGx5UmVmItYCCgtTeXN0ZW1FdmVudBI0Cg1tZW1iZXJzX2FkZGVkGAEgASgLMhsuc3Rvb3AuY2hhdC52MS5NZW1iZXJzQWRkZWRIABIwCgttZW1iZXJfbGVmdBgCIAEoCzIZLnN0b29wLmNoYXQudjEuTWVtYmVyTGVmdEgAEjgKD2NoYW5uZWxfcmVuYW1lZBgDIAEoCzIdLnN0b29wLmNoYXQudjEuQ2hhbm5lbFJlbmFtZWRIABI0Cg10b3BpY19jaGFuZ2VkGAQgASgLMhsuc3Rvb3AuY2hhdC52MS5Ub3BpY0NoYW5nZWRIABImCgNwaW4YBSABKAsyFy5zdG9vcC5jaGF0LnYxLlBpbkV2ZW50SAASPwoTcG9zdF9wb2xpY3lfY2hhbmdlZBgGIAEoCzIgLnN0b29wLmNoYXQudjEuUG9zdFBvbGljeUNoYW5nZWRIAEIGCgRraW5kIj0KDE1lbWJlcnNBZGRlZBItCgdtZW1iZXJzGAEgAygLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yIgwKCk1lbWJlckxlZnQiNAoOQ2hhbm5lbFJlbmFtZWQSEAoIb2xkX25hbWUYASABKAkSEAoIbmV3X25hbWUYAiABKAkiHQoMVG9waWNDaGFuZ2VkEg0KBXRvcGljGAEgASgJIgoKCFBpbkV2ZW50IkoKEVBvc3RQb2xpY3lDaGFuZ2VkEjUKC3Bvc3RfcG9saWN5GAEgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeSLJAQoNVGhyZWFkU3VtbWFyeRITCgtyZXBseV9jb3VudBgBIAEoBRIxCg1sYXN0X3JlcGx5X2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0Cg5yZWNlbnRfYXV0aG9ycxgDIAMoCzIcLnN0b29wLmNoYXQudjEuTWVzc2FnZUF1dGhvchIVCg1wYXJ0aWNpcGF0aW5nGAQgASgIEg0KBW11dGVkGAUgASgIEhQKDHVucmVhZF9jb3VudBgGIAEoBSKTAQoLTGlua1ByZXZpZXcSCwoDdXJsGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhEKCXNpdGVfbmFtZRgEIAEoCRIVCg1pbWFnZV9maWxlX2lkGAUgASgJEhMKC2ltYWdlX3dpZHRoGAYgASgFEhQKDGltYWdlX2hlaWdodBgHIAEoBUKrAQoRY29tLnN0b29wLmNoYXQudjFCDE1lc3NhZ2VQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_channel, file_stoop_chat_v1_reaction]);
+  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSKaAQoKQXR0YWNobWVudBIPCgdmaWxlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgwKBHNpemUYBCABKAMSDwoHZXhwaXJlZBgFIAEoCBINCgV3aWR0aBgGIAEoBRIOCgZoZWlnaHQYByABKAUSGQoRdGh1bWJuYWlsX2ZpbGVfaWQYCCABKAkigQYKB01lc3NhZ2USCgoCaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIsCgZhdXRob3IYAyABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHY29udGVudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBtZW50aW9uX3VzZXJfaWRzGAYgAygJEhAKCHNwYWNlX2lkGAcgASgJEh8KF21lbnRpb25zX2VudGlyZV9jaGFubmVsGAggASgIEikKCHJlcGx5X3RvGAkgASgLMhcuc3Rvb3AuY2hhdC52MS5SZXBseVJlZhIVCg1tZW50aW9uc19oZXJlGAogASgIEi0KCWVkaXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoJcmVhY3Rpb25zGAwgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbhIuCgthdHRhY2htZW50cxgNIAMoCzIZLnN0b29wLmNoYXQudjEuQXR0YWNobWVudBIxCg1saW5rX3ByZXZpZXdzGA4gAygLMhouc3Rvb3AuY2hhdC52MS5MaW5rUHJldmlldxIOCgZwaW5uZWQYDyABKAgSFgoOdGhyZWFkX3Jvb3RfaWQYECABKAkSLAoGdGhyZWFkGBEgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5Eg8KB2RlbGV0ZWQYEiABKAgSEgoKaW5fY2hhbm5lbBgTIAEoCBIsCgt0aHJlYWRfcm9vdBgUIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSCwoDc2VxGBUgASgDEikKBWV2ZW50GBYgASgLMhouc3Rvb3AuY2hhdC52MS5TeXN0ZW1FdmVudBINCgVxdWlldBgXIAEoCBIqCglyZWZlcmVuY2UYGCABKAsyFy5zdG9vcC5jaGF0LnYxLlJlcGx5UmVmIq0DCgtTeXN0ZW1FdmVudBI0Cg1tZW1iZXJzX2FkZGVkGAEgASgLMhsuc3Rvb3AuY2hhdC52MS5NZW1iZXJzQWRkZWRIABIwCgttZW1iZXJfbGVmdBgCIAEoCzIZLnN0b29wLmNoYXQudjEuTWVtYmVyTGVmdEgAEjgKD2NoYW5uZWxfcmVuYW1lZBgDIAEoCzIdLnN0b29wLmNoYXQudjEuQ2hhbm5lbFJlbmFtZWRIABI0Cg10b3BpY19jaGFuZ2VkGAQgASgLMhsuc3Rvb3AuY2hhdC52MS5Ub3BpY0NoYW5nZWRIABImCgNwaW4YBSABKAsyFy5zdG9vcC5jaGF0LnYxLlBpbkV2ZW50SAASPwoTcG9zdF9wb2xpY3lfY2hhbmdlZBgGIAEoCzIgLnN0b29wLmNoYXQudjEuUG9zdFBvbGljeUNoYW5nZWRIABIjCgRwb2xsGAcgASgLMhMuc3Rvb3AuY2hhdC52MS5Qb2xsSAASMAoLcG9sbF9jbG9zZWQYCCABKAsyGS5zdG9vcC5jaGF0LnYxLlBvbGxDbG9zZWRIAEIGCgRraW5kIj0KDE1lbWJlcnNBZGRlZBItCgdtZW1iZXJzGAEgAygLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yIgwKCk1lbWJlckxlZnQiNAoOQ2hhbm5lbFJlbmFtZWQSEAoIb2xkX25hbWUYASABKAkSEAoIbmV3X25hbWUYAiABKAkiHQoMVG9waWNDaGFuZ2VkEg0KBXRvcGljGAEgASgJIgoKCFBpbkV2ZW50IkoKEVBvc3RQb2xpY3lDaGFuZ2VkEjUKC3Bvc3RfcG9saWN5GAEgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeSLLAQoEUG9sbBIQCghxdWVzdGlvbhgBIAEoCRIqCgdvcHRpb25zGAIgAygLMhkuc3Rvb3AuY2hhdC52MS5Qb2xsT3B0aW9uEhAKCG11bHRpcGxlGAMgASgIEi0KCWNsb3NlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoJY2xvc2VkX2J5GAUgASgLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEhMKC3ZvdGVyX2NvdW50GAYgASgFIlQKClBvbGxPcHRpb24SCgoCaWQYASABKAUSDAoEdGV4dBgCIAEoCRIsCgZ2b3RlcnMYAyADKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3IiXwoKUG9sbENsb3NlZBIQCghxdWVzdGlvbhgBIAEoCRIqCgd3aW5uZXJzGAIgAygLMhkuc3Rvb3AuY2hhdC52MS5Qb2xsV2lubmVyEhMKC3ZvdGVyX2NvdW50GAMgASgFIikKClBvbGxXaW5uZXISDAoEdGV4dBgBIAEoCRINCgV2b3RlcxgCIAEoBSLJAQoNVGhyZWFkU3VtbWFyeRITCgtyZXBseV9jb3VudBgBIAEoBRIxCg1sYXN0X3JlcGx5X2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0Cg5yZWNlbnRfYXV0aG9ycxgDIAMoCzIcLnN0b29wLmNoYXQudjEuTWVzc2FnZUF1dGhvchIVCg1wYXJ0aWNpcGF0aW5nGAQgASgIEg0KBW11dGVkGAUgASgIEhQKDHVucmVhZF9jb3VudBgGIAEoBSKTAQoLTGlua1ByZXZpZXcSCwoDdXJsGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhEKCXNpdGVfbmFtZRgEIAEoCRIVCg1pbWFnZV9maWxlX2lkGAUgASgJEhMKC2ltYWdlX3dpZHRoGAYgASgFEhQKDGltYWdlX2hlaWdodBgHIAEoBUKrAQoRY29tLnN0b29wLmNoYXQudjFCDE1lc3NhZ2VQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_channel, file_stoop_chat_v1_reaction]);
 
 /**
  * MessageAuthor is a denormalized snapshot of the author, resolved by the
@@ -76,7 +76,9 @@ export const MessageAuthorSchema: GenMessage<MessageAuthor> = /*@__PURE__*/
 /**
  * ReplyRef is a snapshot of the message being replied to, enough to render
  * a quote; the original may have been deleted since (then only
- * message_id is set).
+ * message_id is set). As Message.reference it is the message a system
+ * message is about, whose preview reads "Poll: " and the question when
+ * that message is a poll.
  *
  * @generated from message stoop.chat.v1.ReplyRef
  */
@@ -200,6 +202,7 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
    * Markdown, with mentions as tokens: <@u:ID:handle> for a person,
    * <@g:ID:handle> for a group. The handle is the one current when the
    * message was saved. See docs/architecture/integrations.md → Mentions.
+   * On a poll and on its closing row, the poll's question as plain text.
    *
    * @generated from field: string content = 4;
    */
@@ -342,8 +345,9 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
 
   /**
    * Set only on a system message: a row that records something that
-   * happened in the channel, by author, with no text anyone wrote. All
-   * wording is the client's. A case the client does not know leaves the
+   * happened in the channel, by author. Its words are the client's, built
+   * from the event; a poll's question and options are the only text in
+   * one that a person wrote. A case the client does not know leaves the
    * oneof unset: it hides the row when quiet is set and otherwise asks
    * the reader to update.
    *
@@ -353,7 +357,8 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
 
   /**
    * The row marks nothing unread: it is left out of unread counts and is
-   * never a channel's last message. Written once, from the row's kind.
+   * never a channel's last message. Written once, from the row's kind;
+   * false on a poll and on its closing row.
    *
    * @generated from field: bool quiet = 23;
    */
@@ -421,6 +426,18 @@ export type SystemEvent = Message$1<"stoop.chat.v1.SystemEvent"> & {
      */
     value: PostPolicyChanged;
     case: "postPolicyChanged";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.Poll poll = 7;
+     */
+    value: Poll;
+    case: "poll";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.PollClosed poll_closed = 8;
+     */
+    value: PollClosed;
+    case: "pollClosed";
   } | { case: undefined; value?: undefined };
 };
 
@@ -542,6 +559,151 @@ export const PostPolicyChangedSchema: GenMessage<PostPolicyChanged> = /*@__PURE_
   messageDesc(file_stoop_chat_v1_message, 10);
 
 /**
+ * Poll: the author asked a question for the channel to vote on. The
+ * question is in Message.content as well, for search and previews. See
+ * docs/architecture/messaging.md → Polls.
+ *
+ * @generated from message stoop.chat.v1.Poll
+ */
+export type Poll = Message$1<"stoop.chat.v1.Poll"> & {
+  /**
+   * @generated from field: string question = 1;
+   */
+  question: string;
+
+  /**
+   * 2 to 10, in the order the author gave them.
+   *
+   * @generated from field: repeated stoop.chat.v1.PollOption options = 2;
+   */
+  options: PollOption[];
+
+  /**
+   * A person may choose several options; otherwise one.
+   *
+   * @generated from field: bool multiple = 3;
+   */
+  multiple: boolean;
+
+  /**
+   * Set once the poll is closed, with who closed it; unset while it
+   * takes votes.
+   *
+   * @generated from field: google.protobuf.Timestamp closed_at = 4;
+   */
+  closedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: stoop.chat.v1.MessageAuthor closed_by = 5;
+   */
+  closedBy?: MessageAuthor | undefined;
+
+  /**
+   * Distinct people who voted, however many options each chose.
+   *
+   * @generated from field: int32 voter_count = 6;
+   */
+  voterCount: number;
+};
+
+/**
+ * Describes the message stoop.chat.v1.Poll.
+ * Use `create(PollSchema)` to create a new message.
+ */
+export const PollSchema: GenMessage<Poll> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 11);
+
+/**
+ * @generated from message stoop.chat.v1.PollOption
+ */
+export type PollOption = Message$1<"stoop.chat.v1.PollOption"> & {
+  /**
+   * 1 to 10, given in order when the poll was made and never reused: what
+   * a vote names.
+   *
+   * @generated from field: int32 id = 1;
+   */
+  id: number;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+
+  /**
+   * Who chose it, in the order they voted, each as they are now. Someone
+   * who has left the channel since is still named.
+   *
+   * @generated from field: repeated stoop.chat.v1.MessageAuthor voters = 3;
+   */
+  voters: MessageAuthor[];
+};
+
+/**
+ * Describes the message stoop.chat.v1.PollOption.
+ * Use `create(PollOptionSchema)` to create a new message.
+ */
+export const PollOptionSchema: GenMessage<PollOption> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 12);
+
+/**
+ * PollClosed: the author closed the poll in Message.reference. The
+ * outcome is a snapshot taken at closing, so it never changes.
+ *
+ * @generated from message stoop.chat.v1.PollClosed
+ */
+export type PollClosed = Message$1<"stoop.chat.v1.PollClosed"> & {
+  /**
+   * @generated from field: string question = 1;
+   */
+  question: string;
+
+  /**
+   * Every option with the most votes, when that is at least one; empty
+   * when nobody voted.
+   *
+   * @generated from field: repeated stoop.chat.v1.PollWinner winners = 2;
+   */
+  winners: PollWinner[];
+
+  /**
+   * Distinct people who had voted.
+   *
+   * @generated from field: int32 voter_count = 3;
+   */
+  voterCount: number;
+};
+
+/**
+ * Describes the message stoop.chat.v1.PollClosed.
+ * Use `create(PollClosedSchema)` to create a new message.
+ */
+export const PollClosedSchema: GenMessage<PollClosed> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 13);
+
+/**
+ * @generated from message stoop.chat.v1.PollWinner
+ */
+export type PollWinner = Message$1<"stoop.chat.v1.PollWinner"> & {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text: string;
+
+  /**
+   * @generated from field: int32 votes = 2;
+   */
+  votes: number;
+};
+
+/**
+ * Describes the message stoop.chat.v1.PollWinner.
+ * Use `create(PollWinnerSchema)` to create a new message.
+ */
+export const PollWinnerSchema: GenMessage<PollWinner> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 14);
+
+/**
  * ThreadSummary is what the line under a root shows, so it renders with no
  * fetch of the thread.
  *
@@ -596,7 +758,7 @@ export type ThreadSummary = Message$1<"stoop.chat.v1.ThreadSummary"> & {
  * Use `create(ThreadSummarySchema)` to create a new message.
  */
 export const ThreadSummarySchema: GenMessage<ThreadSummary> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 11);
+  messageDesc(file_stoop_chat_v1_message, 15);
 
 /**
  * LinkPreview is the unfurled metadata of a URL in a message.
@@ -647,5 +809,5 @@ export type LinkPreview = Message$1<"stoop.chat.v1.LinkPreview"> & {
  * Use `create(LinkPreviewSchema)` to create a new message.
  */
 export const LinkPreviewSchema: GenMessage<LinkPreview> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 12);
+  messageDesc(file_stoop_chat_v1_message, 16);
 

@@ -420,7 +420,8 @@ func listedMessage(row dbgen.MessageWithReply) messageRow {
 
 // hydrateMessages turns rows into protos, in the same order, with authors,
 // mentions, reactions, attachments, link previews, reply quotes, thread
-// summaries, and a system message's people and the message it is about.
+// summaries, a system message's people and the message it is about, and
+// a poll's votes.
 func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []dbgen.MessageWithReply) ([]*chatv1.Message, error) {
 	authorIDs := make([]string, 0, len(rows))
 	seen := map[string]bool{}
@@ -443,13 +444,19 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 		if row.Kind != 0 {
 			rowEvents[index] = storedEvent(row.ID, row.Kind, row.Data)
 		}
-		if rowEvents[index] != nil {
-			for _, id := range rowEvents[index].people() {
-				addAuthor(id)
-			}
-		}
 		if row.ReferenceAuthorID != nil {
 			addAuthor(*row.ReferenceAuthorID)
+		}
+	}
+	// Before the events' people are gathered: a poll's voters are people.
+	if err := s.addPollVotes(ctx, rows, rowEvents); err != nil {
+		return nil, err
+	}
+	for _, event := range rowEvents {
+		if event != nil {
+			for _, id := range event.people() {
+				addAuthor(id)
+			}
 		}
 	}
 	roots, err := s.threadRootsOf(ctx, rows)
@@ -546,7 +553,7 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			if row.ReferenceAuthorID != nil {
 				author = authorOrUnknown(authors, *row.ReferenceAuthorID)
 			}
-			message.Reference = replyRef(*row.ReferenceMessageID, author, names.currentOf(row.ReferenceContent), replyFiles[row.ReferenceFirstFileID].label())
+			message.Reference = excerptRef(*row.ReferenceMessageID, author, referenceKind(row), names, row.ReferenceContent, replyFiles[row.ReferenceFirstFileID].label())
 		}
 		messages[index] = message
 	}
@@ -562,7 +569,7 @@ func previewedContents(rows []dbgen.MessageWithReply, roots map[string]dbgen.Thr
 		if row.ReplyContent != nil {
 			contents = append(contents, *row.ReplyContent)
 		}
-		if row.ReferenceContent != nil {
+		if row.ReferenceContent != nil && !typedAsIs(referenceKind(row)) {
 			contents = append(contents, *row.ReferenceContent)
 		}
 	}
@@ -679,11 +686,14 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 	if err != nil {
 		return nil, apierr.NotFoundOr(err, "channel")
 	}
+	mine := msg.AuthorID == authctx.UserID(ctx)
 	switch {
-	case msg.Kind != 0:
+	case !authorDeletes(msg):
 		// A system row is moderation's alone, its author's included: an
 		// admin may remove the text it carries (a topic, a channel name),
-		// and nobody may erase the record of their own action.
+		// and nobody may erase the record of their own action. A kind
+		// marked authorDeletes (a poll) is not caught here: it is deleted
+		// as a message is, by its author or a moderator.
 		// A DM has no moderator, so nobody: the same answer as for
 		// someone else's message there.
 		if isDM(channel) {
@@ -693,7 +703,7 @@ func (s *Service) DeleteMessage(ctx context.Context, req *connect.Request[chatv1
 		if err := s.requireOnMessageIn(ctx, channel, authctx.MessagesModerate); err != nil {
 			return nil, err
 		}
-	case msg.AuthorID != authctx.UserID(ctx):
+	case !mine:
 		// In a DM there is no moderator: each person deletes only their own.
 		if isDM(channel) {
 			return nil, connect.NewError(connect.CodePermissionDenied,
@@ -726,6 +736,25 @@ func replyRef(id string, author *chatv1.MessageAuthor, content *string, firstAtt
 	ref := &chatv1.ReplyRef{MessageId: id, Author: author}
 	if content != nil {
 		ref.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)
+	}
+	return ref
+}
+
+// referenceKind is the kind of the message a system row is about; 0 when
+// that message is gone.
+func referenceKind(row dbgen.MessageWithReply) int16 {
+	if row.ReferenceKind == nil {
+		return 0
+	}
+	return *row.ReferenceKind
+}
+
+// excerptRef is replyRef for the message a system row is about, which
+// may be a poll: its excerpt is worded by kind (previewOf).
+func excerptRef(id string, author *chatv1.MessageAuthor, kind int16, names mentionNames, content *string, firstAttachment string) *chatv1.ReplyRef {
+	ref := &chatv1.ReplyRef{MessageId: id, Author: author}
+	if content != nil {
+		ref.Preview = names.preview(kind, *content, firstAttachment)
 	}
 	return ref
 }

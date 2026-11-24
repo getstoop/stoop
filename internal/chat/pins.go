@@ -51,7 +51,7 @@ func (s *Service) SetMessagePinned(ctx context.Context, req *connect.Request[cha
 		return nil, placeholderError()
 	}
 	if req.Msg.Pinned {
-		if err := refuseSystemRow(msg); err != nil {
+		if err := refuseUnpinnable(msg); err != nil {
 			return nil, err
 		}
 		return s.pin(ctx, msg, channel)

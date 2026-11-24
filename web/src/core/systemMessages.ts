@@ -156,6 +156,11 @@ export function systemLine(
           ),
         ],
       };
+    // A poll and its closing row are not drawn yet: until they are, both
+    // read as a kind this client does not know. Neither is ever quiet.
+    case "poll":
+    case "pollClosed":
+      return UNKNOWN;
     case undefined:
       return message.quiet ? null : UNKNOWN;
     default:

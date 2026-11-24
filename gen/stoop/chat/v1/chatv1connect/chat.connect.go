@@ -143,6 +143,8 @@ const (
 	ChatServiceListThreadMutesProcedure = "/stoop.chat.v1.ChatService/ListThreadMutes"
 	// ChatServiceSendMessageProcedure is the fully-qualified name of the ChatService's SendMessage RPC.
 	ChatServiceSendMessageProcedure = "/stoop.chat.v1.ChatService/SendMessage"
+	// ChatServiceCreatePollProcedure is the fully-qualified name of the ChatService's CreatePoll RPC.
+	ChatServiceCreatePollProcedure = "/stoop.chat.v1.ChatService/CreatePoll"
 	// ChatServiceListMessagesProcedure is the fully-qualified name of the ChatService's ListMessages
 	// RPC.
 	ChatServiceListMessagesProcedure = "/stoop.chat.v1.ChatService/ListMessages"
@@ -324,6 +326,11 @@ type ChatServiceClient interface {
 	// first, in channels they can still read.
 	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
+	// CreatePoll posts a poll: a question with 2 to 10 options that the
+	// channel votes on. Whoever may send a message here may; it marks the
+	// channel unread as a message does. See docs/architecture/messaging.md
+	// → Polls.
+	CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// ListChanges catches a channel up from a log position: every row with
 	// a higher seq, tombstones and thread replies included. Same access as
@@ -671,6 +678,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("SendMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		createPoll: connect.NewClient[v1.CreatePollRequest, v1.CreatePollResponse](
+			httpClient,
+			baseURL+ChatServiceCreatePollProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("CreatePoll")),
+			connect.WithClientOptions(opts...),
+		),
 		listMessages: connect.NewClient[v1.ListMessagesRequest, v1.ListMessagesResponse](
 			httpClient,
 			baseURL+ChatServiceListMessagesProcedure,
@@ -828,6 +841,7 @@ type chatServiceClient struct {
 	setThreadMuted              *connect.Client[v1.SetThreadMutedRequest, v1.SetThreadMutedResponse]
 	listThreadMutes             *connect.Client[v1.ListThreadMutesRequest, v1.ListThreadMutesResponse]
 	sendMessage                 *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
+	createPoll                  *connect.Client[v1.CreatePollRequest, v1.CreatePollResponse]
 	listMessages                *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	listChanges                 *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
 	searchMessages              *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
@@ -1068,6 +1082,11 @@ func (c *chatServiceClient) SendMessage(ctx context.Context, req *connect.Reques
 	return c.sendMessage.CallUnary(ctx, req)
 }
 
+// CreatePoll calls stoop.chat.v1.ChatService.CreatePoll.
+func (c *chatServiceClient) CreatePoll(ctx context.Context, req *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error) {
+	return c.createPoll.CallUnary(ctx, req)
+}
+
 // ListMessages calls stoop.chat.v1.ChatService.ListMessages.
 func (c *chatServiceClient) ListMessages(ctx context.Context, req *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return c.listMessages.CallUnary(ctx, req)
@@ -1285,6 +1304,11 @@ type ChatServiceHandler interface {
 	// first, in channels they can still read.
 	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
+	// CreatePoll posts a poll: a question with 2 to 10 options that the
+	// channel votes on. Whoever may send a message here may; it marks the
+	// channel unread as a message does. See docs/architecture/messaging.md
+	// → Polls.
+	CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// ListChanges catches a channel up from a log position: every row with
 	// a higher seq, tombstones and thread replies included. Same access as
@@ -1628,6 +1652,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("SendMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceCreatePollHandler := connect.NewUnaryHandler(
+		ChatServiceCreatePollProcedure,
+		svc.CreatePoll,
+		connect.WithSchema(chatServiceMethods.ByName("CreatePoll")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceListMessagesHandler := connect.NewUnaryHandler(
 		ChatServiceListMessagesProcedure,
 		svc.ListMessages,
@@ -1826,6 +1856,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceListThreadMutesHandler.ServeHTTP(w, r)
 		case ChatServiceSendMessageProcedure:
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
+		case ChatServiceCreatePollProcedure:
+			chatServiceCreatePollHandler.ServeHTTP(w, r)
 		case ChatServiceListMessagesProcedure:
 			chatServiceListMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceListChangesProcedure:
@@ -2045,6 +2077,10 @@ func (UnimplementedChatServiceHandler) ListThreadMutes(context.Context, *connect
 
 func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.SendMessage is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.CreatePoll is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {

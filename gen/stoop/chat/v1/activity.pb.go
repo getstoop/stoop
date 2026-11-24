@@ -94,7 +94,8 @@ type ActivityItem struct {
 	MessageId string `protobuf:"bytes,5,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	// Who did it, resolved through the user-directory port.
 	Actor *MessageAuthor `protobuf:"bytes,6,opt,name=actor,proto3" json:"actor,omitempty"`
-	// A short excerpt of the message (empty if it was deleted).
+	// A short excerpt of the message (empty if it was deleted). A poll
+	// reads "Poll: " and its question, its closing row "Poll closed: ".
 	Preview   string                 `protobuf:"bytes,7,opt,name=preview,proto3" json:"preview,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Set once read.

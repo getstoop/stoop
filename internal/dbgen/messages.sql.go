@@ -116,8 +116,8 @@ func (q *Queries) CreateMessage(ctx context.Context, arg CreateMessageParams) (C
 
 const createSystemMessage = `-- name: CreateSystemMessage :one
 INSERT INTO messages (id, channel_id, author_id, content, in_channel, seq, kind, data, quiet, reference_message_id)
-VALUES ($1, $2, $3, '', true, $4::bigint,
-    $5, $6, $7, $8)
+VALUES ($1, $2, $3, $4, true, $5::bigint,
+    $6, $7, $8, $9)
 RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id
 `
 
@@ -125,6 +125,7 @@ type CreateSystemMessageParams struct {
 	ID                 string
 	ChannelID          string
 	AuthorID           string
+	Content            string
 	Seq                int64
 	Kind               int16
 	Data               []byte
@@ -153,13 +154,15 @@ type CreateSystemMessageRow struct {
 }
 
 // CreateSystemMessage inserts a row that records an event in a channel
-// (internal/chat/system_messages.go): top-level, no text, and never a
-// reply. data is the kind's JSON, '{}' when it carries nothing.
+// (internal/chat/system_messages.go): top-level and never a reply. data
+// is the kind's JSON, '{}' when it carries nothing. content is ” but
+// for a poll and its closing row, which keep the question there.
 func (q *Queries) CreateSystemMessage(ctx context.Context, arg CreateSystemMessageParams) (CreateSystemMessageRow, error) {
 	row := q.db.QueryRow(ctx, createSystemMessage,
 		arg.ID,
 		arg.ChannelID,
 		arg.AuthorID,
+		arg.Content,
 		arg.Seq,
 		arg.Kind,
 		arg.Data,
@@ -262,7 +265,7 @@ func (q *Queries) GetMessage(ctx context.Context, id string) (GetMessageRow, err
 }
 
 const getMessageWithReply = `-- name: GetMessageWithReply :one
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id, reference_kind FROM message_with_reply m
 WHERE m.id = $1
 `
 
@@ -298,6 +301,7 @@ func (q *Queries) GetMessageWithReply(ctx context.Context, id string) (MessageWi
 		&i.ReferenceAuthorID,
 		&i.ReferenceContent,
 		&i.ReferenceFirstFileID,
+		&i.ReferenceKind,
 	)
 	return i, err
 }
@@ -420,7 +424,7 @@ func (q *Queries) ListMentionsForMessages(ctx context.Context, dollar_1 []string
 }
 
 const listMessageChanges = `-- name: ListMessageChanges :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id, reference_kind FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.seq > $2::bigint
 ORDER BY m.seq
@@ -473,6 +477,7 @@ func (q *Queries) ListMessageChanges(ctx context.Context, arg ListMessageChanges
 			&i.ReferenceAuthorID,
 			&i.ReferenceContent,
 			&i.ReferenceFirstFileID,
+			&i.ReferenceKind,
 		); err != nil {
 			return nil, err
 		}
@@ -485,7 +490,7 @@ func (q *Queries) ListMessageChanges(ctx context.Context, arg ListMessageChanges
 }
 
 const listMessagesAfter = `-- name: ListMessagesAfter :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id, reference_kind FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
   AND (m.deleted_at IS NULL OR m.thread_reply_count > 0)
@@ -544,6 +549,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 			&i.ReferenceAuthorID,
 			&i.ReferenceContent,
 			&i.ReferenceFirstFileID,
+			&i.ReferenceKind,
 		); err != nil {
 			return nil, err
 		}
@@ -556,7 +562,7 @@ func (q *Queries) ListMessagesAfter(ctx context.Context, arg ListMessagesAfterPa
 }
 
 const listMessagesBefore = `-- name: ListMessagesBefore :many
-SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id FROM message_with_reply m
+SELECT id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, reply_author_id, reply_content, reply_first_file_id, thread_root_id, in_channel, deleted_at, thread_reply_count, thread_last_reply_at, thread_recent_author_ids, seq, kind, data, quiet, reference_message_id, reference_author_id, reference_content, reference_first_file_id, reference_kind FROM message_with_reply m
 WHERE m.channel_id = $1
   AND m.in_channel
   AND (m.deleted_at IS NULL OR m.thread_reply_count > 0)
@@ -612,6 +618,7 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 			&i.ReferenceAuthorID,
 			&i.ReferenceContent,
 			&i.ReferenceFirstFileID,
+			&i.ReferenceKind,
 		); err != nil {
 			return nil, err
 		}
@@ -685,6 +692,7 @@ const tombstoneMessage = `-- name: TombstoneMessage :execrows
 WITH attachments AS (DELETE FROM message_attachments WHERE message_id = $1::uuid),
 links AS (DELETE FROM message_links WHERE message_id = $1::uuid),
 reactions AS (DELETE FROM message_reactions WHERE message_id = $1::uuid),
+votes AS (DELETE FROM poll_votes WHERE message_id = $1::uuid),
 mentions AS (DELETE FROM message_mentions WHERE message_id = $1::uuid),
 pins AS (DELETE FROM channel_pins WHERE message_id = $1::uuid),
 activity AS (DELETE FROM activity_items WHERE message_id = $1::uuid)
@@ -701,9 +709,9 @@ WHERE id = $1::uuid AND deleted_at IS NULL
 // in_channel stay. A system row keeps its kind, so it still reads as one,
 // but not its event: data becomes '{}' (the messages_kind_has_data check
 // wants it non-null) and the reference goes, since the text a row carries
-// (a topic, a channel name) is usually why it was deleted. No row means it
-// was a tombstone already. Its files are deleted through the port
-// afterwards.
+// (a topic, a channel name) is usually why it was deleted. A poll's votes
+// go as its reactions would. No row means it was a tombstone already. Its
+// files are deleted through the port afterwards.
 func (q *Queries) TombstoneMessage(ctx context.Context, id string) (int64, error) {
 	result, err := q.db.Exec(ctx, tombstoneMessage, id)
 	if err != nil {

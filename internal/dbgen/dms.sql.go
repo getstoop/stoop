@@ -186,7 +186,7 @@ func (q *Queries) ListDMChannelsByUser(ctx context.Context, userID string) ([]Li
 }
 
 const listDMLastMessages = `-- name: ListDMLastMessages :many
-SELECT m.id, m.channel_id, m.author_id, m.content, m.created_at,
+SELECT m.id, m.channel_id, m.author_id, m.content, m.kind, m.created_at,
     (m.deleted_at IS NOT NULL)::bool AS deleted,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS first_file_id
 FROM messages m
@@ -205,6 +205,7 @@ type ListDMLastMessagesRow struct {
 	ChannelID   string
 	AuthorID    string
 	Content     string
+	Kind        int16
 	CreatedAt   time.Time
 	Deleted     bool
 	FirstFileID string
@@ -213,7 +214,8 @@ type ListDMLastMessagesRow struct {
 // ListDMLastMessages is the newest message of each conversation, by the
 // ids its channel row points at (last_message_id, which
 // RecomputeChannelLastMessage keeps on something that shows), for the
-// list's preview line. Only messages in the user's own conversations:
+// list's preview line, with its kind, which words a poll's. Only
+// messages in the user's own conversations:
 // an id from anywhere else finds nothing. A tombstone counts only while
 // it holds a thread, as in RecomputeChannelLastMessage, so a delete that
 // lands between reading the channels and this finds nothing rather than
@@ -232,6 +234,7 @@ func (q *Queries) ListDMLastMessages(ctx context.Context, arg ListDMLastMessages
 			&i.ChannelID,
 			&i.AuthorID,
 			&i.Content,
+			&i.Kind,
 			&i.CreatedAt,
 			&i.Deleted,
 			&i.FirstFileID,

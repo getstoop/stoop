@@ -19,6 +19,7 @@ import (
 // messages row whose kind is above 0 records something that happened in
 // its channel. author_id is who did it, data holds the kind's own values
 // as JSON, and the clients write every word from the event on the wire.
+// A poll and its closing row are system messages too (polls.go).
 
 // The messages.kind values. 0 is a message someone wrote; a stored number
 // never changes meaning.
@@ -29,6 +30,8 @@ const (
 	kindTopicChanged      int16 = 4
 	kindMessagePinned     int16 = 5
 	kindPostPolicyChanged int16 = 6
+	kindPoll              int16 = 7
+	kindPollClosed        int16 = 8
 )
 
 // systemKind is what the server knows about one kind.
@@ -36,6 +39,10 @@ type systemKind struct {
 	// quiet: the row marks nothing unread. Stored on the row at insert, so
 	// a row keeps the behaviour it was written with.
 	quiet bool
+	// pinnable: the row can be pinned, as a message someone wrote can.
+	pinnable bool
+	// authorDeletes: the row's author may delete it, as their own message.
+	authorDeletes bool
 	// decode reads a row's data back into the kind's event.
 	decode func(data []byte) (systemEvent, error)
 }
@@ -49,6 +56,8 @@ var systemKinds = map[int16]systemKind{
 	kindTopicChanged:      {quiet: true, decode: decodeEvent[topicChanged]},
 	kindMessagePinned:     {quiet: true, decode: decodeEvent[messagePinned]},
 	kindPostPolicyChanged: {quiet: true, decode: decodeEvent[postPolicyChanged]},
+	kindPoll:              {pinnable: true, authorDeletes: true, decode: decodeEvent[pollCreated]},
+	kindPollClosed:        {decode: decodeEvent[pollClosed]},
 }
 
 // systemEvent is one kind's event. Its JSON form is the row's data.
@@ -61,6 +70,9 @@ type systemEvent interface {
 	// referenceID is the message the event is about; "" when none. It is
 	// stored on the row, so an event read back does not carry it.
 	referenceID() string
+	// content is the row's content: "" but for a kind that keeps text
+	// there for search and previews.
+	content() string
 	// proto is the event as a client reads it, its people from authors.
 	proto(authors map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent
 }
@@ -73,13 +85,14 @@ func decodeEvent[Event systemEvent](data []byte) (systemEvent, error) {
 	return event, nil
 }
 
-// bareEvent is embedded by every event: nothing to check, no people and
-// no message, unless the event says otherwise.
+// bareEvent is embedded by every event: nothing to check, no people, no
+// message and no content, unless the event says otherwise.
 type bareEvent struct{}
 
 func (bareEvent) check() error        { return nil }
 func (bareEvent) people() []string    { return nil }
 func (bareEvent) referenceID() string { return "" }
+func (bareEvent) content() string     { return "" }
 
 // membersAdded: the author added these people to a private channel.
 type membersAdded struct {
@@ -194,7 +207,8 @@ func (event postPolicyChanged) proto(map[string]*chatv1.MessageAuthor) *chatv1.S
 //     toProtoMessage alone fills neither.
 //
 // It marks nothing read, records no activity and writes no mentions, and
-// the channel's post policy does not apply. A quiet row leaves the
+// the channel's post policy does not apply: a caller whose row is not
+// quiet does what of those it needs (CreatePoll). A quiet row leaves the
 // channel's last message alone. An event about a message is refused
 // unless that message is shown in this channel.
 func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel, actorID string, event systemEvent) (messageRow, error) {
@@ -228,7 +242,7 @@ func recordEvent(ctx context.Context, qtx *dbgen.Queries, channel dbgen.Channel,
 		return messageRow{}, fmt.Errorf("next channel seq: %w", err)
 	}
 	created, err := qtx.CreateSystemMessage(ctx, dbgen.CreateSystemMessageParams{
-		ID: rowid.New(), ChannelID: channel.ID, AuthorID: actorID, Seq: seq,
+		ID: rowid.New(), ChannelID: channel.ID, AuthorID: actorID, Content: event.content(), Seq: seq,
 		Kind: event.kind(), Data: data, Quiet: registered.quiet, ReferenceMessageID: reference,
 	})
 	if err != nil {
@@ -249,17 +263,33 @@ var errSystemMessage = errors.New("that message records something that happened 
 
 // refuseSystemRow is the one check for everything that assumes a message
 // is something a person wrote: editing it, reacting to it, threading
-// under it, quoting or replying to it, pinning it, dismissing its
-// previews. It is on the kind, not on a list of kinds, so a new kind is
-// refused all of them without anyone adding it anywhere. It answers as a
-// placeholder is refused, FailedPrecondition. Deleting one is allowed,
-// under its own rule (DeleteMessage). docs/architecture/messaging.md →
-// System messages.
+// under it, quoting or replying to it, dismissing its previews. It is on
+// the kind, not on a list of kinds, so a new kind is refused all of them
+// without anyone adding it anywhere. It answers as a placeholder is
+// refused, FailedPrecondition. Pinning and deleting one go by the kind's
+// own flags (refuseUnpinnable, authorDeletes).
+// docs/architecture/messaging.md → System messages.
 func refuseSystemRow(row messageRow) error {
 	if row.Kind != 0 {
 		return connect.NewError(connect.CodeFailedPrecondition, errSystemMessage)
 	}
 	return nil
+}
+
+// refuseUnpinnable refuses a pin of a system row whose kind is not
+// marked pinnable, as refuseSystemRow would.
+func refuseUnpinnable(row messageRow) error {
+	if row.Kind != 0 && !systemKinds[row.Kind].pinnable {
+		return connect.NewError(connect.CodeFailedPrecondition, errSystemMessage)
+	}
+	return nil
+}
+
+// authorDeletes says a row is its author's to delete: a message someone
+// wrote, or a system row of a kind marked so. Any other system row is
+// moderation's alone.
+func authorDeletes(row messageRow) bool {
+	return row.Kind == 0 || systemKinds[row.Kind].authorDeletes
 }
 
 // storedEvent is the event a row holds: nil for a message someone wrote,
