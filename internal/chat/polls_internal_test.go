@@ -223,8 +223,13 @@ func TestCreatePollAtItsLimits(t *testing.T) {
 			t.Errorf("option %d = %d %q, want id %d and %q", index, option.Id, option.Text, index+1, options[index])
 		}
 	}
-	// Options that differ by more than case are two options.
-	fixture.poll(fixture.ada, &chatv1.CreatePollRequest{Question: "Again?", Options: []string{"Yes", "Yes!"}})
+	// Options that differ by more than case are two options, and a joiner
+	// inside an emoji is kept as typed.
+	const family = "\U0001F468\u200d\U0001F469\u200d\U0001F467"
+	again := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{Question: "Again?", Options: []string{"Yes", "Yes!", family}})
+	if got := again.Event.GetPoll().GetOptions()[2].GetText(); got != family {
+		t.Errorf("an emoji option = %q, want it as typed", got)
+	}
 }
 
 // Each rule refuses on its own, and a refused request stores nothing.
@@ -241,6 +246,20 @@ func TestCreatePollValidation(t *testing.T) {
 		"a NUL in the question":      {Question: "Fri\x00day?", Options: yesNo},
 		"a line break in a question": {Question: "Friday\nor Saturday?", Options: yesNo},
 		"a return in a question":     {Question: "Friday\ror Saturday?", Options: yesNo},
+		"a tab in a question":        {Question: "Friday\tor Saturday?", Options: yesNo},
+		"a next-line in a question":  {Question: "Friday\u0085or Saturday?", Options: yesNo},
+		"a line separator":           {Question: "Friday\u2028or Saturday?", Options: yesNo},
+		"a paragraph separator":      {Question: "Friday\u2029or Saturday?", Options: yesNo},
+		"a C1 control":               {Question: "Friday\u009b?", Options: yesNo},
+		"an escape in an option":     {Question: "Friday?", Options: []string{"Yes", "N\x1bo"}},
+		"a direction override":       {Question: "Friday\u202e?", Options: yesNo},
+		"a direction isolate":        {Question: "Friday?", Options: []string{"Yes", "\u2066No\u2069"}},
+		"an invisible question":      {Question: "\u200b\u2060\ufeff", Options: yesNo},
+		"an invisible option":        {Question: "Friday?", Options: []string{"Yes", "No", "\u200b"}},
+		"an option of marks alone":   {Question: "Friday?", Options: []string{"Yes", "No", "\u200d\u0301"}},
+		"options apart by a joiner":  {Question: "Friday?", Options: []string{"Yes", "No", "Y\u200bes"}},
+		"options apart by a mark":    {Question: "Friday?", Options: []string{"Yes", "No", "\ufeffNO"}},
+		"options apart by form":      {Question: "Friday?", Options: []string{"Caf\u00e9", "No", "CAFE\u0301"}},
 		"no options":                 {Question: "Friday?"},
 		"one option":                 {Question: "Friday?", Options: []string{"Yes"}},
 		"one option and blanks":      {Question: "Friday?", Options: []string{"Yes", "", "  "}},
@@ -733,5 +752,112 @@ func TestPollRowsRefuseWhatAPersonWrote(t *testing.T) {
 		if message.Content == "in a thread" || message.Content == "quoting" {
 			t.Errorf("a refused send was stored: %v", message)
 		}
+	}
+}
+
+// Validation runs before the caller's access is known, so a flood of
+// options is refused at the first one past the limit, with none of the
+// rest read or compared.
+func TestCreatePollRefusesAFloodOfOptions(t *testing.T) {
+	flood := make([]string, 200_000)
+	for index := range flood {
+		flood[index] = fmt.Sprint("option ", index)
+	}
+	// Past the limit only: a refusal for any of these would mean it was read.
+	for index := maxPollOptions + 1; index < len(flood); index += 1000 {
+		flood[index] = "line\nbreak"
+	}
+	flood[maxPollOptions+1] = flood[0]
+	started := time.Now()
+	_, err := newPoll("Friday?", flood, false)
+	if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "2 to 10 options") {
+		t.Errorf("err = %v, want the option count refusal", err)
+	}
+	if took := time.Since(started); took > 100*time.Millisecond {
+		t.Errorf("refusing %d options took %v", len(flood), took)
+	}
+	// Blank options are dropped, however many: they are not options.
+	blanks := append(make([]string, 50_000), yesNo...)
+	if poll, err := newPoll("Friday?", blanks, false); err != nil || len(poll.Options) != 2 {
+		t.Errorf("a poll among blanks = %v, %v; want its two options", poll.Options, err)
+	}
+}
+
+// A poll is refused wherever its author's message would be: outside a
+// private channel, outside a conversation, and in a direct message with
+// a block in it.
+func TestCreatePollWhereAMessageIsRefused(t *testing.T) {
+	fixture := newSystemRows(t)
+	create := func(author context.Context, channelID string) error {
+		_, err := fixture.svc.CreatePoll(author, connect.NewRequest(&chatv1.CreatePollRequest{
+			ChannelId: channelID, Question: "Friday?", Options: yesNo,
+		}))
+		return err
+	}
+	send := func(author context.Context, channelID string) error {
+		_, err := fixture.svc.SendMessage(author, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: channelID, Content: "Friday?"}))
+		return err
+	}
+	private, err := fixture.svc.CreateChannel(fixture.ada, connect.NewRequest(&chatv1.CreateChannelRequest{
+		SpaceId: fixture.spaceID, Name: "back-room", Private: true,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair := fixture.conversation(fixture.ada, fixture.bea)
+	blocked := fixture.conversation(fixture.ada, fixture.cat)
+	if _, err := fixture.svc.BlockUser(fixture.cat, connect.NewRequest(&chatv1.BlockUserRequest{UserId: authctx.UserID(fixture.ada)})); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name      string
+		author    context.Context
+		channelID string
+		want      connect.Code
+	}{
+		{"a member outside a private channel", fixture.bea, private.Msg.Channel.Id, connect.CodeNotFound},
+		{"someone outside a conversation", fixture.cat, pair.ID, connect.CodePermissionDenied},
+		{"the blocked person in a direct message", fixture.ada, blocked.ID, connect.CodePermissionDenied},
+		{"the blocker in a direct message", fixture.cat, blocked.ID, connect.CodePermissionDenied},
+	}
+	for _, refused := range cases {
+		err := create(refused.author, refused.channelID)
+		if connect.CodeOf(err) != refused.want {
+			t.Errorf("%s: err = %v, want %v", refused.name, err, refused.want)
+		}
+		// The same answer a message gets there.
+		if sent := send(refused.author, refused.channelID); connect.CodeOf(sent) != connect.CodeOf(err) {
+			t.Errorf("%s: a poll answers %v where a message answers %v", refused.name, err, sent)
+		}
+	}
+	if err := create(fixture.ada, private.Msg.Channel.Id); err != nil {
+		t.Errorf("someone in the private channel: %v", err)
+	}
+	var polls int
+	if err := fixture.pool.QueryRow(context.Background(), `SELECT count(*) FROM messages WHERE kind = $1`, kindPoll).Scan(&polls); err != nil {
+		t.Fatal(err)
+	}
+	if polls != 1 {
+		t.Errorf("%d polls stored, want the one allowed", polls)
+	}
+}
+
+// A long question is cut to the preview length with its wording first,
+// as any preview is.
+func TestLongPollQuestionIsCutInPreviews(t *testing.T) {
+	fixture := newSystemRows(t)
+	conversation := fixture.conversation(fixture.ada, fixture.bea)
+	question := strings.Repeat("é", maxPollQuestionLen)
+	poll := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{ChannelId: conversation.ID, Question: question, Options: yesNo})
+	want := "Poll: " + strings.Repeat("é", previewLen-len("Poll: ")-1) + "…"
+	if got := fixture.listedConversation(fixture.bea, conversation.ID).LastMessage.GetPreview(); got != want {
+		t.Errorf("the conversation's preview = %q, want %q", got, want)
+	}
+	if items := fixture.activity(fixture.bea); len(items) != 1 || items[0].Preview != want {
+		t.Errorf("activity = %v, want it previewed %q", items, want)
+	}
+	// The poll itself keeps the whole question.
+	if got := fixture.load(poll.Id).Event.GetPoll().GetQuestion(); got != question {
+		t.Errorf("the poll's question was cut to %d characters", len([]rune(got)))
 	}
 }

@@ -1055,9 +1055,12 @@ someone wrote and they are not quiet.
   so a pin event decoded from a row does not carry it.
 - **On the wire.** `Message.event` is a `SystemEvent`, a `oneof` with a
   case per kind; `Message.quiet` is the flag; `Message.reference` is a
-  `ReplyRef`, the type a reply's quote uses. The server sends no text:
-  every word is the client's, built from `event` (a poll's question and
-  options are in its event as they were typed). People in an event are
+  `ReplyRef`, the type a reply's quote uses. The server sends no wording
+  for the row: every word a client draws in it is the client's, built
+  from `event` (a poll's question and options are in its event as they
+  were typed). The one-line previews of a poll and its closing row are
+  the exception, worded on the server ([Polls](#polls) → Previews).
+  People in an event are
   stored as ids and sent as `MessageAuthor`, resolved when the row is
   read like any author, so a renamed or deleted account shows as it is
   now. The reference's excerpt reads mentions as current handles and
@@ -1306,8 +1309,13 @@ as the line asking the reader to update (`systemLine`).
 - **Creating one** (`CreatePoll`). The checks are `SendMessage`'s:
   `writableChannel`, then the post policy, so whoever may post here may
   ask. The question is 1 to 200 characters and each option 1 to 80,
-  trimmed, on one line and with no NUL; empty options are dropped, 2 to
-  10 must remain, and no two may be the same ignoring case. One
+  trimmed, with at least one visible character and no control
+  character (a line break, a tab, a NUL) or text direction override;
+  empty options are dropped, 2 to 10 must remain, and no two may be the
+  same ignoring case, normalisation form and invisible format
+  characters. Validation runs before access is known, so it stops at
+  the first option past ten and its work does not grow with the
+  request. One
   transaction locks the channel row, records the row (`recordEvent`,
   which makes it the channel's last message) and moves the author's
   read marker to it (`markChannelRead`). After the commit a closed

@@ -4749,10 +4749,11 @@ func (x *SendMessageResponse) GetMessage() *Message {
 type CreatePollRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	ChannelId string                 `protobuf:"bytes,1,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
-	// 1 to 200 characters on one line, counted after trimming.
+	// 1 to 200 characters on one line, counted after trimming, at least
+	// one of them visible; no control characters or direction overrides.
 	Question string `protobuf:"bytes,2,opt,name=question,proto3" json:"question,omitempty"`
-	// 2 to 10 once empty ones are dropped, each 1 to 80 characters on one
-	// line after trimming, no two the same ignoring case.
+	// 2 to 10 once empty ones are dropped, each 1 to 80 characters under
+	// the question's rules, no two the same ignoring case.
 	Options []string `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
 	// A person may choose several options; otherwise one.
 	Multiple      bool `protobuf:"varint,4,opt,name=multiple,proto3" json:"multiple,omitempty"`

@@ -2030,15 +2030,16 @@ export type CreatePollRequest = Message<"stoop.chat.v1.CreatePollRequest"> & {
   channelId: string;
 
   /**
-   * 1 to 200 characters on one line, counted after trimming.
+   * 1 to 200 characters on one line, counted after trimming, at least
+   * one of them visible; no control characters or direction overrides.
    *
    * @generated from field: string question = 2;
    */
   question: string;
 
   /**
-   * 2 to 10 once empty ones are dropped, each 1 to 80 characters on one
-   * line after trimming, no two the same ignoring case.
+   * 2 to 10 once empty ones are dropped, each 1 to 80 characters under
+   * the question's rules, no two the same ignoring case.
    *
    * @generated from field: repeated string options = 3;
    */

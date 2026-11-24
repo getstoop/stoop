@@ -3,9 +3,10 @@ import type { Message, MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
 
 // The wording of a system message (docs/architecture/messaging.md →
 // System messages): a row that records something that happened in its
-// channel, with no text anyone wrote. The server sends only the event;
-// every word is built here, as parts each client draws its own way, so
-// web and mobile say the same thing.
+// channel. The server sends the event and every word of the row is built
+// here, as parts each client draws its own way, so web and mobile say
+// the same thing. (A poll is the kind that carries words someone wrote,
+// and the server words the one-line previews of one.)
 
 // The glyph in the avatar column, by name: each client maps it to its own
 // icon.

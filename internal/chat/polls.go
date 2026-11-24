@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"golang.org/x/text/unicode/norm"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -159,13 +161,32 @@ func (n mentionNames) preview(kind int16, content, firstAttachment string) strin
 }
 
 // pollLine is one line of a poll as it is stored: value trimmed, and
-// refused when it holds a NUL or a line break or is longer than limit.
-// what names it in the refusal.
+// refused when it holds a control character (a NUL, a tab, a line
+// break), a line or paragraph separator or a bidirectional override or
+// isolate, when it is longer than limit, or when it has characters but
+// none anyone can see. what names it in the refusal. "" is an empty line,
+// which the caller judges.
 func pollLine(value, what string, limit int) (string, error) {
 	value = strings.TrimSpace(value)
-	if strings.ContainsAny(value, "\x00\n\r\v\f\u0085  ") {
+	if value == "" {
+		return "", nil
+	}
+	visible := false
+	for _, char := range value {
+		switch {
+		case unicode.IsControl(char), char == '\u2028', char == '\u2029':
+			return "", connect.NewError(connect.CodeInvalidArgument,
+				fmt.Errorf("%s can't contain a line break, a tab or another control character", what))
+		case (char >= '\u202a' && char <= '\u202e') || (char >= '\u2066' && char <= '\u2069'):
+			return "", connect.NewError(connect.CodeInvalidArgument,
+				fmt.Errorf("%s can't contain a text direction override", what))
+		case unicode.In(char, unicode.L, unicode.N, unicode.P, unicode.S):
+			visible = true
+		}
+	}
+	if !visible {
 		return "", connect.NewError(connect.CodeInvalidArgument,
-			fmt.Errorf("%s can't contain a line break or a NUL character", what))
+			fmt.Errorf("%s needs at least one visible character", what))
 	}
 	if utf8.RuneCountInString(value) > limit {
 		return "", connect.NewError(connect.CodeInvalidArgument,
@@ -174,9 +195,23 @@ func pollLine(value, what string, limit int) (string, error) {
 	return value, nil
 }
 
+// optionKey is what two options are compared by: the text in one
+// normalisation form, without the format characters nobody sees (a
+// zero-width space or joiner, a byte order mark). Compared ignoring case.
+func optionKey(option string) string {
+	return norm.NFC.String(strings.Map(func(char rune) rune {
+		if unicode.Is(unicode.Cf, char) {
+			return -1
+		}
+		return char
+	}, option))
+}
+
 // newPoll is the poll a request asks for, or why it is refused: a
 // question, and 2 to 10 options once the empty ones are dropped, no two
-// the same ignoring case.
+// the same ignoring case. It runs before the caller's access is known,
+// so it stops at the first option past the limit: the work is bounded
+// by the limit, not by what was sent.
 func newPoll(question string, options []string, multiple bool) (pollCreated, error) {
 	question, err := pollLine(question, "a poll's question", maxPollQuestionLen)
 	if err != nil {
@@ -185,26 +220,35 @@ func newPoll(question string, options []string, multiple bool) (pollCreated, err
 	if question == "" {
 		return pollCreated{}, connect.NewError(connect.CodeInvalidArgument, errors.New("a poll needs a question"))
 	}
+	errCount := connect.NewError(connect.CodeInvalidArgument,
+		fmt.Errorf("a poll needs %d to %d options", minPollOptions, maxPollOptions))
 	poll := pollCreated{Question: question, Multiple: multiple}
+	var keys []string
 	for _, option := range options {
+		// Before anything is read of it: an empty option is dropped, and
+		// leading space is all that can hide one.
+		if strings.TrimSpace(option) == "" {
+			continue
+		}
+		if len(poll.Options) == maxPollOptions {
+			return pollCreated{}, errCount
+		}
 		option, err := pollLine(option, "a poll option", maxPollOptionLen)
 		if err != nil {
 			return pollCreated{}, err
 		}
-		if option == "" {
-			continue
-		}
-		for _, earlier := range poll.Options {
-			if strings.EqualFold(earlier.Text, option) {
+		key := optionKey(option)
+		for _, earlier := range keys {
+			if strings.EqualFold(earlier, key) {
 				return pollCreated{}, connect.NewError(connect.CodeInvalidArgument,
 					fmt.Errorf("a poll can't have the same option twice: %s", option))
 			}
 		}
+		keys = append(keys, key)
 		poll.Options = append(poll.Options, pollOption{ID: int16(len(poll.Options) + 1), Text: option})
 	}
-	if len(poll.Options) < minPollOptions || len(poll.Options) > maxPollOptions {
-		return pollCreated{}, connect.NewError(connect.CodeInvalidArgument,
-			fmt.Errorf("a poll needs %d to %d options", minPollOptions, maxPollOptions))
+	if len(poll.Options) < minPollOptions {
+		return pollCreated{}, errCount
 	}
 	return poll, nil
 }
@@ -224,6 +268,12 @@ func (s *Service) CreatePoll(ctx context.Context, req *connect.Request[chatv1.Cr
 		return nil, err
 	}
 	if err := s.requirePostPolicy(ctx, channel); err != nil {
+		return nil, err
+	}
+	// Read before anything is written: the activity needs the author
+	// whether or not the saved row reads back.
+	authors, err := s.resolveAuthors(ctx, []string{userID})
+	if err != nil {
 		return nil, err
 	}
 	var row messageRow
@@ -259,7 +309,7 @@ func (s *Service) CreatePoll(ctx context.Context, req *connect.Request[chatv1.Cr
 	// In a channel a poll only marks unread: with no mention, quote or
 	// thread, the conversation step is all recordActivity would run.
 	if isDM(channel) {
-		s.recordActivity(ctx, row, channel, participants, nil, nil, message.GetAuthor(), nil)
+		s.recordActivity(ctx, row, channel, participants, nil, nil, authorOrUnknown(authors, userID), nil)
 	}
 	return connect.NewResponse(&chatv1.CreatePollResponse{Message: message}), nil
 }
