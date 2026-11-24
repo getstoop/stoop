@@ -85,7 +85,7 @@ export default function PollForm({
       await onPost(pollRequest(form, channelId));
       dismiss();
     } catch (err) {
-      setFailure(`Couldn't post the poll. ${errorText(err)}`);
+      setFailure(refusal(err));
     } finally {
       setPosting(false);
     }
@@ -207,6 +207,15 @@ export default function PollForm({
       </GestureHandlerRootView>
     </Modal>
   );
+}
+
+// What a refusal says, as web's form words it: "Couldn't post the poll."
+// and the server's words as a sentence, or "Try again." when it gave none.
+function refusal(err: unknown): string {
+  const said = errorText(err).trim();
+  if (!said) return "Couldn't post the poll. Try again.";
+  const sentence = said[0].toUpperCase() + said.slice(1);
+  return `Couldn't post the poll. ${sentence}${/[.!?]$/.test(sentence) ? "" : "."}`;
 }
 
 type Styles = ReturnType<typeof makeStyles>;

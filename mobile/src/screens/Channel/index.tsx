@@ -647,7 +647,9 @@ export default function Channel({
           />
         ) : null}
       </MessageContexts>
-      {makingPoll && posting && <PollForm channelId={channelId} onPost={postPoll} onClose={closePollForm} />}
+      {/* Kept open should posting close meanwhile: the server's refusal
+          is then said in it, with what was typed. */}
+      {makingPoll && <PollForm channelId={channelId} onPost={postPoll} onClose={closePollForm} />}
       {polls.votesMessage && (
         <PollVotes
           message={polls.votesMessage}
