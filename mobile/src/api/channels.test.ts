@@ -40,6 +40,17 @@ describe("touchesSpace", () => {
     expect(touchesSpace(event(payload), "s1")).toBe(false);
   });
 
+  it("leaves a poll's update: a vote changes nothing a channel shows", () => {
+    const payload = {
+      case: "messageUpdated",
+      value: create(MessageSchema, {
+        spaceId: "s1",
+        event: { kind: { case: "poll", value: { question: "Friday?" } } },
+      }),
+    } as const;
+    expect(touchesSpace(event(payload), "s1")).toBe(false);
+  });
+
   it("reloads on Ready, whatever was missed", () => {
     expect(touchesSpace(event({ case: "ready", value: {} }), "s1")).toBe(true);
   });

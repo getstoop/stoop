@@ -299,10 +299,12 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
       case "messageCreated": {
         // Sending moves the sender's marker without a ChannelRead; a reply
         // only in its thread moves no channel marker, as web's ws.ts; nor
-        // does a system message recording the reader's own action (a
-        // rename, a topic), which is not a send.
+        // does a quiet system message recording the reader's own action (a
+        // rename, a topic), which is not a send. A row that is not quiet
+        // (a poll, or its closing row) moves its author's marker as a
+        // send does (CreatePoll, ClosePoll).
         const m = payload.value;
-        if ((m.threadRootId && !m.inChannel) || isSystemRow(m)) break;
+        if ((m.threadRootId && !m.inChannel) || (isSystemRow(m) && m.quiet)) break;
         if (m.author?.id && m.author.id === reader.current?.id) afterRead({ channelId: m.channelId });
         break;
       }

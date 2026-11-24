@@ -1,6 +1,7 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import { dayLabel, sameDay } from "./dates";
+import { isPollRow } from "./polls";
 import { isSystemRow } from "./systemMessages";
 
 // A day separator goes above the first message of each calendar day.
@@ -64,15 +65,16 @@ export function sameMinute(a: Date, b: Date): boolean {
   );
 }
 
-// A channel's rows for a list, oldest first: each message (a system
-// message is a row of its own kind), a day line above the first of each
+// A channel's rows for a list, oldest first: each message (a poll and any
+// other system message are rows of their own kinds, and neither continues
+// nor is continued), a day line above the first of each
 // day, and the "New" line above the first message after the read marker
 // as it was on opening (null for no "New" line). The
 // mobile app's channel screen draws these; web's list has a form of its
 // own with a thread's rules (routes/Channel/MessageList/items.ts).
 export type GroupedRow =
   | { kind: "message"; key: string; message: Message; continued: boolean }
-  | { kind: "system"; key: string; message: Message }
+  | { kind: "poll" | "system"; key: string; message: Message }
   | { kind: "day" | "new"; key: string; label: string };
 
 export function groupedRows(
@@ -100,14 +102,18 @@ export function groupedRows(
       rows.push({ kind: "day", key: `day-${message.id}`, label: day });
     }
     rows.push(
-      isSystemRow(message)
-        ? { kind: "system", key: message.id, message }
-        : {
-            kind: "message",
-            key: message.id,
-            message,
-            continued: continues(message, previous, firstNew, false),
-          },
+      // A poll is a system message on the wire but a card under its
+      // author on screen (core/polls), so it is asked about first.
+      isPollRow(message)
+        ? { kind: "poll", key: message.id, message }
+        : isSystemRow(message)
+          ? { kind: "system", key: message.id, message }
+          : {
+              kind: "message",
+              key: message.id,
+              message,
+              continued: continues(message, previous, firstNew, false),
+            },
     );
   });
   return rows;

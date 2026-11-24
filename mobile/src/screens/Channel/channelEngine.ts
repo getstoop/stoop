@@ -43,6 +43,7 @@ import {
   setThreadMuted,
   toggleReaction,
 } from "../../api/messages";
+import * as polls from "../../api/polls";
 import { sessionToken } from "../../api/servers";
 import type { Subscribe } from "../../realtime/RealtimeProvider";
 import type { SavedServer } from "../../servers";
@@ -942,6 +943,54 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
         throw err;
       }
       if (!mine.ended) dispatch({ type: "sent", message });
+    },
+
+    // The reader's own poll (api/polls createPoll): sent, then its answer
+    // merged like a send's. Nothing is shown before the server answers; a
+    // refusal is thrown for the form to show, one that means the sign-in
+    // has ended shows as such too.
+    async createPoll(question: string, options: string[], multiple: boolean) {
+      const mine = life;
+      let message: Message;
+      try {
+        message = await polls.createPoll(server.origin, state.token, channelId, question, options, multiple);
+      } catch (err) {
+        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (!mine.ended) dispatch({ type: "sent", message });
+    },
+
+    // The reader's whole selection on a poll (core/polls nextSelection):
+    // nothing is written to the held row before the server answers, and
+    // the answer, the poll as it now stands, is merged like a send's. It
+    // is what settles a vote that changed nothing, which no event
+    // follows. A refusal is the caller's to show, as above.
+    async vote(message: Message, optionIds: number[]) {
+      const mine = life;
+      let answer: Message | undefined;
+      try {
+        answer = await polls.setPollVote(server.origin, state.token, message.id, optionIds);
+      } catch (err) {
+        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (answer && !mine.ended) dispatch({ type: "sent", message: answer });
+    },
+
+    // Closes a poll for good: the answer is the closed poll, merged like a
+    // send's; the closing row arrives as its own message_created. A
+    // refusal is the caller's to show, as above.
+    async closePoll(message: Message) {
+      const mine = life;
+      let answer: Message | undefined;
+      try {
+        answer = await polls.closePoll(server.origin, state.token, message.id);
+      } catch (err) {
+        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+        throw err;
+      }
+      if (answer && !mine.ended) dispatch({ type: "sent", message: answer });
     },
 
     // A file picked in the composer, uploaded for this channel (api/files)

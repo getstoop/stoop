@@ -1,12 +1,13 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { sameDay } from "@stoop/core/dates";
 import { previewText } from "@stoop/core/markdown/text";
+import { pollPreview } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
-import { PaperclipIcon } from "../../components/Icons";
+import { PaperclipIcon, PollIcon } from "../../components/Icons";
 import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
 
@@ -20,7 +21,10 @@ const GAP = 10;
 // name, "in #channel" and when, then the message's words as the channel
 // draws them, and one muted line per file. The row is one button that
 // opens the channel on the message. The matched words are not marked:
-// the phone's MessageBody has no highlight yet.
+// the phone's MessageBody has no highlight yet. A poll is found by its
+// question and shown as its preview line ("Poll: " and the question, as
+// typed, never as Markdown), after the poll's glyph, as web's row shows
+// it.
 export default memo(function ResultRow({
   message,
   channelName,
@@ -46,7 +50,8 @@ export default memo(function ResultRow({
   const files = message.attachments.map((attachment) => attachment.name);
   // Read aloud: the words with a spoiler covered, as the body draws it,
   // then the files' names, or those alone when there are no words.
-  const words = previewText(message.content);
+  const poll = pollPreview(message);
+  const words = poll ?? previewText(message.content);
   const said = words && files.length > 0 ? `${words}, files: ${files.join(", ")}` : words || files.join(", ");
   return (
     <Pressable
@@ -66,7 +71,12 @@ export default memo(function ResultRow({
           </Text>
           <Text style={styles.time}>{date}</Text>
         </View>
-        {message.content !== "" && (
+        {poll !== null ? (
+          <View style={styles.poll}>
+            <PollIcon color={theme.textMuted} size={16} />
+            <Text style={styles.pollText}>{poll}</Text>
+          </View>
+        ) : message.content !== "" && (
           <MessageBody
             content={message.content}
             myUserId={myUserId}
@@ -139,6 +149,16 @@ function makeStyles(theme: Theme) {
       marginLeft: "auto",
       color: theme.textMuted,
       fontSize: tokens.textSm,
+    },
+    poll: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    pollText: {
+      flexShrink: 1,
+      color: theme.text,
+      fontSize: tokens.textBody,
     },
     file: {
       flexDirection: "row",

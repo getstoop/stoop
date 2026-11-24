@@ -1,3 +1,4 @@
+import { isPollRow } from "@stoop/core/polls";
 import { type Channel, ChannelKind } from "@stoop/gen/stoop/chat/v1/channel_pb";
 import type { Member } from "@stoop/gen/stoop/chat/v1/member_pb";
 import type { Space } from "@stoop/gen/stoop/chat/v1/space_pb";
@@ -90,10 +91,12 @@ export function touchesSpace(event: ServerEvent, spaceId: string): boolean {
 export function eventSpaceId(event: ServerEvent): string | undefined {
   const payload = event.payload;
   switch (payload.case) {
+    // A poll's update is a vote, which changes nothing a channel shows.
+    case "messageUpdated":
+      return isPollRow(payload.value) ? undefined : payload.value.spaceId;
     case "channelCreated":
     case "channelUpdated":
     case "messageCreated":
-    case "messageUpdated":
     case "channelDeleted":
     case "channelsReordered":
     case "channelMuted":

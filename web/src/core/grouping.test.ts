@@ -185,8 +185,8 @@ describe("groupedRows", () => {
     rows.map((row) =>
       row.kind === "message"
         ? `${row.key}${row.continued ? " +" : ""}`
-        : row.kind === "system"
-          ? `${row.key} (system)`
+        : row.kind === "system" || row.kind === "poll"
+          ? `${row.key} (${row.kind})`
           : `[${row.label}]`,
     );
 
@@ -243,6 +243,39 @@ describe("groupedRows", () => {
     ]);
   });
 
+  it("draws a poll as its own kind, which never runs on from a message", () => {
+    const poll = (id: string, when: Date): Message => {
+      const made = dated(id, when);
+      made.event = create(SystemEventSchema, {
+        kind: {
+          case: "poll",
+          value: { question: "Friday?", options: [{ id: 1, text: "A" }] },
+        },
+      });
+      return made;
+    };
+    const closed = (id: string, when: Date): Message => {
+      const made = dated(id, when);
+      made.event = create(SystemEventSchema, {
+        kind: { case: "pollClosed", value: { question: "Friday?" } },
+      });
+      return made;
+    };
+    const messages = [
+      dated("01", new Date(2026, 9, 21, 9, 0)),
+      poll("02", new Date(2026, 9, 21, 9, 0, 10)),
+      dated("03", new Date(2026, 9, 21, 9, 0, 20)),
+      closed("04", new Date(2026, 9, 21, 9, 0, 30)),
+    ];
+    expect(drawn(groupedRows(messages, null, "me", now))).toEqual([
+      "[Today]",
+      "01",
+      "02 (poll)",
+      "03",
+      "04 (system)",
+    ]);
+  });
+
   it("skips the reader's own messages for the New line", () => {
     const messages = [
       dated("01", new Date(2026, 9, 21, 9, 0), "me"),
@@ -294,8 +327,8 @@ describe("threadRows", () => {
     rows.map((row) =>
       row.kind === "message"
         ? `${row.key}${row.continued ? " +" : ""}`
-        : row.kind === "system"
-          ? `${row.key} (system)`
+        : row.kind === "system" || row.kind === "poll"
+          ? `${row.key} (${row.kind})`
           : `[${row.label}]`,
     );
 

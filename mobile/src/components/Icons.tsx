@@ -471,6 +471,15 @@ export function PinIcon({ color, size = 22, filled = false }: IconProps & { fill
   );
 }
 
+// A poll: three bars of different heights, as web's PollIcon.
+export function PollIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M5 20V10M12 20V4M19 20v-7" />
+    </Stroke>
+  );
+}
+
 export function TrashIcon({ color, size = 22 }: IconProps) {
   return (
     <Stroke color={color} size={size}>

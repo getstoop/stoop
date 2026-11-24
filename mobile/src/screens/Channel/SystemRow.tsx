@@ -24,7 +24,8 @@ const LINE = 18;
 // The screen reader's ways to the menu a long press opens and to a pin
 // row's message.
 const MENU_ACTION = { name: "longpress", label: "Delete" };
-const VIEW_ACTION = { name: "view", label: "View message" };
+// "View message" for a pin's, or what the row names it ("View poll").
+const viewAction = (label = "View message") => ({ name: "view", label });
 // The screen reader's way to unfold a long list of people, and to fold it.
 const UNFOLD_ACTION = { name: "activate", label: "Show everyone" };
 const FOLD_ACTION = { name: "activate", label: "Show fewer" };
@@ -51,13 +52,16 @@ function actionsHint(actions: { label: string }[]): string | undefined {
 // row, and folds again (with "Show fewer" after the names) on the next
 // tap; a row with no list to fold takes no tap, so another kind's own
 // tap targets have the row to themselves: a pin's excerpt, and the View
-// after it, go to the pinned message (onJumpTo); deleting that message
-// removes the row. To a screen reader it is one element, the sentence as it now
+// after it, go to the pinned message (onJumpTo), and a closed poll's View
+// to the poll; deleting that message removes the row. A closed poll's
+// line is worded from its own snapshot of the outcome (core/
+// systemMessages), so it reads the same whatever became of the poll. To a screen reader it is one element, the sentence as it now
 // reads and the time, whose activate action unfolds or folds the list.
 // A long press opens its menu (onLongPress), which the screen gives only
 // to someone who may moderate messages (SystemMenu); everyone else gets
 // nothing. A screen reader is offered the menu as an action, Delete, and
-// a pin row's jump as another, View message, with a hint naming them.
+// a pin row's jump as another, View message (View poll on a closed
+// poll's), with a hint naming them.
 // The glyph's box is one line of the sentence tall at the system's text
 // size, so it stays centred on the first line however large the
 // reader's text is. On a menu's card (`card`) it is drawn again with the
@@ -84,10 +88,10 @@ export default memo(function SystemRow({
   const time = created ? messageTime(created, card) : "";
   const hold = onLongPress && (() => onLongPress(message));
   const toggle = line.fold && (() => setUnfolded((was) => !was));
-  const target = card || !onJumpTo ? "" : jumpTarget(line.parts);
-  const view = target ? () => onJumpTo?.(target) : undefined;
+  const target = card || !onJumpTo ? undefined : jumpTarget(line.parts);
+  const view = target ? () => onJumpTo?.(target.messageId) : undefined;
   // The named actions the hint lists; the fold is the row's activate.
-  const named = [...(view ? [VIEW_ACTION] : []), ...(hold ? [MENU_ACTION] : [])];
+  const named = [...(target ? [viewAction(target.label)] : []), ...(hold ? [MENU_ACTION] : [])];
   const actions = [...(toggle ? [unfolded ? FOLD_ACTION : UNFOLD_ACTION] : []), ...named];
   const act = (event: AccessibilityActionEvent) => {
     if (event.nativeEvent.actionName === "activate") toggle?.();
@@ -132,12 +136,13 @@ export default memo(function SystemRow({
 
 type Styles = ReturnType<typeof makeStyles>;
 
-// The message a pin row's excerpt goes to: "" when there is none.
-function jumpTarget(parts: SystemPart[]): string {
+// The message a row's excerpt goes to (a pin's, a closed poll's), and
+// what a screen reader calls the way there; none when there is none.
+function jumpTarget(parts: SystemPart[]): { messageId: string; label?: string } | undefined {
   for (const part of parts) {
-    if (part.kind === "excerpt") return part.messageId;
+    if (part.kind === "excerpt") return part;
   }
-  return "";
+  return undefined;
 }
 
 function Part({

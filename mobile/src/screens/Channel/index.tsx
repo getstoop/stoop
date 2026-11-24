@@ -3,6 +3,7 @@ import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { withoutHiddenSystemRows } from "@stoop/core/systemMessages";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
+import { isPollRow, pollPermissions } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +34,9 @@ import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
+import PollMenu from "./PollMenu";
+import PollRow from "./PollRow";
+import PollVotes from "./PollVotes";
 import PostingClosed from "./PostingClosed";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
 import SystemMenu from "./SystemMenu";
@@ -47,6 +51,7 @@ import { useFlash } from "./useFlash";
 import { useFollowSend } from "./useFollowSend";
 import { useMentionNames } from "./useMentionNames";
 import { useMessageActions } from "./useMessageActions";
+import { usePollActions } from "./usePollActions";
 import { useScrollRetry } from "./useScrollRetry";
 
 // A channel, pushed over its space: its messages newest at the bottom,
@@ -268,6 +273,7 @@ export default function Channel({
     items,
   });
   const { menuFor, menuMessage, notify } = actions;
+  const polls = usePollActions({ scope: channelId, shown: messages, myUserId: readerId, engine, notify });
   // Going to a message: the log lands on it (channelEngine jumpTo), or on
   // its root, with the thread pushed on the reply; one the server no
   // longer has is said over the composer, the channel staying as it was.
@@ -424,6 +430,12 @@ export default function Channel({
   // A system message's menu is a moderator's alone (SystemMenu); for
   // anyone else a long press on one does nothing.
   const moderates = !!space && canDeleteAnyMessage(space);
+  // Where the reader may pin: in a space, with manage_channels, as web
+  // decides it. Never in a direct message.
+  const pins = !!space && canManageChannels(space);
+  const pollMay = menuMessage
+    ? pollPermissions({ message: menuMessage, myUserId, inSpace: !!space, canModerate: moderates, canPin: pins })
+    : undefined;
 
   return (
     <View style={styles.screen}>
@@ -438,7 +450,18 @@ export default function Channel({
               data={items}
               keyExtractor={(item) => item.key}
               renderItem={({ item }) =>
-                item.kind === "system" ? (
+                item.kind === "poll" ? (
+                  <PollRow
+                    message={item.message}
+                    myUserId={myUserId}
+                    origin={server.origin}
+                    token={token}
+                    flashed={item.message.id === flashId}
+                    onVote={polls.vote}
+                    onViewVotes={polls.viewVotes}
+                    onLongPress={actions.openMenu}
+                  />
+                ) : item.kind === "system" ? (
                   <SystemRow
                     message={item.message}
                     onLongPress={moderates ? actions.openMenu : undefined}
@@ -457,9 +480,9 @@ export default function Channel({
                     onReact={actions.reactTo}
                     target={actions.targetOf(item.message) ?? (item.message.id === flashId ? "focus" : undefined)}
                   />
-                ) : (
+                ) : item.kind === "day" || item.kind === "new" ? (
                   <Divider label={item.label} fresh={item.kind === "new"} />
-                )
+                ) : null
               }
               // Pages for the screen on top only: a channel under a thread is
               // laid out afresh when its range is replaced, and would page
@@ -556,7 +579,20 @@ export default function Channel({
         }
       />
       <MessageContexts links={links} previews={previews}>
-        {menuMessage?.event ? (
+        {menuMessage && pollMay && isPollRow(menuMessage) ? (
+          <PollMenu
+            message={menuMessage}
+            myUserId={myUserId}
+            origin={server.origin}
+            token={token}
+            link={messageLink(server.origin, spaceId, menuMessage)}
+            onCopyFailed={actions.linkNotCopied}
+            onPin={pollMay.pin ? () => actions.togglePin(menuMessage) : undefined}
+            onClosePoll={pollMay.close ? () => polls.close(menuMessage) : undefined}
+            onDelete={pollMay.delete ? () => polls.deletePoll(menuMessage) : undefined}
+            onClose={actions.closeMenu}
+          />
+        ) : menuMessage?.event ? (
           <SystemMenu
             message={menuMessage}
             onDelete={() => actions.deleteSystem(menuMessage)}
@@ -584,7 +620,7 @@ export default function Channel({
             onPin={
               // As web's: where the reader manages channels, and not on a
               // reply also sent here; never in a thread.
-              space && canManageChannels(space) && !menuMessage.threadRootId
+              pins && !menuMessage.threadRootId
                 ? () => actions.togglePin(menuMessage)
                 : undefined
             }
@@ -595,6 +631,15 @@ export default function Channel({
           />
         ) : null}
       </MessageContexts>
+      {polls.votesMessage && (
+        <PollVotes
+          message={polls.votesMessage}
+          myUserId={myUserId}
+          origin={server.origin}
+          token={token}
+          onClose={polls.closeVotes}
+        />
+      )}
       {viewer.viewing && (
         <Viewer
           key={itemKey(viewer.viewing.items[viewer.viewing.index])}
