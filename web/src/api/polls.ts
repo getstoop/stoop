@@ -32,6 +32,11 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
+// A vote the server has not answered by then is given up, with the
+// notice a refusal gets, so a stalled request never leaves the poll
+// taking no press.
+const VOTE_TIMEOUT_MS = 15_000;
+
 // The option whose vote is on its way, or null.
 export const pendingVote = (messageId: string): number | null =>
   pending.get(messageId) ?? null;
@@ -56,10 +61,10 @@ export async function pressPollOption(
   const text = poll.options.find((option) => option.id === optionId)?.text;
   setPending(message.id, optionId);
   try {
-    const answer = await chatClient.setPollVote({
-      messageId: message.id,
-      optionIds: next,
-    });
+    const answer = await chatClient.setPollVote(
+      { messageId: message.id, optionIds: next },
+      { timeoutMs: VOTE_TIMEOUT_MS },
+    );
     if (answer.message) holdRow(message.channelId, answer.message);
     announce(
       next.includes(optionId)

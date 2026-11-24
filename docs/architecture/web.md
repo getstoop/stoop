@@ -731,7 +731,7 @@ window" is what the view's range holds.
   the wire but a card on screen: `pollOf` in `core/polls.ts` picks them
   out before `isSystemRow` would, and `MessageList/PollRow/` draws one
   as a `.message` (avatar, name, time, hover toolbar) whose body is the
-  card (`styles/polls.css`). A poll always heads its own group, and the
+  card (`styles/polls.css`, and `poll-popovers.css` for what opens from it). A poll always heads its own group, and the
   list follows the reader's own as it follows their message
   (`newestMine`, `isOwnPost` in `items.ts`, which counts their closing
   row too). Everything that is not drawing is in `core/polls.ts`,
@@ -744,7 +744,7 @@ window" is what the view's range holds.
   ahead of the server: the option shows it is pending, and
   `pressPollOption` in `api/polls.ts` holds the answer (`holdRow`, by
   seq), since a vote that changed nothing has no event to settle it; a
-  refusal is a notice. The pending vote is kept there by poll, not in
+  refusal, or no answer within 15 seconds, is a notice. The pending vote is kept there by poll, not in
   the card, so a card the list drew again while it was out still shows
   it and takes no second press. While open, options are buttons with
   `role="radio"` or `role="checkbox"` and `aria-checked`, each a tab

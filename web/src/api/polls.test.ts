@@ -87,10 +87,10 @@ describe("pressing an option", () => {
     const release = answerLater(() => pollRow([1], server.seq + 1));
     const done = pressPollOption(held(), 1, ME);
     expect(pendingVote(POLL)).toBe(1);
-    expect(setPollVote).toHaveBeenCalledWith({
-      messageId: POLL,
-      optionIds: [1],
-    });
+    expect(setPollVote).toHaveBeenCalledWith(
+      { messageId: POLL, optionIds: [1] },
+      { timeoutMs: 15_000 },
+    );
     release();
     await done;
     expect(pendingVote(POLL)).toBeNull();
@@ -133,10 +133,10 @@ describe("pressing an option", () => {
       message: pollRow([1, 2], server.seq + 2),
     });
     await pressPollOption(held(), 2, ME);
-    expect(setPollVote).toHaveBeenLastCalledWith({
-      messageId: POLL,
-      optionIds: [1, 2],
-    });
+    expect(setPollVote).toHaveBeenLastCalledWith(
+      { messageId: POLL, optionIds: [1, 2] },
+      { timeoutMs: 15_000 },
+    );
     expect(chosen(held())).toEqual([1, 2]);
   });
 });
