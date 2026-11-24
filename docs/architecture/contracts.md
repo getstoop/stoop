@@ -75,7 +75,9 @@ Grouped by what they touch rather than declaration order:
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
   `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
 - **Messages** — `SendMessage`, `CreatePoll` (a
-  [poll](messaging.md#polls); gated as `SendMessage` is), `ListMessages`, `ListChanges` (the
+  [poll](messaging.md#polls); gated as `SendMessage` is), `SetPollVote`
+  (gated as `ToggleReaction` is), `ClosePoll` (its author, or
+  `messages.moderate` in a space), `ListMessages`, `ListChanges` (the
   channel log from a seq, for catching up; same gate as `ListMessages`),
   `SearchMessages`, `EditMessage`, `DeleteMessage`, `DismissLinkPreview`,
   `ToggleReaction`, `SetMessagePinned`, `ListPinnedMessages`

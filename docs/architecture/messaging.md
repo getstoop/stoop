@@ -1047,9 +1047,11 @@ someone wrote and they are not quiet.
   event nor the reference.
   `recordEvent` marks nothing read, records no activity, writes no
   mentions, and is not subject to the channel's post policy; a caller
-  whose row is not quiet does those itself (`CreatePoll`). It refuses
-  an event with nothing in it to store: a pin with no message, a message
-  that is not shown in the same channel, a member that is not a user id.
+  whose row is not quiet does those itself (`CreatePoll`, `ClosePoll`).
+  It refuses an event with nothing in it to store: a pin with no
+  message, a message that is not shown in the same channel, a member
+  that is not a user id, a closing row about anything but a closed poll
+  (the event's `checkAbout`).
   The view joins a reference only within the row's own channel besides.
   A pin's message id lives in `reference_message_id` and not in `data`,
   so a pin event decoded from a row does not carry it.
@@ -1211,9 +1213,10 @@ someone wrote and they are not quiet.
   outlives the pin, but not the message: deleting it (Delete, Delete
   thread, or a root kept as a placeholder) tombstones its pin rows in
   the same transaction, each stamped after the message, as a
-  moderator's delete of a system row does (`removePinRows` in
-  `tombstones.go`), and after the commit each row's `message_deleted`
-  follows the message's own event. Quiet, they leave the channel's
+  moderator's delete of a system row does (`removeRowsAbout` in
+  `tombstones.go`, which takes a poll's closing row the same way), and
+  after the commit each row's `message_deleted` follows the message's
+  own event. Quiet, they leave the channel's
   last message and unread counts as the message's delete leaves them.
   A client holding the rows drops them as the message's deletion lands
   (`withQuotesBlanked` in `core/channelLog/tombstone.ts`), and the
@@ -1277,9 +1280,11 @@ unread counts, the "New messages" line and a channel's last message
 treat both as a message, with no code of their own. The code is
 `internal/chat/polls.go` and `queries/chat/polls.sql`.
 
-Built so far: creating a poll and reading one with its votes. No RPC
-writes a vote or a closing row yet, and both clients draw the two kinds
-as the line asking the reader to update (`systemLine`).
+Built so far: the server side, whole. A poll is created, read with its
+votes, voted on, closed, pinned and deleted over the API. No client
+draws one yet: both draw the two kinds as the line asking the reader to
+update (`systemLine`), and neither offers a way to create, vote or
+close.
 
 - **The poll row.** `data` is the definition, which never changes, and
   the closed state: `{question, options: [{id, text}], multiple,
@@ -1325,6 +1330,69 @@ as the line asking the reader to update (`systemLine`).
   give them (`recordActivity`, whose conversation step is the only one
   with anything to do). In a channel a poll marks unread and alerts
   nobody. An `@name` in a question is plain text and mentions no one.
+- **Voting** (`SetPollVote`, `poll_votes.go`). The request is the
+  caller's whole selection, as option ids: it replaces what they chose
+  before, and an empty one takes the vote back, so a swap on a poll of
+  one choice is one write and a repeat changes nothing. The access check
+  is `writableChannel` alone, what a reaction asks, and not the post
+  policy, so a member of an announcement channel votes. A request naming
+  more than ten options is refused before anything is read. After the
+  access check the row must be a live, open poll (`FailedPrecondition`
+  for a closed poll, a message or any other system row; a deleted poll
+  is not found, like any tombstone), and the selection must be one the
+  poll takes (`InvalidArgument` for an id it does not have, an id twice,
+  or more than one on a poll of one choice). One transaction stamps the
+  poll, which takes the channel row, reads the row again and refuses a
+  poll closed or deleted meanwhile, deletes the caller's votes that are
+  not in the selection and inserts the ones that are new. A vote that
+  changes nothing returns `errUnchanged` from inside the transaction, so
+  the stamp rolls back: no seq is spent and nothing is published, and
+  the answer is the poll as it stands. Otherwise the poll goes out whole
+  as `message_updated`, as a fresh read has it. A vote marks nothing
+  unread, records no activity, alerts nobody, reopens no conversation
+  and leaves the channel's last message alone. A new vote's
+  `created_at` is the clock's time at the insert, under the channel
+  lock, so an option's voters are listed in the order they were let in
+  (`created_at`, then user id); an option someone keeps across a change
+  keeps its place.
+- **Closing** (`ClosePoll`, `poll_close.go`). `writableChannel` comes
+  first, since authorship is not access: an author removed from a
+  private channel, or behind a block in a direct message, closes
+  nothing. Then the caller must be the poll's author or, in a space,
+  hold `messages.moderate`; a conversation has no moderator, so there it
+  is the author alone. The post policy is not asked: a member closes
+  their own poll in what has since become an announcement channel, as
+  they may delete it. One transaction locks the channel row, reads the
+  live row and refuses one that is not an open poll (a second close is
+  `FailedPrecondition`, and nothing reopens a poll), counts the votes,
+  writes `closed_at` and `closed_by` into the poll's `data` (the
+  `ClosePoll` query, which takes only a live row of kind 7), stamps the
+  poll, records the closing row (`recordEvent`, the next seq) and moves
+  the closer's read marker to it. Under the lock no vote lands between
+  the count and the close, so a racing vote is either in the outcome or
+  refused. The outcome is every option with the most votes when that is
+  at least one, in the poll's order, each with that count, and the
+  number of distinct people who voted; with no votes `winners` is an
+  empty list. After the commit a closed conversation is put back on its
+  lists, the poll goes out as `message_updated` and then the closing row
+  as `message_created`, and in a direct message or group conversation
+  the other participants get a `dm` activity item for the closing row,
+  as for a new poll. In a channel a close marks unread and alerts
+  nobody. `recordEvent` refuses a closing row about anything but a
+  live, closed poll in the same channel (`checkAbout`), so nothing but
+  this transaction can write one.
+- **Deleting.** A poll is deleted through `DeleteMessage`, and takes its
+  votes, its pin, and every row about it with it: its pin rows and its
+  closing row, tombstoned in the same transaction, oldest first, each on
+  the seq after the last (`removeRowsAbout` in `tombstones.go`, over
+  `ListLiveRowsAbout` with both kinds). After the commit
+  `message_deleted` goes out for the poll and then for each of those
+  rows in that order. A closing row is not quiet, so the channel's last
+  message is read again once they are gone. Deleting the closing row
+  alone is moderation's, as for any system row, and nobody's in a
+  conversation; the poll stays closed and takes no vote or second
+  close. The retention sweep removes an old poll and leaves its closing
+  row with no reference, as it leaves a pin row.
 - **Previews.** Wherever a row is shown as one line, a poll reads
   "Poll: " and its question and a closing row "Poll closed: " and the
   question, built from the row's `kind` and `content` (`previewOf`): the
@@ -1348,10 +1416,12 @@ as the line asking the reader to update (`systemLine`).
   | `poll` | no | yes | yes |
   | `poll_closed` | no | no | no |
 
-  A poll is pinned by whoever may pin a message, in a space channel
-  only, and deleted by its author or with `messages.moderate`; in a
-  conversation only by its author. A closing row is deleted as any
-  system row is.
+  A poll is pinned by whoever may pin a message, open or closed, in a
+  space channel only, and deleted by its author or with
+  `messages.moderate`; in a conversation only by its author. A closing
+  row is deleted as any system row is. A refused write on a poll says it
+  is a poll (`errPollRow`), where every other kind says the row records
+  something that happened.
 
 ## Edits, deletions, reactions, replies
 
@@ -1373,8 +1443,9 @@ anyone from.
   `reply_to_message_id`; `deleted_at` is set, the text goes, and its
   reactions, attachments, mentions, link rows, pin, activity items and,
   for a poll, votes are
-  deleted with it, and its pin rows become tombstones too
-  ([System messages](#system-messages) → Pins), the files through the
+  deleted with it, and its pin rows and a poll's closing row become
+  tombstones too ([System messages](#system-messages) → Pins,
+  [Polls](#polls) → Deleting), the files through the
   `FileDirectory` port once the transaction has committed. The row is stamped like any other write, so
   the channel log carries the delete. Nobody is shown it afterwards — not
   the channel or thread pages, `around_id`, search, pins or the channel's

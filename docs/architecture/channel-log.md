@@ -34,7 +34,8 @@ ALTER TABLE channels DROP COLUMN swept_seq;            -- 00070, 0.16.0
 ```
 
 - **Every render-affecting write stamps the row** in its own transaction:
-  send, edit, delete, reaction, pin, link preview arrival, and the root's
+  send, edit, delete, reaction, pin, link preview arrival, a vote on a
+  [poll](messaging.md#polls) and its closing, and the root's
   summary when a reply lands or goes. A
   [system message](messaging.md#system-messages) is a row like any
   other: `recordEvent` takes the next seq inside the transaction of the
