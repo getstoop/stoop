@@ -225,7 +225,7 @@ describe("each kind", () => {
     });
   });
 
-  it("blanks the excerpt of a pin row about a deleted message", () => {
+  it("removes a pin row about a deleted message, at its own seq", () => {
     const pinRow = message(id(9), {
       seq: 10n,
       quiet: true,
@@ -236,13 +236,12 @@ describe("each kind", () => {
       openedOn([...rows(0, 9), pinRow], { hasOlder: false }),
       deleted(id(3), 11),
     );
-    expect(log.rows.get(id(9))?.reference).toMatchObject({
-      messageId: id(3),
-      author: undefined,
-      preview: "",
-    });
-    // The row itself stays: it records the pin, not what is pinned now.
-    expect(ids(channelItems(log))).toContain(id(9));
+    expect(log.rows.get(id(9))).toMatchObject({ deleted: true, seq: 10n });
+    expect(ids(channelItems(log))).not.toContain(id(9));
+    // The server's delete of the row, after the message's, replaces it.
+    const settled = withEvent(log, deleted(id(9), 12));
+    expect(settled.rows.get(id(9))).toMatchObject({ deleted: true, seq: 12n });
+    expect(settled.seq).toBe(12);
   });
 
   it("keeps a tombstone for a row it never held", () => {

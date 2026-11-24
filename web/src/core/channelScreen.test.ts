@@ -825,6 +825,23 @@ describe("the reader's own delete", () => {
     expect(settled.log.seq).toBe(11);
   });
 
+  it("takes the message's pin rows with it, at their own seq", () => {
+    const pinRow = message(id(20), {
+      seq: 11n,
+      quiet: true,
+      event: { kind: { case: "pin", value: {} } },
+      reference: { messageId: target, author: { id: "them" }, preview: "hi" },
+    });
+    const pinned = run([{ type: "sent", message: pinRow }], ready);
+    expect(shown(pinned)).toContain(id(20));
+    const gone = screenReducer(pinned, deleted);
+    expect(shown(gone)).not.toContain(id(20));
+    expect(gone.log.rows.get(id(20))).toMatchObject({
+      deleted: true,
+      seq: 11n,
+    });
+  });
+
   it("leaves a root with a thread summary to the server's update, and a row not held alone", () => {
     const rooted = run(
       [

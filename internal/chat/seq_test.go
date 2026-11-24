@@ -194,9 +194,10 @@ func TestChannelLogStampsEveryWrite(t *testing.T) {
 	// a reply stamps it and the root, whose summary changed.
 	remove(reply.Id)
 	expect("delete reply", 2, reply.Id, first.Id)
-	// A root with replies left is kept as a placeholder, and stamped.
+	// A root with replies left is kept as a placeholder, and stamped; the
+	// pin's system row goes with it, stamped after it.
 	remove(first.Id)
-	expect("delete root to placeholder", 1, first.Id)
+	expect("delete root to placeholder", 2, first.Id, pinRow)
 	// The last reply takes the placeholder with it: both are stamped.
 	remove(alsoSent.Id)
 	expect("delete last reply under a placeholder", 2, alsoSent.Id, first.Id)
@@ -239,9 +240,9 @@ func TestChannelLogStampsEveryWrite(t *testing.T) {
 	if page.Msg.ChannelSeq != last {
 		t.Errorf("channel_seq = %d, want %d", page.Msg.ChannelSeq, last)
 	}
-	// The pin's system row outlives its message and the pin.
-	if len(page.Msg.Messages) != 2 || page.Msg.Messages[0].Id != pinRow || page.Msg.Messages[1].Id != linked.Id {
-		t.Fatalf("page holds %d messages, want the pin's row and the linked one", len(page.Msg.Messages))
+	// The pin's system row went with its message.
+	if len(page.Msg.Messages) != 1 || page.Msg.Messages[0].Id != linked.Id {
+		t.Fatalf("page holds %d messages, want the linked one alone", len(page.Msg.Messages))
 	}
 	for _, message := range page.Msg.Messages {
 		if message.Seq <= 0 || message.Seq > page.Msg.ChannelSeq {

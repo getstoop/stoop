@@ -56,10 +56,45 @@ func tombstoneRow(ctx context.Context, qtx *dbgen.Queries, channelID, messageID 
 	return stampMessage(ctx, qtx, channelID, messageID)
 }
 
+// removedRow is a row a delete took with it, and the position that
+// stamped it.
+type removedRow struct {
+	id  string
+	seq int64
+}
+
+// removePinRows tombstones the pin rows about a message being deleted, as
+// an admin's delete of a system row does, under the channel lock the
+// caller holds. They are quiet, so the channel's newest message stays.
+func removePinRows(ctx context.Context, qtx *dbgen.Queries, channelID, messageID string) ([]removedRow, error) {
+	ids, err := qtx.ListLiveRowsAbout(ctx, dbgen.ListLiveRowsAboutParams{MessageID: messageID, Kind: kindMessagePinned})
+	if err != nil {
+		return nil, fmt.Errorf("list pin rows: %w", err)
+	}
+	removed := make([]removedRow, 0, len(ids))
+	for _, id := range ids {
+		seq, err := tombstoneRow(ctx, qtx, channelID, id)
+		if err != nil {
+			return nil, err
+		}
+		removed = append(removed, removedRow{id: id, seq: seq})
+	}
+	return removed, nil
+}
+
+// publishRemoved tells the channel the rows a delete took with it went,
+// after whatever the delete itself published, since their seqs follow.
+func (s *Service) publishRemoved(ctx context.Context, channel dbgen.Channel, rows []removedRow) {
+	for _, row := range rows {
+		s.publishChannel(ctx, channel, messageDeleted(row.id, channel, "", row.seq))
+	}
+}
+
 // tombstoneMessage deletes one message, in the channel's transaction, and
 // tells the channel what the old client expects: message_deleted where
 // the row vanished, message_updated for a root kept as a placeholder, and
-// thread_changed when a reply's root keeps its summary. The files go
+// thread_changed when a reply's root keeps its summary; then
+// message_deleted for a top-level message's pin rows. The files go
 // through the port once the transaction has committed.
 func (s *Service) tombstoneMessage(ctx context.Context, msg messageRow, channel dbgen.Channel) error {
 	fileIDs, err := s.q.ListAttachmentFileIDsForMessage(ctx, msg.ID)
@@ -70,6 +105,7 @@ func (s *Service) tombstoneMessage(ctx context.Context, msg messageRow, channel 
 		seq         int64 // the tombstone's position
 		placeholder bool  // a root kept, since its thread has live replies
 		reply       replyTombstone
+		pinRows     []removedRow
 	)
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		if _, err := qtx.LockChannel(ctx, channel.ID); err != nil {
@@ -77,7 +113,7 @@ func (s *Service) tombstoneMessage(ctx context.Context, msg messageRow, channel 
 		}
 		var err error
 		if msg.ThreadRootID == nil {
-			seq, placeholder, err = tombstoneTopLevel(ctx, qtx, channel.ID, msg.ID)
+			seq, placeholder, pinRows, err = tombstoneTopLevel(ctx, qtx, channel.ID, msg.ID)
 			return err
 		}
 		reply, err = tombstoneReply(ctx, qtx, channel.ID, msg)
@@ -90,18 +126,8 @@ func (s *Service) tombstoneMessage(ctx context.Context, msg messageRow, channel 
 	s.deleteMessageFiles(ctx, fileIDs)
 
 	if msg.ThreadRootID == nil {
-		if !placeholder {
-			s.publishChannel(ctx, channel, messageDeleted(msg.ID, channel, "", seq))
-			return nil
-		}
-		out, err := s.loadMessage(ctx, msg.ID, spaceOf(channel))
-		if err != nil {
-			slog.Default().Warn("delete: could not reload placeholder", "message_id", msg.ID, "err", err)
-			return nil
-		}
-		s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
-			Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
-		}))
+		s.publishTopLevelDelete(ctx, channel, msg.ID, seq, placeholder)
+		s.publishRemoved(ctx, channel, pinRows)
 		return nil
 	}
 	rootID := *msg.ThreadRootID
@@ -114,23 +140,44 @@ func (s *Service) tombstoneMessage(ctx context.Context, msg messageRow, channel 
 	return nil
 }
 
-// tombstoneTopLevel tombstones a top-level message under the channel
-// lock. It returns the tombstone's position and whether the row is kept
-// as a placeholder: its thread has live replies, so it stays shown and
-// the summary stays with it.
-func tombstoneTopLevel(ctx context.Context, qtx *dbgen.Queries, channelID, messageID string) (int64, bool, error) {
+// publishTopLevelDelete is message_deleted for a top-level row that
+// vanished, or message_updated for a root kept as a placeholder.
+func (s *Service) publishTopLevelDelete(ctx context.Context, channel dbgen.Channel, messageID string, seq int64, placeholder bool) {
+	if !placeholder {
+		s.publishChannel(ctx, channel, messageDeleted(messageID, channel, "", seq))
+		return
+	}
+	out, err := s.loadMessage(ctx, messageID, spaceOf(channel))
+	if err != nil {
+		slog.Default().Warn("delete: could not reload placeholder", "message_id", messageID, "err", err)
+		return
+	}
+	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_MessageUpdated{MessageUpdated: out},
+	}))
+}
+
+// tombstoneTopLevel tombstones a top-level message, and its pin rows
+// after it, under the channel lock. It returns the tombstone's position,
+// whether the row is kept as a placeholder (its thread has live replies,
+// so it stays shown and the summary stays with it) and the pin rows.
+func tombstoneTopLevel(ctx context.Context, qtx *dbgen.Queries, channelID, messageID string) (int64, bool, []removedRow, error) {
 	replies, err := qtx.LockThread(ctx, messageID)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return 0, false, fmt.Errorf("lock thread: %w", err)
+		return 0, false, nil, fmt.Errorf("lock thread: %w", err)
 	}
 	seq, err := tombstoneRow(ctx, qtx, channelID, messageID)
 	if err != nil {
-		return 0, false, err
+		return 0, false, nil, err
+	}
+	pinRows, err := removePinRows(ctx, qtx, channelID, messageID)
+	if err != nil {
+		return 0, false, nil, err
 	}
 	if replies > 0 {
-		return seq, true, nil
+		return seq, true, pinRows, nil
 	}
-	return seq, false, hideRoot(ctx, qtx, channelID, messageID)
+	return seq, false, pinRows, hideRoot(ctx, qtx, channelID, messageID)
 }
 
 // replyTombstone is what deleting a reply did to the thread: the reply's
@@ -208,23 +255,25 @@ func hideRoot(ctx context.Context, qtx *dbgen.Queries, channelID, rootID string)
 }
 
 // tombstoneThread is Delete thread's transaction: every live reply and
-// then the root, each with its own seq, the summary dropped, the thread's
-// viewer rows gone. A root that is a placeholder already is only stamped,
-// since it vanishes. It returns the root's position.
-func tombstoneThread(ctx context.Context, qtx *dbgen.Queries, channelID string, root messageRow) (int64, error) {
+// then the root, each with its own seq, then the root's pin rows, the
+// summary dropped, the thread's viewer rows gone. A root that is a
+// placeholder already is only stamped, since it vanishes; its pin rows
+// usually went when it became one, and any still live go now. It returns
+// the root's position and the pin rows.
+func tombstoneThread(ctx context.Context, qtx *dbgen.Queries, channelID string, root messageRow) (int64, []removedRow, error) {
 	if _, err := qtx.LockChannel(ctx, channelID); err != nil {
-		return 0, fmt.Errorf("lock channel: %w", err)
+		return 0, nil, fmt.Errorf("lock channel: %w", err)
 	}
 	if _, err := qtx.LockThread(ctx, root.ID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return 0, fmt.Errorf("lock thread: %w", err)
+		return 0, nil, fmt.Errorf("lock thread: %w", err)
 	}
 	replies, err := qtx.ListLiveThreadReplies(ctx, root.ID)
 	if err != nil {
-		return 0, fmt.Errorf("list replies: %w", err)
+		return 0, nil, fmt.Errorf("list replies: %w", err)
 	}
 	for _, replyID := range replies {
 		if _, err := tombstoneRow(ctx, qtx, channelID, replyID); err != nil {
-			return 0, err
+			return 0, nil, err
 		}
 	}
 	var rootSeq int64
@@ -234,10 +283,14 @@ func tombstoneThread(ctx context.Context, qtx *dbgen.Queries, channelID string, 
 		rootSeq, err = stampMessage(ctx, qtx, channelID, root.ID)
 	}
 	if err != nil {
-		return 0, err
+		return 0, nil, err
+	}
+	pinRows, err := removePinRows(ctx, qtx, channelID, root.ID)
+	if err != nil {
+		return 0, nil, err
 	}
 	if err := qtx.DeleteThreadSummary(ctx, root.ID); err != nil {
-		return 0, fmt.Errorf("delete thread summary: %w", err)
+		return 0, nil, fmt.Errorf("delete thread summary: %w", err)
 	}
-	return rootSeq, hideRoot(ctx, qtx, channelID, root.ID)
+	return rootSeq, pinRows, hideRoot(ctx, qtx, channelID, root.ID)
 }

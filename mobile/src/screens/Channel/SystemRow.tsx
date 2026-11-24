@@ -51,8 +51,8 @@ function actionsHint(actions: { label: string }[]): string | undefined {
 // row, and folds again (with "Show fewer" after the names) on the next
 // tap; a row with no list to fold takes no tap, so another kind's own
 // tap targets have the row to themselves: a pin's excerpt, and the View
-// after it, go to the pinned message (onJumpTo); not once it has been
-// deleted. To a screen reader it is one element, the sentence as it now
+// after it, go to the pinned message (onJumpTo); deleting that message
+// removes the row. To a screen reader it is one element, the sentence as it now
 // reads and the time, whose activate action unfolds or folds the list.
 // A long press opens its menu (onLongPress), which the screen gives only
 // to someone who may moderate messages (SystemMenu); everyone else gets
@@ -132,11 +132,10 @@ export default memo(function SystemRow({
 
 type Styles = ReturnType<typeof makeStyles>;
 
-// The message a pin row's excerpt goes to: "" when there is none, or it
-// has been deleted.
+// The message a pin row's excerpt goes to: "" when there is none.
 function jumpTarget(parts: SystemPart[]): string {
   for (const part of parts) {
-    if (part.kind === "excerpt" && !part.deleted) return part.messageId;
+    if (part.kind === "excerpt") return part.messageId;
   }
   return "";
 }
@@ -167,7 +166,6 @@ function Part({
     case "channel":
       return part.current ? <Text style={styles.strong}>#{part.name}</Text> : `#${part.name}`;
     case "excerpt":
-      if (part.deleted) return <Text style={styles.deleted}>{part.text}</Text>;
       if (!onView) return part.text;
       // The excerpt and View go to the message; a long press on them opens
       // the row's menu where there is one, and is never taken as a tap.
@@ -251,9 +249,6 @@ function makeStyles(theme: Theme) {
       color: theme.textMuted,
       fontWeight: "400",
       fontSize: tokens.textSm,
-    },
-    deleted: {
-      fontStyle: "italic",
     },
     // The way to a pin's message, after its excerpt: muted and underlined,
     // as on web.

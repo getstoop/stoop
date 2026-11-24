@@ -188,8 +188,11 @@ person wrote, which is what a receiver of `message.*` expects, so the
 subscriber drops its `MessageCreated` and `MessageUpdated`; a hook never
 receives one. A delete carries no event to tell it apart, so when a
 moderator deletes a system row in a public channel the hook gets a
-`message.deleted` for a message it never received. That is accepted; a
-receiver should ignore a delete for an id it does not hold.
+`message.deleted` for a message it never received. So does deleting a
+pinned message there: its pin rows go with it, and the hook gets the
+message's `message.deleted` and then one for each of those rows. That
+is accepted; a receiver should ignore a delete for an id it does not
+hold.
 
 The body is `{id, type, ts, instance, space: {id, name}, data}` with
 `data` as protojson of the existing protos. Headers: `Stoop-Event`,

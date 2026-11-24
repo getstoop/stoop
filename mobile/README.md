@@ -785,9 +785,8 @@ on the next, with "Show fewer" after the names; a row with nothing to
 fold takes no tap. A pin's excerpt, with a muted View after it, goes to
 the pinned message when tapped: the channel engine's `jumpTo`, as
 opening the screen at a message does, so a message the server no longer
-has is said over the composer; a deleted one reads "(since deleted)"
-and goes nowhere, and a long press on the excerpt is never taken as a
-tap. A screen reader hears the row as one element, the sentence as it
+has is said over the composer (deleting the message removes the row),
+and a long press on the excerpt is never taken as a tap. A screen reader hears the row as one element, the sentence as it
 is now drawn and the time, marked expanded or collapsed when it has a
 long list, which its activate action (a double tap, with a hint saying
 what it does) unfolds or folds; a pin row offers the jump as an action,

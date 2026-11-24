@@ -628,15 +628,12 @@ func TestSystemRowPeopleAndReference(t *testing.T) {
 		t.Errorf("reference to a photo = %v, want its file name", reference)
 	}
 
-	// A deleted message leaves only its id; the row still says what
-	// happened.
+	// Deleting the message takes the pin row with it (pin_rows_internal_test.go).
 	if _, err := fixture.svc.DeleteMessage(fixture.ada, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: written.Id})); err != nil {
 		t.Fatal(err)
 	}
-	afterDelete := fixture.load(aboutText.ID)
-	if afterDelete.Event.GetPin() == nil || afterDelete.Reference.GetMessageId() != written.Id ||
-		afterDelete.Reference.GetAuthor() != nil || afterDelete.Reference.GetPreview() != "" {
-		t.Errorf("row about a deleted message = event %v reference %v, want the id alone", afterDelete.Event, afterDelete.Reference)
+	if afterDelete := fixture.load(aboutText.ID); !afterDelete.Deleted || afterDelete.Reference != nil {
+		t.Errorf("row about a deleted message = deleted %v reference %v, want a tombstone", afterDelete.Deleted, afterDelete.Reference)
 	}
 
 	// Once the row is gone for good (the retention sweep), so is the

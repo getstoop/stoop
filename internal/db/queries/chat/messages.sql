@@ -122,6 +122,13 @@ UPDATE messages SET content = '', mentions_entire_channel = false, mentions_here
     data = CASE WHEN kind = 0 THEN NULL ELSE '{}'::jsonb END, reference_message_id = NULL
 WHERE id = sqlc.arg(id)::uuid AND deleted_at IS NULL;
 
+-- ListLiveRowsAbout is the live system rows of one kind that refer to a
+-- message, oldest first: a deleted message's pin rows, which go with it.
+-- name: ListLiveRowsAbout :many
+SELECT id FROM messages
+WHERE reference_message_id = sqlc.arg(message_id)::uuid AND kind = sqlc.arg(kind) AND deleted_at IS NULL
+ORDER BY id;
+
 -- RecomputeChannelLastMessage repoints a channel at its newest message
 -- that shows in the channel, after a delete: not a tombstone, unless it
 -- is the placeholder of a thread with live replies, and never a quiet

@@ -16,6 +16,7 @@ import {
   viewOf,
   withArrivals,
   withEvent,
+  withOwnDelete,
   withPatch,
   withThreadOverlay,
 } from "../core/channelLog";
@@ -297,6 +298,13 @@ export function patchRow(
   change: (row: Message) => Message,
 ) {
   updateLog(channelId, (log) => withPatch(log, id, change));
+}
+
+// The reader's own delete, answered: gone from the list at once, with its
+// pin rows, as the events that follow make it (core/channelLog
+// withOwnDelete, which mobile's screen reducer uses too).
+export function patchOwnDelete(channelId: string, id: string) {
+  updateLog(channelId, (log) => withOwnDelete(log, id));
 }
 
 // The reader's half of a root's thread summary, from their own read and

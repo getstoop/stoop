@@ -30,9 +30,9 @@ export type SystemPart =
   // A channel's name with its #; current is the name it has now (the new
   // one in a rename), drawn in full ink.
   | { kind: "channel"; name: string; current: boolean }
-  // The message a row is about. Its text is the server's excerpt, or
-  // "(since deleted)" once the message is gone (deleted).
-  | { kind: "excerpt"; messageId: string; text: string; deleted: boolean };
+  // The message a row is about, in the server's excerpt ("" when the
+  // message has no words to excerpt).
+  | { kind: "excerpt"; messageId: string; text: string };
 
 export type SystemLine = {
   glyph: SystemGlyph;
@@ -57,15 +57,23 @@ export function isSystemRow(message: Message): boolean {
   return message.event !== undefined;
 }
 
-// A row of a kind this client does not know that is quiet: it shows
-// nothing, so the lists leave it out before grouping. (Not isShown in
+// A row that shows nothing, so the lists leave it out before grouping: a
+// quiet row of a kind this client does not know, and a pin row whose
+// message is gone (the server removes the row with it, so this is one
+// from before that, or one the retention sweep left). (Not isShown in
 // the channel log, whose range edges and cap count every row.)
 export function isHiddenSystemRow(message: Message): boolean {
-  return (
-    message.event !== undefined &&
-    message.event.kind.case === undefined &&
-    message.quiet
-  );
+  const event = message.event;
+  if (!event) return false;
+  if (event.kind.case === "pin") return !referenceLive(message);
+  return event.kind.case === undefined && message.quiet;
+}
+
+// The message a row is about is still there: the server sends its author
+// with it, and only an id (or nothing) once it is gone. Not the excerpt,
+// which a live message can lack (an empty code block).
+function referenceLive(message: Message): boolean {
+  return !!message.reference?.messageId && !!message.reference.author;
 }
 
 // The rows a list draws: every row but the hidden system rows. The same
@@ -122,30 +130,16 @@ export function systemLine(
           };
     case "pin": {
       const reference = message.reference;
-      if (!reference?.preview)
-        return {
-          glyph: "pin",
-          parts: [
-            actor,
-            text(" pinned a message "),
-            {
-              kind: "excerpt",
-              messageId: reference?.messageId ?? "",
-              text: "(since deleted)",
-              deleted: true,
-            },
-          ],
-        };
+      if (!reference || !referenceLive(message)) return null;
       return {
         glyph: "pin",
         parts: [
           actor,
-          text(" pinned a message: "),
+          text(reference.preview ? " pinned a message: " : " pinned a message"),
           {
             kind: "excerpt",
             messageId: reference.messageId,
             text: reference.preview,
-            deleted: false,
           },
         ],
       };

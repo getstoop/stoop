@@ -178,14 +178,22 @@ func TestDeletesLeaveTombstones(t *testing.T) {
 	if row := readTombstone(t, pool, full.Id); row.dependents != 6 {
 		t.Fatalf("the message carries %d dependent rows before its delete, want 6", row.dependents)
 	}
+	var pinRow string
+	if err := pool.QueryRow(context.Background(), `SELECT id FROM messages WHERE reference_message_id = $1`, full.Id).Scan(&pinRow); err != nil {
+		t.Fatal(err)
+	}
 	eventKinds(sub)
 	before := channelSeq(t, pool, channelID)
 	remove(owner, full.Id)
 	expectTombstone("full top-level", full.Id, before)
-	if got := channelSeq(t, pool, channelID); got != before+1 {
-		t.Errorf("channel seq after the delete = %d, want %d", got, before+1)
+	// The pin's row goes with it, stamped after it.
+	expectTombstone("its pin row", pinRow, before+1)
+	if got := channelSeq(t, pool, channelID); got != before+2 {
+		t.Errorf("channel seq after the delete = %d, want %d", got, before+2)
 	}
-	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{"message_deleted:" + full.Id + ":" + stamp(full.Id)}) {
+	if kinds := eventKinds(sub); !slices.Equal(kinds, []string{
+		"message_deleted:" + full.Id + ":" + stamp(full.Id), "message_deleted:" + pinRow + ":" + stamp(pinRow),
+	}) {
 		t.Errorf("events after deleting a top-level message: %v", kinds)
 	}
 	if !slices.Contains(files.deleted, photo) {
