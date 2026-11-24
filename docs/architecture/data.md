@@ -283,7 +283,9 @@ that it exists, and that a single-choice poll gets one, is the write
 path's rule and not a constraint, since both live in `data`. The primary
 key leads with `message_id` for the foreign key
 ([below](#foreign-keys)). Both keys cascade: the retention sweep's hard
-delete takes a poll's votes, and a tombstone deletes them itself. An
+delete takes a poll's votes, and a tombstone deletes them itself.
+`created_at` is the clock's time when the vote was let in, not the
+transaction's start, and orders an option's voters. An
 account's deletion is a soft delete, so the cascade on `user_id` never
 fires for one and its votes stay.
 

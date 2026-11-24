@@ -233,8 +233,8 @@ the server side.
 | 4 | `ping` | — | Reserved. Liveness today is a WebSocket control ping every 30 s with a 10 s timeout; the envelope pair exists for clients that cannot see control frames. |
 | 5 | `credential_revoked` | user | The credential this socket was opened with is gone; the socket closes with code 4001 right after. Never forwarded to a socket opened with another credential. |
 | 10 | `message_created` | space / user | A `stoop.chat.v1.Message`, the same type `ListMessages` returns, with its `seq`. A system message (`event` set) is one too; a quiet one is placed in the channel log and changes nothing else on the client: no unread count, last message, read marker or space dot. A [poll](messaging.md#polls) is a system message that is not quiet, and counts as a message someone wrote does. |
-| 11 | `message_deleted` | space / user | Ids and the tombstone's `seq`. |
-| 23 | `message_updated` | space / user | Edits, link previews arriving after the fact, and a root becoming a placeholder; the full row with its `seq`. |
+| 11 | `message_deleted` | space / user | Ids and the tombstone's `seq`. A deleted message's pin rows and a deleted poll's closing row each get their own, after the message's, in seq order. |
+| 23 | `message_updated` | space / user | Edits, link previews arriving after the fact, a root becoming a placeholder, and a [poll](messaging.md#polls) voted on or closed (a close is followed by `message_created` for its closing row, the next seq); the full row with its `seq`. A vote changes no unread count, last message or alert. |
 | 12 | `channel_created` | space / user | To each participant for a new or reopened DM. |
 | 24 | `channel_updated` | space / user | Rename, topic, post policy; followed by a `message_created` for each value that changed, in seq order. |
 | 25 | `channel_deleted` | space | |

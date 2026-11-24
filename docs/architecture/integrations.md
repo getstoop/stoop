@@ -186,11 +186,16 @@ A [system message](messaging.md#system-messages) (a row that records
 an event, such as a rename, with `Message.event` set) is not something a
 person wrote, which is what a receiver of `message.*` expects, so the
 subscriber drops its `MessageCreated` and `MessageUpdated`; a hook never
-receives one, a [poll](messaging.md#polls) included. A delete carries no event to tell it apart, so when a
+receives one, a [poll](messaging.md#polls) included: not the poll, a
+vote on it, its closing or its closing row. A delete carries no event to
+tell it apart, so when a
 moderator deletes a system row in a public channel the hook gets a
 `message.deleted` for a message it never received. So does deleting a
 pinned message there: its pin rows go with it, and the hook gets the
-message's `message.deleted` and then one for each of those rows. That
+message's `message.deleted` and then one for each of those rows. A
+deleted poll is the same: a `message.deleted` for the poll, then one
+for each pin row and for its closing row, none of which the hook was
+ever sent. That
 is accepted; a receiver should ignore a delete for an id it does not
 hold.
 
@@ -219,7 +224,9 @@ Reading history is not filtered like the hooks are: a bot or personal
 token that reads `ListMessages` or `ListChanges` receives system rows in
 their places, with `event` set and no text of their own (a
 [poll](messaging.md#polls) has its question in `content`), and should skip what it
-does not want. A token that may post may also call `CreatePoll`.
+does not want. A token that may post may also call `CreatePoll`,
+`SetPollVote` and `ClosePoll`, each under the rules a person's own call
+meets.
 
 ## Deliveries as jobs
 

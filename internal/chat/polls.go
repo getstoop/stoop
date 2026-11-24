@@ -120,6 +120,19 @@ func (event pollClosed) check() error {
 	}
 	return nil
 }
+
+// checkAbout: a closing row is about a live poll that has been closed,
+// which ClosePoll does in the same transaction before it records one.
+func (pollClosed) checkAbout(about messageRow) error {
+	poll, err := pollOf(about)
+	if err != nil {
+		return err
+	}
+	if poll.ClosedAt == nil {
+		return errors.New("the poll is still open")
+	}
+	return nil
+}
 func (event pollClosed) referenceID() string { return event.PollID }
 func (event pollClosed) content() string     { return event.Question }
 func (event pollClosed) proto(map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent {
@@ -341,4 +354,35 @@ func (s *Service) addPollVotes(ctx context.Context, rows []dbgen.MessageWithRepl
 		}
 	}
 	return nil
+}
+
+var (
+	errNotAPoll   = errors.New("that message is not a poll")
+	errPollClosed = errors.New("this poll is closed")
+)
+
+// pollOf is the poll a row holds, refused as FailedPrecondition when the
+// row is anything else: a message, another system row, a tombstone.
+func pollOf(row messageRow) (pollCreated, error) {
+	if row.Kind != kindPoll || row.DeletedAt != nil {
+		return pollCreated{}, connect.NewError(connect.CodeFailedPrecondition, errNotAPoll)
+	}
+	poll, ok := storedEvent(row.ID, row.Kind, row.Data).(pollCreated)
+	if !ok {
+		return pollCreated{}, fmt.Errorf("poll %s: its data does not read", row.ID)
+	}
+	return poll, nil
+}
+
+// openPoll is pollOf for a write that needs the poll open: voting, and
+// closing it.
+func openPoll(row messageRow) (pollCreated, error) {
+	poll, err := pollOf(row)
+	if err != nil {
+		return pollCreated{}, err
+	}
+	if poll.ClosedAt != nil {
+		return pollCreated{}, connect.NewError(connect.CodeFailedPrecondition, errPollClosed)
+	}
+	return poll, nil
 }

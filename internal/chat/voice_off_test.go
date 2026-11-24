@@ -56,6 +56,23 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A message to react to and two polls, one to vote on and one to
+	// close, made in the chat while it shows.
+	reactTo, err := svc.SendMessage(owner, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: hangout, Content: "who is in?"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var polls [2]string
+	for index := range polls {
+		poll, err := svc.CreatePoll(owner, connect.NewRequest(&chatv1.CreatePollRequest{
+			ChannelId: hangout, Question: "Friday?", Options: []string{"Yes", "No"},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		polls[index] = poll.Msg.Message.Id
+	}
+
 	listed := func() []string {
 		t.Helper()
 		res, err := svc.ListChannels(bea, connect.NewRequest(&chatv1.ListChannelsRequest{SpaceId: spaceID}))
@@ -132,6 +149,18 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 			_, err := svc.CreatePoll(bea, connect.NewRequest(&chatv1.CreatePollRequest{
 				ChannelId: hangout, Question: "anyone here?", Options: []string{"Yes", "No"},
 			}))
+			return err
+		},
+		"ToggleReaction": func() error {
+			_, err := svc.ToggleReaction(bea, connect.NewRequest(&chatv1.ToggleReactionRequest{MessageId: reactTo.Msg.Message.Id, Emoji: "👍"}))
+			return err
+		},
+		"SetPollVote": func() error {
+			_, err := svc.SetPollVote(bea, connect.NewRequest(&chatv1.SetPollVoteRequest{MessageId: polls[0], OptionIds: []int32{1}}))
+			return err
+		},
+		"ClosePoll": func() error {
+			_, err := svc.ClosePoll(owner, connect.NewRequest(&chatv1.ClosePollRequest{MessageId: polls[1]}))
 			return err
 		},
 		"ListMessages": func() error {

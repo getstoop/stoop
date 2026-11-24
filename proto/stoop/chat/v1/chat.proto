@@ -148,6 +148,15 @@ service ChatService {
   // channel unread as a message does. See docs/architecture/messaging.md
   // → Polls.
   rpc CreatePoll(CreatePollRequest) returns (CreatePollResponse) {}
+  // SetPollVote sets the caller's whole selection on an open poll; an
+  // empty one takes the vote back. Whoever may react here may vote, a
+  // member of an announcement channel included. A vote marks nothing
+  // unread and alerts nobody; the poll goes out as message_updated.
+  rpc SetPollVote(SetPollVoteRequest) returns (SetPollVoteResponse) {}
+  // ClosePoll closes a poll for good, and records a row naming the
+  // outcome that marks the channel unread as a message does. Its author
+  // may, or in a space someone with messages.moderate.
+  rpc ClosePoll(ClosePollRequest) returns (ClosePollResponse) {}
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
   // ListChanges catches a channel up from a log position: every row with
   // a higher seq, tombstones and thread replies included. Same access as
@@ -708,6 +717,31 @@ message CreatePollRequest {
 
 message CreatePollResponse {
   // The poll's row, as message_created carries it.
+  Message message = 1;
+}
+
+message SetPollVoteRequest {
+  // The poll's message.
+  string message_id = 1;
+  // The caller's whole selection, as PollOption.id: every option they
+  // choose, replacing what they chose before. Empty takes the vote back.
+  // At most one unless the poll takes several; no id twice.
+  repeated int32 option_ids = 2;
+}
+
+message SetPollVoteResponse {
+  // The poll as it stands after the vote, as message_updated carries it.
+  Message message = 1;
+}
+
+message ClosePollRequest {
+  // The poll's message.
+  string message_id = 1;
+}
+
+message ClosePollResponse {
+  // The poll as it stands closed, as message_updated carries it. Its
+  // closing row arrives as message_created.
   Message message = 1;
 }
 

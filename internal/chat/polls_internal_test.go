@@ -20,9 +20,10 @@ import (
 	"github.com/getstoop/stoop/internal/events"
 )
 
-// Polls (docs/architecture/messaging.md → Polls). Nothing votes or closes
-// a poll yet, so these tests write votes straight into poll_votes and
-// record a closing row with recordEvent, as the RPCs will.
+// Polls (docs/architecture/messaging.md → Polls): creating one, reading
+// it, its previews and guards. Where a test needs a vote cast at a known
+// moment it writes poll_votes itself; voting, closing and deleting are in
+// poll_votes_, poll_close_ and poll_delete_internal_test.go.
 
 var yesNo = []string{"Yes", "No"}
 
@@ -400,13 +401,29 @@ func TestCreatePollInAConversation(t *testing.T) {
 	}
 }
 
-// closing records a poll's closing row by closer, as closing it will.
-func (f *systemRows) closing(closer context.Context, channel dbgen.Channel, poll *chatv1.Message) messageRow {
+// closing closes a poll as closer and returns its closing row.
+func (f *systemRows) closing(closer context.Context, poll *chatv1.Message) messageRow {
 	f.t.Helper()
-	return f.record(closer, channel, pollClosed{
-		PollID: poll.Id, Question: poll.Content,
-		Winners: []pollWinner{{Text: "Yes", Votes: 2}}, Voters: 3,
-	})
+	if _, err := f.svc.ClosePoll(closer, connect.NewRequest(&chatv1.ClosePollRequest{MessageId: poll.Id})); err != nil {
+		f.t.Fatal(err)
+	}
+	return f.closingRowOf(poll.Id)
+}
+
+// closingRowOf is the live closing row of a poll.
+func (f *systemRows) closingRowOf(pollID string) messageRow {
+	f.t.Helper()
+	var id string
+	if err := f.pool.QueryRow(context.Background(),
+		`SELECT id FROM messages WHERE kind = $1 AND reference_message_id = $2 AND deleted_at IS NULL`,
+		kindPollClosed, pollID).Scan(&id); err != nil {
+		f.t.Fatal(err)
+	}
+	row, err := f.svc.q.GetMessage(context.Background(), id)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return row
 }
 
 // A closing row reads back as its snapshot and refers to its poll. It is
@@ -417,11 +434,13 @@ func TestClosingRowAndItsPreviews(t *testing.T) {
 	conversation := fixture.conversation(fixture.ada, fixture.bea)
 	question := typedQuestion(fixture.bea)
 	poll := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{ChannelId: conversation.ID, Question: question, Options: yesNo})
-	row := fixture.closing(fixture.ada, conversation, poll)
+	fixture.vote(poll.Id, fixture.ada, 1, time.Now())
+	fixture.vote(poll.Id, fixture.bea, 1, time.Now())
+	row := fixture.closing(fixture.ada, poll)
 
 	closed := fixture.load(row.ID)
 	wantEvent := &chatv1.SystemEvent{Kind: &chatv1.SystemEvent_PollClosed{PollClosed: &chatv1.PollClosed{
-		Question: question, Winners: []*chatv1.PollWinner{{Text: "Yes", Votes: 2}}, VoterCount: 3,
+		Question: question, Winners: []*chatv1.PollWinner{{Text: "Yes", Votes: 2}}, VoterCount: 2,
 	}}}
 	if !proto.Equal(closed.Event, wantEvent) || closed.Content != question || closed.Quiet {
 		t.Errorf("closing row = %v, want the snapshot, the question in content, loud", closed)
@@ -436,12 +455,6 @@ func TestClosingRowAndItsPreviews(t *testing.T) {
 	if listed.Channel.UnreadCount != 2 || listed.LastMessage.GetMessageId() != row.ID || listed.LastMessage.GetPreview() != want {
 		t.Errorf("the conversation = %v, want two unread and last message %q", listed, want)
 	}
-	// The alert a close will raise, through the same step a message's takes.
-	participants, err := fixture.svc.people(context.Background(), conversation)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fixture.svc.recordActivity(context.Background(), row, conversation, participants, nil, nil, closed.Author, nil)
 	items := fixture.activity(fixture.bea)
 	if len(items) != 1 || items[0].MessageId != row.ID || items[0].Preview != want {
 		t.Fatalf("activity = %v, want the one dm item moved to the closing row, previewed %q", items, want)
@@ -540,7 +553,7 @@ func TestSearchFindsAPollByItsQuestion(t *testing.T) {
 		Question: "Who is bringing the zanzibar board?", Options: []string{"Quokka", "No"},
 	})
 	fixture.vote(poll.Id, fixture.cat, 1, time.Now())
-	fixture.closing(fixture.ada, fixture.channel, poll)
+	fixture.closing(fixture.ada, poll)
 	search := func(query string) []*chatv1.Message {
 		t.Helper()
 		found, err := fixture.svc.SearchMessages(fixture.bea, connect.NewRequest(&chatv1.SearchMessagesRequest{
@@ -581,15 +594,15 @@ func TestPollKindFlags(t *testing.T) {
 	}
 }
 
-// A poll is pinned by whoever may pin a message, and the pin's row
-// excerpts it by its question as typed. Its closing row is not pinnable,
-// and a conversation has no pins for either.
+// A poll is pinned by whoever may pin a message, open or closed, and the
+// pin's row excerpts it by its question as typed. Its closing row is not
+// pinnable, and a conversation has no pins for either.
 func TestPinningAPoll(t *testing.T) {
 	fixture := newSystemRows(t)
 	question := typedQuestion(fixture.bea)
 	poll := fixture.poll(fixture.cat, &chatv1.CreatePollRequest{Question: question, Options: yesNo})
 	fixture.vote(poll.Id, fixture.bea, 1, time.Now())
-	closing := fixture.closing(fixture.cat, fixture.channel, poll)
+	closing := fixture.closing(fixture.cat, poll)
 
 	if err := fixture.setPinned(fixture.cat, poll.Id, true); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Errorf("a member pinning their own poll: err = %v, want PermissionDenied", err)
@@ -610,8 +623,14 @@ func TestPinningAPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(pins.Msg.Pins) != 1 || pins.Msg.Pins[0].Message.Id != poll.Id || !pins.Msg.Pins[0].Message.Pinned ||
-		len(pins.Msg.Pins[0].Message.Event.GetPoll().GetOptions()[0].GetVoters()) != 1 {
-		t.Errorf("pins = %v, want the poll alone, with its vote", pins.Msg.Pins)
+		len(pins.Msg.Pins[0].Message.Event.GetPoll().GetOptions()[0].GetVoters()) != 1 ||
+		pins.Msg.Pins[0].Message.Event.GetPoll().GetClosedAt() == nil {
+		t.Errorf("pins = %v, want the closed poll alone, with its vote", pins.Msg.Pins)
+	}
+	// An open poll is pinned the same way.
+	open := fixture.poll(fixture.cat, &chatv1.CreatePollRequest{Question: "Snacks?", Options: yesNo})
+	if err := fixture.setPinned(fixture.ada, open.Id, true); err != nil {
+		t.Errorf("the owner pinning an open poll: %v", err)
 	}
 
 	conversation := fixture.conversation(fixture.ada, fixture.bea)
@@ -648,7 +667,7 @@ func TestDeletingAPoll(t *testing.T) {
 	}
 
 	kept := ask(fixture.cat, "")
-	closing := fixture.closing(fixture.cat, fixture.channel, kept)
+	closing := fixture.closing(fixture.cat, kept)
 	if err := remove(fixture.cat, closing.ID); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Errorf("a member deleting the closing row they caused: err = %v, want PermissionDenied", err)
 	}
@@ -662,7 +681,7 @@ func TestDeletingAPoll(t *testing.T) {
 	// A conversation has no moderator: the author, and nobody else.
 	conversation := fixture.conversation(fixture.ada, fixture.bea)
 	theirs := ask(fixture.bea, conversation.ID)
-	theirClosing := fixture.closing(fixture.bea, conversation, theirs)
+	theirClosing := fixture.closing(fixture.bea, theirs)
 	for name, person := range map[string]context.Context{"its author": fixture.bea, "the other person": fixture.ada} {
 		if err := remove(person, theirClosing.ID); connect.CodeOf(err) != connect.CodePermissionDenied {
 			t.Errorf("%s deleting a closing row in a conversation: err = %v, want PermissionDenied", name, err)
@@ -730,7 +749,10 @@ func TestDeletedPollLosesItsVotes(t *testing.T) {
 func TestPollRowsRefuseWhatAPersonWrote(t *testing.T) {
 	fixture := newSystemRows(t)
 	poll := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{Question: "Friday?", Options: yesNo})
-	closing := fixture.closing(fixture.ada, fixture.channel, poll)
+	closing := fixture.closing(fixture.ada, poll)
+	// Each is refused in its own words: a poll is not a record of
+	// something that happened.
+	refusals := map[string]error{poll.Id: errPollRow, closing.ID: errSystemMessage}
 	for name, messageID := range map[string]string{"poll": poll.Id, "closing row": closing.ID} {
 		for write, err := range fixture.guardedWrites(fixture.ada, messageID) {
 			if write == "pin" && messageID == poll.Id {
@@ -739,8 +761,8 @@ func TestPollRowsRefuseWhatAPersonWrote(t *testing.T) {
 				}
 				continue
 			}
-			if connect.CodeOf(err) != connect.CodeFailedPrecondition || !errors.Is(err, errSystemMessage) {
-				t.Errorf("%s, %s: err = %v, want the system-message refusal", name, write, err)
+			if connect.CodeOf(err) != connect.CodeFailedPrecondition || !errors.Is(err, refusals[messageID]) {
+				t.Errorf("%s, %s: err = %v, want FailedPrecondition, %q", name, write, err, refusals[messageID])
 			}
 		}
 		message := fixture.load(messageID)

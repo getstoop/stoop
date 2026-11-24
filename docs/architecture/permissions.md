@@ -150,7 +150,7 @@ Ownership is transferable, and the owner cannot leave without transferring
 | `members.manage` (kick, ban, set role ≤ admin) | ✓ | ✓ | |
 | `space.manage` (name, icon, description, welcome, settings) | ✓ | ✓ | |
 | `messages.notify_entire_channel` (`@channel`, `@here`) | ✓ | ✓ | |
-| `messages.moderate` (delete others' messages, and any [system message](messaging.md#system-messages); own always, a [poll](messaging.md#polls) among them) | ✓ | ✓ | |
+| `messages.moderate` (delete others' messages, and any [system message](messaging.md#system-messages); own always, a [poll](messaging.md#polls) among them; close others' polls) | ✓ | ✓ | |
 | `space.transfer`, `space.delete` | ✓ | | |
 
 Reading, posting and joining voice need membership and nothing else.
@@ -296,8 +296,8 @@ nobody needs permission to decide who may contact them.
 While a block stands:
 
 - Neither side can open or post in a direct message with the other, nor
-  edit or react to anything already in it. Deleting your own message
-  stays available.
+  edit or react to anything already in it, nor vote on or close a poll
+  there. Deleting your own message stays available.
 - The conversation is hidden from the blocker's DM list.
 - The blocked person's mentions, replies and DMs raise no activity for
   the blocker.
