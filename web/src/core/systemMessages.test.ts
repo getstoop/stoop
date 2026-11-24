@@ -77,6 +77,30 @@ describe("systemLine", () => {
     ).toEqual(["maya", "jun", "priya"]);
   });
 
+  it("unfolds a long list to every name, and says which way it is", () => {
+    const unfolded = systemLine(added(people), true);
+    expect(unfolded && systemText(unfolded.parts)).toBe(
+      "Maya Okafor added Jun Watanabe, Priya Nair, Tomas Lind, Elif Demir and Sam Reyes",
+    );
+    expect(unfolded?.parts.some((part) => part.kind === "others")).toBe(false);
+    expect(unfolded?.fold).toBe("unfolded");
+    expect(systemLine(added(people))?.fold).toBe("folded");
+    expect(systemLine(added(people.slice(0, 4)))?.fold).toBe("folded");
+  });
+
+  it("has nothing to fold in a list of three or fewer", () => {
+    for (const count of [1, 2, 3]) {
+      const folded = systemLine(added(people.slice(0, count)));
+      const unfolded = systemLine(added(people.slice(0, count)), true);
+      expect(folded?.fold).toBeUndefined();
+      expect(unfolded).toEqual(folded);
+    }
+    expect(systemLine(added([maya]), true)?.fold).toBeUndefined();
+    expect(
+      systemLine(row({ case: "memberLeft", value: {} }), true)?.fold,
+    ).toBeUndefined();
+  });
+
   it("says joined when the only person added is the author", () => {
     expect(said(added([maya]))).toEqual({
       glyph: "arrow-in",

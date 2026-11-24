@@ -224,8 +224,8 @@ func TestEveryDepartureRecordsLeft(t *testing.T) {
 				}
 			}
 			for _, channelID := range []string{without, fixture.channel.ID} {
-				if got := fixture.systemRowsIn(channelID); len(got) != 0 {
-					t.Errorf("rows in %s, which they were not in or is public = %+v, want none", channelID, got)
+				if got := fixture.leftRows(channelID); len(got) != 0 {
+					t.Errorf("left rows in %s, which they were not in or is public = %v, want none", channelID, got)
 				}
 			}
 			var data []byte
@@ -285,11 +285,11 @@ func TestDepartureFromNoPrivateChannelRecordsNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	var count int
-	if err := fixture.pool.QueryRow(context.Background(), `SELECT count(*) FROM messages WHERE kind <> 0`).Scan(&count); err != nil {
+	if err := fixture.pool.QueryRow(context.Background(), `SELECT count(*) FROM messages WHERE kind = $1`, kindMemberLeft).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
-		t.Errorf("%d system rows after a departure from no private channel, want none", count)
+		t.Errorf("%d left rows after a departure from no private channel, want none", count)
 	}
 }
 
@@ -323,11 +323,11 @@ func TestFailedDepartureRecordsNothing(t *testing.T) {
 		t.Fatal("kick went through a refused row")
 	}
 	var count int
-	if err := fixture.pool.QueryRow(ctx, `SELECT count(*) FROM messages WHERE kind <> 0`).Scan(&count); err != nil {
+	if err := fixture.pool.QueryRow(ctx, `SELECT count(*) FROM messages WHERE kind = $1`, kindMemberLeft).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
-		t.Errorf("%d system rows after failed removals, want none", count)
+		t.Errorf("%d left rows after failed removals, want none", count)
 	}
 	for _, channel := range []string{channelID, second} {
 		in, err := fixture.svc.q.IsPrivateChannelMember(ctx, dbgen.IsPrivateChannelMemberParams{ChannelID: channel, UserID: catID})
@@ -410,9 +410,8 @@ func TestConcurrentDeparturesDoNotDeadlock(t *testing.T) {
 // Someone added to a private channel while they leave the space either
 // goes in first, and that channel records them leaving, or is refused
 // as no longer a member. Every "added" row naming them is followed by a
-// "left" row. On this branch the add path records no "added" row, so
-// the test reads an add that went through as the person having been in
-// the channel; once membership rows land it checks those too.
+// "left" row: an add that went in recorded exactly one "added" row
+// naming them, and their "left" row comes after it in the channel.
 func TestAddDuringDepartureIsNotLost(t *testing.T) {
 	fixture := newSystemRows(t)
 	ctx := context.Background()
@@ -423,7 +422,7 @@ func TestAddDuringDepartureIsNotLost(t *testing.T) {
 		t.Fatal(err)
 	}
 	const rounds = 40
-	landed := 0
+	landed, refused := 0, 0
 	for round := range rounds {
 		if round > 0 {
 			if _, err := fixture.svc.JoinSpace(fixture.cat, connect.NewRequest(&chatv1.JoinSpaceRequest{Code: invite.Msg.Invite.Code})); err != nil {
@@ -457,20 +456,29 @@ func TestAddDuringDepartureIsNotLost(t *testing.T) {
 		if leaveErr != nil {
 			t.Fatalf("round %d, leave: %v", round, leaveErr)
 		}
-		var added int
-		if err := fixture.pool.QueryRow(ctx,
-			`SELECT count(*) FROM messages WHERE channel_id = $1 AND kind = $2 AND data->'user_ids' ? $3`,
-			target, kindMembersAdded, catID).Scan(&added); err != nil {
+		// The "added" rows naming cat, and cat's "left" rows, and whether
+		// every left row comes after the last added row.
+		var added, left int
+		var inOrder bool
+		if err := fixture.pool.QueryRow(ctx, `
+			SELECT
+				count(*) FILTER (WHERE kind = $2 AND data->'user_ids' ? $3::text),
+				count(*) FILTER (WHERE kind = $4 AND author_id = $3::uuid),
+				coalesce(min(seq) FILTER (WHERE kind = $4 AND author_id = $3::uuid), 0) >
+					coalesce(max(seq) FILTER (WHERE kind = $2 AND data->'user_ids' ? $3::text), 0)
+			FROM messages WHERE channel_id = $1`,
+			target, kindMembersAdded, catID, kindMemberLeft).Scan(&added, &left, &inOrder); err != nil {
 			t.Fatal(err)
 		}
-		left := len(fixture.leftRows(target))
 		switch {
 		case addErr == nil:
 			landed++
-			if left != 1 {
-				t.Errorf("round %d: the add went in, then %d left rows, want 1", round, left)
+			if added != 1 || left != 1 || !inOrder {
+				t.Errorf("round %d: the add went in, then %d added and %d left rows (left after added: %v), want one each, in order",
+					round, added, left, inOrder)
 			}
 		case connect.CodeOf(addErr) == connect.CodeFailedPrecondition:
+			refused++
 			if left != 0 || added != 0 {
 				t.Errorf("round %d: the add was refused, yet %d added and %d left rows", round, added, left)
 			}
@@ -481,7 +489,7 @@ func TestAddDuringDepartureIsNotLost(t *testing.T) {
 			t.Errorf("round %d: %d added rows naming cat, only %d left rows after", round, added, left)
 		}
 	}
-	t.Logf("%d of %d adds went in before the leave", landed, rounds)
+	t.Logf("%d of %d adds went in before the leave, %d refused", landed, rounds, refused)
 }
 
 // A reorder that puts the newest channel first, running while someone in

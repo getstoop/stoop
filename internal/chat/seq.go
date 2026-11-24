@@ -34,9 +34,12 @@ import (
 // lists theirs. It then holds those channels FOR NO KEY UPDATE
 // (LockChannelNoKey), which shuts out every other writer of a channel
 // but lets a foreign-key check through, so nothing that only points a
-// new row at the channel (an alert, a read marker) waits on it. After
-// the locks the removal waits only on rows its own statements and
-// cascade take: the person's activity items, channel memberships and
+// new row at the channel (an alert, a read marker) waits on it. Adding
+// people to a private channel and taking one person out of it
+// (addMembers, removeFromChannel) hold their one channel the same way,
+// for the same reason; an add against a space delete is among the
+// accepted cases below. After the locks the removal waits only on rows
+// its own statements and cascade take: the person's activity items, channel memberships and
 // group memberships. Whoever holds one of those must not then wait on a
 // departing person's membership. Saving a group (UpdateGroup) is the
 // one writer of those rows that also checks memberships, so it writes

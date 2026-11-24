@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"connectrpc.com/connect"
 
@@ -129,13 +130,34 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 				errors.New("only members of the space can be added"))
 		}
 	}
-	// All of them or none: one transaction, and nobody is told until it
-	// commits.
-	var added []string
-	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
-		added = added[:0]
-		for _, userID := range req.Msg.UserIds {
-			inserted, err := insertChannelMember(ctx, qtx, channel, userID, authctx.UserID(ctx))
+	if _, err := s.addMembers(ctx, channel, req.Msg.UserIds, authctx.UserID(ctx)); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&chatv1.AddChannelMembersResponse{}), nil
+}
+
+// addMembers puts space members into a private channel for actorID and
+// records one "added" system message naming the people it put in: anyone
+// already in is left out, and nobody new records nothing. All of them or
+// none, in one transaction under the channel row (seq.go), and nobody is
+// told until it commits. Each new member is sent the channel before the
+// row, so their client has it when the row arrives. It returns who it put
+// in.
+func (s *Service) addMembers(ctx context.Context, channel dbgen.Channel, userIDs []string, actorID string) ([]string, error) {
+	var (
+		added    []string
+		recorded string
+	)
+	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		added, recorded = added[:0], ""
+		// FOR NO KEY UPDATE, as a removal takes it: it shuts out every
+		// other writer of the channel, and the add has no need to hold up
+		// a foreign-key check (an alert, a read marker) meanwhile.
+		if _, err := qtx.LockChannelNoKey(ctx, channel.ID); err != nil {
+			return apierr.NotFoundOr(err, "channel")
+		}
+		for _, userID := range userIDs {
+			inserted, err := insertChannelMember(ctx, qtx, channel, userID, actorID)
 			if err != nil {
 				return err
 			}
@@ -143,7 +165,12 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 				added = append(added, userID)
 			}
 		}
-		return nil
+		if len(added) == 0 {
+			return nil
+		}
+		row, err := recordEvent(ctx, qtx, channel, actorID, membersAdded{UserIDs: added})
+		recorded = row.ID
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -151,19 +178,36 @@ func (s *Service) AddChannelMembers(ctx context.Context, req *connect.Request[ch
 	for _, userID := range added {
 		s.announceJoined(ctx, channel, userID)
 	}
-	return connect.NewResponse(&chatv1.AddChannelMembersResponse{}), nil
+	if event := s.systemMessageEvent(ctx, channel, recorded); event != nil {
+		s.publishChannel(ctx, channel, event)
+	}
+	return added, nil
 }
 
-// addToChannel puts a space member into a private channel and tells them
-// and the people already in it. Already in is fine and tells nobody; it
-// reports whether this call is what put them in.
+// addToChannel puts one space member into a private channel for addedBy,
+// as addMembers does, and reports whether this call is what put them in.
+// Already in is fine: it tells nobody and records nothing.
 func (s *Service) addToChannel(ctx context.Context, channel dbgen.Channel, userID, addedBy string) (bool, error) {
-	inserted, err := insertChannelMember(ctx, s.q, channel, userID, addedBy)
-	if err != nil || !inserted {
-		return false, err
+	added, err := s.addMembers(ctx, channel, []string{userID}, addedBy)
+	return len(added) > 0, err
+}
+
+// systemMessageEvent is MessageCreated for the system message id just
+// recorded in channel, as every reader is sent it. nil when there is
+// none, or when it cannot be read back: the action stands, and clients
+// find the row through the channel log.
+func (s *Service) systemMessageEvent(ctx context.Context, channel dbgen.Channel, id string) *realtimev1.ServerEvent {
+	if id == "" {
+		return nil
 	}
-	s.announceJoined(ctx, channel, userID)
-	return true, nil
+	message, err := s.loadMessage(ctx, id, spaceOf(channel))
+	if err != nil {
+		slog.Default().Warn("could not load a system message to publish", "message_id", id, "err", err)
+		return nil
+	}
+	return events.Stamp(&realtimev1.ServerEvent{
+		Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
+	})
 }
 
 // insertChannelMember writes the row and reports whether it was new.
@@ -225,10 +269,27 @@ func (s *Service) LeaveChannel(ctx context.Context, req *connect.Request[chatv1.
 
 // removeFromChannel takes someone out of a private channel: their row,
 // and their activity items for it, which keep message previews. The
-// channel leaves their list the way a deleted one does.
+// channel leaves their list the way a deleted one does. It records a
+// "left" system message by them, whether they left or were removed:
+// nothing stores who removed them. The departure and the row go only to
+// the people who remain.
 func (s *Service) removeFromChannel(ctx context.Context, channel dbgen.Channel, userID string) error {
-	var removed int64
+	var (
+		removed   int64
+		recorded  string
+		remaining []string
+	)
 	err := s.inTx(ctx, func(qtx *dbgen.Queries) error {
+		removed, recorded, remaining = 0, "", nil
+		// The channel row before the member's (seq.go): a send by the
+		// same person holds it while it marks their activity read. Held
+		// FOR NO KEY UPDATE: every other writer of the channel still
+		// waits, but an alert being written for someone else here, which
+		// may hold this person's alert, gets its foreign-key check
+		// through instead of waiting on us while we wait on that alert.
+		if _, err := qtx.LockChannelNoKey(ctx, channel.ID); err != nil {
+			return apierr.NotFoundOr(err, "channel")
+		}
 		var err error
 		removed, err = qtx.RemovePrivateChannelMember(ctx, dbgen.RemovePrivateChannelMemberParams{
 			ChannelID: channel.ID, UserID: userID,
@@ -236,9 +297,18 @@ func (s *Service) removeFromChannel(ctx context.Context, channel dbgen.Channel, 
 		if err != nil || removed == 0 {
 			return err
 		}
-		return qtx.DeleteActivityForChannel(ctx, dbgen.DeleteActivityForChannelParams{
+		if err := qtx.DeleteActivityForChannel(ctx, dbgen.DeleteActivityForChannelParams{
 			UserID: userID, ChannelID: channel.ID,
-		})
+		}); err != nil {
+			return err
+		}
+		row, err := recordEvent(ctx, qtx, channel, userID, memberLeft{})
+		if err != nil {
+			return err
+		}
+		recorded = row.ID
+		remaining, err = peopleWith(ctx, qtx, channel)
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("remove channel member: %w", err)
@@ -251,13 +321,16 @@ func (s *Service) removeFromChannel(ctx context.Context, channel dbgen.Channel, 
 			ChannelDeleted: &realtimev1.ChannelDeleted{SpaceId: spaceOf(channel), ChannelId: channel.ID},
 		},
 	}))
-	s.publishChannel(ctx, channel, events.Stamp(&realtimev1.ServerEvent{
+	s.publishTo(channel, remaining, events.Stamp(&realtimev1.ServerEvent{
 		Payload: &realtimev1.ServerEvent_ChannelMemberLeft{
 			ChannelMemberLeft: &realtimev1.ChannelMemberChanged{
 				SpaceId: spaceOf(channel), ChannelId: channel.ID, UserId: userID,
 			},
 		},
 	}))
+	if event := s.systemMessageEvent(ctx, channel, recorded); event != nil {
+		s.publishTo(channel, remaining, event)
+	}
 	if isVoice(channel) {
 		s.evictFromChannelVoice(ctx, channel.ID, userID)
 	}

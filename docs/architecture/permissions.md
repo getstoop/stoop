@@ -185,6 +185,11 @@ The rule is one view, `channel_readers` ([data.md](data.md#chat)).
   in it sees that it exists, its name and who is in it, and may rename,
   reorder or delete it, or add themself. They read nothing in it until
   they do, and joining is visible to its people.
+- Who joins and goes is on its record: adding people writes a row in
+  its timeline naming them ("joined" when an admin adds themself), and
+  leaving or being removed writes "left" by the person who went. A
+  removal reads exactly as a leave; nothing records who removed them
+  ([messaging.md](messaging.md#system-messages)).
 - Pinning, deleting someone else's message and deleting a thread need
   the role and being in the channel.
 - An instance admin has no bypass, as with a direct message: no RPC

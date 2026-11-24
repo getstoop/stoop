@@ -249,7 +249,7 @@ the server side.
 | 18 | `member_joined` | space | |
 | 14 | `member_role_changed` | space | |
 | 15 | `member_removed` | space | Kick, leave, or ban. Each private channel the person was in has already had its `channel_member_left` and then its "left" row, to the people who remain there. |
-| 37 | `channel_member_joined` | user | Someone joined a private channel; to the people in it, the joiner included, who also gets `channel_created` first. |
+| 37 | `channel_member_joined` | user | Someone joined a private channel; to the people in it, the joiner included, who also gets `channel_created` first; the channel's "added" row follows. |
 | 38 | `channel_member_left` | user | Someone left a private channel, by themself, removed from it or by leaving the space; to the people who remain, before the channel's "left" row. |
 | 28 | `member_updated` | space | A member's avatar or username changed; refetch them (the rows read their name from the members list). |
 | 39 | `groups_changed` | space | A group was created, changed or deleted; refetch the space's groups. |
