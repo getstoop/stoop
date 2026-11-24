@@ -59,12 +59,12 @@ test("the channel a space opens in", async ({ browser, request }) => {
   // the choices: landing someone there would open their microphone.
   await A.locator(".channel-group-heading .channel-add:not(.voice)").click();
   await A.getByLabel("Channel name").fill("tools");
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await channelLink(A, "tools").waitFor();
   if (voice) {
     await A.locator(".channel-group-heading .channel-add.voice").click();
     await A.getByLabel("Voice channel name").fill("porch-swing");
-    await A.getByRole("button", { name: "Create" }).click();
+    await A.getByRole("button", { name: "Create", exact: true }).click();
     await channelLink(A, "porch-swing").waitFor();
   }
 
