@@ -74,7 +74,8 @@ export function sameMinute(a: Date, b: Date): boolean {
 // own with a thread's rules (routes/Channel/MessageList/items.ts).
 export type GroupedRow =
   | { kind: "message"; key: string; message: Message; continued: boolean }
-  | { kind: "poll" | "system"; key: string; message: Message }
+  | { kind: "poll"; key: string; message: Message }
+  | { kind: "system"; key: string; message: Message }
   | { kind: "day" | "new"; key: string; label: string };
 
 export function groupedRows(
