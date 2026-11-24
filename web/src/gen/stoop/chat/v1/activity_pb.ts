@@ -58,7 +58,8 @@ export type ActivityItem = Message<"stoop.chat.v1.ActivityItem"> & {
   actor?: MessageAuthor | undefined;
 
   /**
-   * A short excerpt of the message (empty if it was deleted).
+   * A short excerpt of the message (empty if it was deleted). A poll
+   * reads "Poll: " and its question, its closing row "Poll closed: ".
    *
    * @generated from field: string preview = 7;
    */

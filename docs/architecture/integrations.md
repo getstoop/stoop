@@ -186,7 +186,7 @@ A [system message](messaging.md#system-messages) (a row that records
 an event, such as a rename, with `Message.event` set) is not something a
 person wrote, which is what a receiver of `message.*` expects, so the
 subscriber drops its `MessageCreated` and `MessageUpdated`; a hook never
-receives one. A delete carries no event to tell it apart, so when a
+receives one, a [poll](messaging.md#polls) included. A delete carries no event to tell it apart, so when a
 moderator deletes a system row in a public channel the hook gets a
 `message.deleted` for a message it never received. So does deleting a
 pinned message there: its pin rows go with it, and the hook gets the
@@ -217,8 +217,9 @@ receiver dedupes on `Stoop-Delivery` and reads a gap off
 `ListChannels` for the rest). Hard-deleted messages are unrecoverable.
 Reading history is not filtered like the hooks are: a bot or personal
 token that reads `ListMessages` or `ListChanges` receives system rows in
-their places, with `event` set and no text of their own, and should skip what it
-does not want.
+their places, with `event` set and no text of their own (a
+[poll](messaging.md#polls) has its question in `content`), and should skip what it
+does not want. A token that may post may also call `CreatePoll`.
 
 ## Deliveries as jobs
 

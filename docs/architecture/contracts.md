@@ -74,7 +74,8 @@ Grouped by what they touch rather than declaration order:
   `ListInviteUses` (who joined through one), `LookupInvite` (**public**)
 - **Channels** — `CreateChannel`, `ListChannels`, `UpdateChannel`,
   `DeleteChannel`, `ReorderChannels`, `SetChannelMuted`, `SetSpaceMuted`
-- **Messages** — `SendMessage`, `ListMessages`, `ListChanges` (the
+- **Messages** — `SendMessage`, `CreatePoll` (a
+  [poll](messaging.md#polls); gated as `SendMessage` is), `ListMessages`, `ListChanges` (the
   channel log from a seq, for catching up; same gate as `ListMessages`),
   `SearchMessages`, `EditMessage`, `DeleteMessage`, `DismissLinkPreview`,
   `ToggleReaction`, `SetMessagePinned`, `ListPinnedMessages`

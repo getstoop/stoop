@@ -13,11 +13,12 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, sqlc.arg(seq)::bigint)
 RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id;
 
 -- CreateSystemMessage inserts a row that records an event in a channel
--- (internal/chat/system_messages.go): top-level, no text, and never a
--- reply. data is the kind's JSON, '{}' when it carries nothing.
+-- (internal/chat/system_messages.go): top-level and never a reply. data
+-- is the kind's JSON, '{}' when it carries nothing. content is '' but
+-- for a poll and its closing row, which keep the question there.
 -- name: CreateSystemMessage :one
 INSERT INTO messages (id, channel_id, author_id, content, in_channel, seq, kind, data, quiet, reference_message_id)
-VALUES (sqlc.arg(id), sqlc.arg(channel_id), sqlc.arg(author_id), '', true, sqlc.arg(seq)::bigint,
+VALUES (sqlc.arg(id), sqlc.arg(channel_id), sqlc.arg(author_id), sqlc.arg(content), true, sqlc.arg(seq)::bigint,
     sqlc.arg(kind), sqlc.arg(data), sqlc.arg(quiet), sqlc.narg(reference_message_id))
 RETURNING id, channel_id, author_id, content, created_at, mentions_entire_channel, reply_to_message_id, mentions_here, edited_at, thread_root_id, in_channel, deleted_at, seq, kind, data, quiet, reference_message_id;
 
@@ -107,13 +108,14 @@ UPDATE messages SET seq = sqlc.arg(seq)::bigint WHERE id = sqlc.arg(id) AND dele
 -- in_channel stay. A system row keeps its kind, so it still reads as one,
 -- but not its event: data becomes '{}' (the messages_kind_has_data check
 -- wants it non-null) and the reference goes, since the text a row carries
--- (a topic, a channel name) is usually why it was deleted. No row means it
--- was a tombstone already. Its files are deleted through the port
--- afterwards.
+-- (a topic, a channel name) is usually why it was deleted. A poll's votes
+-- go as its reactions would. No row means it was a tombstone already. Its
+-- files are deleted through the port afterwards.
 -- name: TombstoneMessage :execrows
 WITH attachments AS (DELETE FROM message_attachments WHERE message_id = sqlc.arg(id)::uuid),
 links AS (DELETE FROM message_links WHERE message_id = sqlc.arg(id)::uuid),
 reactions AS (DELETE FROM message_reactions WHERE message_id = sqlc.arg(id)::uuid),
+votes AS (DELETE FROM poll_votes WHERE message_id = sqlc.arg(id)::uuid),
 mentions AS (DELETE FROM message_mentions WHERE message_id = sqlc.arg(id)::uuid),
 pins AS (DELETE FROM channel_pins WHERE message_id = sqlc.arg(id)::uuid),
 activity AS (DELETE FROM activity_items WHERE message_id = sqlc.arg(id)::uuid)

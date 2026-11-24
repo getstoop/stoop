@@ -225,9 +225,33 @@ describe("systemLine", () => {
     expect(systemLine(create(MessageSchema, { content: "hi" }))).toBeNull();
   });
 
-  // A kind added to the wire must get its wording here.
+  it("asks for an update on a poll and its closing row, not drawn yet", () => {
+    const update = {
+      glyph: "update",
+      text: "Update Stoop to see this message.",
+    };
+    const poll = row(
+      { case: "poll", value: { question: "Friday?" } },
+      { quiet: false, content: "Friday?" },
+    );
+    const closed = row(
+      { case: "pollClosed", value: { question: "Friday?" } },
+      { quiet: false, content: "Friday?" },
+    );
+    expect(said(poll)).toEqual(update);
+    expect(said(closed)).toEqual(update);
+    expect(isSystemRow(poll)).toBe(true);
+    expect(isHiddenSystemRow(poll)).toBe(false);
+    expect(isHiddenSystemRow(closed)).toBe(false);
+  });
+
+  // A kind added to the wire must get its wording here. The two poll
+  // kinds are on the wire ahead of their wording (the test above).
   it("has wording for every kind the wire has", () => {
-    const cases = SystemEventSchema.fields.map((field) => field.localName);
+    const notDrawnYet = ["poll", "pollClosed"];
+    const cases = SystemEventSchema.fields
+      .map((field) => field.localName)
+      .filter((kindCase) => !notDrawnYet.includes(kindCase));
     expect(cases.length).toBeGreaterThanOrEqual(6);
     for (const kindCase of cases) {
       const event = create(SystemEventSchema);

@@ -192,7 +192,8 @@ func (f *systemRows) state(ctx context.Context) readerState {
 	return state
 }
 
-// everyKind is one event of each kind, about message.
+// everyKind is one event of each quiet kind, about message. The two that
+// are not quiet, a poll and its closing row, are in polls_internal_test.go.
 func everyKind(memberID, messageID string) []systemEvent {
 	return []systemEvent{
 		membersAdded{UserIDs: []string{memberID}},
@@ -202,6 +203,17 @@ func everyKind(memberID, messageID string) []systemEvent {
 		messagePinned{MessageID: messageID},
 		postPolicyChanged{PostPolicy: postPolicyAdmins},
 	}
+}
+
+// quietKinds is how many kinds the registry marks quiet.
+func quietKinds() int {
+	count := 0
+	for _, registered := range systemKinds {
+		if registered.quiet {
+			count++
+		}
+	}
+	return count
 }
 
 // aboutNoMessage is everyKind less the pin, which needs a message.
@@ -311,8 +323,8 @@ func TestSystemRowsReadInSeqOrder(t *testing.T) {
 	}
 }
 
-// Every kind is stored with its data and read back as its own case; a
-// kind that carries nothing stores an empty object.
+// Every quiet kind is stored with its data and read back as its own
+// case; a kind that carries nothing stores an empty object.
 func TestEveryKindReadsBack(t *testing.T) {
 	fixture := newSystemRows(t)
 	beaID := authctx.UserID(fixture.bea)
@@ -335,8 +347,8 @@ func TestEveryKindReadsBack(t *testing.T) {
 		}}}, `{"post_policy": "admins"}`},
 	}
 	events := everyKind(beaID, message.Id)
-	if len(events) != len(systemKinds) || len(wants) != len(systemKinds) {
-		t.Fatalf("the test covers %d kinds, the registry holds %d", len(events), len(systemKinds))
+	if len(events) != quietKinds() || len(wants) != quietKinds() {
+		t.Fatalf("the test covers %d kinds, the registry holds %d quiet ones", len(events), quietKinds())
 	}
 	for index, event := range events {
 		row := fixture.record(fixture.ada, fixture.channel, event)
@@ -349,7 +361,7 @@ func TestEveryKindReadsBack(t *testing.T) {
 			t.Errorf("kind %d: stored kind %d data %s, want %s", event.kind(), kind, data, wants[index].data)
 		}
 		if !row.Quiet || !systemKinds[event.kind()].quiet {
-			t.Errorf("kind %d: quiet = %v, want every kind quiet", event.kind(), row.Quiet)
+			t.Errorf("kind %d: quiet = %v, want it quiet", event.kind(), row.Quiet)
 		}
 		if got := fixture.load(row.ID); !proto.Equal(got.Event, wants[index].event) {
 			t.Errorf("kind %d: event = %v, want %v", event.kind(), got.Event, wants[index].event)
@@ -517,7 +529,8 @@ func TestRetentionSweepsSystemRows(t *testing.T) {
 	fixture := newSystemRows(t)
 	fixture.svc.UseInstancePolicy(fixedRetention(30))
 	message := fixture.send(fixture.ada, &chatv1.SendMessageRequest{Content: "house rules"})
-	for _, event := range everyKind(authctx.UserID(fixture.bea), message.Id) {
+	events := everyKind(authctx.UserID(fixture.bea), message.Id)
+	for _, event := range events {
 		fixture.record(fixture.ada, fixture.channel, event)
 	}
 	if removed, err := fixture.svc.SweepMessages(context.Background(), time.Now()); err != nil || removed != 0 {
@@ -527,7 +540,7 @@ func TestRetentionSweepsSystemRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := int64(1 + len(systemKinds)); removed != want {
+	if want := int64(1 + len(events)); removed != want {
 		t.Errorf("sweep removed %d rows, want %d", removed, want)
 	}
 	var left int

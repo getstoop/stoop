@@ -100,6 +100,13 @@ type alert struct {
 	coalesce bool
 }
 
+// preview is the alert's excerpt of its message, whose content the
+// caller has already put under current names.
+func (about alert) preview() *string {
+	preview := text.Truncate(previewOf(about.msg.Kind, about.msg.Content, about.firstAttachment), previewLen)
+	return &preview
+}
+
 // recordMentions tells each mentioned member.
 func (s *Service) recordMentions(ctx context.Context, about alert, mentioned []string) error {
 	about.kind = activityKindMention
@@ -160,7 +167,7 @@ func (s *Service) notify(ctx context.Context, recipients []string, about alert) 
 		s.bus.Publish(events.UserTopic(item.UserID), events.Stamp(&realtimev1.ServerEvent{
 			Payload: &realtimev1.ServerEvent_ActivityItemCreated{
 				ActivityItemCreated: &realtimev1.ActivityItemCreated{
-					Item:   toProtoActivityItem(item, &about.msg.Content, about.msg.ThreadRootID, about.firstAttachment, about.author, muted[item.UserID]),
+					Item:   toProtoActivityItem(item, about.preview(), about.msg.ThreadRootID, about.author, muted[item.UserID]),
 					UserId: item.UserID,
 				},
 			},
@@ -278,7 +285,7 @@ func (s *Service) renderActivity(ctx context.Context, rows []dbgen.ListActivityR
 	}
 	var contents []string
 	for _, row := range rows {
-		if row.MessageContent != nil {
+		if row.MessageContent != nil && !typedAsIs(row.MessageKind) {
 			contents = append(contents, *row.MessageContent)
 		}
 	}
@@ -287,7 +294,12 @@ func (s *Service) renderActivity(ctx context.Context, rows []dbgen.ListActivityR
 		return nil, err
 	}
 	for i, r := range rows {
-		out[i] = toProtoActivityItem(r.ActivityItem, names.currentOf(r.MessageContent), r.MessageThreadRootID, files[r.MessageFirstFileID].label(), actors[r.ActivityItem.ActorID], r.Muted)
+		var preview *string
+		if r.MessageContent != nil {
+			shown := names.preview(r.MessageKind, *r.MessageContent, files[r.MessageFirstFileID].label())
+			preview = &shown
+		}
+		out[i] = toProtoActivityItem(r.ActivityItem, preview, r.MessageThreadRootID, actors[r.ActivityItem.ActorID], r.Muted)
 	}
 	return out, nil
 }
@@ -310,11 +322,11 @@ func (s *Service) MarkActivityRead(ctx context.Context, req *connect.Request[cha
 	return connect.NewResponse(&chatv1.MarkActivityReadResponse{UnreadCount: int32(unread)}), nil
 }
 
-// toProtoActivityItem renders an activity item; threadRootID is the
-// message's thread, if it is a reply in one; firstAttachment names the
-// message's first file, the preview when it has no text, and muted is the
-// recipient's effective mute for where it happened.
-func toProtoActivityItem(item dbgen.ActivityItem, content, threadRootID *string, firstAttachment string, actor *chatv1.MessageAuthor, muted bool) *chatv1.ActivityItem {
+// toProtoActivityItem renders an activity item; preview is its message's
+// excerpt, nil when the message is gone; threadRootID is the message's
+// thread, if it is a reply in one; and muted is the recipient's
+// effective mute for where it happened.
+func toProtoActivityItem(item dbgen.ActivityItem, preview, threadRootID *string, actor *chatv1.MessageAuthor, muted bool) *chatv1.ActivityItem {
 	if actor == nil {
 		actor = unknownAuthor(item.ActorID)
 	}
@@ -342,8 +354,8 @@ func toProtoActivityItem(item dbgen.ActivityItem, content, threadRootID *string,
 	if threadRootID != nil {
 		out.ThreadRootId = *threadRootID
 	}
-	if content != nil {
-		out.Preview = text.Truncate(previewText(*content, firstAttachment), previewLen)
+	if preview != nil {
+		out.Preview = *preview
 	}
 	out.ReadAt = pbtime.OrNil(item.ReadAt)
 	return out

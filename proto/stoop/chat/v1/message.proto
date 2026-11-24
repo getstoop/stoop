@@ -25,7 +25,9 @@ message MessageAuthor {
 
 // ReplyRef is a snapshot of the message being replied to, enough to render
 // a quote; the original may have been deleted since (then only
-// message_id is set).
+// message_id is set). As Message.reference it is the message a system
+// message is about, whose preview reads "Poll: " and the question when
+// that message is a poll.
 message ReplyRef {
   string message_id = 1;
   MessageAuthor author = 2;
@@ -65,6 +67,7 @@ message Message {
   // Markdown, with mentions as tokens: <@u:ID:handle> for a person,
   // <@g:ID:handle> for a group. The handle is the one current when the
   // message was saved. See docs/architecture/integrations.md → Mentions.
+  // On a poll and on its closing row, the poll's question as plain text.
   string content = 4;
   google.protobuf.Timestamp created_at = 5;
   // Members this message mentions, resolved at send time. Clients use it
@@ -118,13 +121,15 @@ message Message {
   // set: every row has been stamped since the column became required.
   int64 seq = 21;
   // Set only on a system message: a row that records something that
-  // happened in the channel, by author, with no text anyone wrote. All
-  // wording is the client's. A case the client does not know leaves the
+  // happened in the channel, by author. Its words are the client's, built
+  // from the event; a poll's question and options are the only text in
+  // one that a person wrote. A case the client does not know leaves the
   // oneof unset: it hides the row when quiet is set and otherwise asks
   // the reader to update.
   SystemEvent event = 22;
   // The row marks nothing unread: it is left out of unread counts and is
-  // never a channel's last message. Written once, from the row's kind.
+  // never a channel's last message. Written once, from the row's kind;
+  // false on a poll and on its closing row.
   bool quiet = 23;
   // The message a system message is about, as a reply's quote is sent:
   // only message_id once that message is deleted, and unset once the
@@ -141,6 +146,8 @@ message SystemEvent {
     TopicChanged topic_changed = 4;
     PinEvent pin = 5;
     PostPolicyChanged post_policy_changed = 6;
+    Poll poll = 7;
+    PollClosed poll_closed = 8;
   }
 }
 
@@ -169,6 +176,49 @@ message PinEvent {}
 // PostPolicyChanged: who may post now.
 message PostPolicyChanged {
   ChannelPostPolicy post_policy = 1;
+}
+
+// Poll: the author asked a question for the channel to vote on. The
+// question is in Message.content as well, for search and previews. See
+// docs/architecture/messaging.md → Polls.
+message Poll {
+  string question = 1;
+  // 2 to 10, in the order the author gave them.
+  repeated PollOption options = 2;
+  // A person may choose several options; otherwise one.
+  bool multiple = 3;
+  // Set once the poll is closed, with who closed it; unset while it
+  // takes votes.
+  google.protobuf.Timestamp closed_at = 4;
+  MessageAuthor closed_by = 5;
+  // Distinct people who voted, however many options each chose.
+  int32 voter_count = 6;
+}
+
+message PollOption {
+  // 1 to 10, given in order when the poll was made and never reused: what
+  // a vote names.
+  int32 id = 1;
+  string text = 2;
+  // Who chose it, in the order they voted, each as they are now. Someone
+  // who has left the channel since is still named.
+  repeated MessageAuthor voters = 3;
+}
+
+// PollClosed: the author closed the poll in Message.reference. The
+// outcome is a snapshot taken at closing, so it never changes.
+message PollClosed {
+  string question = 1;
+  // Every option with the most votes, when that is at least one; empty
+  // when nobody voted.
+  repeated PollWinner winners = 2;
+  // Distinct people who had voted.
+  int32 voter_count = 3;
+}
+
+message PollWinner {
+  string text = 1;
+  int32 votes = 2;
 }
 
 // ThreadSummary is what the line under a root shows, so it renders with no

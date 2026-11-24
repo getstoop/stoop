@@ -33,12 +33,14 @@ FROM recipient r, live m
 RETURNING *;
 
 -- ListActivity returns newest first with the message text for a
--- preview (NULL if the message has since been deleted), and the
--- recipient's effective mute for where each item happened. An item from
+-- preview (NULL if the message has since been deleted) and its kind,
+-- which words a poll's, and the recipient's effective mute for where
+-- each item happened. An item from
 -- a channel the recipient can no longer read is left out: its preview
 -- shows the message as it now reads.
 -- name: ListActivity :many
-SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_thread_root_id,
+SELECT sqlc.embed(a), m.content AS message_content, COALESCE(m.kind, 0)::smallint AS message_kind,
+    m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
     (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
         OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id)
@@ -215,7 +217,8 @@ WHERE a.user_id = sqlc.arg(user_id) AND c.id = a.channel_id
 -- read, refreshed under a new id, deleted, or out of reach since it was
 -- heard. Same columns as ListActivity, so it renders the same way.
 -- name: GetPendingActivityItem :one
-SELECT sqlc.embed(a), m.content AS message_content, m.thread_root_id AS message_thread_root_id,
+SELECT sqlc.embed(a), m.content AS message_content, COALESCE(m.kind, 0)::smallint AS message_kind,
+    m.thread_root_id AS message_thread_root_id,
     COALESCE((SELECT f.file_id::text FROM message_attachments f WHERE f.message_id = m.id ORDER BY f.position LIMIT 1), '')::text AS message_first_file_id,
     (EXISTS (SELECT 1 FROM channel_mutes cm WHERE cm.user_id = a.user_id AND cm.channel_id = a.channel_id)
         OR EXISTS (SELECT 1 FROM space_mutes sm WHERE sm.user_id = a.user_id AND sm.space_id = a.space_id)

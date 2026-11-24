@@ -179,8 +179,9 @@ counter, moved the counter past it, and made the column required.
 **Deleting a message leaves a tombstone.** `deleted_at` is set, `content`
 is blanked (so the generated `search` column is empty), the row's
 `message_reactions`, `message_attachments`, `message_mentions`,
-`message_links`, `channel_pins` and `activity_items` are deleted in the
-same statement (`TombstoneMessage`), and the row is stamped.
+`message_links`, `channel_pins`, `activity_items` and (a poll's)
+`poll_votes` are deleted in the same statement (`TombstoneMessage`), and
+the row is stamped.
 `reply_to_message_id`, `thread_root_id` and `in_channel` stay as they
 were, so a quote of it reads as a quote of a deleted message and a
 deleted reply keeps its place in its thread. Only the retention sweep
@@ -222,6 +223,9 @@ CHECK ((kind = 0) = (data IS NULL))                    -- messages_kind_has_data
 CHECK (reference_message_id IS NULL OR kind <> 0)      -- messages_reference_needs_kind
 ```
 
+`content` is empty on a system row, except a [poll](messaging.md#polls)
+and its closing row (kinds 7 and 8), which keep the question there.
+
 **`threads`** — one row per root with live replies: `reply_count`,
 `last_reply_id`, `last_reply_at` and `recent_author_ids`, the summary
 under the root, kept by the send and delete paths so a page of history
@@ -238,7 +242,8 @@ messages.
 plus the replied-to message's author, content and first attachment, its
 own thread summary from `threads`, and the same three columns for the
 message a system row is about (`reference_message_id`, a second join on
-`messages`).
+`messages`) with that message's `kind` (`reference_kind`, 00078), which
+words the excerpt of a poll.
 Queries that hand a message to a client read it
 ([messaging.md](messaging.md#search)). Postgres refuses to drop or retype
 a column a view reads, so a migration that does either recreates the view
@@ -269,6 +274,18 @@ retroactively change who was mentioned.
 **`message_reactions`** — `(message_id, user_id, emoji)`. The emoji is its
 Unicode string, validated as a single grapheme cluster of at most 16 bytes;
 skin-tone and other modifiers make variants genuinely distinct.
+
+**`poll_votes`** — `(message_id, user_id, option_id)` with `created_at`
+(00078): one row per person and option of a
+[poll](messaging.md#polls), so a poll of several choices holds several
+rows for one person. `option_id` is an id from the poll row's `data`;
+that it exists, and that a single-choice poll gets one, is the write
+path's rule and not a constraint, since both live in `data`. The primary
+key leads with `message_id` for the foreign key
+([below](#foreign-keys)). Both keys cascade: the retention sweep's hard
+delete takes a poll's votes, and a tombstone deletes them itself. An
+account's deletion is a soft delete, so the cascade on `user_id` never
+fires for one and its votes stay.
 
 **`message_attachments`** — `(message_id, file_id)` with `file_id UNIQUE`.
 That `UNIQUE` is what makes "this upload is already attached elsewhere" a

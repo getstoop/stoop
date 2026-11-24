@@ -299,6 +299,7 @@ type MessageWithReply struct {
 	ReferenceAuthorID     *string
 	ReferenceContent      *string
 	ReferenceFirstFileID  string
+	ReferenceKind         *int16
 }
 
 type OutgoingWebhook struct {
@@ -314,6 +315,13 @@ type OutgoingWebhook struct {
 	CreatedAt      time.Time
 	DisabledAt     *time.Time
 	DisabledReason string
+}
+
+type PollVote struct {
+	MessageID string
+	UserID    string
+	OptionID  int16
+	CreatedAt time.Time
 }
 
 type PushKey struct {

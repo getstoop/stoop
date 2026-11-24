@@ -19,7 +19,6 @@ import (
 	"github.com/getstoop/stoop/internal/dbgen"
 	"github.com/getstoop/stoop/internal/events"
 	"github.com/getstoop/stoop/internal/rowid"
-	"github.com/getstoop/stoop/internal/text"
 )
 
 // Direct messages: see docs/architecture/messaging.md → Direct messages.
@@ -323,7 +322,8 @@ func (s *Service) directMessages(ctx context.Context, rows []dbgen.ListDMChannel
 
 // dmLastMessages is each conversation's newest message as the list's
 // preview line, by channel ID, previewed as an activity item is: mentions
-// as names, the first file's name when there is no text. The author is
+// as names, the first file's name when there is no text, a poll by its
+// question. The author is
 // a participant (membership never changes), so authors already has them.
 func (s *Service) dmLastMessages(ctx context.Context, messageIDs []string, authors map[string]*chatv1.MessageAuthor) (map[string]*chatv1.DirectMessageLast, error) {
 	if len(messageIDs) == 0 {
@@ -338,7 +338,9 @@ func (s *Service) dmLastMessages(ctx context.Context, messageIDs []string, autho
 		if msg.FirstFileID != "" {
 			fileIDs = append(fileIDs, msg.FirstFileID)
 		}
-		contents = append(contents, msg.Content)
+		if !typedAsIs(msg.Kind) {
+			contents = append(contents, msg.Content)
+		}
 	}
 	files, err := s.fileRecords(ctx, fileIDs)
 	if err != nil {
@@ -355,7 +357,7 @@ func (s *Service) dmLastMessages(ctx context.Context, messageIDs []string, autho
 			Deleted: msg.Deleted, CreatedAt: timestamppb.New(msg.CreatedAt),
 		}
 		if !msg.Deleted {
-			last.Preview = text.Truncate(previewText(names.current(msg.Content), files[msg.FirstFileID].label()), previewLen)
+			last.Preview = names.preview(msg.Kind, msg.Content, files[msg.FirstFileID].label())
 		}
 		out[msg.ChannelID] = last
 	}

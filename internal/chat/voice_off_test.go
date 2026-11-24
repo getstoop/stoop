@@ -128,6 +128,12 @@ func TestVoiceOffHidesVoiceChannels(t *testing.T) {
 			_, err := svc.SendMessage(bea, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: hangout, Content: "anyone here?"}))
 			return err
 		},
+		"CreatePoll": func() error {
+			_, err := svc.CreatePoll(bea, connect.NewRequest(&chatv1.CreatePollRequest{
+				ChannelId: hangout, Question: "anyone here?", Options: []string{"Yes", "No"},
+			}))
+			return err
+		},
 		"ListMessages": func() error {
 			_, err := svc.ListMessages(bea, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: hangout}))
 			return err

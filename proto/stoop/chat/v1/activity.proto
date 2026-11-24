@@ -29,7 +29,8 @@ message ActivityItem {
   string message_id = 5;
   // Who did it, resolved through the user-directory port.
   MessageAuthor actor = 6;
-  // A short excerpt of the message (empty if it was deleted).
+  // A short excerpt of the message (empty if it was deleted). A poll
+  // reads "Poll: " and its question, its closing row "Poll closed: ".
   string preview = 7;
   google.protobuf.Timestamp created_at = 8;
   // Set once read.
