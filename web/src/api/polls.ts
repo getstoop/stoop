@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from "react";
+import type { PollRequest } from "../core/pollForm";
 import { mySelection, nextSelection, pollOf } from "../core/polls";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import { announce } from "../stores/announcer";
 import { notice } from "../stores/dialogs";
-import { holdRow } from "./channelLog";
+import { holdRow, isLive, jumpToLatest } from "./channelLog";
 import { chatClient } from "./clients";
 import { errorText } from "./errors";
 
@@ -84,4 +85,16 @@ export async function pressPollOption(
 export async function closePoll(poll: Message): Promise<void> {
   const { message } = await chatClient.closePoll({ messageId: poll.id });
   if (message) holdRow(poll.channelId, message);
+}
+
+// Posts a new poll (core/pollForm pollRequest). The answer is held as the
+// reader's own send is; posted from inside history, the view moves to the
+// newest page so the poll is seen where it landed. A refusal throws for
+// the form to say, with what was typed still in it.
+export async function createPoll(request: PollRequest): Promise<void> {
+  const { message } = await chatClient.createPoll(request);
+  if (!message) return;
+  const view = { channelId: request.channelId };
+  if (isLive(view)) holdRow(request.channelId, message);
+  else await jumpToLatest(view);
 }
