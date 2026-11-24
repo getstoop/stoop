@@ -3,6 +3,7 @@ import { channelItems } from "@stoop/core/channelLog";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { withoutHiddenSystemRows } from "@stoop/core/systemMessages";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
+import type { PollRequest } from "@stoop/core/pollForm";
 import { isPollRow, pollPermissions } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useIsFocused, useRouter } from "expo-router";
@@ -34,6 +35,7 @@ import JumpToLatest from "./JumpToLatest";
 import MessageMenu from "./MessageMenu";
 import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
+import PollForm from "./PollForm";
 import PollMenu from "./PollMenu";
 import PollRow from "./PollRow";
 import PollVotes from "./PollVotes";
@@ -329,6 +331,19 @@ export default function Channel({
     threadAfterMenu.current = null;
     pushThread(rootId);
   }, [menuFor, pushThread]);
+  // The poll's form, from Poll in the attach sheet; the reader's own poll
+  // is followed as their message is.
+  const [makingPoll, setMakingPoll] = useState(false);
+  const openPollForm = useCallback(() => setMakingPoll(true), []);
+  const closePollForm = useCallback(() => setMakingPoll(false), []);
+  const postPoll = useCallback(
+    async ({ question, options, multiple }: PollRequest) => {
+      await engine.createPoll(question, options, multiple);
+      if (engine.current().log.channel.hasNewer) void engine.jumpToLatest();
+      else followSend();
+    },
+    [engine, followSend],
+  );
   const sendHere = useCallback(
     async (content: string, replyToMessageId: string, _alsoSend: boolean, attachmentIds: string[]) => {
       await send(content, { replyToMessageId, attachmentIds });
@@ -558,6 +573,7 @@ export default function Channel({
               ref={actions.composer}
               key={channelId}
               place={headerPlace(header)}
+              onPoll={openPollForm}
               mentionNames={mentionNames}
               origin={server.origin}
               token={token}
@@ -631,6 +647,7 @@ export default function Channel({
           />
         ) : null}
       </MessageContexts>
+      {makingPoll && posting && <PollForm channelId={channelId} onPost={postPoll} onClose={closePollForm} />}
       {polls.votesMessage && (
         <PollVotes
           message={polls.votesMessage}
