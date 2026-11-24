@@ -163,6 +163,8 @@ function Part({
       );
     case "others":
       return <Text style={styles.strong}>{part.label}</Text>;
+    case "emphasis":
+      return <Text style={styles.strong}>{part.text}</Text>;
     case "channel":
       return part.current ? <Text style={styles.strong}>#{part.name}</Text> : `#${part.name}`;
     case "excerpt":
@@ -187,6 +189,7 @@ const GLYPH_PATHS: Record<SystemGlyph, string> = {
   "text-lines": "M4 7h16M4 12h16M4 17h10",
   pin: "M9 4h6l-1 6 3 3H7l3-3-1-6M12 13v7",
   megaphone: "M3 11v2l11 5V6L3 11M14 9h3a3 3 0 0 1 0 6h-3M6 14v4h3v-3",
+  poll: "M5 20V10M12 20V4M19 20v-7",
   update: "M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18",
 };
 

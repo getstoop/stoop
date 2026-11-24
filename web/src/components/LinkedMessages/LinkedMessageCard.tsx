@@ -12,12 +12,14 @@ import {
 import { type LinkedMessage, messageSearch } from "../../api/shareLinks";
 import { fullDateTime, shortDateTime } from "../../core/dates";
 import { mentionMembers } from "../../core/mentions";
+import { pollPreview } from "../../core/polls";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";
 import { ChannelName } from "../ChannelName";
 import { DeletedMark } from "../DeletedMark";
 import { MessageBody } from "../MessageBody";
+import { PollPreview } from "../PollPreview";
 
 // The linked message itself: who said it, when and where, then the words
 // clamped to a few lines. Nothing for a message the reader can't see, one
@@ -76,18 +78,24 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
           Posted in <ChannelName channel={channel} />
         </span>
       </Link>
-      {message.content && (
+      {pollPreview(message) !== null ? (
         <div className="linked-message-body message-content">
-          <MessageBody
-            content={message.content}
-            members={membersById}
-            groups={groups}
-            channels={linkable}
-            mentionsEntireChannel={message.mentionsEntireChannel}
-            mentionsHere={message.mentionsHere}
-            myUserId={me?.id}
-          />
+          <PollPreview message={message} />
         </div>
+      ) : (
+        message.content && (
+          <div className="linked-message-body message-content">
+            <MessageBody
+              content={message.content}
+              members={membersById}
+              groups={groups}
+              channels={linkable}
+              mentionsEntireChannel={message.mentionsEntireChannel}
+              mentionsHere={message.mentionsHere}
+              myUserId={me?.id}
+            />
+          </div>
+        )
       )}
       <Attachments attachments={message.attachments} />
     </div>

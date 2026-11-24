@@ -1,6 +1,7 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
 import { addressesMe } from "../core/alerts";
+import { isPollRow } from "../core/polls";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Message, MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
@@ -335,7 +336,10 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
     case "messageUpdated": {
       // A root deleted while its thread has replies arrives as an update.
       applyToLog(event);
-      refetchCopy(queryClient, payload.value.channelId, payload.value.id);
+      // A vote changes nothing a copy shows (a poll's copy is its
+      // question), and every vote is an update: no refetch for a poll.
+      if (!isPollRow(payload.value))
+        refetchCopy(queryClient, payload.value.channelId, payload.value.id);
       if (payload.value.deleted) {
         refetchActivityAfterDelete(queryClient, payload.value.id);
         refetchAlertsIfAny(

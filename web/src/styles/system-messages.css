@@ -77,6 +77,14 @@
   white-space: nowrap;
 }
 
+/* Delete, for a moderator: the message toolbar, on hover or focus. It
+   sits over the end of the first line, so the line keeps clear of it:
+   a long one (a poll's closing row) would put View under it. */
+.system-row:has(> .message-toolbar) {
+  /* off-scale: the one-button toolbar's width and its inset */
+  padding-right: 52px;
+}
+
 /* Delete, for a moderator: the message toolbar, on hover or focus. */
 .system-row:hover .message-toolbar,
 .system-row:has(:focus-visible) .message-toolbar {

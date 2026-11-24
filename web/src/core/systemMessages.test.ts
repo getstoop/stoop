@@ -225,34 +225,127 @@ describe("systemLine", () => {
     expect(systemLine(create(MessageSchema, { content: "hi" }))).toBeNull();
   });
 
-  it("asks for an update on a poll and its closing row, not drawn yet", () => {
-    const update = {
-      glyph: "update",
-      text: "Update Stoop to see this message.",
-    };
+  const closedRow = (
+    winners: { text: string; votes: number }[],
+    extra: MessageInitShape<typeof MessageSchema> = {},
+  ) =>
+    row(
+      {
+        case: "pollClosed",
+        value: {
+          question: "What are we playing on Friday?",
+          winners,
+          voterCount: 6,
+        },
+      },
+      {
+        quiet: false,
+        content: "What are we playing on Friday?",
+        // The server's excerpt of the poll, which the line does not use.
+        reference: {
+          messageId: "p1",
+          author: people[0],
+          preview: "Poll: What are we playing on Friday?",
+        },
+        ...extra,
+      } as MessageInitShape<typeof MessageSchema>,
+    );
+
+  it("says a closed poll's winner, and goes to the poll", () => {
+    const closed = closedRow([{ text: "The co-op campaign", votes: 3 }]);
+    expect(said(closed)).toEqual({
+      glyph: "poll",
+      text: "Maya Okafor closed the poll: What are we playing on Friday? Winner: The co-op campaign, 3 votes",
+    });
+    const parts = systemLine(closed)?.parts;
+    expect(parts?.filter((part) => part.kind === "emphasis")).toEqual([
+      { kind: "emphasis", text: "The co-op campaign" },
+    ]);
+    expect(parts?.at(-1)).toEqual({
+      kind: "excerpt",
+      messageId: "p1",
+      text: "",
+      label: "View poll",
+    });
+  });
+
+  it("says a tie, naming every tied option", () => {
+    expect(
+      said(
+        closedRow([
+          { text: "Pizza", votes: 3 },
+          { text: "Dumplings", votes: 3 },
+        ]),
+      )?.text,
+    ).toBe(
+      "Maya Okafor closed the poll: What are we playing on Friday? Tied: Pizza and Dumplings, 3 votes each",
+    );
+    expect(
+      said(
+        closedRow([
+          { text: "A", votes: 1 },
+          { text: "B", votes: 1 },
+          { text: "C", votes: 1 },
+        ]),
+      )?.text,
+    ).toBe(
+      "Maya Okafor closed the poll: What are we playing on Friday? Tied: A, B and C, 1 vote each",
+    );
+  });
+
+  it("says nobody voted, and one vote in the singular", () => {
+    expect(said(closedRow([]))?.text).toBe(
+      "Maya Okafor closed the poll: What are we playing on Friday? Nobody voted",
+    );
+    expect(said(closedRow([{ text: "Pizza", votes: 1 }]))?.text).toBe(
+      "Maya Okafor closed the poll: What are we playing on Friday? Winner: Pizza, 1 vote",
+    );
+  });
+
+  it("ends a question with no stop of its own with one", () => {
+    const closed = row(
+      {
+        case: "pollClosed",
+        value: { question: "Pizza or tacos", winners: [] },
+      },
+      { quiet: false },
+    );
+    expect(said(closed)?.text).toBe(
+      "Maya Okafor closed the poll: Pizza or tacos. Nobody voted",
+    );
+  });
+
+  it("keeps a closing row whose poll is gone, with no way to it", () => {
+    // Swept by retention: no reference. Deleted: the id alone.
+    for (const reference of [undefined, { messageId: "p1" }]) {
+      const closed = closedRow([], { reference });
+      expect(said(closed)?.text).toBe(
+        "Maya Okafor closed the poll: What are we playing on Friday? Nobody voted",
+      );
+      expect(
+        systemLine(closed)?.parts.some((part) => part.kind === "excerpt"),
+      ).toBe(false);
+      expect(isHiddenSystemRow(closed)).toBe(false);
+    }
+  });
+
+  it("says what a poll is for a client with no card, which is not hidden", () => {
     const poll = row(
       { case: "poll", value: { question: "Friday?" } },
       { quiet: false, content: "Friday?" },
     );
-    const closed = row(
-      { case: "pollClosed", value: { question: "Friday?" } },
-      { quiet: false, content: "Friday?" },
-    );
-    expect(said(poll)).toEqual(update);
-    expect(said(closed)).toEqual(update);
+    expect(said(poll)).toEqual({
+      glyph: "poll",
+      text: "Maya Okafor posted a poll: Friday?",
+    });
     expect(isSystemRow(poll)).toBe(true);
     expect(isHiddenSystemRow(poll)).toBe(false);
-    expect(isHiddenSystemRow(closed)).toBe(false);
   });
 
-  // A kind added to the wire must get its wording here. The two poll
-  // kinds are on the wire ahead of their wording (the test above).
+  // A kind added to the wire must get its wording here.
   it("has wording for every kind the wire has", () => {
-    const notDrawnYet = ["poll", "pollClosed"];
-    const cases = SystemEventSchema.fields
-      .map((field) => field.localName)
-      .filter((kindCase) => !notDrawnYet.includes(kindCase));
-    expect(cases.length).toBeGreaterThanOrEqual(6);
+    const cases = SystemEventSchema.fields.map((field) => field.localName);
+    expect(cases.length).toBeGreaterThanOrEqual(8);
     for (const kindCase of cases) {
       const event = create(SystemEventSchema);
       // biome-ignore lint/suspicious/noExplicitAny: each case's empty message

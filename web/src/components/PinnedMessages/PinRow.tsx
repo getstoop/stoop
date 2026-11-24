@@ -6,12 +6,14 @@ import type {
   MentionGroups,
   MentionMembers,
 } from "../../core/mentions";
+import { isPollRow } from "../../core/polls";
 import type { PinnedMessage } from "../../gen/stoop/chat/v1/pin_pb";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";
 import { DeletedMark } from "../DeletedMark";
 import { MessageBody } from "../MessageBody";
+import { PollPreview } from "../PollPreview";
 
 // One kept message: who said it and when, who pinned it, then the message
 // itself clamped to a few lines. The row opens the channel at it: the
@@ -74,15 +76,19 @@ export function PinRow({
         {/* Only the words are clamped; a strip of files keeps its own
             line under them. */}
         <span className="pin-row-body message-content">
-          <MessageBody
-            content={message.content}
-            members={members}
-            groups={groups}
-            channels={channels}
-            mentionsEntireChannel={message.mentionsEntireChannel}
-            mentionsHere={message.mentionsHere}
-            myUserId={me?.id}
-          />
+          {isPollRow(message) ? (
+            <PollPreview message={message} />
+          ) : (
+            <MessageBody
+              content={message.content}
+              members={members}
+              groups={groups}
+              channels={channels}
+              mentionsEntireChannel={message.mentionsEntireChannel}
+              mentionsHere={message.mentionsHere}
+              myUserId={me?.id}
+            />
+          )}
         </span>
         {message.attachments.length > 0 && (
           <span className="pin-row-files">

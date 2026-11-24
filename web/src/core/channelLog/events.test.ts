@@ -244,6 +244,37 @@ describe("each kind", () => {
     expect(settled.seq).toBe(12);
   });
 
+  it("removes a poll's closing row with the poll, at its own seq", () => {
+    const closing = message(id(9), {
+      seq: 10n,
+      event: { kind: { case: "pollClosed", value: { question: "Friday?" } } },
+      reference: {
+        messageId: id(3),
+        author: { id: "them" },
+        preview: "Poll: Friday?",
+      },
+    });
+    const log = withEvent(
+      openedOn([...rows(0, 9), closing], { hasOlder: false }),
+      deleted(id(3), 11),
+    );
+    expect(log.rows.get(id(9))).toMatchObject({ deleted: true, seq: 10n });
+    expect(ids(channelItems(log))).not.toContain(id(9));
+  });
+
+  it("keeps a closing row about another poll", () => {
+    const closing = message(id(9), {
+      seq: 10n,
+      event: { kind: { case: "pollClosed", value: { question: "Friday?" } } },
+      reference: { messageId: id(5), author: { id: "them" } },
+    });
+    const log = withEvent(
+      openedOn([...rows(0, 9), closing], { hasOlder: false }),
+      deleted(id(3), 11),
+    );
+    expect(log.rows.get(id(9))?.deleted).toBe(false);
+  });
+
   it("keeps a tombstone for a row it never held", () => {
     const log = withEvent(live(), deleted("never", 11));
     expect(log.rows.get("never")?.deleted).toBe(true);

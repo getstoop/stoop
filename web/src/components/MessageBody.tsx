@@ -241,7 +241,10 @@ export function MessageBody({
 }
 
 // A text run with search hits wrapped in <mark>.
-function marked(s: string, pattern: RegExp | null | undefined): ReactNode {
+export function marked(
+  s: string,
+  pattern: RegExp | null | undefined,
+): ReactNode {
   if (!pattern) return s;
   const out: ReactNode[] = [];
   let last = 0;

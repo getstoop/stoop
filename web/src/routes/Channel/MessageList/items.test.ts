@@ -35,6 +35,8 @@ const rows = (items: ListItem[]) =>
         return "<foot>";
       case "system":
         return `${item.key} (system)`;
+      case "poll":
+        return `${item.key} (poll)`;
       default:
         return `[${item.label}]`;
     }
@@ -77,6 +79,56 @@ describe("system rows", () => {
   it("are found by a jump, and have a height before measuring", () => {
     expect(indexOfMessage(items, "02")).toBe(3);
     expect(estimateSize(items[3])).toBeGreaterThan(0);
+  });
+});
+
+describe("polls", () => {
+  const at = (second: number) => new Date(2026, 9, 21, 9, 0, second);
+  const poll = (id: string, options: number): Message => {
+    const made = message(id, at(10));
+    made.event = create(SystemEventSchema, {
+      kind: {
+        case: "poll",
+        value: {
+          question: "Friday?",
+          options: Array.from({ length: options }, (_, index) => ({
+            id: index + 1,
+            text: `Option ${index + 1}`,
+          })),
+        },
+      },
+    });
+    return made;
+  };
+  // All by the same author within the minute.
+  const items = listItems({
+    messages: [message("01", at(0)), poll("02", 3), message("03", at(20))],
+    firstNewId: undefined,
+    inThread: false,
+    now,
+  });
+
+  it("are items of their own, never continuing or continued", () => {
+    expect(rows(items)).toEqual([
+      "<head>",
+      "[Today]",
+      "01",
+      "02 (poll)",
+      "03",
+      "<foot>",
+    ]);
+  });
+
+  it("are found by a jump, and grow with their options before measuring", () => {
+    expect(indexOfMessage(items, "02")).toBe(3);
+    const ten = listItems({
+      messages: [poll("04", 10)],
+      firstNewId: undefined,
+      inThread: false,
+      now,
+    });
+    expect(estimateSize(ten[2])).toBeGreaterThan(estimateSize(items[3]));
+    expect(estimateSize(items[3])).toBeGreaterThan(estimateSize(items[2]));
   });
 });
 

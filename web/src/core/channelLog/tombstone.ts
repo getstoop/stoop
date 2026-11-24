@@ -43,10 +43,10 @@ export function tombstoneOf(
 }
 
 // Rows quoting a deleted message and replies in the channel answering its
-// thread read as a deleted message's: no author, no preview. Its pin rows
-// become tombstones at their own seq, since the server removes them with
-// it and the message_deleted that follows for each replaces them. The
-// server does the same on the next read.
+// thread read as a deleted message's: no author, no preview. Its pin rows,
+// and a poll's closing row, become tombstones at their own seq, since the
+// server removes them with it and the message_deleted that follows for
+// each replaces them. The server does the same on the next read.
 export function withQuotesBlanked(
   rows: ReadonlyMap<string, Message>,
   deletedId: string,
@@ -67,7 +67,7 @@ export function withQuotesBlanked(
       };
     }
     if (
-      row.event?.kind.case === "pin" &&
+      ROWS_ABOUT.has(row.event?.kind.case) &&
       row.reference?.messageId === deletedId &&
       !row.deleted
     ) {
@@ -84,7 +84,7 @@ export function withQuotesBlanked(
 // the held row as a tombstone at its own seq (a root with a thread
 // summary is left to the server's update for it, which fills the
 // placeholder in), and the rows about it changed as the event changes
-// them, its pin rows gone.
+// them, its pin rows and a poll's closing row gone.
 export function withOwnDelete(log: ChannelLog, messageId: string): ChannelLog {
   const next = withPatch(log, messageId, (held) =>
     held.deleted || held.thread ? held : { ...held, deleted: true },
@@ -92,6 +92,12 @@ export function withOwnDelete(log: ChannelLog, messageId: string): ChannelLog {
   const rows = withQuotesBlanked(next.rows, messageId);
   return rows === next.rows ? next : { ...next, rows };
 }
+
+// The kinds of row about a message that go when it goes.
+const ROWS_ABOUT: ReadonlySet<string | undefined> = new Set([
+  "pin",
+  "pollClosed",
+]);
 
 const named = (ref: { author?: unknown; preview: string }) =>
   !!ref.author || ref.preview !== "";

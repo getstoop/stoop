@@ -45,6 +45,7 @@ import {
   canDeleteAnyMessage,
   canManageChannels,
 } from "../../../core/permissions";
+import { isPollRow, pollPermissions } from "../../../core/polls";
 import { withoutHiddenSystemRows } from "../../../core/systemMessages";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { openSidePanel, useSidePanelStore } from "../../../stores/sidePanel";
@@ -64,6 +65,7 @@ import {
 } from "./items";
 import { ListHead } from "./ListHead";
 import { MessageSkeleton } from "./MessageSkeleton";
+import { PollRow } from "./PollRow";
 import { SystemRow } from "./SystemRow";
 import { useRowHandlers } from "./useRowHandlers";
 
@@ -595,7 +597,11 @@ export function MessageList({
   const newest = messages[messages.length - 1];
   const newestId = newest?.id;
   // A system row is never "mine": recording my rename is not my sending.
-  const newestMine = !!newest && !newest.event && newest.author?.id === me?.id;
+  // A poll is: it is posted as a message is.
+  const newestMine =
+    !!newest &&
+    (!newest.event || isPollRow(newest)) &&
+    newest.author?.id === me?.id;
   // biome-ignore lint/correctness/useExhaustiveDependencies: react to a message arriving at the end (not to history being prepended)
   useLayoutEffect(() => {
     // Nothing to land on yet (the first page is still out), or nothing
@@ -792,6 +798,40 @@ export function MessageList({
                   );
                 case "message":
                   return row(item.message, item.continued, position);
+                case "poll": {
+                  const may = pollPermissions({
+                    message: item.message,
+                    myUserId: me?.id,
+                    inSpace: !!spaceForPerms,
+                    canModerate:
+                      !!spaceForPerms && canDeleteAnyMessage(spaceForPerms),
+                    canPin:
+                      !threadRootId &&
+                      !!spaceForPerms &&
+                      canManageChannels(spaceForPerms),
+                  });
+                  return (
+                    <PollRow
+                      key={item.key}
+                      message={item.message}
+                      {...position}
+                      measure={virtualizer.measureElement}
+                      link={shareUrl(
+                        messagePath(spaceId, channelId, item.message.id),
+                        linkOrigin,
+                      )}
+                      myUserId={me?.id}
+                      members={membersById}
+                      canClose={may.close}
+                      canDelete={may.delete}
+                      canPin={may.pin}
+                      rowIdPrefix={rowIdPrefix}
+                      onCard={rows.showCard}
+                      onDelete={rows.removePoll}
+                      onTogglePin={rows.togglePin}
+                    />
+                  );
+                }
                 case "system":
                   return (
                     <SystemRow

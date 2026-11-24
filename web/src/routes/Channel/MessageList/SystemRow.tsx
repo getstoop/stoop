@@ -20,7 +20,8 @@ import type {
 // messages): a glyph in the avatar column, the sentence core/systemMessages
 // words in muted text with names in full ink, and the time after it. No
 // avatar, reactions or thread; a moderator's only action is Delete. A pin
-// row's View goes to the pinned message (deleting it removes the row). A
+// row's View goes to the pinned message, and a poll's closing row's to the
+// poll (deleting either removes the row). A
 // long list's "N others" unfolds in place to every name, with "Show
 // fewer" to fold it again; the virtual list measures the row again as
 // its height changes. Which rows are unfolded is the list's to hold
@@ -53,7 +54,7 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix?: string;
   onCard: (userId: string, anchor: DOMRect) => void;
   onDelete: (message: Message) => void;
-  // The in-list jump, for a pin row's View.
+  // The in-list jump, for a pin row's or a closing row's View.
   onJumpTo: (id: string) => void;
   unfolded?: boolean;
   onToggleFold: (messageId: string) => void;
@@ -166,6 +167,8 @@ function Part({
           {part.label}
         </button>
       );
+    case "emphasis":
+      return <span className="system-emphasis">{part.text}</span>;
     case "channel":
       return part.current ? (
         <span className="system-emphasis">#{part.name}</span>
@@ -179,7 +182,7 @@ function Part({
           <button
             type="button"
             className="system-view"
-            aria-label="View pinned message"
+            aria-label={part.label ?? "View pinned message"}
             onClick={() => onJumpTo(part.messageId)}
           >
             View
@@ -229,6 +232,7 @@ const GLYPH_PATHS: Record<SystemGlyph, string> = {
   "text-lines": "M4 7h16M4 12h16M4 17h10",
   pin: "M9 4h6l-1 6 3 3H7l3-3-1-6M12 13v7",
   megaphone: "M3 11v2l11 5V6L3 11M14 9h3a3 3 0 0 1 0 6h-3M6 14v4h3v-3",
+  poll: "M5 20V10M12 20V4M19 20v-7",
   update: "M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18",
 };
 
