@@ -36,7 +36,7 @@ import { BotMark } from "../../components/BotMark";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
-import { PaperclipIcon, SendIcon } from "../../components/Icons";
+import { PaperclipIcon, PollIcon, SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
@@ -57,6 +57,7 @@ import { canMentionEntireChannel } from "../../core/permissions";
 import { restoreDraft } from "../../core/unsent";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
+import { PollForm } from "./PollForm";
 import { useSavedDraft } from "./useSavedDraft";
 
 export function Composer({
@@ -136,6 +137,16 @@ export function Composer({
     ? Number(instanceStatus.maxUploadBytes)
     : MAX_ATTACHMENT_BYTES;
   const [dragging, setDragging] = useState(false);
+  // The create-a-poll form. Not offered in a thread, which takes no poll.
+  const [pollOpen, setPollOpen] = useState(false);
+  // Set when a poll was posted: focus goes back to the words, not to
+  // the poll button the form opened from.
+  const focusAfterPoll = useRef(false);
+  useEffect(() => {
+    if (pollOpen || !focusAfterPoll.current) return;
+    focusAfterPoll.current = false;
+    inputRef.current?.focus();
+  }, [pollOpen]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
@@ -427,153 +438,180 @@ export function Composer({
   };
 
   return (
-    <form
-      className={`composer ${dragging ? "dragging" : ""}`}
-      onSubmit={(e: FormEvent) => {
-        e.preventDefault();
-        send();
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-    >
-      <MentionPicker
-        candidates={candidates}
-        selected={selected}
-        onPick={pick}
-      />
-      {!mention && (
-        <EmojiSuggest
-          candidates={suggestions}
+    <>
+      <form
+        className={`composer ${dragging ? "dragging" : ""}`}
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault();
+          send();
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+      >
+        <MentionPicker
+          candidates={candidates}
           selected={selected}
-          onPick={pickEmoji}
+          onPick={pick}
         />
-      )}
-      {replyTo && (
-        <div className="reply-bar">
-          <span>
-            Replying to{" "}
-            <strong>
-              {replyTo.author?.displayName || replyTo.author?.username}
-              <BotMark kind={replyTo.author?.kind} />
-              <DeletedMark deleted={replyTo.author?.deleted} />
-            </strong>
-            <span className="muted">
-              {" "}
-              — {messagePreview(replyTo).slice(0, 80)}
-            </span>
-          </span>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={onCancelReply}
-            aria-label="Cancel reply"
-            title="Cancel reply (Esc)"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-      <div className="composer-tools">
-        <FormatToolbar
-          active={formats}
-          onFormat={(f) => inputRef.current?.format(f)}
-        />
-        <Tooltip text="Attach files">
-          <button
-            type="button"
-            className="format-button attach-button"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Attach files"
-          >
-            <PaperclipIcon />
-          </button>
-        </Tooltip>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          hidden
-          onChange={(e) => {
-            if (e.target.files) addFiles(e.target.files);
-            e.target.value = "";
-          }}
-          aria-label="Attach files"
-        />
-      </div>
-      <AttachmentStrip
-        items={pending}
-        error={attachError}
-        onRemove={dropPending}
-      />
-      <div className="composer-row">
-        <div className="composer-input">
-          <RichEditor
-            fieldRef={inputRef}
-            onFormats={setFormats}
-            mentions={mentionContext}
-            value={draft}
-            onPaste={onPaste}
-            onChange={(value, textBefore) => {
-              setDraft(value);
-              updateMention(textBefore, textBefore.length);
-              pingTyping(value);
-            }}
-            onCaret={(textBefore) =>
-              updateMention(textBefore, textBefore.length)
-            }
-            onKeyDown={onKeyDown}
-            onBlur={() => {
-              setMention(null);
-              setShortcode(null);
-            }}
-            placeholder={
-              threadRootId
-                ? "Reply in thread"
-                : channelName
-                  ? dm
-                    ? group
-                      ? `Message ${channelName}`
-                      : `Message @${channelName}`
-                    : announcement
-                      ? `Announce in ${channelName}`
-                      : `Message ${channelName}`
-                  : "Message"
-            }
+        {!mention && (
+          <EmojiSuggest
+            candidates={suggestions}
+            selected={selected}
+            onPick={pickEmoji}
           />
-        </div>
-        {touchKeyboard && (
-          <button
-            type="submit"
-            className="primary composer-send"
-            aria-label="Send"
-            onMouseDown={(e) => e.preventDefault()}
-          >
-            <SendIcon />
-          </button>
         )}
-      </div>
-      {threadRootId && (
-        <label className="toggle-row composer-also-send">
-          <input
-            type="checkbox"
-            checked={alsoSend}
-            onChange={(e) => setAlsoSend(e.target.checked)}
+        {replyTo && (
+          <div className="reply-bar">
+            <span>
+              Replying to{" "}
+              <strong>
+                {replyTo.author?.displayName || replyTo.author?.username}
+                <BotMark kind={replyTo.author?.kind} />
+                <DeletedMark deleted={replyTo.author?.deleted} />
+              </strong>
+              <span className="muted">
+                {" "}
+                — {messagePreview(replyTo).slice(0, 80)}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onCancelReply}
+              aria-label="Cancel reply"
+              title="Cancel reply (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <div className="composer-tools">
+          <FormatToolbar
+            active={formats}
+            onFormat={(f) => inputRef.current?.format(f)}
           />
-          <span>
-            Also send to{" "}
-            {dm && !group ? `@${channelName}` : (channelLabel ?? channelName)}
-          </span>
-        </label>
+          <Tooltip text="Attach files">
+            <button
+              type="button"
+              className="format-button attach-button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach files"
+            >
+              <PaperclipIcon />
+            </button>
+          </Tooltip>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              if (e.target.files) addFiles(e.target.files);
+              e.target.value = "";
+            }}
+            aria-label="Attach files"
+          />
+          {!threadRootId && (
+            <Tooltip text="Create a poll">
+              <button
+                type="button"
+                className="format-button poll-button"
+                onClick={() => setPollOpen(true)}
+                aria-label="Create a poll"
+                aria-haspopup="dialog"
+              >
+                <PollIcon />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+        <AttachmentStrip
+          items={pending}
+          error={attachError}
+          onRemove={dropPending}
+        />
+        <div className="composer-row">
+          <div className="composer-input">
+            <RichEditor
+              fieldRef={inputRef}
+              onFormats={setFormats}
+              mentions={mentionContext}
+              value={draft}
+              onPaste={onPaste}
+              onChange={(value, textBefore) => {
+                setDraft(value);
+                updateMention(textBefore, textBefore.length);
+                pingTyping(value);
+              }}
+              onCaret={(textBefore) =>
+                updateMention(textBefore, textBefore.length)
+              }
+              onKeyDown={onKeyDown}
+              onBlur={() => {
+                setMention(null);
+                setShortcode(null);
+              }}
+              placeholder={
+                threadRootId
+                  ? "Reply in thread"
+                  : channelName
+                    ? dm
+                      ? group
+                        ? `Message ${channelName}`
+                        : `Message @${channelName}`
+                      : announcement
+                        ? `Announce in ${channelName}`
+                        : `Message ${channelName}`
+                    : "Message"
+              }
+            />
+          </div>
+          {touchKeyboard && (
+            <button
+              type="submit"
+              className="primary composer-send"
+              aria-label="Send"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <SendIcon />
+            </button>
+          )}
+        </div>
+        {threadRootId && (
+          <label className="toggle-row composer-also-send">
+            <input
+              type="checkbox"
+              checked={alsoSend}
+              onChange={(e) => setAlsoSend(e.target.checked)}
+            />
+            <span>
+              Also send to{" "}
+              {dm && !group ? `@${channelName}` : (channelLabel ?? channelName)}
+            </span>
+          </label>
+        )}
+        {announcement && (
+          <p className="composer-hint">
+            Announcement channel: members read and react, only admins post.
+          </p>
+        )}
+      </form>
+      {/* Beside the composer's form, not in it: a form in a form would
+        send the message on the poll's submit. */}
+      {pollOpen && (
+        <PollForm
+          channelId={channelId}
+          onClose={() => setPollOpen(false)}
+          onPosted={() => {
+            focusAfterPoll.current = true;
+            setPollOpen(false);
+          }}
+        />
       )}
-      {announcement && (
-        <p className="composer-hint">
-          Announcement channel: members read and react, only admins post.
-        </p>
-      )}
-    </form>
+    </>
   );
 }

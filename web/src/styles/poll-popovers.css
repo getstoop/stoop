@@ -1,0 +1,82 @@
+/* ---- Polls, continued (styles/polls.css): what opens from a poll's
+   card, the list of who chose an option and Close poll's question, and a
+   poll where a message is shown in brief. ---- */
+
+/* Everyone who chose an option, anchored under "N others". */
+/* Its own ink and size: it sits in the voters line's muted small text. */
+.poll-voter-list {
+  position: fixed;
+  z-index: var(--z-popover);
+  padding: 6px;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+.poll-voter-list-head {
+  padding: 4px 8px 6px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-ui);
+}
+
+.poll-voter-list ul {
+  margin: 0;
+  padding: 0;
+  /* off-scale: eight voters, then it scrolls */
+  max-height: 232px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.poll-voter-list li {
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-ui);
+}
+
+.poll-voter-list .avatar {
+  /* off-scale: a voter's face, as on the card */
+  --avatar-size: 20px;
+}
+
+/* Close poll's question, under the button: in full ink, though it sits
+   in the foot's muted small text. */
+.poll-confirm {
+  position: fixed;
+  z-index: var(--z-popover);
+  padding: 12px;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text);
+}
+
+.poll-confirm p {
+  margin: 0;
+}
+
+.poll-confirm-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* A poll where a message is shown in brief (components/PollPreview): its
+   glyph and preview line. */
+.poll-preview {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.poll-preview > svg {
+  flex: none;
+  align-self: center;
+  color: var(--text-muted);
+}

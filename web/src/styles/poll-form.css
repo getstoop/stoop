@@ -1,0 +1,125 @@
+/* ---- Creating a poll: the composer's poll button and the form
+   (routes/Channel/PollForm). The card a poll is drawn as is polls.css. */
+
+/* Beside the paperclip, and like it kept in reach at the end of the
+   tools when the format buttons scroll on a narrow screen. */
+.composer-tools .poll-button {
+  flex-shrink: 0;
+}
+
+.poll-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+}
+
+.poll-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* A form of a few short lines: narrower than the default panel. */
+.modal:has(> .poll-form) {
+  width: min(440px, 92vw);
+}
+
+/* A group of controls under words, laid out as a Field is. */
+.poll-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.poll-form-legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  /* The legend's own gap below it, which a fieldset does not take from
+     flex. */
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+/* One option or several: two halves of one control. */
+.poll-choice {
+  display: flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.poll-choice-half {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-ui);
+  font-weight: 600;
+}
+
+.poll-choice-half:hover {
+  color: var(--text);
+}
+
+.poll-choice-half.on {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.poll-choice-half svg {
+  width: 14px;
+  height: 14px;
+}
+
+.poll-option-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.poll-option-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poll-option-line input {
+  flex: 1;
+  min-width: 0;
+}
+
+.poll-add-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.poll-add-option svg {
+  width: 14px;
+  height: 14px;
+}
+
+.poll-form-group > .hint {
+  margin: 0;
+}
+
+.poll-form-failure {
+  font-size: var(--text-ui);
+}

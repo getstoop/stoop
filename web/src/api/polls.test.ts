@@ -11,16 +11,18 @@ import {
   resetServer,
   server,
 } from "./channelLogTestServer";
-import { pendingVote, pressPollOption } from "./polls";
+import { pendingVote, createPoll as postPoll, pressPollOption } from "./polls";
 
-const { listMessages, listChanges, setPollVote, notice } = vi.hoisted(() => ({
-  listMessages: vi.fn(),
-  listChanges: vi.fn(),
-  setPollVote: vi.fn(),
-  notice: vi.fn(),
-}));
+const { listMessages, listChanges, setPollVote, createPoll, notice } =
+  vi.hoisted(() => ({
+    listMessages: vi.fn(),
+    listChanges: vi.fn(),
+    setPollVote: vi.fn(),
+    createPoll: vi.fn(),
+    notice: vi.fn(),
+  }));
 vi.mock("./clients", () => ({
-  chatClient: { listMessages, listChanges, setPollVote },
+  chatClient: { listMessages, listChanges, setPollVote, createPoll },
 }));
 vi.mock("./origin", () => ({ serverOrigin: () => "http://test" }));
 vi.mock("../stores/dialogs", () => ({ notice }));
@@ -87,10 +89,10 @@ describe("pressing an option", () => {
     const release = answerLater(() => pollRow([1], server.seq + 1));
     const done = pressPollOption(held(), 1, ME);
     expect(pendingVote(POLL)).toBe(1);
-    expect(setPollVote).toHaveBeenCalledWith({
-      messageId: POLL,
-      optionIds: [1],
-    });
+    expect(setPollVote).toHaveBeenCalledWith(
+      { messageId: POLL, optionIds: [1] },
+      { timeoutMs: 15_000 },
+    );
     release();
     await done;
     expect(pendingVote(POLL)).toBeNull();
@@ -133,10 +135,36 @@ describe("pressing an option", () => {
       message: pollRow([1, 2], server.seq + 2),
     });
     await pressPollOption(held(), 2, ME);
-    expect(setPollVote).toHaveBeenLastCalledWith({
-      messageId: POLL,
-      optionIds: [1, 2],
-    });
+    expect(setPollVote).toHaveBeenLastCalledWith(
+      { messageId: POLL, optionIds: [1, 2] },
+      { timeoutMs: 15_000 },
+    );
     expect(chosen(held())).toEqual([1, 2]);
+  });
+});
+
+describe("posting a poll", () => {
+  const request = {
+    channelId: CHANNEL,
+    question: "Friday?",
+    options: ["a", "b"],
+    multiple: false,
+  };
+
+  it("holds the answer, before any event", async () => {
+    const NEW = id(402);
+    const answer = create(MessageSchema, {
+      ...pollRow([], server.seq + 1),
+      id: NEW,
+    });
+    createPoll.mockResolvedValueOnce({ message: answer });
+    await postPoll(request);
+    expect(createPoll).toHaveBeenCalledWith(request);
+    expect(logOf().rows.get(NEW)).toBe(answer);
+  });
+
+  it("throws a refusal for the form to say", async () => {
+    createPoll.mockRejectedValueOnce(new Error("refused"));
+    await expect(postPoll(request)).rejects.toThrow("refused");
   });
 });

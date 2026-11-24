@@ -188,7 +188,7 @@ test("voice channels, the stage, and who is in them", async ({
   // Create a voice channel from the sidebar's dialog.
   await A.locator(".channel-add.voice").click();
   await A.getByLabel("Voice channel name").fill("lounge");
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
     A.locator(".voice-channel .channel-name"),
     "voice channel created from the sidebar",

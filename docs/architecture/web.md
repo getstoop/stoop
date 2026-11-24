@@ -731,7 +731,7 @@ window" is what the view's range holds.
   the wire but a card on screen: `pollOf` in `core/polls.ts` picks them
   out before `isSystemRow` would, and `MessageList/PollRow/` draws one
   as a `.message` (avatar, name, time, hover toolbar) whose body is the
-  card (`styles/polls.css`). A poll always heads its own group, and the
+  card (`styles/polls.css`, and `poll-popovers.css` for what opens from it). A poll always heads its own group, and the
   list follows the reader's own as it follows their message
   (`newestMine`, `isOwnPost` in `items.ts`, which counts their closing
   row too). Everything that is not drawing is in `core/polls.ts`,
@@ -744,7 +744,7 @@ window" is what the view's range holds.
   ahead of the server: the option shows it is pending, and
   `pressPollOption` in `api/polls.ts` holds the answer (`holdRow`, by
   seq), since a vote that changed nothing has no event to settle it; a
-  refusal is a notice. The pending vote is kept there by poll, not in
+  refusal, or no answer within 15 seconds, is a notice. The pending vote is kept there by poll, not in
   the card, so a card the list drew again while it was out still shows
   it and takes no second press. While open, options are buttons with
   `role="radio"` or `role="checkbox"` and `aria-checked`, each a tab
@@ -760,6 +760,33 @@ window" is what the view's range holds.
   message is shown in brief (a pin, a search result, a linked message's
   card) a poll is its preview line (`components/PollPreview.tsx`), not
   Markdown.
+
+  A poll is made from the composer's poll button, after the paperclip,
+  shown wherever the composer is (so not where posting is closed, and a
+  blocked conversation hears the server's refusal) and never in a
+  thread's composer, since a thread takes no poll. It opens
+  `routes/Channel/PollForm/` in the `Modal`, rendered beside the
+  composer's form rather than inside it: the question, "People can
+  choose" (one option or several) directly under it, then two to ten
+  option fields (`styles/poll-form.css`). The form's state and rules
+  are `core/pollForm.ts`, shared with mobile: the limits counted in code
+  points after trimming as Go trims, the characters the server refuses,
+  duplicates ignoring case, invisible format characters and
+  normalisation (the case folding differs from Go's on a few letters
+  such as the dotless ı, where the form is the stricter), when Post is
+  on, the words for each problem and the request. A problem is said
+  under its field as it is typed. In an option, Enter goes to the next
+  field and from a filled last one adds another, Backspace in an empty
+  one removes it, and Alt+Up/Down moves it; Cmd or Ctrl with Enter
+  posts. `createPoll` in `api/polls.ts` holds the answer as a send's is
+  (or jumps to the newest page when the view is in history). Post is
+  off while the request is out, since `CreatePoll` has no idempotency
+  key; a refusal is said above the actions in the server's words (or
+  "Try again" for anything that may pass on a second try) and leaves
+  everything as typed. There is no discard confirmation: Cancel, Escape
+  and the scrim close it. Cancel returns focus to the poll button; a
+  posted poll returns it to the composer's words, which opening and
+  posting a poll leave as they were.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:
