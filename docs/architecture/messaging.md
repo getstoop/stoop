@@ -1280,11 +1280,13 @@ unread counts, the "New messages" line and a channel's last message
 treat both as a message, with no code of their own. The code is
 `internal/chat/polls.go` and `queries/chat/polls.sql`.
 
-Built so far: the server side, whole. A poll is created, read with its
-votes, voted on, closed, pinned and deleted over the API. No client
-draws one yet: both draw the two kinds as the line asking the reader to
-update (`systemLine`), and neither offers a way to create, vote or
-close.
+Built so far: the server side, whole, and web's drawing of both rows.
+A poll is created, read with its votes, voted on, closed, pinned and
+deleted over the API. Web draws a poll as a card that votes, closes and
+deletes, and the closing row as a system line ([web.md](web.md) → The
+message list); it has no way to create one yet. Mobile draws neither
+yet: a poll is a system line, "posted a poll:" and the question, and
+the closing row reads as on web (`systemLine`, shared).
 
 - **The poll row.** `data` is the definition, which never changes, and
   the closed state: `{question, options: [{id, text}], multiple,

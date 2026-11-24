@@ -1,0 +1,292 @@
+/* ---- Polls (routes/Channel/MessageList/PollRow): a card under its
+   author's name, as a message's body is. Each option is a box with its
+   share of the voters as a bar behind it, its text and count on top and
+   who chose it underneath. The reader's own vote has an accent edge; a
+   closed poll's winner, or each tied option, an accent bar and a badge.
+   The row itself is a .message (messages.css), so its avatar, name,
+   hover and toolbar are a message's. ---- */
+
+.poll {
+  margin-top: 4px;
+  /* off-scale: the approved card's width, wide enough for a long option */
+  max-width: 460px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.poll-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.poll-glyph {
+  display: flex;
+  /* off-scale: centres the glyph on the question's first line */
+  margin-top: 3px;
+  color: var(--text-muted);
+}
+
+.poll-question {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+}
+
+.poll-head .badge {
+  margin: 2px 0 0;
+}
+
+.poll-state {
+  background: var(--raised);
+}
+
+.poll-kind {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* The control's mark: a box with several choices, a circle with one,
+   filled and ticked when it is the reader's. */
+.poll-box {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--on-accent);
+}
+
+.poll-box.radio {
+  border-radius: var(--radius-pill);
+}
+
+.poll-box svg {
+  width: 12px;
+  height: 12px;
+}
+
+.poll-pick > .poll-box,
+.poll-mark {
+  /* off-scale: centres the mark on the text's first line */
+  margin-top: 1px;
+}
+
+.poll-kind .poll-box {
+  width: 12px;
+  height: 12px;
+  background: none;
+}
+
+.poll-option.mine .poll-box {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* Pressed, and the server has yet to answer. */
+.poll-option.pending .poll-box {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.poll-options {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: none;
+  list-style: none;
+}
+
+.poll-option {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.poll-option.mine {
+  border-color: var(--accent);
+}
+
+/* Pressed, and the server has yet to answer. */
+.poll-option.pending {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+/* The share of the voters, behind the option: --poll-share is 0 to 1. */
+.poll-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--poll-share, 0) * 100%);
+  background: var(--raised);
+  transition: width var(--dur) var(--ease);
+}
+
+.poll-option.won .poll-bar {
+  background: var(--accent-soft);
+}
+
+.poll-option-top {
+  position: relative;
+  width: 100%;
+  /* off-scale: one line of option text with its padding */
+  min-height: 36px;
+  padding: 8px 12px 8px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 2px 8px;
+  text-align: left;
+  color: var(--text);
+}
+
+.poll-pick {
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.poll-pick[aria-disabled="true"] {
+  cursor: progress;
+}
+
+.poll-mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.poll-mark svg {
+  width: 14px;
+  height: 14px;
+}
+
+.poll-option-text {
+  /* off-scale: the width under which the count wraps below the text */
+  flex: 1 1 150px;
+  min-width: 0;
+  font-size: var(--text-ui);
+  font-weight: 600;
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+}
+
+.poll-option-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poll-option-end .badge {
+  margin: 0;
+}
+
+.poll-option-count {
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.poll-option.won .poll-option-count {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Who chose it: under the text, clear of the mark. */
+.poll-voters {
+  position: relative;
+  /* off-scale: lines up under the option's text, past the 18px mark */
+  padding: 0 12px 8px 34px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+  color: var(--text-muted);
+}
+
+.poll-faces {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.poll-faces .avatar {
+  /* off-scale: a voter's face, smaller than any avatar size */
+  --avatar-size: 20px;
+  font-size: var(--text-xs);
+}
+
+.poll-voters-names {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-you {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.poll-others {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.poll-others:hover {
+  color: var(--text);
+}
+
+.poll-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.poll-foot-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.poll-close {
+  flex: none;
+}
+
+.poll-close.active {
+  color: var(--accent);
+}

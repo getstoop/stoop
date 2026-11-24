@@ -44,6 +44,23 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     }
   }, []);
 
+  // A poll goes with its votes, its pin and its closing row.
+  const removePoll = useCallback(async (message: Message) => {
+    const ok = await confirm({
+      title: "Delete this poll?",
+      body: "It's removed for everyone, with its votes and results.",
+      action: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await chatClient.deleteMessage({ messageId: message.id });
+      patchOwnDelete(message.channelId, message.id);
+    } catch (err) {
+      notice({ title: "Couldn't delete the poll", body: errorText(err) });
+    }
+  }, []);
+
   // A system message: a moderator removes the line, not what it records.
   const removeSystem = useCallback(async (message: Message) => {
     const ok = await confirm({
@@ -121,6 +138,7 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     picker,
     setPicker,
     remove,
+    removePoll,
     removeSystem,
     dismissPreview,
     showCard,

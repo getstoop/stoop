@@ -39,4 +39,13 @@ describe("splitPreview", () => {
     ]);
     expect(splitPreview("", "ada")).toEqual([]);
   });
+
+  it("highlights nothing in a poll's question, which mentions no one", () => {
+    expect(splitPreview("Poll: lunch with @ada or @channel?", "ada")).toEqual([
+      { text: "Poll: lunch with @ada or @channel?", mention: false },
+    ]);
+    expect(splitPreview("Poll closed: ask @ada", "ada")).toEqual([
+      { text: "Poll closed: ask @ada", mention: false },
+    ]);
+  });
 });

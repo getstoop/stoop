@@ -10,6 +10,7 @@ import {
   estimateSize,
   indexOfMessage,
   indexOfNewLine,
+  isOwnPost,
   type ListItem,
   listItems,
 } from "./items";
@@ -35,6 +36,8 @@ const rows = (items: ListItem[]) =>
         return "<foot>";
       case "system":
         return `${item.key} (system)`;
+      case "poll":
+        return `${item.key} (poll)`;
       default:
         return `[${item.label}]`;
     }
@@ -77,6 +80,56 @@ describe("system rows", () => {
   it("are found by a jump, and have a height before measuring", () => {
     expect(indexOfMessage(items, "02")).toBe(3);
     expect(estimateSize(items[3])).toBeGreaterThan(0);
+  });
+});
+
+describe("polls", () => {
+  const at = (second: number) => new Date(2026, 9, 21, 9, 0, second);
+  const poll = (id: string, options: number): Message => {
+    const made = message(id, at(10));
+    made.event = create(SystemEventSchema, {
+      kind: {
+        case: "poll",
+        value: {
+          question: "Friday?",
+          options: Array.from({ length: options }, (_, index) => ({
+            id: index + 1,
+            text: `Option ${index + 1}`,
+          })),
+        },
+      },
+    });
+    return made;
+  };
+  // All by the same author within the minute.
+  const items = listItems({
+    messages: [message("01", at(0)), poll("02", 3), message("03", at(20))],
+    firstNewId: undefined,
+    inThread: false,
+    now,
+  });
+
+  it("are items of their own, never continuing or continued", () => {
+    expect(rows(items)).toEqual([
+      "<head>",
+      "[Today]",
+      "01",
+      "02 (poll)",
+      "03",
+      "<foot>",
+    ]);
+  });
+
+  it("are found by a jump, and grow with their options before measuring", () => {
+    expect(indexOfMessage(items, "02")).toBe(3);
+    const ten = listItems({
+      messages: [poll("04", 10)],
+      firstNewId: undefined,
+      inThread: false,
+      now,
+    });
+    expect(estimateSize(ten[2])).toBeGreaterThan(estimateSize(items[3]));
+    expect(estimateSize(items[3])).toBeGreaterThan(estimateSize(items[2]));
   });
 });
 
@@ -218,5 +271,42 @@ describe("estimateSize", () => {
     for (const item of [head, day, foot]) {
       expect(estimateSize(item)).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("isOwnPost", () => {
+  const at = new Date(2026, 9, 21, 9, 0);
+  const of = (
+    kind: "poll" | "pollClosed" | "memberLeft" | undefined,
+    authorId = "dee",
+  ) => {
+    const made = message("01", at, authorId);
+    if (kind === "poll")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "poll", value: { question: "Friday?" } },
+      });
+    if (kind === "pollClosed")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "pollClosed", value: { question: "Friday?" } },
+      });
+    if (kind === "memberLeft")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "memberLeft", value: {} },
+      });
+    return made;
+  };
+
+  it("is my message, my poll and my poll's closing row", () => {
+    expect(isOwnPost(of(undefined), "dee")).toBe(true);
+    expect(isOwnPost(of("poll"), "dee")).toBe(true);
+    expect(isOwnPost(of("pollClosed"), "dee")).toBe(true);
+  });
+
+  it("is not another system row of mine, nor anyone else's row", () => {
+    expect(isOwnPost(of("memberLeft"), "dee")).toBe(false);
+    expect(isOwnPost(of("pollClosed", "eve"), "dee")).toBe(false);
+    expect(isOwnPost(of("poll", "eve"), "dee")).toBe(false);
+    expect(isOwnPost(of(undefined), undefined)).toBe(false);
+    expect(isOwnPost(undefined, "dee")).toBe(false);
   });
 });

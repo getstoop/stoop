@@ -12,7 +12,13 @@ export interface PreviewPart {
 // `handle` is the reader's username without the @. A handle is
 // [a-z0-9_] (internal/auth usernameRE), so a match ends at anything else
 // and "@ada" is not found in "@adam", while "@ada." is a mention.
+// A poll's preview ("Poll: " or "Poll closed: " and its question, as the
+// server words it) is plain text all through: an @name in a question
+// names nobody, so nothing in it is highlighted. (A message that starts
+// with those words goes unhighlighted too; the item does not say which
+// it is.)
 export function splitPreview(preview: string, handle: string): PreviewPart[] {
+  if (POLL_PREVIEW.test(preview)) return [{ text: preview, mention: false }];
   const names = ["channel", "here"];
   if (handle) names.unshift(escapeRegExp(handle));
   const re = new RegExp(`@(?:${names.join("|")})(?![a-z0-9_])`, "gi");
@@ -29,6 +35,8 @@ export function splitPreview(preview: string, handle: string): PreviewPart[] {
     parts.push({ text: preview.slice(last), mention: false });
   return parts;
 }
+
+const POLL_PREVIEW = /^Poll(?: closed)?: /;
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

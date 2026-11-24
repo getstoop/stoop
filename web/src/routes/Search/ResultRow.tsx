@@ -10,8 +10,10 @@ import { BotMark } from "../../components/BotMark";
 import { ChannelName } from "../../components/ChannelName";
 import { DeletedMark } from "../../components/DeletedMark";
 import { MessageBody } from "../../components/MessageBody";
+import { PollPreview } from "../../components/PollPreview";
 import { fullDateTime, shortDateTime } from "../../core/dates";
 import type { MentionMembers } from "../../core/mentions";
+import { isPollRow } from "../../core/polls";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 // One search result: who said it where and when, then the message with
@@ -72,17 +74,21 @@ export function ResultRow({
         {when ? shortDateTime(when) : ""}
       </span>
       <span className="search-row-body message-content">
-        <MessageBody
-          content={message.content}
-          members={members}
-          mentionsEntireChannel={message.mentionsEntireChannel}
-          mentionsHere={message.mentionsHere}
-          myUserId={me?.id}
-          highlight={highlight}
-          groups={groups}
-          channels={linkable}
-          channelLinks={false}
-        />
+        {isPollRow(message) ? (
+          <PollPreview message={message} highlight={highlight} />
+        ) : (
+          <MessageBody
+            content={message.content}
+            members={members}
+            mentionsEntireChannel={message.mentionsEntireChannel}
+            mentionsHere={message.mentionsHere}
+            myUserId={me?.id}
+            highlight={highlight}
+            groups={groups}
+            channels={linkable}
+            channelLinks={false}
+          />
+        )}
         <Attachments attachments={message.attachments} />
       </span>
     </button>

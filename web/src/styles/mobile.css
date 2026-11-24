@@ -210,6 +210,13 @@
     width: 36px;
   }
 
+  /* A poll's option is a finger's target. */
+  .poll-pick {
+    /* off-scale: the smallest touch target */
+    min-height: 44px;
+    align-items: center;
+  }
+
   .skeleton-row {
     /* off-scale: the avatar column, 8 + 36 + 10, as .message */
     padding-left: 54px;

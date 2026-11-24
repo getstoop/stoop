@@ -1,12 +1,18 @@
 import { ChannelPostPolicy } from "../gen/stoop/chat/v1/channel_pb";
-import type { Message, MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
+import type {
+  Message,
+  MessageAuthor,
+  PollWinner,
+} from "../gen/stoop/chat/v1/message_pb";
 
 // The wording of a system message (docs/architecture/messaging.md →
 // System messages): a row that records something that happened in its
 // channel. The server sends the event and every word of the row is built
 // here, as parts each client draws its own way, so web and mobile say
 // the same thing. (A poll is the kind that carries words someone wrote,
-// and the server words the one-line previews of one.)
+// and the server words the one-line previews of one.) A poll itself is
+// drawn as a card (core/polls.ts), not as a line; its closing row is a
+// line.
 
 // The glyph in the avatar column, by name: each client maps it to its own
 // icon.
@@ -18,6 +24,7 @@ export type SystemGlyph =
   | "text-lines"
   | "pin"
   | "megaphone"
+  | "poll"
   | "update";
 
 export type SystemPart =
@@ -31,9 +38,12 @@ export type SystemPart =
   // A channel's name with its #; current is the name it has now (the new
   // one in a rename), drawn in full ink.
   | { kind: "channel"; name: string; current: boolean }
+  // Words the row stresses, in full ink: a closed poll's winners.
+  | { kind: "emphasis"; text: string }
   // The message a row is about, in the server's excerpt ("" when the
-  // message has no words to excerpt).
-  | { kind: "excerpt"; messageId: string; text: string };
+  // message has no words to excerpt, or the row words it itself), and
+  // the way to it; label names it for a screen reader's View.
+  | { kind: "excerpt"; messageId: string; text: string; label?: string };
 
 export type SystemLine = {
   glyph: SystemGlyph;
@@ -157,11 +167,34 @@ export function systemLine(
           ),
         ],
       };
-    // A poll and its closing row are not drawn yet: until they are, both
-    // read as a kind this client does not know. Neither is ever quiet.
+    // A poll is drawn as a card (core/polls.ts pollOf), never as this
+    // line; a client that has no card yet says what it is.
     case "poll":
+      return {
+        glyph: "poll",
+        parts: [actor, text(` posted a poll: ${kind.value.question}`)],
+      };
     case "pollClosed":
-      return UNKNOWN;
+      return {
+        glyph: "poll",
+        parts: [
+          actor,
+          text(` closed the poll: ${sentence(kind.value.question)} `),
+          ...outcome(kind.value.winners),
+          // Its wording is the row's own snapshot; the reference is only
+          // the way back to the poll, while there is one.
+          ...(message.reference && referenceLive(message)
+            ? [
+                {
+                  kind: "excerpt" as const,
+                  messageId: message.reference.messageId,
+                  text: "",
+                  label: "View poll",
+                },
+              ]
+            : []),
+        ],
+      };
     case undefined:
       return message.quiet ? null : UNKNOWN;
     default:
@@ -179,6 +212,7 @@ export function systemText(parts: SystemPart[]): string {
 function partText(part: SystemPart): string {
   switch (part.kind) {
     case "text":
+    case "emphasis":
     case "excerpt":
       return part.text;
     case "person":
@@ -233,6 +267,29 @@ function peopleList(people: MessageAuthor[], unfolded: boolean): SystemPart[] {
       people: rest,
     });
   }
+  return parts;
+}
+
+// A question as the start of a sentence that goes on: a full stop added
+// when it ends without one of its own.
+function sentence(question: string): string {
+  return /[.?!…:]$/.test(question) ? question : `${question}.`;
+}
+
+// A closed poll's outcome: "Winner: A, 3 votes", "Tied: A and B, 3 votes
+// each", or "Nobody voted".
+function outcome(winners: PollWinner[]): SystemPart[] {
+  if (winners.length === 0) return [text("Nobody voted")];
+  const votes = winners[0].votes === 1 ? "1 vote" : `${winners[0].votes} votes`;
+  const parts: SystemPart[] = [
+    text(winners.length === 1 ? "Winner: " : "Tied: "),
+  ];
+  winners.forEach((winner, index) => {
+    if (index > 0)
+      parts.push(text(index === winners.length - 1 ? " and " : ", "));
+    parts.push({ kind: "emphasis", text: winner.text });
+  });
+  parts.push(text(winners.length === 1 ? `, ${votes}` : `, ${votes} each`));
   return parts;
 }
 
