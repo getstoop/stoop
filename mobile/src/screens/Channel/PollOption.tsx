@@ -200,6 +200,9 @@ function makeStyles(theme: Theme) {
     option: {
       overflow: "hidden",
       borderWidth: 1,
+      // Said outright: Android keeps a dashed edge once the pending style
+      // that set it is gone.
+      borderStyle: "solid",
       borderColor: theme.border,
       borderRadius: tokens.radiusMd,
       backgroundColor: theme.surface,
@@ -247,6 +250,7 @@ function makeStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
+      borderStyle: "solid",
       borderColor: theme.textMuted,
       borderRadius: tokens.radius,
       backgroundColor: theme.panel,
