@@ -15,6 +15,9 @@ const AVATAR = 36;
 const GAP = 10;
 // One line of the question, at the system's default text size.
 const LINE = 21;
+// Past this text size View votes goes under the foot's words, as each
+// option's count goes under its text (PollOption).
+const LARGE_TEXT = 1.3;
 
 // A poll in the channel (docs/architecture/messaging.md → Polls): its
 // author's face, name and time as a message's, the question under them
@@ -158,7 +161,7 @@ export default memo(function PollRow({
             />
           ))}
         </View>
-        <View style={styles.foot}>
+        <View style={[styles.foot, fontScale > LARGE_TEXT && styles.footStacked]}>
           <Text style={styles.footText}>{foot}</Text>
           {!card && onViewVotes && poll.voterCount > 0 && (
             <Pressable
@@ -318,8 +321,13 @@ function makeStyles(theme: Theme) {
       gap: 8,
       minHeight: 20,
     },
+    footStacked: {
+      flexDirection: "column",
+      alignItems: "flex-start",
+    },
     footText: {
-      flex: 1,
+      flexGrow: 1,
+      flexShrink: 1,
       minWidth: 0,
       color: theme.textMuted,
       fontSize: tokens.textSm,

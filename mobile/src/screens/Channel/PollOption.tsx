@@ -9,6 +9,10 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // One line of the option's text, at the system's default text size: the
 // mark is centred on it however large the reader's text is.
 const LINE = 22;
+// Past this text size the count goes under the option's text rather than
+// beside it, and the voters' faces are left out (their names stay): at
+// that size the faces' initials no longer fit them.
+const LARGE_TEXT = 1.3;
 const MARK = 22;
 const FACE = 20;
 
@@ -54,6 +58,7 @@ export default function PollOption({
   const { fontScale } = useWindowDimensions();
   const count = votesLabel(result.votes);
   const line = { height: LINE * fontScale };
+  const large = fontScale > LARGE_TEXT;
 
   const top = (
     <>
@@ -73,14 +78,16 @@ export default function PollOption({
       ) : (
         <View style={[styles.markLine, line]}>{result.mine && <CheckIcon color={theme.accent} size={16} />}</View>
       )}
-      <Text style={styles.label}>{result.text}</Text>
-      <View style={styles.end}>
-        {badge && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge === "winner" ? "Winner" : "Tied"}</Text>
-          </View>
-        )}
-        <Text style={[styles.count, badge && styles.countWon]}>{count}</Text>
+      <View style={[styles.words, large && styles.wordsStacked]}>
+        <Text style={[styles.label, large && styles.labelStacked]}>{result.text}</Text>
+        <View style={styles.end}>
+          {badge && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badge === "winner" ? "Winner" : "Tied"}</Text>
+            </View>
+          )}
+          <Text style={[styles.count, badge && styles.countWon]}>{count}</Text>
+        </View>
       </View>
     </>
   );
@@ -118,7 +125,14 @@ export default function PollOption({
         </View>
       )}
       {result.votes > 0 && (
-        <Voters voters={result.voters} myUserId={myUserId} origin={origin} token={token} styles={styles} />
+        <Voters
+          voters={result.voters}
+          myUserId={myUserId}
+          origin={origin}
+          token={token}
+          faces={!large}
+          styles={styles}
+        />
       )}
     </View>
   );
@@ -135,12 +149,14 @@ function Voters({
   myUserId,
   origin,
   token,
+  faces: withFaces,
   styles,
 }: {
   voters: MessageAuthor[];
   myUserId: string;
   origin: string;
   token: string;
+  faces: boolean;
   styles: Styles;
 }) {
   const shown = votersShown(voters, myUserId);
@@ -152,18 +168,20 @@ function Voters({
   const others = shown.others > 0 ? `${shown.others} ${shown.others === 1 ? "other" : "others"}` : "";
   return (
     <View style={styles.voters}>
-      <View style={styles.faces}>
-        {faces.map((voter) => (
-          <Avatar
-            key={voter.id}
-            name={voterName(voter)}
-            fileId={voter.avatarFileId}
-            origin={origin}
-            token={token}
-            size={FACE}
-          />
-        ))}
-      </View>
+      {withFaces && (
+        <View style={styles.faces}>
+          {faces.map((voter) => (
+            <Avatar
+              key={voter.id}
+              name={voterName(voter)}
+              fileId={voter.avatarFileId}
+              origin={origin}
+              token={token}
+              size={FACE}
+            />
+          ))}
+        </View>
+      )}
       <Text style={styles.names}>
         {words.map((word, index) => (
           <Fragment key={word.key}>
@@ -206,10 +224,8 @@ function makeStyles(theme: Theme) {
     },
     top: {
       flexDirection: "row",
-      flexWrap: "wrap",
       alignItems: "flex-start",
-      columnGap: 10,
-      rowGap: 2,
+      gap: 10,
       minHeight: 44,
       paddingVertical: 11,
       paddingLeft: 10,
@@ -246,19 +262,30 @@ function makeStyles(theme: Theme) {
       borderStyle: "dashed",
       borderColor: theme.accent,
     },
+    // The text and the count beside it, or under it at a large text size.
+    words: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    wordsStacked: {
+      flexDirection: "column",
+      gap: 2,
+    },
     label: {
-      // The width under which the count wraps below the text.
-      flexGrow: 1,
-      flexShrink: 1,
-      flexBasis: 150,
+      flex: 1,
       minWidth: 0,
       color: theme.text,
       fontSize: tokens.textBody,
       fontWeight: "600",
       lineHeight: LINE,
     },
+    labelStacked: {
+      flex: 0,
+    },
     end: {
-      marginLeft: "auto",
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
