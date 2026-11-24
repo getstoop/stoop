@@ -105,7 +105,7 @@ does not know, and refuse a `v` it does not know.
 | `threadRootId` | string | The thread the message is in; `""` when it is in no thread. |
 | `messageId` | string | The message. Never empty. |
 | `actorName` | string | Who did it: their display name, else their username, read when the job ran. An account the server cannot find reads as `unknown`; `""` only when neither name is set. |
-| `preview` | string | The message excerpt as the Activity feed shows it when the job ran (an edit since is in it, mentions under each person's current name), at most 140 characters as chat makes it (an attachment's name when there is no text); may be `""`. |
+| `preview` | string | The message excerpt as the Activity feed shows it when the job ran (an edit since is in it, mentions under each person's current name), at most 140 characters as chat makes it (an attachment's name when there is no text, "Poll: " and the question for a poll); may be `""`. |
 | `previewCut` | boolean | `true` when the server shortened `preview` further to fit the limit below. |
 | `spaceName` | string | The space's name; `""` for a direct message. |
 | `channelName` | string | The channel's name, without `#`; `""` for a direct message. |

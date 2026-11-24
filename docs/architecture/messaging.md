@@ -908,8 +908,9 @@ cursor. What the code does:
   (migration 00051), which is every other column plus the reply quote,
   so listing, search, pins and resent messages share one generated row
   type. A new `messages` column goes in the view and in the few queries
-  that read `messages` directly. Only messages someone wrote are
-  searched (`kind = 0`): a [system message](#system-messages) has no
+  that read `messages` directly. Only what someone wrote is searched,
+  a message (`kind = 0`) and a [poll](#polls) by its question
+  (`kind = 7`): any other [system message](#system-messages) has no
   text, and a query of nothing but negations matches exactly that.
 - **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
   `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
@@ -994,20 +995,25 @@ channel log, live delivery and retention carry it with no second stream
 to merge. `UpdateChannel` records the three channel changes, a private
 channel's membership calls record who was added and who left, every way
 of leaving a space records "left" in its private channels, and `pin`
-records a pin.
+records a pin. A [poll](#polls) and its closing row are system messages
+too, and the two kinds that differ from the rest: they carry a question
+someone wrote and they are not quiet.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
   old and new names, the topic), `'{}'` for a kind that carries nothing
   and `NULL` only on kind 0. `author_id` is who did it, or who left.
-  `content` is empty and `reply_to_message_id` is null; the row is
+  `content` is empty, except on a poll and its closing row, which keep
+  the question there; `reply_to_message_id` is null and the row is
   top-level. `reference_message_id` is the message the row is about (the
   pinned one), `ON DELETE SET NULL`. Two checks hold the columns
   together ([data.md](data.md#chat)).
 - **Quiet.** `quiet` says the row marks nothing unread. It is written
   once at insert, from the kind, and stored so that SQL and both clients
   filter on it without knowing the list of kinds; a row keeps the
-  behaviour it was written with. All six kinds are quiet. A quiet row is
+  behaviour it was written with. The six kinds that record housekeeping
+  are quiet; the two [poll](#polls) kinds are not, and count as a
+  message does. A quiet row is
   left out of `unread_count` (`ListChannelsBySpace`,
   `ListDMChannelsByUser`) and never becomes `channels.last_message_id`
   (`recordEvent` does not set it, `RecomputeChannelLastMessage` skips
@@ -1019,10 +1025,12 @@ records a pin.
   space then shows unread beside a count of zero until someone posts
   there or marks the channel read.
   Alert counts, activity and push need nothing: they come from mentions,
-  replies and activity items, and a system row has none.
+  replies and activity items, and a quiet row has none.
 - **Writing one** (`internal/chat/system_messages.go`). The registry
-  `systemKinds` lists each kind's number and whether it is quiet; each
-  kind has an event type whose JSON is the row's `data`.
+  `systemKinds` lists each kind's number, whether it is quiet, and
+  whether it can be pinned and deleted by its author (a poll alone);
+  each kind has an event type whose JSON is the row's `data`, and which
+  says what goes in `content` (nothing, but for the poll kinds).
   `recordEvent(ctx, qtx, channel, actorID, event)` runs inside the
   transaction of the action it records, so the two succeed or fail
   together: it takes the channel's next seq, inserts the row, sets the
@@ -1038,7 +1046,8 @@ records a pin.
   `ListMessages` returns it; `toProtoMessage` alone fills neither the
   event nor the reference.
   `recordEvent` marks nothing read, records no activity, writes no
-  mentions, and is not subject to the channel's post policy. It refuses
+  mentions, and is not subject to the channel's post policy; a caller
+  whose row is not quiet does those itself (`CreatePoll`). It refuses
   an event with nothing in it to store: a pin with no message, a message
   that is not shown in the same channel, a member that is not a user id.
   The view joins a reference only within the row's own channel besides.
@@ -1047,11 +1056,14 @@ records a pin.
 - **On the wire.** `Message.event` is a `SystemEvent`, a `oneof` with a
   case per kind; `Message.quiet` is the flag; `Message.reference` is a
   `ReplyRef`, the type a reply's quote uses. The server sends no text:
-  every word is the client's, built from `event`. People in an event are
+  every word is the client's, built from `event` (a poll's question and
+  options are in its event as they were typed). People in an event are
   stored as ids and sent as `MessageAuthor`, resolved when the row is
   read like any author, so a renamed or deleted account shows as it is
   now. The reference's excerpt reads mentions as current handles and
-  falls back to the first attachment's name, as a quote does; a row
+  falls back to the first attachment's name, as a quote does, and reads
+  "Poll: " and the question when the message is a poll (the view's
+  `reference_kind` says so); a row
   whose message is deleted is sent its id alone (the pin rows go with
   the message, so only a row from before that is), and once the
   retention sweep has removed it there is no reference (the foreign key
@@ -1060,8 +1072,9 @@ records a pin.
   case set.
 - **Readers.** History, `ListChanges`, pins and resent messages carry
   the new columns through the `message_with_reply` view. Search matches
-  only kind 0: a system row has no text, but a query of nothing but
-  negations matches a row with no text. The retention sweep takes system
+  only kind 0 and a poll (kind 7, by its question): any other system row
+  has no text, but a query of nothing but negations matches a row with
+  no text. The retention sweep takes system
   rows with the messages around them. No code may assume a system row's
   `content` is empty: a server rolled back past this change lets the
   author edit one.
@@ -1069,11 +1082,16 @@ records a pin.
   the message: editing it, reacting to it, starting or replying in a
   thread under it (`threadRootFor`), quoting or replying to it
   (`checkQuote`, one path for both), muting or reading its thread
-  (`readableRoot`), `DeleteThread`, pinning it and `DismissLinkPreview`.
+  (`readableRoot`), `DeleteThread` and `DismissLinkPreview`.
   Each asks `refuseSystemRow`, which tests `kind <> 0` rather than a list
   of kinds, so a new kind is refused all of them with nothing to add. The
-  answer is `FailedPrecondition`, as for a placeholder.
-- **Deleting one** is moderation alone: `messages.moderate` covers it,
+  answer is `FailedPrecondition`, as for a placeholder. Pinning one is
+  refused the same way unless the registry marks its kind `pinnable`
+  (`refuseUnpinnable`), which only a poll is.
+- **Deleting one** is moderation alone, unless the registry marks its
+  kind `authorDeletes`, which only a poll is: that row is deleted as a
+  message is, by its author or a moderator. For every other kind
+  `messages.moderate` covers it,
   as it covers other people's messages, and inside a private channel
   only for someone in it, as for any message. Being the row's author
   grants nothing: without `messages.moderate` nobody deletes the record
@@ -1245,6 +1263,88 @@ Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
 its event type, a `recordEvent` call in the action's transaction, and
 its wording and glyph in `core/systemMessages.ts`.
 
+## Polls
+
+A poll is a question with 2 to 10 options that the people in a
+conversation vote on by name. It is built on
+[system messages](#system-messages): the poll is a row of kind 7
+(`poll`) by whoever asked, and its closing row is kind 8 (`poll_closed`)
+by whoever closed it, referring to the poll. Neither kind is quiet, so
+unread counts, the "New messages" line and a channel's last message
+treat both as a message, with no code of their own. The code is
+`internal/chat/polls.go` and `queries/chat/polls.sql`.
+
+Built so far: creating a poll and reading one with its votes. No RPC
+writes a vote or a closing row yet, and both clients draw the two kinds
+as the line asking the reader to update (`systemLine`).
+
+- **The poll row.** `data` is the definition, which never changes, and
+  the closed state: `{question, options: [{id, text}], multiple,
+  closed_at, closed_by}`, the last two `null` while it is open. An
+  option's `id` is 1 to 10, given in order at creation and never reused;
+  it is what a vote names. `content` holds the question as well, as
+  plain text: the search column is generated from `content`, and a
+  preview needs no `data`.
+- **The closing row.** `data` is a snapshot of the outcome,
+  `{question, winners: [{text, votes}], voters}`, so the row draws with
+  no read of the poll and cannot drift. `reference_message_id` is the
+  poll and `content` the question.
+- **Votes** are `poll_votes (message_id, user_id, option_id)`, one row
+  per person and option, and not in the row's `data`: they change often
+  and are per person, as reactions are. `hydrateMessages` reads them
+  with one query for the live polls on a page, and none when the page
+  holds no poll (`addPollVotes`), so every path that hands a message to
+  a client carries them. They are sent as `PollOption.voters`: people
+  (`MessageAuthor`), resolved on the server like any author, in the
+  order they voted. A client holds only a space's current members, so
+  ids alone would lose the name of someone who left; a vote stays
+  counted and named when its voter leaves the channel or the space or
+  deletes their account. `Poll.voter_count` is distinct people, which
+  in a poll of several choices is fewer than the votes. Deleting the
+  poll deletes its votes (`TombstoneMessage`), and the retention sweep's
+  hard delete takes them by cascade.
+- **Creating one** (`CreatePoll`). The checks are `SendMessage`'s:
+  `writableChannel`, then the post policy, so whoever may post here may
+  ask. The question is 1 to 200 characters and each option 1 to 80,
+  trimmed, on one line and with no NUL; empty options are dropped, 2 to
+  10 must remain, and no two may be the same ignoring case. One
+  transaction locks the channel row, records the row (`recordEvent`,
+  which makes it the channel's last message) and moves the author's
+  read marker to it (`markChannelRead`). After the commit a closed
+  conversation is put back on its lists (`reopenDM`), the row goes out
+  as `message_created`, and in a direct message or group conversation
+  the other participants get the `dm` activity item a message would
+  give them (`recordActivity`, whose conversation step is the only one
+  with anything to do). In a channel a poll marks unread and alerts
+  nobody. An `@name` in a question is plain text and mentions no one.
+- **Previews.** Wherever a row is shown as one line, a poll reads
+  "Poll: " and its question and a closing row "Poll closed: " and the
+  question, built from the row's `kind` and `content` (`previewOf`): the
+  Activity feed and what push sends (`ListActivity` and
+  `GetPendingActivityItem`, which stay column for column the same), the
+  live `activity_item_created`, a conversation's line in the list
+  (`ListDMLastMessages`), and the excerpt of the message a system row is
+  about (a pinned poll's pin row). The question is shown exactly as
+  typed: it is not Markdown, so it skips `plainText`, and a token-like
+  run in it is not renamed (`typedAsIs`).
+- **Search** matches a poll by its question and returns it with its
+  votes. Options are not searched, nor the closing row, which only
+  repeats the question.
+- **What the rows take.** Both refuse what every system row refuses
+  (edit, reaction, thread, quote, link preview). The registry's two
+  flags set them apart:
+
+  | Kind | `quiet` | `pinnable` | `authorDeletes` |
+  | ---- | ------- | ---------- | --------------- |
+  | the six housekeeping kinds | yes | no | no |
+  | `poll` | no | yes | yes |
+  | `poll_closed` | no | no | no |
+
+  A poll is pinned by whoever may pin a message, in a space channel
+  only, and deleted by its author or with `messages.moderate`; in a
+  conversation only by its author. A closing row is deleted as any
+  system row is.
+
 ## Edits, deletions, reactions, replies
 
 Anything that adds to or changes what other people see — send, edit,
@@ -1263,7 +1363,8 @@ anyone from.
   path for a top-level message, a reply and a root, in one transaction
   that takes the channel row first. The row keeps its id, place and
   `reply_to_message_id`; `deleted_at` is set, the text goes, and its
-  reactions, attachments, mentions, link rows, pin and activity items are
+  reactions, attachments, mentions, link rows, pin, activity items and,
+  for a poll, votes are
   deleted with it, and its pin rows become tombstones too
   ([System messages](#system-messages) → Pins), the files through the
   `FileDirectory` port once the transaction has committed. The row is stamped like any other write, so
@@ -1280,7 +1381,7 @@ anyone from.
   retention sweep hard-deletes message rows. `messages.moderate` covers
   other people's; your own are always yours, except a
   [system message](#system-messages), which only `messages.moderate`
-  deletes, whoever caused it.
+  deletes, whoever caused it, unless it is a [poll](#polls).
 - **Reactions** are `(message_id, user_id, emoji)`. `ToggleReaction` is
   idempotent by construction — the primary key decides whether it is an
   insert or a delete — and publishes `ReactionsChanged` with the message's
