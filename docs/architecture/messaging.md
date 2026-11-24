@@ -987,8 +987,9 @@ happened in its channel: members added to a private channel, a member
 gone from one, the channel renamed, its topic changed, a message pinned,
 announcement mode switched. It is a message row so that paging, the
 channel log, live delivery and retention carry it with no second stream
-to merge. `UpdateChannel` records the three channel changes; membership,
-pins and departures from the space follow.
+to merge. `UpdateChannel` records the three channel changes, and every
+way of leaving a space records "left" in its private channels;
+membership and pins follow.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
@@ -1087,6 +1088,62 @@ pins and departures from the space follow.
   since the rows go in its transaction. After the commit the channel's
   `channel_updated` goes out, then each row's `message_created` in seq
   order, to whoever may read the channel.
+- **Departures from the space** (`removeMember`, `members.go`). Leaving
+  the space, a kick, a ban, a bot's removal and an account deletion
+  (`RemovePerson`, once per space) all end there, and each records one
+  "left" row (`memberLeft`, no data) in every private channel of the
+  space the person was in, text or voice, with the person as its
+  author. Nothing on the row says why they went or who removed them; a
+  public channel records nothing. The one transaction first holds the
+  person's own membership row (`LockSpaceMember`), so nobody can add
+  them to a private channel meanwhile: an add checks that row (the
+  `channel_members` foreign key), so it either finished first and is
+  listed, or waits and is then refused as not a member. Then it lists
+  their private channels (`ListPrivateChannelsOfMember`), since deleting
+  the membership cascades their `channel_members` rows away, and
+  locks them in id order, the order every transaction holding more than
+  one channel row takes them in (`seq.go`; `ReorderChannels` writes its
+  positions in id order for this), so two removals sharing channels, or
+  a removal and a reorder, never wait on each other in a circle. The
+  channels are held `FOR NO KEY UPDATE` (`LockChannelNoKey`): every
+  other writer of the channel waits, but a foreign-key check does not,
+  so an alert being written for someone else there goes through rather
+  than wait on the removal while holding the departing person's alert.
+  Taking the membership row before the channel rows is the one
+  exception to `seq.go`'s rule. After its locks the removal waits only
+  on rows its own statements and cascade take (the person's alerts,
+  channel memberships and group memberships), and nothing holding one
+  of those then waits on a departing person's membership: saving a
+  group (`UpdateGroup`), the one writer of them that also checks
+  memberships, writes only the difference, never touching a member who
+  stays, and adds its new members before it deletes any row, so it
+  holds none while it waits. A space delete waits
+  behind a removal: its cascade reaches the membership before the
+  channels. It reads the list again under the locks, dropping a channel
+  deleted or left meanwhile. Then it deletes the activity and the
+  membership and records the rows. A removal that fails takes its rows
+  back with it; a ban writes the ban first, in its own statement, and
+  the rows go in the removal's transaction. After the commit, the people
+  who remain in each channel get `channel_member_left` and then the
+  row's `message_created`: membership before the row, as a removal from
+  the one channel sends it and as an add sends the join before its row.
+  Then the space gets `member_removed`. The person who left is sent none
+  of it. An account deletion publishes the rows before the account is
+  marked deleted, so they go out with the old name; the web client
+  corrects it when `member_removed` has it refetch the profile (the
+  mobile app shows the row's name as it was sent),
+  and history reads the author as deleted from then on. Every "added"
+  row naming someone who then leaves the space is followed by their
+  "left" row.
+  Accepted, each failing one transaction whole with a deadlock error
+  (`seq.go` lists them): the person taken out of a listed channel and
+  added straight back before the removal locks it (a window that
+  includes waiting on lower-id channels); a space delete against
+  anything that holds a channel or group row and then checks a
+  membership, or holds channels in another order (a reorder, an add to
+  a private channel, a group save), since the delete's cascade takes
+  them in its own order; and a ban whose removal is the one that fails, which leaves the
+  person banned but still a member until the ban is made again.
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
   list of parts (plain text, a person, a channel name, the excerpt of

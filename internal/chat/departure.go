@@ -39,17 +39,31 @@ func (s *Service) RemovePerson(ctx context.Context, userID, fallbackOwnerID stri
 	if err != nil {
 		return nil, fmt.Errorf("list spaces: %w", err)
 	}
-	for _, spaceID := range spaces {
-		if err := s.removeMember(ctx, spaceID, userID); err != nil {
+	for index, spaceID := range spaces {
+		left, err := s.removeMember(ctx, spaceID, userID)
+		if err != nil {
+			// The spaces already left stay left, and the account stays
+			// live: those spaces hear that the person has gone, as they
+			// would from a leave, rather than wait on a deletion that
+			// may not come.
+			s.AnnounceDeparture(ctx, userID, spaces[:index])
 			return nil, fmt.Errorf("leave space: %w", err)
 		}
+		// Now, while the account still reads as itself: each private
+		// channel's "left" row goes out with the person's old name, and
+		// clients correct it through the profile once AnnounceDeparture
+		// has them refetch it.
+		s.announceLeftChannels(ctx, userID, left)
 	}
 	return spaces, nil
 }
 
-// AnnounceDeparture tells each space the person has gone, once the
-// account reads as deleted: clients refetch their messages on the event,
-// and what they fetch has to carry the deleted author.
+// AnnounceDeparture tells each space the person has gone and drops them
+// from its voice. Normally it runs once the account reads as deleted:
+// clients refetch their messages on the event, and what they fetch then
+// carries the deleted author. When the deletion fails after the spaces
+// were left (here in RemovePerson, or in auth after it), it runs anyway
+// for an account still live, as a leave would.
 func (s *Service) AnnounceDeparture(ctx context.Context, userID string, spaceIDs []string) {
 	for _, spaceID := range spaceIDs {
 		s.publishMemberRemoved(spaceID, userID, false)

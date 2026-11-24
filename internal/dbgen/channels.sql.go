@@ -292,6 +292,24 @@ func (q *Queries) LockChannel(ctx context.Context, id string) (string, error) {
 	return id_2, err
 }
 
+const lockChannelNoKey = `-- name: LockChannelNoKey :one
+SELECT id FROM channels WHERE id = $1 FOR NO KEY UPDATE
+`
+
+// LockChannelNoKey is LockChannel for a transaction that writes the
+// channel's messages and membership but must not hold up a row that only
+// points at the channel. It excludes every other writer of the channel
+// (NextChannelSeq, LockChannel, ShareChannel, a reorder, a delete) as
+// LockChannel does, but lets a foreign-key check through: an activity
+// item or a read marker being written for someone else in the channel
+// does not wait on it, and so can't be caught in a cycle with it.
+func (q *Queries) LockChannelNoKey(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, lockChannelNoKey, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const nextChannelSeq = `-- name: NextChannelSeq :one
 UPDATE channels SET seq = seq + 1 WHERE id = $1 RETURNING seq
 `

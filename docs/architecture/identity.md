@@ -70,7 +70,19 @@ account is deactivated for good: an admin cannot bring it back.
 Before any of that, the spaces they own are handed on through auth's
 `AccountDeparture` port, which chat implements: to the space's longest-serving admin, or with none,
 to the longest-serving instance admin, who is joined to the space as its
-owner. Then they leave every space. Conversations are left as they are.
+owner. Then they leave every space, and each private channel they were
+in records that they left
+([messaging.md](messaging.md#system-messages)). Those rows go out
+before the account is marked deleted, so they arrive with the person's
+old name; the web client corrects it from the profile when the
+departure is announced, the mobile app shows the row's name as it was
+sent, and history shows the author as a deleted
+account. If leaving one space fails, or a step after leaving them all
+does, the spaces already left stay left and hear `member_removed` as
+from a leave (voice drops them too). Unless the account had already
+been marked deleted, it stays usable, and deleting it again finishes
+the rest.
+Conversations are left as they are.
 The hand-over runs first because it is not undone: a failure after it
 leaves an account that still works and can be deleted again.
 
