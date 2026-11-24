@@ -101,6 +101,22 @@ describe("counting and trimming as the server does", () => {
   });
 });
 
+describe("what the server sees", () => {
+  it("reads a lone surrogate as U+FFFD, which is visible", () => {
+    expect(trimPollText("a\ud800")).toBe("a\ufffd");
+    expect(pollTextProblem("\udc00", 80)).toBeNull();
+    expect(trimPollText("\ud83c\udf55")).toBe("\ud83c\udf55");
+  });
+
+  it("trims a long run of space in linear time", () => {
+    const line = `a${" ".repeat(200_000)}b${" ".repeat(200_000)}`;
+    const started = performance.now();
+    expect(trimPollText(line)).toHaveLength(200_002);
+    checkPollForm(formOf(line, line, "c"));
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
 describe("a line the server refuses", () => {
   it("refuses control characters, separators and direction overrides", () => {
     expect(pollTextProblem("a\tb", 80)).toBe("control");

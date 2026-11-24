@@ -108,13 +108,27 @@ export const POLL_OPTIONS_FULL = `A poll takes up to ${POLL_OPTIONS_MAX} options
 
 // What Go's unicode.IsSpace, and so strings.TrimSpace, treats as space.
 // Not JavaScript's trim(): that also takes U+FEFF and leaves U+0085.
-const SPACE =
-  "\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000";
-const EDGE_SPACE = new RegExp(`^[${SPACE}]+|[${SPACE}]+$`, "g");
+// All are in the Basic Multilingual Plane, so one UTF-16 unit each.
+const SPACE = new Set<number>([
+  0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0x85, 0xa0, 0x1680, 0x2000, 0x2001,
+  0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a,
+  0x2028, 0x2029, 0x202f, 0x205f, 0x3000,
+]);
 
-// A line as the server stores it: space trimmed from both ends.
-export const trimPollText = (value: string): string =>
-  value.replace(EDGE_SPACE, "");
+// A surrogate without its pair. The text reaches the server as UTF-8,
+// where one becomes U+FFFD, so the form reads it as that too.
+const LONE_SURROGATE =
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+
+// A line as the server stores it: space trimmed from both ends, in one
+// pass from each end however long the line.
+export function trimPollText(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && SPACE.has(value.charCodeAt(start))) start++;
+  while (end > start && SPACE.has(value.charCodeAt(end - 1))) end--;
+  return value.slice(start, end).replace(LONE_SURROGATE, "\ufffd");
+}
 
 // Its length as the server counts it: code points, after trimming.
 export const pollTextLength = (value: string): number =>
@@ -154,8 +168,11 @@ export function pollTextProblem(
 // format characters (category Cf: zero-width space and joiner, the byte
 // order mark), in normalisation form C, case folded. The server folds
 // with Go's simple case folding; this folds each character through its
-// upper case and back, which agrees except for a few characters such as
-// the dotless ı, which this calls the same as i and the server does not.
+// upper case and back, which agrees for most text but not all: it calls
+// the dotless ı the same as i where the server does not, and calls some
+// pairs different that the server refuses as the same (a Greek letter
+// with iota subscript against its title case, U+FB05 against U+FB06).
+// The server's refusal is then said in the form.
 export function pollOptionKey(value: string): string {
   const stripped = trimPollText(value).replace(/\p{Cf}/gu, "");
   let text = stripped;

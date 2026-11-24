@@ -137,8 +137,12 @@ export function Composer({
     ? Number(instanceStatus.maxUploadBytes)
     : MAX_ATTACHMENT_BYTES;
   const [dragging, setDragging] = useState(false);
-  // The create-a-poll form. Not offered in a thread, which takes no poll.
-  const [pollOpen, setPollOpen] = useState(false);
+  // The channel the create-a-poll form was opened in, while it is open.
+  // Not offered in a thread, which takes no poll. The composer outlives
+  // a channel change, and the form does not: it is drawn only in the
+  // channel it was opened in, and closed on leaving it.
+  const [pollIn, setPollIn] = useState<string | null>(null);
+  const pollOpen = pollIn !== null && pollIn === channelId;
   // Set when a poll was posted: focus goes back to the words, not to
   // the poll button the form opened from.
   const focusAfterPoll = useRef(false);
@@ -224,6 +228,7 @@ export function Composer({
       return [];
     });
     setAttachError(null);
+    setPollIn(null);
   }, [channelId]);
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
@@ -520,7 +525,7 @@ export function Composer({
               <button
                 type="button"
                 className="format-button poll-button"
-                onClick={() => setPollOpen(true)}
+                onClick={() => setPollIn(channelId)}
                 aria-label="Create a poll"
                 aria-haspopup="dialog"
               >
@@ -602,13 +607,14 @@ export function Composer({
       </form>
       {/* Beside the composer's form, not in it: a form in a form would
         send the message on the poll's submit. */}
-      {pollOpen && (
+      {pollOpen && pollIn && (
         <PollForm
-          channelId={channelId}
-          onClose={() => setPollOpen(false)}
+          key={pollIn}
+          channelId={pollIn}
+          onClose={() => setPollIn(null)}
           onPosted={() => {
             focusAfterPoll.current = true;
-            setPollOpen(false);
+            setPollIn(null);
           }}
         />
       )}
