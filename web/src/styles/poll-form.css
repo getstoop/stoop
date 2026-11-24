@@ -123,3 +123,12 @@
 .poll-form-failure {
   font-size: var(--text-ui);
 }
+
+/* The element that keeps Tab inside the dialog takes no box of its own. */
+.poll-form-dialog {
+  display: contents;
+}
+
+.poll-choice-half:disabled {
+  cursor: default;
+}

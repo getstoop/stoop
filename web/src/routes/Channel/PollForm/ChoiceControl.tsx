@@ -5,9 +5,11 @@ import { CheckIcon } from "../../../components/Icons";
 // neither is chosen by an arrow key on the way past.
 export function ChoiceControl({
   multiple,
+  disabled,
   onChange,
 }: {
   multiple: boolean;
+  disabled?: boolean;
   onChange: (multiple: boolean) => void;
 }) {
   const half = (several: boolean, label: string) => {
@@ -17,6 +19,7 @@ export function ChoiceControl({
         type="button"
         className={`poll-choice-half${on ? " on" : ""}`}
         aria-pressed={on}
+        disabled={disabled}
         onClick={() => onChange(several)}
       >
         {on && <CheckIcon />}

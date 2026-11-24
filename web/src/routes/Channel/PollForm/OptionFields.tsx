@@ -14,6 +14,7 @@ import {
   trimPollText,
   withOptionText,
 } from "../../../core/pollForm";
+import { composing } from "./keys";
 
 // The options: a field each, a remove button beside it, Add option under
 // them, between two and ten. The keys suit a list of lines: Enter goes
@@ -22,10 +23,13 @@ import {
 export function OptionFields({
   form,
   problems,
+  locked,
   onChange,
 }: {
   form: PollForm;
   problems: Record<number, PollFieldProblem>;
+  // While the poll is being posted: nothing changes.
+  locked?: boolean;
   onChange: (form: PollForm) => void;
 }) {
   const baseId = useId();
@@ -63,11 +67,8 @@ export function OptionFields({
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>, index: number) => {
     const option = options[index];
-    if (
-      event.key === "Enter" &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing
-    ) {
+    if (locked || composing(event)) return;
+    if (event.key === "Enter" && !event.shiftKey) {
       // Cmd or Ctrl with Enter is the form's: it posts.
       if (event.metaKey || event.ctrlKey) return;
       event.preventDefault();
@@ -76,8 +77,11 @@ export function OptionFields({
       else if (trimPollText(option.text) !== "") add();
       return;
     }
+    // A fresh press in a field already empty: a held Backspace that has
+    // just emptied it stops there rather than going on into the next.
     if (
       event.key === "Backspace" &&
+      !event.repeat &&
       option.text === "" &&
       canRemoveOption(form)
     ) {
@@ -125,6 +129,7 @@ export function OptionFields({
                 aria-invalid={problem ? true : undefined}
                 aria-describedby={problem ? errorId : undefined}
                 autoComplete="off"
+                readOnly={locked}
                 onChange={(event) =>
                   onChange(withOptionText(form, option.key, event.target.value))
                 }
@@ -135,7 +140,7 @@ export function OptionFields({
                 className="icon-button"
                 aria-label={`Remove option ${index + 1}`}
                 title="Remove option"
-                disabled={!canRemoveOption(form)}
+                disabled={locked || !canRemoveOption(form)}
                 onClick={() => remove(index)}
               >
                 <CloseIcon />
@@ -153,7 +158,7 @@ export function OptionFields({
         <button
           type="button"
           className="chip poll-add-option"
-          disabled={!canAddOption(form)}
+          disabled={locked || !canAddOption(form)}
           onClick={add}
         >
           <PlusIcon />

@@ -130,3 +130,75 @@ test("a poll from the composer, voted on, closed and deleted", async ({
   await expect(card(B), "…for Bea too, live").toHaveCount(0);
   await expect(closing(B)).toHaveCount(0);
 });
+
+// A poll of several choices takes more than one vote from each person;
+// the form belongs to the channel it was opened in and closes when the
+// page moves to another; a thread's composer offers no poll.
+test("several choices, a form left behind, and no poll in a thread", async ({
+  browser,
+}) => {
+  const { tokens, channels } = await seed({ channels: ["general", "random"] });
+  const A = await (await browser.newContext()).newPage();
+  const B = await (await browser.newContext()).newPage();
+  await signIn(A, tokens.ada);
+  await signIn(B, tokens.bea);
+  await channelLink(B, "general").click();
+
+  // Ada opens the form in #random, then goes back to #general: the form
+  // closes rather than posting into the channel now shown.
+  await channelLink(A, "general").click();
+  await channelLink(A, "random").click();
+  await expect(A.locator(".channel-title")).toHaveText("random");
+  await A.getByRole("button", { name: "Create a poll" }).click();
+  const form = A.getByRole("dialog", { name: "Create a poll" });
+  await form.getByRole("textbox", { name: "Question" }).fill("Left behind?");
+  await A.goBack();
+  await expect(A.locator(".channel-title")).toHaveText("general");
+  await expect(form, "leaving the channel closes its form").toHaveCount(0);
+
+  // A poll of several choices in #general.
+  const QUESTION = "Which nights work?";
+  await A.getByRole("button", { name: "Create a poll" }).click();
+  await form.getByRole("textbox", { name: "Question" }).fill(QUESTION);
+  await form.getByRole("button", { name: "Several options" }).click();
+  await form.getByRole("textbox", { name: "Option 1" }).fill("Friday");
+  await form.getByRole("textbox", { name: "Option 2" }).fill("Saturday");
+  await form.getByRole("button", { name: "Post poll" }).click();
+  await expect(form).toHaveCount(0);
+
+  const card = (page: Page) => page.locator(".poll-row", { hasText: QUESTION });
+  const box = (page: Page, name: RegExp) =>
+    card(page).getByRole("checkbox", { name });
+  await expect(card(B), "the poll reaches Bea").toBeVisible();
+  // Both choose Friday; Ada also chooses Saturday.
+  await box(A, /^Friday/).click();
+  await expect(box(A, /^Friday, 1 vote, your vote/)).toBeVisible();
+  await box(A, /^Saturday/).click();
+  await expect(box(A, /^Saturday, 1 vote, your vote/)).toBeVisible();
+  await box(B, /^Friday/).click();
+  await expect(box(B, /^Friday, 2 votes, your vote/)).toBeVisible();
+  await expect(
+    box(A, /^Friday, 2 votes, your vote/),
+    "Ada sees Bea's vote live, beside her own two",
+  ).toBeVisible();
+  await expect(box(B, /^Saturday, 1 vote$/)).toBeVisible();
+  // Ada takes one of hers back; the other stays.
+  await box(A, /^Saturday/).click();
+  await expect(box(B, /^Saturday, 0 votes$/)).toBeVisible();
+  await expect(box(A, /^Friday, 2 votes, your vote/)).toBeVisible();
+
+  // A thread: its composer has no poll button, the channel's still has.
+  await sendMessage(tokens.ada, channels.general, "thread root");
+  const root = rowByText(A, "thread root");
+  await root.hover();
+  await root.locator('.message-action[aria-label="Reply in thread"]').click();
+  const panel = A.locator(".side-panel");
+  await expect(panel.locator(COMPOSER)).toBeVisible();
+  await expect(
+    panel.getByRole("button", { name: "Create a poll" }),
+    "no poll in a thread",
+  ).toHaveCount(0);
+  await expect(
+    A.locator(".channel-view").getByRole("button", { name: "Create a poll" }),
+  ).toBeVisible();
+});
