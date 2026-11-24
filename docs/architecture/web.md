@@ -707,6 +707,10 @@ window" is what the view's range holds.
   (`styles/system-messages.css`). No avatar, reactions, thread or
   toolbar, except Delete for someone with `messages.moderate`, with
   its own confirm (`removeSystem` in `MessageList/useRowHandlers.ts`).
+  A pin row's View, after its excerpt, is the list's own `jumpTo`
+  (passed as `onJumpTo`, as a quote's is), which loads the page around
+  a message the list does not hold; a deleted message's row has no
+  View.
   A long list's "N others" is a button (`aria-expanded="false"`) that
   unfolds the row in place to every name, each with the same overlay and
   card as the names already shown, and "Show fewer"

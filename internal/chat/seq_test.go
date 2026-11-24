@@ -141,9 +141,15 @@ func TestChannelLogStampsEveryWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expect("pin", 1, first.Id)
-	if pinned.Msg.Pin.Message.Seq != last {
-		t.Errorf("pin answered seq %d, want %d", pinned.Msg.Pin.Message.Seq, last)
+	// A pin stamps the message, then records its system row.
+	var pinRow string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT id FROM messages WHERE reference_message_id = $1`, first.Id).Scan(&pinRow); err != nil {
+		t.Fatal(err)
+	}
+	expect("pin", 2, first.Id, pinRow)
+	if pinned.Msg.Pin.Message.Seq != last-1 || messageSeq(t, pool, pinRow) != last {
+		t.Errorf("pin answered seq %d, want %d below its row's", pinned.Msg.Pin.Message.Seq, last-1)
 	}
 	if _, err := svc.SetMessagePinned(owner, connect.NewRequest(&chatv1.SetMessagePinnedRequest{MessageId: first.Id, Pinned: true})); err != nil {
 		t.Fatal(err)
@@ -233,8 +239,9 @@ func TestChannelLogStampsEveryWrite(t *testing.T) {
 	if page.Msg.ChannelSeq != last {
 		t.Errorf("channel_seq = %d, want %d", page.Msg.ChannelSeq, last)
 	}
-	if len(page.Msg.Messages) != 1 || page.Msg.Messages[0].Id != linked.Id {
-		t.Fatalf("page holds %d messages, want only the linked one", len(page.Msg.Messages))
+	// The pin's system row outlives its message and the pin.
+	if len(page.Msg.Messages) != 2 || page.Msg.Messages[0].Id != pinRow || page.Msg.Messages[1].Id != linked.Id {
+		t.Fatalf("page holds %d messages, want the pin's row and the linked one", len(page.Msg.Messages))
 	}
 	for _, message := range page.Msg.Messages {
 		if message.Seq <= 0 || message.Seq > page.Msg.ChannelSeq {

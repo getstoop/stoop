@@ -51,7 +51,9 @@
   color: var(--text);
 }
 
-/* "Show fewer", after an unfolded list of people. */
+/* A pin row's way to the pinned message, after its excerpt, and "Show
+   fewer", after an unfolded list of people. */
+.system-view,
 .system-fold {
   margin-left: 8px;
   padding: 0;
@@ -64,6 +66,7 @@
   cursor: pointer;
 }
 
+.system-view:hover,
 .system-fold:hover {
   color: var(--text);
 }

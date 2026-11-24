@@ -51,12 +51,13 @@ func TestRetentionSweepsThreadsByRoot(t *testing.T) {
 	svc.UseInstancePolicy(retentionPolicy(30))
 
 	count, err := svc.CountExpiredMessages(context.Background(), now, 30)
-	if err != nil || count != 2 {
-		t.Errorf("count = %d %v, want 2 (the old root and its reply)", count, err)
+	// The pin's system row is old and unpinned, so it goes too.
+	if err != nil || count != 3 {
+		t.Errorf("count = %d %v, want 3 (the old root, its reply and the pin's row)", count, err)
 	}
 	swept, err := svc.SweepMessages(context.Background(), now)
-	if err != nil || swept != 2 {
-		t.Fatalf("swept = %d %v, want 2", swept, err)
+	if err != nil || swept != 3 {
+		t.Fatalf("swept = %d %v, want 3", swept, err)
 	}
 	if !slices.Contains(files.deleted, photo) {
 		t.Errorf("the reply's file was not deleted: %v", files.deleted)

@@ -71,11 +71,11 @@ func TestMessageRetention(t *testing.T) {
 	}
 
 	count, err := svc.CountExpiredMessages(context.Background(), later, 30)
-	if err != nil || count != 2 {
-		t.Errorf("count in a month: %d %v, want 2 (the space message and the DM)", count, err)
+	if err != nil || count != 3 {
+		t.Errorf("count in a month: %d %v, want 3 (the space message, the pin's row and the DM)", count, err)
 	}
 	swept, err := svc.SweepMessages(context.Background(), later)
-	if err != nil || swept != 2 {
+	if err != nil || swept != 3 {
 		t.Fatalf("sweep in a month: %d %v", swept, err)
 	}
 

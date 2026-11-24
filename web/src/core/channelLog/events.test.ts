@@ -225,6 +225,26 @@ describe("each kind", () => {
     });
   });
 
+  it("blanks the excerpt of a pin row about a deleted message", () => {
+    const pinRow = message(id(9), {
+      seq: 10n,
+      quiet: true,
+      event: { kind: { case: "pin", value: {} } },
+      reference: { messageId: id(3), author: { id: "them" }, preview: "hi" },
+    });
+    const log = withEvent(
+      openedOn([...rows(0, 9), pinRow], { hasOlder: false }),
+      deleted(id(3), 11),
+    );
+    expect(log.rows.get(id(9))?.reference).toMatchObject({
+      messageId: id(3),
+      author: undefined,
+      preview: "",
+    });
+    // The row itself stays: it records the pin, not what is pinned now.
+    expect(ids(channelItems(log))).toContain(id(9));
+  });
+
   it("keeps a tombstone for a row it never held", () => {
     const log = withEvent(live(), deleted("never", 11));
     expect(log.rows.get("never")?.deleted).toBe(true);

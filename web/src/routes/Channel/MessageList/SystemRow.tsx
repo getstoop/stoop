@@ -19,7 +19,8 @@ import type {
 // A system message in the timeline (docs/architecture/web.md → System
 // messages): a glyph in the avatar column, the sentence core/systemMessages
 // words in muted text with names in full ink, and the time after it. No
-// avatar, reactions or thread; a moderator's only action is Delete. A
+// avatar, reactions or thread; a moderator's only action is Delete. A pin
+// row's View goes to the pinned message, until it is deleted. A
 // long list's "N others" unfolds in place to every name, with "Show
 // fewer" to fold it again; the virtual list measures the row again as
 // its height changes. Which rows are unfolded is the list's to hold
@@ -35,6 +36,7 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix = "msg-",
   onCard,
   onDelete,
+  onJumpTo,
   unfolded = false,
   onToggleFold,
 }: {
@@ -51,6 +53,8 @@ export const SystemRow = memo(function SystemRow({
   rowIdPrefix?: string;
   onCard: (userId: string, anchor: DOMRect) => void;
   onDelete: (message: Message) => void;
+  // The in-list jump, for a pin row's View.
+  onJumpTo: (id: string) => void;
   unfolded?: boolean;
   onToggleFold: (messageId: string) => void;
 }) {
@@ -98,6 +102,7 @@ export const SystemRow = memo(function SystemRow({
             part={part}
             members={members}
             onCard={onCard}
+            onJumpTo={onJumpTo}
             onUnfold={toggle}
           />
         ))}
@@ -136,11 +141,13 @@ function Part({
   part,
   members,
   onCard,
+  onJumpTo,
   onUnfold,
 }: {
   part: SystemPart;
   members: MentionMembers;
   onCard: (userId: string, anchor: DOMRect) => void;
+  onJumpTo: (id: string) => void;
   onUnfold: (event: MouseEvent<HTMLElement>) => void;
 }) {
   switch (part.kind) {
@@ -166,10 +173,21 @@ function Part({
         `#${part.name}`
       );
     case "excerpt":
+      // A deleted message has nothing to go to.
       return part.deleted ? (
         <span className="deleted-body">{part.text}</span>
       ) : (
-        part.text
+        <>
+          {part.text}
+          <button
+            type="button"
+            className="system-view"
+            aria-label="View pinned message"
+            onClick={() => onJumpTo(part.messageId)}
+          >
+            View
+          </button>
+        </>
       );
   }
 }

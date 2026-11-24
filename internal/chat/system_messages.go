@@ -180,9 +180,12 @@ func (event postPolicyChanged) proto(map[string]*chatv1.MessageAuthor) *chatv1.S
 // actorID, and returns its row. It runs inside the transaction of the
 // action it records, and the caller owns both ends of that:
 //
-//   - Before: the caller takes the channel row (LockChannel) ahead of any
-//     other row it writes, as seq.go requires; recordEvent takes the
-//     channel's next seq and would otherwise wait on it out of order.
+//   - Before: the caller takes the channel row ahead of any other row it
+//     writes (LockChannel, LockChannelNoKey on the membership paths, or a
+//     first statement that takes the channel's seq, as pin's stamp does),
+//     as seq.go requires, with its one exception for a removal from a
+//     space; recordEvent takes the channel's next seq and would
+//     otherwise wait on it out of order.
 //   - After: recordEvent publishes nothing. Once the transaction has
 //     committed the caller publishes MessageCreated for the row, in seq
 //     order with whatever else it publishes. The message to publish is

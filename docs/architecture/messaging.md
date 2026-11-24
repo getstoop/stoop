@@ -956,6 +956,10 @@ the code does:
 - **Realtime.** `MessagePinned` carries the change — ids, the flag, who
   and when — not the list, which can be fifty full messages. Clients mark
   the message and refetch the list only if they are showing it.
+- **In the timeline.** A pin also records a system row, "pinned a
+  message", that goes to the message ([System messages](#system-messages)
+  → Pins). Unpinning records nothing: the row says something was pinned,
+  not what is pinned now.
 
 ## Announcement channels
 
@@ -988,9 +992,9 @@ gone from one, the channel renamed, its topic changed, a message pinned,
 announcement mode switched. It is a message row so that paging, the
 channel log, live delivery and retention carry it with no second stream
 to merge. `UpdateChannel` records the three channel changes, a private
-channel's membership calls record who was added and who left, and every
-way of leaving a space records "left" in its private channels; pins
-follow.
+channel's membership calls record who was added and who left, every way
+of leaving a space records "left" in its private channels, and `pin`
+records a pin.
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
@@ -1023,9 +1027,13 @@ follow.
   transaction of the action it records, so the two succeed or fail
   together: it takes the channel's next seq, inserts the row, sets the
   channel's last message only when the row is not quiet, and returns the
-  row. The caller locks the channel row before any other row it writes
-  (`LockChannel`, the rule in `seq.go`) and publishes `MessageCreated`
-  after its commit, in seq order with anything else it publishes. The
+  row. The caller takes the channel row before any other row it writes
+  (`LockChannel`, `LockChannelNoKey` on the membership paths, or a
+  `NextChannelSeq` that is the transaction's first statement, as `pin`
+  does; the rule in `seq.go`, whose one exception is a departure from
+  the space taking the person's membership row first) and publishes
+  `MessageCreated` after its commit, in seq order with anything else it
+  publishes. The
   message it publishes is `loadMessage` of the row, which is the row as
   `ListMessages` returns it; `toProtoMessage` alone fills neither the
   event nor the reference.
@@ -1171,6 +1179,19 @@ follow.
   a private channel, a group save), since the delete's cascade takes
   them in its own order; and a ban whose removal is the one that fails, which leaves the
   person banned but still a member until the ban is made again.
+- **Pins** (`pin`, `pins.go`). One transaction stamps the pinned message
+  (its seq, the first statement, takes the channel row), creates the pin
+  and records a row by the
+  pinner whose reference is the message. The message is stamped first,
+  so after the commit `message_pinned` goes out before the row's
+  `message_created`, the two seqs one after the other. Pinning a message
+  already pinned, a refused pin and unpinning record nothing. The row
+  outlives the pin; deleting the message leaves the row reading "pinned a
+  message (since deleted)", and clients holding the row blank its excerpt
+  live (`withQuotesBlanked` in `core/channelLog/tombstone.ts`). The
+  retention sweep removing the message clears the reference with no seq,
+  so a client already holding the row keeps the excerpt until it reloads
+  ([channel-log.md](channel-log.md#known-and-left-as-is)).
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
   list of parts (plain text, a person, a channel name, the excerpt of
@@ -1198,6 +1219,14 @@ follow.
   with its own confirm, on web (the row's toolbar) and on mobile (a
   long press opens a menu with Delete only, `mobile/README.md`); being
   the row's author grants nothing on either.
+- **A pin row goes to its message**: on web its View uses the message
+  list's in-list jump, the one a quote uses, which loads the page around
+  a message the list does not hold; on mobile tapping the excerpt (or
+  View after it, or the row's View message action for a screen reader)
+  uses the channel engine's `jumpTo` with the handling opening at a
+  message has (one the server no longer has is said over the composer).
+  Once the message is deleted there is nothing to go to, and neither
+  client offers it.
 
 Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
 its event type, a `recordEvent` call in the action's transaction, and

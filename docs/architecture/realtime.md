@@ -257,7 +257,7 @@ the server side.
 | 21 | `presence_changed` | space | Online, offline (after the grace period), do not disturb turning on or off, including when it ends on its own, or moving between only mobile and anything else. |
 | 22 | `user_typing` | space / user | |
 | 27 | `reactions_changed` | space / user | The message's full reaction list and its new `seq`. |
-| 32 | `message_pinned` | space | Ids, the flag, who and when, and the message's new `seq`; not the list. |
+| 32 | `message_pinned` | space | Ids, the flag, who and when, and the message's new `seq`; not the list. A pin is followed by its "pinned a message" row's `message_created`, at the next seq; an unpin by nothing. |
 | 34 | `thread_changed` | space / user | A root's full thread summary after a reply lands or goes, and the root's new `seq`. |
 | 29 | `voice_state_changed` | space / user | Join, leave, mute, camera, screen share. |
 
