@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pollOf } from "../core/polls";
 import { type Message, MessageSchema } from "../gen/stoop/chat/v1/message_pb";
-import { openChannel } from "./channelLog";
+import { isLive, jumpTo, openChannel } from "./channelLog";
 import {
   CHANNEL,
   id,
@@ -10,17 +10,20 @@ import {
   postOnServer,
   resetServer,
   server,
+  settle,
 } from "./channelLogTestServer";
-import { pendingVote, pressPollOption } from "./polls";
+import { pendingVote, createPoll as postPoll, pressPollOption } from "./polls";
 
-const { listMessages, listChanges, setPollVote, notice } = vi.hoisted(() => ({
-  listMessages: vi.fn(),
-  listChanges: vi.fn(),
-  setPollVote: vi.fn(),
-  notice: vi.fn(),
-}));
+const { listMessages, listChanges, setPollVote, createPoll, notice } =
+  vi.hoisted(() => ({
+    listMessages: vi.fn(),
+    listChanges: vi.fn(),
+    setPollVote: vi.fn(),
+    createPoll: vi.fn(),
+    notice: vi.fn(),
+  }));
 vi.mock("./clients", () => ({
-  chatClient: { listMessages, listChanges, setPollVote },
+  chatClient: { listMessages, listChanges, setPollVote, createPoll },
 }));
 vi.mock("./origin", () => ({ serverOrigin: () => "http://test" }));
 vi.mock("../stores/dialogs", () => ({ notice }));
@@ -138,5 +141,62 @@ describe("pressing an option", () => {
       { timeoutMs: 15_000 },
     );
     expect(chosen(held())).toEqual([1, 2]);
+  });
+});
+
+describe("posting a poll", () => {
+  const request = {
+    channelId: CHANNEL,
+    question: "Friday?",
+    options: ["a", "b"],
+    multiple: false,
+  };
+
+  it("holds the answer, before any event", async () => {
+    const NEW = id(402);
+    const answer = create(MessageSchema, {
+      ...pollRow([], server.seq + 1),
+      id: NEW,
+    });
+    createPoll.mockResolvedValueOnce({ message: answer });
+    await postPoll(request);
+    expect(createPoll).toHaveBeenCalledWith(request);
+    expect(logOf().rows.get(NEW)).toBe(answer);
+  });
+
+  // Posted from history: the answer is not held (the view does not
+  // reach it), and the view moves to the newest page, which holds it.
+  it("moves a view in history to the newest page", async () => {
+    await jumpTo({ channelId: CHANNEL }, id(100));
+    expect(isLive({ channelId: CHANNEL })).toBe(false);
+    const NEW = id(402);
+    const answer = postOnServer(NEW, pollRow([], server.seq + 1), false);
+    createPoll.mockResolvedValueOnce({ message: answer });
+    await postPoll(request);
+    await settle();
+    expect(isLive({ channelId: CHANNEL })).toBe(true);
+    expect(logOf().rows.get(NEW)?.id).toBe(NEW);
+    expect(notice).not.toHaveBeenCalled();
+  });
+
+  // The poll is saved once CreatePoll answers: a newest page that fails
+  // to load is said apart and does not fail the post, which a form
+  // would offer to send again.
+  it("succeeds when the newest page then fails to load", async () => {
+    await jumpTo({ channelId: CHANNEL }, id(100));
+    const answer = postOnServer(id(402), pollRow([], server.seq + 1), false);
+    createPoll.mockResolvedValueOnce({ message: answer });
+    listMessages.mockRejectedValueOnce(new Error("offline"));
+    await expect(postPoll(request)).resolves.toBeUndefined();
+    await settle();
+    expect(notice).toHaveBeenCalledWith({
+      title: "Couldn't show the new poll",
+      body: "offline",
+    });
+  });
+
+  it("throws a refusal for the form to say", async () => {
+    createPoll.mockRejectedValueOnce(new Error("refused"));
+    await expect(postPoll(request)).rejects.toThrow("refused");
   });
 });

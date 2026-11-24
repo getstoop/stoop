@@ -59,7 +59,7 @@ test("push to talk", async ({ browser, request }) => {
   await A.goto("/");
   await A.locator(".channel-add.voice").click();
   await A.getByLabel("Voice channel name").fill("lounge");
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await A.locator(".voice-channel .channel-link.voice").click();
   await expect(bar(A), "A connects to voice").toHaveText("Voice connected", {
     timeout: 15_000,

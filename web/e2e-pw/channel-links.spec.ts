@@ -24,7 +24,7 @@ test("a #channel links to the channel", async ({ browser }) => {
   await A.locator(".channel-group-heading .channel-add:not(.voice)").click();
   await A.getByLabel("Channel name").fill("captains");
   await A.getByRole("switch").check();
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await expect(title).toHaveText("captains");
   await channelLink(A, "general").click();
   await expect(title).toHaveText("general");

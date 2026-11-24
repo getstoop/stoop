@@ -43,7 +43,7 @@ test("a banner click keeps the voice call", async ({ browser, request }) => {
   // A makes a voice channel and joins it, which opens its view.
   await A.locator(".channel-add.voice").click();
   await A.getByLabel("Voice channel name").fill("lounge");
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await A.locator(".voice-channel .channel-link.voice").click();
   const bar = A.locator(".voice-bar strong");
   await expect(bar, "A connects to voice").toHaveText("Voice connected", {

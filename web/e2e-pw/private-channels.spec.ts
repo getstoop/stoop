@@ -42,7 +42,7 @@ test("a private channel and its people", async ({ browser }) => {
   await A.locator(".channel-group-heading .channel-add:not(.voice)").click();
   await A.getByLabel("Channel name").fill("captains");
   await A.getByRole("switch").check();
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await expect(A.locator(".channel-header .channel-title")).toHaveText(
     "captains",
   );

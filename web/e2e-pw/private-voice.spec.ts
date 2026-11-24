@@ -48,7 +48,7 @@ test("a private voice channel and its call", async ({ browser, request }) => {
   await A.locator(".channel-add.voice").click();
   await A.getByLabel("Voice channel name").fill("den");
   await A.getByRole("switch").check();
-  await A.getByRole("button", { name: "Create" }).click();
+  await A.getByRole("button", { name: "Create", exact: true }).click();
   await expect(
     den(A).locator(".channel-hash.icon"),
     "a lock in the sidebar",

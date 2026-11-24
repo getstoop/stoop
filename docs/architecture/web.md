@@ -761,6 +761,43 @@ window" is what the view's range holds.
   card) a poll is its preview line (`components/PollPreview.tsx`), not
   Markdown.
 
+  A poll is made from the composer's poll button, after the paperclip,
+  shown wherever the composer is (so not where posting is closed, and a
+  blocked conversation hears the server's refusal) and never in a
+  thread's composer, since a thread takes no poll. It opens
+  `routes/Channel/PollForm/` in the `Modal`, rendered beside the
+  composer's form rather than inside it: the question, "People can
+  choose" (one option or several) directly under it, then two to ten
+  option fields (`styles/poll-form.css`). The form's state and rules
+  are `core/pollForm.ts`, shared with mobile: the limits counted in code
+  points after trimming as Go trims, the characters the server refuses,
+  duplicates ignoring case, invisible format characters and
+  normalisation, when Post is on, the words for each problem and the
+  request; a lone surrogate is read as the U+FFFD the server will see.
+  The case folding is not Go's: the form calls the dotless ı the same
+  as i where the server does not, and lets through a few pairs the
+  server refuses as the same (a Greek letter with iota subscript
+  against its title case, U+FB05 against U+FB06), whose refusal is then
+  said in the form. A problem is said under its field as it is typed.
+  In an option, Enter goes to the next field and from a filled last one
+  adds another, a fresh Backspace in an empty one removes it, and
+  Alt+Up/Down moves it; Cmd or Ctrl with Enter posts; none of these acts
+  on a key that belongs to an input method's composition. Tab goes round
+  the dialog, not out to the page. The form is bound to the channel it
+  was opened in and closes, discarded, when the composer moves to
+  another. `createPoll` in `api/polls.ts` resolves once `CreatePoll` has
+  answered and holds the answer as a send's is; from history it moves
+  the view to the newest page, and a failure there is a notice, never a
+  failed post. While the request is out Post reads "Posting…" and the
+  fields are read-only: `CreatePoll` has no idempotency key, so a
+  second post is refused at once. A refusal is said above the actions
+  in the server's words (or "Try again" for anything that may pass on a
+  second try) and leaves everything as typed; one that arrives after
+  the form was closed is a notice. There is no discard confirmation:
+  Cancel, Escape and the scrim close it. Cancel returns focus to the
+  poll button; a posted poll returns it to the composer's words, which
+  opening and posting a poll leave as they were.
+
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:
 past it the end away from the reader is pruned, and that end's flag is
