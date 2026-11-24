@@ -389,7 +389,8 @@ export default function Thread({
         }
       />
       <MessageContexts links={links} previews={previews}>
-        {menuMessage && (
+        {/* Never a system message's: none is in a thread (threadRows). */}
+        {menuMessage && !menuMessage.event && (
           <MessageMenu
             message={menuMessage}
             myUserId={myUserId}

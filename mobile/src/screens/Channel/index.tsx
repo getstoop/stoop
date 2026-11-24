@@ -35,10 +35,11 @@ import MessageRow from "./MessageRow";
 import PageRetry from "./PageRetry";
 import PostingClosed from "./PostingClosed";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
+import SystemMenu from "./SystemMenu";
 import SystemRow from "./SystemRow";
 import type { ChannelEngine } from "./channelEngine";
 import { channelMute } from "./headerActions";
-import { readShown } from "./readPass";
+import { newestToRead, readShown } from "./readPass";
 import { threadRoute } from "./routes";
 import { useChannelLinks } from "./useChannelLinks";
 import { useChannelLog } from "./useChannelLog";
@@ -93,7 +94,10 @@ import { useScrollRetry } from "./useScrollRetry";
 // so in the composer's place, as on web, and the menu has no Quote in
 // reply or Edit message; a quote or an edit begun goes as that starts.
 // An unsent draft waits on the device (Composer, useSavedDraft) and is
-// back if posting reopens.
+// back if posting reopens. A system message (the channel renamed, its
+// topic set) is a row of its own (SystemRow); a long press on one opens
+// its menu, Delete alone, for a moderator (SystemMenu), and nothing for
+// anyone else.
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with
@@ -211,8 +215,17 @@ export default function Channel({
   // short of the newest message, whose newest row is not the channel's.
   // Moving it reads the activity it passes, on the server, and its
   // channelRead event is what reloads the badges (src/alerts, the
-  // space's screen).
-  const newestId = messages.at(-1)?.id ?? "";
+  // space's screen). It follows the newest row that is not quiet: a
+  // system message marks nothing unread (readPass newestToRead).
+  // The channel's last message stands in when the rows after it are all
+  // quiet, and only within what the log holds: a header that answered
+  // before the rows names a message not on screen yet.
+  const lastMessageId = header?.channel.lastMessageId ?? "";
+  const newestHeld = log.channel.newestId ?? "";
+  const newestId = useMemo(
+    () => newestToRead(messages, lastMessageId, newestHeld),
+    [messages, lastMessageId, newestHeld],
+  );
   useEffect(() => {
     void readShown(
       { marked },
@@ -401,6 +414,9 @@ export default function Channel({
 
   const { space, channel, myUserId } = header;
   const { hasOlder } = log.channel;
+  // A system message's menu is a moderator's alone (SystemMenu); for
+  // anyone else a long press on one does nothing.
+  const moderates = !!space && canDeleteAnyMessage(space);
 
   return (
     <View style={styles.screen}>
@@ -416,7 +432,7 @@ export default function Channel({
               keyExtractor={(item) => item.key}
               renderItem={({ item }) =>
                 item.kind === "system" ? (
-                  <SystemRow message={item.message} />
+                  <SystemRow message={item.message} onLongPress={moderates ? actions.openMenu : undefined} />
                 ) : item.kind === "message" ? (
                   <MessageRow
                     message={item.message}
@@ -529,11 +545,17 @@ export default function Channel({
         }
       />
       <MessageContexts links={links} previews={previews}>
-        {menuMessage && (
+        {menuMessage?.event ? (
+          <SystemMenu
+            message={menuMessage}
+            onDelete={() => actions.deleteSystem(menuMessage)}
+            onClose={actions.closeMenu}
+          />
+        ) : menuMessage ? (
           <MessageMenu
             message={menuMessage}
             myUserId={myUserId}
-            canModerate={!!space && canDeleteAnyMessage(space)}
+            canModerate={moderates}
             origin={server.origin}
             token={token}
             link={messageLink(server.origin, spaceId, menuMessage)}
@@ -560,7 +582,7 @@ export default function Channel({
             onDelete={() => actions.deleteMessage(menuMessage)}
             onClose={actions.closeMenu}
           />
-        )}
+        ) : null}
       </MessageContexts>
       {viewer.viewing && (
         <Viewer

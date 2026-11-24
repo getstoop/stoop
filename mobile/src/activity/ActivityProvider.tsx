@@ -9,6 +9,7 @@ import {
   withActivityRead,
   withOlderPages,
 } from "@stoop/core/activity";
+import { isSystemRow } from "@stoop/core/systemMessages";
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { ServerEvent } from "@stoop/gen/stoop/realtime/v1/realtime_pb";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -297,9 +298,11 @@ export default function ActivityProvider({ server, children }: { server: SavedSe
         break;
       case "messageCreated": {
         // Sending moves the sender's marker without a ChannelRead; a reply
-        // only in its thread moves no channel marker, as web's ws.ts.
+        // only in its thread moves no channel marker, as web's ws.ts; nor
+        // does a system message recording the reader's own action (a
+        // rename, a topic), which is not a send.
         const m = payload.value;
-        if (m.threadRootId && !m.inChannel) break;
+        if ((m.threadRootId && !m.inChannel) || isSystemRow(m)) break;
         if (m.author?.id && m.author.id === reader.current?.id) afterRead({ channelId: m.channelId });
         break;
       }

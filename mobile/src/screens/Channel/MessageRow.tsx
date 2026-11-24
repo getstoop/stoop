@@ -1,5 +1,4 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { dayAndTime, sameDay } from "@stoop/core/dates";
 import { shownPreviews } from "@stoop/core/linkPreviews";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo, useContext } from "react";
@@ -12,6 +11,7 @@ import LinkPreviews from "../../components/LinkPreviews";
 import { LinkPreviewsContext } from "../../components/LinkPreviews/context";
 import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
+import { messageTime } from "./messageTime";
 import Reactions from "./Reactions";
 import ThreadLine from "./ThreadLine";
 
@@ -209,7 +209,7 @@ export default memo(function MessageRow({
                 {name}
                 {author?.deleted && <Text style={styles.muted}> (deleted)</Text>}
               </Text>
-              {created && <Text style={styles.time}>{when(created, card || withDay)}</Text>}
+              {created && <Text style={styles.time}>{messageTime(created, card || withDay)}</Text>}
             </View>
             {body}
           </View>
@@ -225,15 +225,6 @@ const TARGET_LABELS = {
   edit: "Editing this message",
   focus: "Found message",
 };
-
-// The time, as the list shows it under its day lines; on the card and in
-// a thread the day too, as web's thread shows a reply's.
-function when(created: Date, withDay: boolean): string {
-  if (!withDay || sameDay(created, new Date())) {
-    return created.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }
-  return dayAndTime(created);
-}
 
 function makeStyles(theme: Theme) {
   return StyleSheet.create({

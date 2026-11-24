@@ -1107,9 +1107,10 @@ pins and departures from the space follow.
   `core/channelLog/views.ts`), and the web's own arrival count skips one
   too. Code that asks "is the newest row mine" (following the bottom on
   my own send, ArrowUp to edit my last message) skips system rows.
-- **Delete** on web is offered to someone with `messages.moderate`
-  alone, with its own confirm; being the row's author grants nothing
-  there.
+- **Delete** is offered to someone with `messages.moderate` alone,
+  with its own confirm, on web (the row's toolbar) and on mobile (a
+  long press opens a menu with Delete only, `mobile/README.md`); being
+  the row's author grants nothing on either.
 
 Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
 its event type, a `recordEvent` call in the action's transaction, and

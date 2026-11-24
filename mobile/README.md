@@ -770,11 +770,32 @@ root fetched when the channel's page doesn't hold it, pages older ones,
 and closes the view as it goes. The screens (`src/screens/Channel`,
 `src/screens/Thread`) mark read and draw the rows `core/grouping.ts`
 groups (day lines, the "New" line, which message continues the one
-before). A system message (a channel renamed, its topic set) is drawn
-for now as one plain muted line of the wording `core/systemMessages.ts`
-shares with web (`src/screens/Channel/SystemRow.tsx`), with no menu on
-a long press; the channel screen leaves out quiet rows of a kind the
-app does not know before grouping. Sending is send-then-merge, as on web: the
+before). A system message (a channel renamed, its topic set,
+announcement mode switched) is a row of its own
+(`src/screens/Channel/SystemRow.tsx`), in the wording
+`core/systemMessages.ts` shares with web: a 16pt glyph for its kind in
+the avatar column, the sentence in muted text with the people it names
+and a renamed channel's new name in full ink (a deleted account marked
+"(deleted)", as an author is), and the time in a right-aligned column
+on its first line, so a sentence that wraps never strands it. Names are
+plain text (the app has no user card), "3 others" is its label alone
+and a pin's excerpt is words, for now. A screen reader hears the row
+as one element, the sentence and the time, and for a moderator is
+offered the menu as the row's one action, Delete. The glyph stays
+centred on the first line at any text size. A long press opens a menu
+only for someone who may moderate messages (`core/permissions`
+`canDeleteAnyMessage`; being the row's author grants nothing, so it is
+not the message menu): the row as a card over a sheet with Delete alone
+(`SystemMenu.tsx`), which asks first in web's words ("Delete this line
+from the channel?") and says "Couldn't delete it" over the composer
+when the server refuses. Anyone else's long press does nothing. The
+channel screen leaves out quiet rows of a kind the app does not know
+before grouping, and moves the reader's marker to the newest row that
+is not quiet (`readPass.ts` `newestToRead`): a quiet row marks nothing
+unread, so marking read up to one would cost a call and the refetches
+its `channelRead` brings for nothing. A system message recording the
+reader's own action is not a send, so the activity feed does not treat
+it as one (`ActivityProvider`). Sending is send-then-merge, as on web: the
 composer clears the draft, awaits `SendMessage`, and the answer's row is
 dispatched as `sent` and merged by seq like an event's (the socket's
 copy usually lands first; either order leaves one row). There are no
