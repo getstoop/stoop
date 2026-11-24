@@ -959,7 +959,7 @@ the code does:
 - **In the timeline.** A pin also records a system row, "pinned a
   message", that goes to the message ([System messages](#system-messages)
   → Pins). Unpinning records nothing: the row says something was pinned,
-  not what is pinned now.
+  not what is pinned now. Deleting the message removes its rows.
 
 ## Announcement channels
 
@@ -1051,8 +1051,9 @@ records a pin.
   stored as ids and sent as `MessageAuthor`, resolved when the row is
   read like any author, so a renamed or deleted account shows as it is
   now. The reference's excerpt reads mentions as current handles and
-  falls back to the first attachment's name, as a quote does; once the
-  message is deleted the reference is its id alone, and once the
+  falls back to the first attachment's name, as a quote does; a row
+  whose message is deleted is sent its id alone (the pin rows go with
+  the message, so only a row from before that is), and once the
   retention sweep has removed it there is no reference (the foreign key
   clears the column, with no new seq). A kind the server does not know,
   written by a newer one before a rollback, is sent as an event with no
@@ -1186,11 +1187,20 @@ records a pin.
   so after the commit `message_pinned` goes out before the row's
   `message_created`, the two seqs one after the other. Pinning a message
   already pinned, a refused pin and unpinning record nothing. The row
-  outlives the pin; deleting the message leaves the row reading "pinned a
-  message (since deleted)", and clients holding the row blank its excerpt
-  live (`withQuotesBlanked` in `core/channelLog/tombstone.ts`). The
-  retention sweep removing the message clears the reference with no seq,
-  so a client already holding the row keeps the excerpt until it reloads
+  outlives the pin, but not the message: deleting it (Delete, Delete
+  thread, or a root kept as a placeholder) tombstones its pin rows in
+  the same transaction, each stamped after the message, as a
+  moderator's delete of a system row does (`removePinRows` in
+  `tombstones.go`), and after the commit each row's `message_deleted`
+  follows the message's own event. Quiet, they leave the channel's
+  last message and unread counts as the message's delete leaves them.
+  A client holding the rows drops them as the message's deletion lands
+  (`withQuotesBlanked` in `core/channelLog/tombstone.ts`), and the
+  deleter's own view at once (`withOwnDelete`). A pin row with no
+  excerpt, from before this or left by the retention sweep, is hidden
+  (`isHiddenSystemRow`). The sweep removing the message clears the
+  reference with no seq, so a client already holding the row keeps the
+  excerpt until it reloads
   ([channel-log.md](channel-log.md#known-and-left-as-is)).
 - **The wording** is the clients', from one place both share:
   `web/src/core/systemMessages.ts` turns a row into a glyph name and a
@@ -1202,7 +1212,8 @@ records a pin.
   who is the row's author reads "joined". The count unfolds:
   `systemLine(message, true)` names everyone, and the line's `fold`
   says whether it has a long list and which way it is drawn, so each
-  client offers "N others" to unfold it and "Show fewer" to fold it. A kind the client does not
+  client offers "N others" to unfold it and "Show fewer" to fold it. A
+  pin row with no excerpt shows nothing, and a kind the client does not
   know shows nothing when the row is quiet (`withoutHiddenSystemRows`,
   applied where each client builds its list, before grouping, and not
   in the channel log's `isShown`, which range edges and the cap count
@@ -1225,8 +1236,7 @@ records a pin.
   View after it, or the row's View message action for a screen reader)
   uses the channel engine's `jumpTo` with the handling opening at a
   message has (one the server no longer has is said over the composer).
-  Once the message is deleted there is nothing to go to, and neither
-  client offers it.
+  Once the message is deleted the row is gone with it.
 
 Adding a kind: a case in `SystemEvent`, an entry in `systemKinds` with
 its event type, a `recordEvent` call in the action's transaction, and
@@ -1251,8 +1261,9 @@ anyone from.
   that takes the channel row first. The row keeps its id, place and
   `reply_to_message_id`; `deleted_at` is set, the text goes, and its
   reactions, attachments, mentions, link rows, pin and activity items are
-  deleted with it, the files through the `FileDirectory` port once the
-  transaction has committed. The row is stamped like any other write, so
+  deleted with it, and its pin rows become tombstones too
+  ([System messages](#system-messages) → Pins), the files through the
+  `FileDirectory` port once the transaction has committed. The row is stamped like any other write, so
   the channel log carries the delete. Nobody is shown it afterwards — not
   the channel or thread pages, `around_id`, search, pins or the channel's
   newest message — except a root whose thread still has live replies,

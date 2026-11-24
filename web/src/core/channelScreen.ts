@@ -27,6 +27,7 @@ import {
   viewOf,
   withArrivals,
   withEvent,
+  withOwnDelete,
   withPatch,
   withThreadOverlay,
 } from "./channelLog";
@@ -165,8 +166,9 @@ export type ScreenAction =
   | { type: "reacted"; messageId: string; seq: bigint; reactions: Reaction[] }
   // The reader's own delete, answered: the held row as a tombstone at
   // its own seq, gone from the list at once as the message_deleted that
-  // follows makes it. A root with a thread summary is left to the
-  // server's update for it, which fills the placeholder in.
+  // follows makes it, with its pin rows (channelLog withOwnDelete). A
+  // root with a thread summary is left to the server's update for it,
+  // which fills the placeholder in.
   | { type: "deleted"; messageId: string }
   // The reader's own pin or unpin, written to the held row at once and at
   // its own seq, as `reacted` is: the message_pinned that follows at a
@@ -380,9 +382,7 @@ export function screenReducer(
       return log === state.log ? state : { ...state, log };
     }
     case "deleted": {
-      const log = withPatch(state.log, action.messageId, (held) =>
-        held.deleted || held.thread ? held : { ...held, deleted: true },
-      );
+      const log = withOwnDelete(state.log, action.messageId);
       return log === state.log ? state : { ...state, log };
     }
     case "pinned": {

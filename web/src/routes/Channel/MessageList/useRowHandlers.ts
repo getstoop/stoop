@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import { patchRow } from "../../../api/channelLog";
+import { patchOwnDelete, patchRow } from "../../../api/channelLog";
 import { chatClient } from "../../../api/clients";
 import { errorText } from "../../../api/errors";
 import { setMessagePinned } from "../../../api/pins";
@@ -35,14 +35,10 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     if (!ok) return;
     try {
       await chatClient.deleteMessage({ messageId: message.id });
-      // Gone from the list at once, as the message_deleted that follows
-      // makes it; a root with replies stays as a placeholder, which the
-      // server's update for it fills in.
-      if (!message.thread)
-        patchRow(message.channelId, message.id, (row) => ({
-          ...row,
-          deleted: true,
-        }));
+      // Gone from the list at once, with its pin rows, as the
+      // message_deleted events that follow make it; a root with replies
+      // stays as a placeholder, which the server's update for it fills in.
+      patchOwnDelete(message.channelId, message.id);
     } catch (err) {
       notice({ title: "Couldn't delete the message", body: errorText(err) });
     }

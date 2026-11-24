@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -239,9 +240,151 @@ func TestPinIsPublishedInSeqOrder(t *testing.T) {
 	}
 }
 
-// Deleting the pinned message leaves the row with the message's id and no
-// excerpt; the retention sweep taking it for good leaves no reference.
-func TestPinRowOutlivesItsMessage(t *testing.T) {
+// livePinRowsAbout counts the pin rows about messageID that are not
+// tombstones.
+func (f *systemRows) livePinRowsAbout(messageID string) int {
+	f.t.Helper()
+	var count int
+	if err := f.pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM messages WHERE kind = $1 AND reference_message_id = $2 AND deleted_at IS NULL`,
+		kindMessagePinned, messageID).Scan(&count); err != nil {
+		f.t.Fatal(err)
+	}
+	return count
+}
+
+// deleteEvent is one event a subscription received: what it says went or
+// changed, and its seq.
+type deleteEvent struct {
+	kind      string
+	messageID string
+	seq       int64
+}
+
+// heardDeletes is what a subscription receives within a moment.
+func heardDeletes(t *testing.T, sub *events.Subscription) []deleteEvent {
+	t.Helper()
+	var got []deleteEvent
+	for {
+		select {
+		case event := <-sub.Events():
+			switch payload := event.Payload.(type) {
+			case *realtimev1.ServerEvent_MessageDeleted:
+				got = append(got, deleteEvent{"message_deleted", payload.MessageDeleted.MessageId, payload.MessageDeleted.Seq})
+			case *realtimev1.ServerEvent_MessageUpdated:
+				got = append(got, deleteEvent{"message_updated", payload.MessageUpdated.Id, payload.MessageUpdated.Seq})
+			default:
+				got = append(got, deleteEvent{"other", "", 0})
+			}
+		case <-time.After(300 * time.Millisecond):
+			return got
+		}
+	}
+}
+
+// pinTwice pins messageID, unpins it and pins it again: two pin rows.
+func (f *systemRows) pinTwice(messageID string) {
+	f.t.Helper()
+	for _, pinned := range []bool{true, false, true} {
+		if err := f.setPinned(f.ada, messageID, pinned); err != nil {
+			f.t.Fatal(err)
+		}
+	}
+}
+
+// Deleting a pinned message removes its pin rows with it, each stamped
+// after the message and published after its delete, so open clients drop
+// them live. Another message's pin row stays, and the channel's last
+// message and unread count are the message's alone.
+func TestPinRowsGoWithTheirMessage(t *testing.T) {
+	fixture := newSystemRows(t)
+	deleted := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: "house rules"})
+	fixture.pinTwice(deleted.Id)
+	kept := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: "bring snacks"})
+	if err := fixture.setPinned(fixture.ada, kept.Id, true); err != nil {
+		t.Fatal(err)
+	}
+	rows := fixture.listed(fixture.cat)
+	if len(rows) != 5 {
+		t.Fatalf("listed %d rows, want two messages and three pin rows", len(rows))
+	}
+	aboutDeleted := []string{rows[1].Id, rows[2].Id}
+	aboutKept := rows[4].Id
+
+	space := fixture.svc.bus.(*events.InProcBus).Subscribe(events.SpaceTopic(fixture.spaceID))
+	defer space.Close()
+	if _, err := fixture.svc.DeleteMessage(fixture.bea, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: deleted.Id})); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := fixture.livePinRowsAbout(deleted.Id); got != 0 {
+		t.Errorf("%d live pin rows about the deleted message, want none", got)
+	}
+	if got := messageIDs(fixture.listed(fixture.cat)); !reflect.DeepEqual(got, []string{kept.Id, aboutKept}) {
+		t.Errorf("listed %v, want the kept message and its pin row", got)
+	}
+	heard := heardDeletes(t, space)
+	if len(heard) != 3 {
+		t.Fatalf("heard %v, want the message's delete and its two pin rows'", heard)
+	}
+	for index, want := range []string{deleted.Id, aboutDeleted[0], aboutDeleted[1]} {
+		if heard[index].kind != "message_deleted" || heard[index].messageID != want {
+			t.Errorf("event %d = %v, want message_deleted for %s", index, heard[index], want)
+		}
+		if index > 0 && heard[index].seq != heard[index-1].seq+1 {
+			t.Errorf("seqs %v, want each the next", heard)
+		}
+	}
+	if got := fixture.state(fixture.cat); got.lastMessageID != kept.Id || got.unread != 1 {
+		t.Errorf("cat after the delete = %+v, want the kept message last and the only unread", got)
+	}
+}
+
+// Deleting a pinned root removes its pin rows whether its thread goes
+// with it (Delete thread) or it stays as a placeholder for its replies.
+func TestPinRowsGoWithTheirThread(t *testing.T) {
+	fixture := newSystemRows(t)
+	space := fixture.svc.bus.(*events.InProcBus).Subscribe(events.SpaceTopic(fixture.spaceID))
+	defer space.Close()
+	for _, path := range []string{"delete thread", "placeholder"} {
+		root := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: "who has the key?"})
+		fixture.send(fixture.cat, &chatv1.SendMessageRequest{Content: "I do", ThreadRootId: root.Id})
+		if err := fixture.setPinned(fixture.ada, root.Id, true); err != nil {
+			t.Fatal(err)
+		}
+		listed := fixture.listed(fixture.cat)
+		rowID := listed[len(listed)-1].Id
+		if listed[len(listed)-1].Reference.GetMessageId() != root.Id {
+			t.Fatalf("%s: newest row is %v, want the root's pin row", path, listed[len(listed)-1])
+		}
+		heardDeletes(t, space) // what the setup published
+
+		var err error
+		if path == "delete thread" {
+			_, err = fixture.svc.DeleteThread(fixture.ada, connect.NewRequest(&chatv1.DeleteThreadRequest{MessageId: root.Id}))
+		} else {
+			_, err = fixture.svc.DeleteMessage(fixture.bea, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: root.Id}))
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fixture.livePinRowsAbout(root.Id); got != 0 {
+			t.Errorf("%s: %d live pin rows about the root, want none", path, got)
+		}
+		if slices.Contains(messageIDs(fixture.listed(fixture.cat)), rowID) {
+			t.Errorf("%s: the pin row is still listed", path)
+		}
+		heard := heardDeletes(t, space)
+		if len(heard) != 2 || heard[1].kind != "message_deleted" || heard[1].messageID != rowID ||
+			heard[0].messageID != root.Id || heard[1].seq != heard[0].seq+1 {
+			t.Errorf("%s: heard %v, want the root's event and then the pin row's delete", path, heard)
+		}
+	}
+}
+
+// The retention sweep taking a message for good leaves its pin rows with
+// no reference, which the clients hide.
+func TestSweptMessageLeavesPinRowWithoutReference(t *testing.T) {
 	fixture := newSystemRows(t)
 	fixture.svc.UseInstancePolicy(fixedRetention(30))
 	// The sweep goes by the id's time, so the message to sweep is written
@@ -253,28 +396,14 @@ func TestPinRowOutlivesItsMessage(t *testing.T) {
 		fixture.channel.ID, sweptID, authctx.UserID(fixture.bea)); err != nil {
 		t.Fatal(err)
 	}
-	deleted := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: "house rules"})
-	for _, id := range []string{sweptID, deleted.Id} {
-		if err := fixture.setPinned(fixture.ada, id, true); err != nil {
-			t.Fatal(err)
-		}
-	}
-	rows := fixture.listed(fixture.cat)
-	if len(rows) != 4 {
-		t.Fatalf("listed %d rows, want two messages and two pin rows", len(rows))
-	}
-	aboutSwept, aboutDeleted := rows[2].Id, rows[3].Id
-	if rows[2].Reference.GetMessageId() != sweptID || rows[3].Reference.GetMessageId() != deleted.Id {
-		t.Fatalf("pin rows refer to %v and %v", rows[2].Reference, rows[3].Reference)
-	}
-
-	if _, err := fixture.svc.DeleteMessage(fixture.bea, connect.NewRequest(&chatv1.DeleteMessageRequest{MessageId: deleted.Id})); err != nil {
+	if err := fixture.setPinned(fixture.ada, sweptID, true); err != nil {
 		t.Fatal(err)
 	}
-	if row := fixture.load(aboutDeleted); row.Event.GetPin() == nil || row.Reference.GetMessageId() != deleted.Id ||
-		row.Reference.GetPreview() != "" || row.Reference.GetAuthor() != nil {
-		t.Errorf("row about a deleted message = %v, want the id alone", row)
+	rows := fixture.listed(fixture.cat)
+	if len(rows) != 2 || rows[1].Reference.GetMessageId() != sweptID {
+		t.Fatalf("listed %v, want the message and its pin row", rows)
 	}
+	aboutSwept := rows[1].Id
 
 	// The sweep keeps pinned messages, so the old one is unpinned first.
 	if err := fixture.setPinned(fixture.ada, sweptID, false); err != nil {

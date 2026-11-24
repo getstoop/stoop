@@ -19,6 +19,7 @@ export {
   type Source,
   showsInChannel,
 } from "./rows";
+export { withOwnDelete } from "./tombstone";
 export {
   type ChannelLog,
   emptyLog,

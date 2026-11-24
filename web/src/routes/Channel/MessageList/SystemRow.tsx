@@ -20,7 +20,7 @@ import type {
 // messages): a glyph in the avatar column, the sentence core/systemMessages
 // words in muted text with names in full ink, and the time after it. No
 // avatar, reactions or thread; a moderator's only action is Delete. A pin
-// row's View goes to the pinned message, until it is deleted. A
+// row's View goes to the pinned message (deleting it removes the row). A
 // long list's "N others" unfolds in place to every name, with "Show
 // fewer" to fold it again; the virtual list measures the row again as
 // its height changes. Which rows are unfolded is the list's to hold
@@ -173,10 +173,7 @@ function Part({
         `#${part.name}`
       );
     case "excerpt":
-      // A deleted message has nothing to go to.
-      return part.deleted ? (
-        <span className="deleted-body">{part.text}</span>
-      ) : (
+      return (
         <>
           {part.text}
           <button

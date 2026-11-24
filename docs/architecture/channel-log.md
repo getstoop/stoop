@@ -319,12 +319,13 @@ as a bug:
   versioned facts: a deletion blanks held quotes on the client, but an
   edit of the quoted message leaves older quotes showing the old excerpt
   until the quoting row is fetched again, as before the channel log. A
-  pin row's excerpt (`Message.reference`) is the same: a deletion blanks
-  it on rows held, with the quotes.
+  pin row's excerpt (`Message.reference`) is the same for an edit; a
+  deletion takes the pin rows held with it, as the server does.
 - The retention sweep removing a pinned message (once it is unpinned)
   clears the pin row's reference through the foreign key, with no seq,
   so a client that already holds the row keeps its excerpt, and View,
-  until it fetches the row again. View then finds nothing: web stays
+  until it fetches the row again, when the row comes back with no
+  reference and is hidden. View meanwhile finds nothing: web stays
   where it is, mobile says it couldn't find the message.
 - `DeleteThread` reads its root outside the transaction
   (`internal/chat/threads.go`, `GetMessage` before `inTx`), so a root

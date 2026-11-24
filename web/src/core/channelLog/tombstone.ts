@@ -4,6 +4,8 @@ import {
   MessageSchema,
 } from "../../gen/stoop/chat/v1/message_pb";
 import type { MessageDeleted } from "../../gen/stoop/realtime/v1/realtime_pb";
+import { withPatch } from "./patch";
+import type { ChannelLog } from "./types";
 
 // A deletion as the log keeps it: the row stays, as a tombstone, so a
 // stale copy that arrives later cannot bring the message back.
@@ -40,10 +42,11 @@ export function tombstoneOf(
   };
 }
 
-// Rows quoting a deleted message, replies in the channel answering its
-// thread, and system rows about it (a pin row's excerpt) read as a deleted
-// message's: no author, no preview. The server does the same on the next
-// read.
+// Rows quoting a deleted message and replies in the channel answering its
+// thread read as a deleted message's: no author, no preview. Its pin rows
+// become tombstones at their own seq, since the server removes them with
+// it and the message_deleted that follows for each replaces them. The
+// server does the same on the next read.
 export function withQuotesBlanked(
   rows: ReadonlyMap<string, Message>,
   deletedId: string,
@@ -63,17 +66,31 @@ export function withQuotesBlanked(
         threadRoot: { ...row.threadRoot, author: undefined, preview: "" },
       };
     }
-    if (row.reference?.messageId === deletedId && named(row.reference)) {
-      changed = {
-        ...changed,
-        reference: { ...row.reference, author: undefined, preview: "" },
-      };
+    if (
+      row.event?.kind.case === "pin" &&
+      row.reference?.messageId === deletedId &&
+      !row.deleted
+    ) {
+      changed = { ...changed, deleted: true };
     }
     if (changed === row) continue;
     next ??= new Map(rows);
     next.set(row.id, changed);
   }
   return next ?? rows;
+}
+
+// The reader's own delete, answered, before or after its message_deleted:
+// the held row as a tombstone at its own seq (a root with a thread
+// summary is left to the server's update for it, which fills the
+// placeholder in), and the rows about it changed as the event changes
+// them, its pin rows gone.
+export function withOwnDelete(log: ChannelLog, messageId: string): ChannelLog {
+  const next = withPatch(log, messageId, (held) =>
+    held.deleted || held.thread ? held : { ...held, deleted: true },
+  );
+  const rows = withQuotesBlanked(next.rows, messageId);
+  return rows === next.rows ? next : { ...next, rows };
 }
 
 const named = (ref: { author?: unknown; preview: string }) =>

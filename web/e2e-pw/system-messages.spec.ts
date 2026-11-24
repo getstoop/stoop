@@ -104,8 +104,8 @@ async function chat(token: string, method: string, body: object) {
 
 // Pinning a message records a row that goes to it (STOOP-539): View lands
 // on a message the list holds and on one more than a page above it, the
-// row marks nothing unread, and deleting the message takes the excerpt
-// and View away, live.
+// row marks nothing unread, and deleting the message takes the row away,
+// live.
 test("a pin's system message", async ({ browser }) => {
   const { tokens, channels, space } = await seed({
     channels: ["general", "random"],
@@ -207,17 +207,40 @@ test("a pin's system message", async ({ browser }) => {
     "View goes to a message the list did not hold",
   ).toBeVisible();
 
-  // Deleting the pinned message leaves the row, which says so and goes
-  // nowhere, on Ada's page without a reload.
-  const rowId = await pinRow(A, "house rules").getAttribute("id");
+  // Bea goes back to the newest page, where both rows are.
+  await channelLink(B, "random").click();
+  await expect(B.locator(".composer .rich-editor-content")).toBeVisible();
+  await channelLink(B, "general").click();
+  await expect(pinRow(B, "house rules")).toBeVisible();
+  await expect(pinRow(B, "last call")).toBeVisible();
+
+  // Deleting a pinned message takes its row with it, without a reload:
+  // from elsewhere, for both pages...
+  await expect(pinRow(A, "house rules")).toBeVisible();
   await chat(tokens.ada, "DeleteMessage", { messageId: old.message.id });
-  const row = A.locator(`[id="${rowId}"]`);
-  await expect(row, "the row stays").toContainText(
-    "pinned a message (since deleted)",
-  );
   await expect(
-    row.getByRole("button", { name: "View pinned message" }),
-    "…with nothing to view",
+    pinRow(A, "house rules"),
+    "deleted from elsewhere, the row goes",
+  ).toHaveCount(0);
+  await expect(pinRow(B, "house rules"), "…for everyone").toHaveCount(0);
+
+  // ...and from Ada's own page, at once for her and live for Bea.
+  await expect(pinRow(B, "last call")).toBeVisible();
+  await expect(pinRow(A, "last call")).toBeVisible();
+  await rowByText(A, "last call").hover();
+  await rowByText(A, "last call")
+    .locator('.message-action[aria-label="Delete"]')
+    .click();
+  await acceptDialog(A);
+  await expect(rowByText(A, "last call")).toHaveCount(0);
+  await expect(
+    pinRow(A, "last call"),
+    "the deleter's own row goes",
+  ).toHaveCount(0);
+  await expect(pinRow(B, "last call"), "…and Bea's").toHaveCount(0);
+  await expect(
+    A.locator(".system-row", { hasText: "pinned a message" }),
+    "no pin row is left saying anything",
   ).toHaveCount(0);
 });
 

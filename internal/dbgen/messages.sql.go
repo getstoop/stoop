@@ -361,6 +361,39 @@ func (q *Queries) ListExpiredMessages(ctx context.Context, arg ListExpiredMessag
 	return items, nil
 }
 
+const listLiveRowsAbout = `-- name: ListLiveRowsAbout :many
+SELECT id FROM messages
+WHERE reference_message_id = $1::uuid AND kind = $2 AND deleted_at IS NULL
+ORDER BY id
+`
+
+type ListLiveRowsAboutParams struct {
+	MessageID string
+	Kind      int16
+}
+
+// ListLiveRowsAbout is the live system rows of one kind that refer to a
+// message, oldest first: a deleted message's pin rows, which go with it.
+func (q *Queries) ListLiveRowsAbout(ctx context.Context, arg ListLiveRowsAboutParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listLiveRowsAbout, arg.MessageID, arg.Kind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMentionsForMessages = `-- name: ListMentionsForMessages :many
 SELECT message_id, user_id FROM message_mentions
 WHERE message_id = ANY($1::uuid[])

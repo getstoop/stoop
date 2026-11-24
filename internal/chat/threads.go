@@ -129,7 +129,8 @@ func messageDeleted(messageID string, channel dbgen.Channel, threadRootID string
 // DeleteThread deletes a root and every reply in its thread: moderation,
 // so messages.moderate in the space, and never in a DM, which has no
 // moderators. Every row becomes a tombstone in one transaction
-// (tombstones.go); the channel hears message_deleted for the root.
+// (tombstones.go); the channel hears message_deleted for the root, then
+// for its pin rows.
 func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.DeleteThreadRequest]) (*connect.Response[chatv1.DeleteThreadResponse], error) {
 	root, err := s.q.GetMessage(ctx, req.Msg.MessageId)
 	if err != nil {
@@ -160,9 +161,10 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 		return nil, fmt.Errorf("list attachments: %w", err)
 	}
 	var rootSeq int64
+	var pinRows []removedRow
 	err = s.inTx(ctx, func(qtx *dbgen.Queries) error {
 		var err error
-		rootSeq, err = tombstoneThread(ctx, qtx, channel.ID, root)
+		rootSeq, pinRows, err = tombstoneThread(ctx, qtx, channel.ID, root)
 		return err
 	})
 	if err != nil {
@@ -170,6 +172,7 @@ func (s *Service) DeleteThread(ctx context.Context, req *connect.Request[chatv1.
 	}
 	s.deleteMessageFiles(ctx, fileIDs)
 	s.publishChannel(ctx, channel, messageDeleted(root.ID, channel, "", rootSeq))
+	s.publishRemoved(ctx, channel, pinRows)
 	return connect.NewResponse(&chatv1.DeleteThreadResponse{}), nil
 }
 
