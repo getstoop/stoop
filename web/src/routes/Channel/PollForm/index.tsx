@@ -51,12 +51,13 @@ export function PollForm({
   const postingRef = useRef(false);
   // Whether the form is still open when the answer comes.
   const open = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Set again on mount: StrictMode unmounts and mounts it once more.
+    open.current = true;
+    return () => {
       open.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const post = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -80,9 +81,10 @@ export function PollForm({
     if (open.current) onPosted();
   };
 
-  // Enter in the question goes on to the options; Cmd or Ctrl with Enter
-  // posts from anywhere in the form.
-  const onKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
+  // Cmd or Ctrl with Enter posts from anywhere in the dialog, its
+  // actions included; Tab goes round the dialog.
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    keepFocusIn(event);
     if (event.key !== "Enter" || composing(event)) return;
     if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
@@ -100,9 +102,10 @@ export function PollForm({
 
   return (
     // Holds the whole dialog, so Tab goes round it rather than out to
-    // the page (the Modal has no trap of its own).
-    // biome-ignore lint/a11y/noStaticElementInteractions: only keeps Tab inside the dialog
-    <div className="poll-form-dialog" onKeyDown={keepFocusIn}>
+    // the page (the Modal has no trap of its own), and the shortcut
+    // reaches the actions too.
+    // biome-ignore lint/a11y/noStaticElementInteractions: keys for the dialog it holds
+    <div className="poll-form-dialog" onKeyDown={onKeyDown}>
       <Modal
         title="Create a poll"
         onClose={onClose}
@@ -123,12 +126,7 @@ export function PollForm({
           </>
         }
       >
-        <form
-          id={formId}
-          className="modal-form poll-form"
-          onSubmit={post}
-          onKeyDown={onKeyDown}
-        >
+        <form id={formId} className="modal-form poll-form" onSubmit={post}>
           <Field
             label="Question"
             error={
