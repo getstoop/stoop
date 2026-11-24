@@ -382,6 +382,23 @@ func TestPinRowsGoWithTheirThread(t *testing.T) {
 	}
 }
 
+// A live message can excerpt to nothing (an empty code block); its pin
+// row still carries the message's author, which is how a client tells it
+// from a row whose message is gone, which carries the id alone.
+func TestPinRowOfAnEmptyExcerptNamesItsAuthor(t *testing.T) {
+	fixture := newSystemRows(t)
+	blank := fixture.send(fixture.bea, &chatv1.SendMessageRequest{Content: "```\n```"})
+	if err := fixture.setPinned(fixture.ada, blank.Id, true); err != nil {
+		t.Fatal(err)
+	}
+	rows := fixture.listed(fixture.cat)
+	reference := rows[len(rows)-1].Reference
+	if reference.GetMessageId() != blank.Id || reference.GetPreview() != "" ||
+		reference.GetAuthor().GetId() != authctx.UserID(fixture.bea) {
+		t.Errorf("reference = %v, want bea's message with an empty excerpt", reference)
+	}
+}
+
 // The retention sweep taking a message for good leaves its pin rows with
 // no reference, which the clients hide.
 func TestSweptMessageLeavesPinRowWithoutReference(t *testing.T) {

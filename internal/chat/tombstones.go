@@ -258,8 +258,8 @@ func hideRoot(ctx context.Context, qtx *dbgen.Queries, channelID, rootID string)
 // then the root, each with its own seq, then the root's pin rows, the
 // summary dropped, the thread's viewer rows gone. A root that is a
 // placeholder already is only stamped, since it vanishes; its pin rows
-// went when it became one. It returns the root's position and the pin
-// rows.
+// usually went when it became one, and any still live go now. It returns
+// the root's position and the pin rows.
 func tombstoneThread(ctx context.Context, qtx *dbgen.Queries, channelID string, root messageRow) (int64, []removedRow, error) {
 	if _, err := qtx.LockChannel(ctx, channelID); err != nil {
 		return 0, nil, fmt.Errorf("lock channel: %w", err)

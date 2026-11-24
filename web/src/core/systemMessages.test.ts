@@ -151,10 +151,14 @@ describe("systemLine", () => {
     });
   });
 
-  it("says a pin with its excerpt, and nothing once it has none", () => {
+  it("says a pin with its excerpt, and nothing once its message is gone", () => {
     const pin = { case: "pin", value: {} } as const;
     const kept = row(pin, {
-      reference: { messageId: "m0", preview: "House rules: mute…" },
+      reference: {
+        messageId: "m0",
+        author: people[0],
+        preview: "House rules: mute…",
+      },
     });
     expect(said(kept)).toEqual({
       glyph: "pin",
@@ -165,10 +169,28 @@ describe("systemLine", () => {
       messageId: "m0",
       text: "House rules: mute…",
     });
-    // Its message deleted (a row from before the server removed them),
-    // or swept by retention: no reference at all.
+    // Its message deleted (a row from before the server removed them):
+    // the id alone. Swept by retention: no reference at all.
     expect(systemLine(row(pin, { reference: { messageId: "m0" } }))).toBeNull();
     expect(systemLine(row(pin))).toBeNull();
+  });
+
+  it("says a pin of a live message with no excerpt, and still goes to it", () => {
+    // An empty code block excerpts to nothing; the author says it is there.
+    const blank = row(
+      { case: "pin", value: {} },
+      { reference: { messageId: "m0", author: people[0], preview: "" } },
+    );
+    expect(said(blank)).toEqual({
+      glyph: "pin",
+      text: "Maya Okafor pinned a message",
+    });
+    expect(systemLine(blank)?.parts.at(-1)).toEqual({
+      kind: "excerpt",
+      messageId: "m0",
+      text: "",
+    });
+    expect(isHiddenSystemRow(blank)).toBe(false);
   });
 
   it("says the announcement switch both ways", () => {
@@ -220,7 +242,11 @@ describe("systemLine", () => {
         ),
       };
       // A row about a message carries its excerpt.
-      const reference = { messageId: "m0", preview: "House rules" };
+      const reference = {
+        messageId: "m0",
+        author: people[0],
+        preview: "House rules",
+      };
       const line = systemLine(
         create(MessageSchema, { author: maya, quiet: true, event, reference }),
       );
@@ -238,12 +264,12 @@ describe("hidden system rows", () => {
   const pin = { case: "pin", value: {} } as const;
   const pinKept = row(pin, {
     id: "m6",
-    reference: { messageId: "m5", preview: "hi" },
+    reference: { messageId: "m5", author: maya, preview: "hi" },
   });
   const pinOfDeleted = row(pin, { id: "m7", reference: { messageId: "m5" } });
   const pinOfSwept = row(pin, { id: "m8" });
 
-  it("is an unknown kind that is quiet, or a pin with no excerpt", () => {
+  it("is an unknown kind that is quiet, or a pin whose message is gone", () => {
     expect(isHiddenSystemRow(unknownQuiet)).toBe(true);
     expect(isHiddenSystemRow(unknownLoud)).toBe(false);
     expect(isHiddenSystemRow(known)).toBe(false);

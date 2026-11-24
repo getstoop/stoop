@@ -540,9 +540,11 @@ func (s *Service) hydrateMessages(ctx context.Context, spaceID string, rows []db
 			message.ReplyTo = replyRef(*row.ReplyToMessageID, author, names.currentOf(row.ReplyContent), replyFiles[row.ReplyFirstFileID].label())
 		}
 		if row.ReferenceMessageID != nil {
+			// An author is what says the message is still there: its excerpt
+			// can be empty (an empty code block), so a live one always has one.
 			var author *chatv1.MessageAuthor
 			if row.ReferenceAuthorID != nil {
-				author = authors[*row.ReferenceAuthorID]
+				author = authorOrUnknown(authors, *row.ReferenceAuthorID)
 			}
 			message.Reference = replyRef(*row.ReferenceMessageID, author, names.currentOf(row.ReferenceContent), replyFiles[row.ReferenceFirstFileID].label())
 		}

@@ -1196,9 +1196,12 @@ records a pin.
   last message and unread counts as the message's delete leaves them.
   A client holding the rows drops them as the message's deletion lands
   (`withQuotesBlanked` in `core/channelLog/tombstone.ts`), and the
-  deleter's own view at once (`withOwnDelete`). A pin row with no
-  excerpt, from before this or left by the retention sweep, is hidden
-  (`isHiddenSystemRow`). The sweep removing the message clears the
+  deleter's own view at once (`withOwnDelete`). A pin row whose
+  reference has no author, which is how the wire says the message is
+  gone (from before this, or left by the retention sweep), is hidden
+  (`isHiddenSystemRow`); a live message's reference always names its
+  author, since its excerpt can be empty (an empty code block), and
+  that row reads "pinned a message" with View. The sweep removing the message clears the
   reference with no seq, so a client already holding the row keeps the
   excerpt until it reloads
   ([channel-log.md](channel-log.md#known-and-left-as-is)).
@@ -1213,7 +1216,7 @@ records a pin.
   `systemLine(message, true)` names everyone, and the line's `fold`
   says whether it has a long list and which way it is drawn, so each
   client offers "N others" to unfold it and "Show fewer" to fold it. A
-  pin row with no excerpt shows nothing, and a kind the client does not
+  pin row whose message is gone shows nothing, and a kind the client does not
   know shows nothing when the row is quiet (`withoutHiddenSystemRows`,
   applied where each client builds its list, before grouping, and not
   in the channel log's `isShown`, which range edges and the cap count
