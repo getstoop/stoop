@@ -46,6 +46,7 @@ import {
   canManageChannels,
 } from "../../../core/permissions";
 import { pollPermissions } from "../../../core/polls";
+import { mayDeleteReminder } from "../../../core/reminders";
 import { withoutHiddenSystemRows } from "../../../core/systemMessages";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 import { openSidePanel, useSidePanelStore } from "../../../stores/sidePanel";
@@ -67,6 +68,7 @@ import {
 import { ListHead } from "./ListHead";
 import { MessageSkeleton } from "./MessageSkeleton";
 import { PollRow } from "./PollRow";
+import { ReminderRow } from "./ReminderRow";
 import { SystemRow } from "./SystemRow";
 import { useRowHandlers } from "./useRowHandlers";
 
@@ -846,6 +848,27 @@ export function MessageList({
                       onJumpTo={jumpTo}
                       unfolded={unfolded.has(item.message.id)}
                       onToggleFold={toggleFold}
+                    />
+                  );
+                case "reminder":
+                  return (
+                    <ReminderRow
+                      key={item.key}
+                      message={item.message}
+                      {...position}
+                      measure={virtualizer.measureElement}
+                      members={membersById}
+                      canDelete={mayDeleteReminder({
+                        message: item.message,
+                        myUserId: me?.id,
+                        inSpace: !!spaceForPerms,
+                        canModerate:
+                          !!spaceForPerms && canDeleteAnyMessage(spaceForPerms),
+                      })}
+                      withDay={!!threadRootId}
+                      rowIdPrefix={rowIdPrefix}
+                      onCard={rows.showCard}
+                      onDelete={rows.removeReminder}
                     />
                   );
                 default:

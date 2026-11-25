@@ -1,0 +1,58 @@
+/* ---- Transient notices (components/TransientNotice.tsx): a short line
+   over the bottom of a view that goes away on its own, with at most one
+   icon button. The region is placed by its view (the composer's, for the
+   reminder notice) and stays, empty, between notices: a live region that
+   comes and goes is not reliably read out. ---- */
+
+.transient-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 6px 6px 12px;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  color: var(--text);
+}
+
+/* With no action it keeps the same space on both sides. */
+.transient-notice:not(:has(.transient-notice-action)) {
+  padding-right: 12px;
+}
+
+.transient-notice-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--ok);
+}
+
+.transient-notice-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.transient-notice-action {
+  flex: none;
+  padding: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.transient-notice-action[aria-disabled="true"] {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .transient-notice {
+    animation: transient-notice-in var(--dur) var(--ease);
+  }
+}
+
+@keyframes transient-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

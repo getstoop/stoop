@@ -1,8 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { type MouseEvent, memo, useEffect, useRef } from "react";
-import { useAuthorShown } from "../../../api/authors";
-import { BotMark } from "../../../components/BotMark";
-import { DeletedMark } from "../../../components/DeletedMark";
 import { TrashIcon } from "../../../components/Icons";
 import { dayAndTime, fullDateTime } from "../../../core/dates";
 import type { MentionMembers } from "../../../core/mentions";
@@ -11,10 +8,8 @@ import {
   type SystemPart,
   systemLine,
 } from "../../../core/systemMessages";
-import type {
-  Message,
-  MessageAuthor,
-} from "../../../gen/stoop/chat/v1/message_pb";
+import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
+import { SystemPerson } from "./SystemPerson";
 
 // A system message in the timeline (docs/architecture/web.md → System
 // messages): a glyph in the avatar column, the sentence core/systemMessages
@@ -155,7 +150,9 @@ function Part({
     case "text":
       return part.text;
     case "person":
-      return <Person person={part.person} members={members} onCard={onCard} />;
+      return (
+        <SystemPerson person={part.person} members={members} onCard={onCard} />
+      );
     case "others":
       return (
         <button
@@ -190,36 +187,6 @@ function Part({
         </>
       );
   }
-}
-
-// Someone the row names, as the members list has them now (or their
-// profile, once they are off it), opening their card as an author's name
-// does.
-function Person({
-  person,
-  members,
-  onCard,
-}: {
-  person: MessageAuthor;
-  members: MentionMembers;
-  onCard: (userId: string, anchor: DOMRect) => void;
-}) {
-  const shown = useAuthorShown(person, members) ?? person;
-  return (
-    <>
-      <button
-        type="button"
-        className="system-person"
-        onClick={(event) =>
-          onCard(shown.id, event.currentTarget.getBoundingClientRect())
-        }
-      >
-        {shown.displayName || shown.username}
-      </button>
-      <BotMark kind={shown.kind} />
-      <DeletedMark deleted={shown.deleted} />
-    </>
-  );
 }
 
 // The glyph for each kind, drawn at 16px in the avatar column.

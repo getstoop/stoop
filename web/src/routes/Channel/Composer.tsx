@@ -21,6 +21,7 @@ import {
 import { type Format, shortcutFormat } from "../../api/formatting";
 import { useChannelGroups } from "../../api/groups";
 import { useInstanceStatus, useMe, useSpaces } from "../../api/queries";
+import type { SetReminder } from "../../api/reminders";
 import {
   replaceShortcodes,
   type Shortcode,
@@ -69,6 +70,8 @@ import { restoreDraft } from "../../core/unsent";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 import { PollForm } from "./PollForm";
+import { ReminderForm } from "./ReminderForm";
+import { ReminderNotice } from "./ReminderForm/ReminderNotice";
 import { useSavedDraft } from "./useSavedDraft";
 
 export function Composer({
@@ -167,6 +170,15 @@ export function Composer({
     formIn?.command === "poll" && formIn.channelId === channelId
       ? formIn
       : null;
+  const remindIn =
+    formIn?.command === "remind" && formIn.channelId === channelId
+      ? formIn
+      : null;
+  // The reminder just set, for its notice and Undo. The notice belongs to
+  // the channel it was set in and goes when the composer moves to
+  // another; a reminder whose answer comes after that move is still
+  // shown, so its Undo is not lost.
+  const [reminderSet, setReminderSet] = useState<SetReminder | null>(null);
   // Where focus goes when the form closes. Opened by a command (a pick
   // from the list, a send), it goes back to the words; opened by the poll
   // button, a cancel leaves it to the dialog, which returns it to the
@@ -264,6 +276,7 @@ export function Composer({
     commandDismissed.current = false;
     focusAfterForm.current = false;
     setFormIn(null);
+    setReminderSet(null);
   }, [channelId]);
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
@@ -700,6 +713,12 @@ export function Composer({
             Announcement channel: members read and react, only admins post.
           </p>
         )}
+        {/* Last in the form, so Tab reaches it from the words. */}
+        <ReminderNotice
+          set={reminderSet}
+          onDone={() => setReminderSet(null)}
+          returnFocus={() => inputRef.current?.focus()}
+        />
       </form>
       {/* Beside the composer's form, not in it: a form in a form would
         send the message on the poll's submit. */}
@@ -712,6 +731,24 @@ export function Composer({
           onPosted={() => {
             focusAfterForm.current = true;
             setFormIn(null);
+          }}
+        />
+      )}
+      {remindIn && (
+        <ReminderForm
+          key={remindIn.channelId}
+          channelId={remindIn.channelId}
+          where={dm ? null : (channelLabel ?? channelName)}
+          text={remindIn.text}
+          onClose={() => setFormIn(null)}
+          onSet={(set) => {
+            setReminderSet(set);
+            // Closes the form unless it was closed meanwhile.
+            setFormIn((open) => {
+              if (open?.command !== "remind") return open;
+              focusAfterForm.current = true;
+              return null;
+            });
           }}
         />
       )}

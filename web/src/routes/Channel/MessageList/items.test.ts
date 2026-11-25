@@ -38,6 +38,8 @@ const rows = (items: ListItem[]) =>
         return `${item.key} (system)`;
       case "poll":
         return `${item.key} (poll)`;
+      case "reminder":
+        return `${item.key} (reminder)`;
       default:
         return `[${item.label}]`;
     }
@@ -80,6 +82,41 @@ describe("system rows", () => {
   it("are found by a jump, and have a height before measuring", () => {
     expect(indexOfMessage(items, "02")).toBe(3);
     expect(estimateSize(items[3])).toBeGreaterThan(0);
+  });
+});
+
+describe("reminders", () => {
+  const at = (second: number) => new Date(2026, 9, 21, 9, 0, second);
+  // The same author all within a minute: a message would continue the
+  // one before it, a reminder never does, nor is continued.
+  const reminder = (id: string): Message => {
+    const made = message(id, at(10));
+    made.event = create(SystemEventSchema, {
+      kind: { case: "reminder", value: {} },
+    });
+    return made;
+  };
+  const items = listItems({
+    messages: [message("01", at(0)), reminder("02"), message("03", at(20))],
+    firstNewId: undefined,
+    inThread: false,
+    now,
+  });
+
+  it("are items of their own that break a run", () => {
+    expect(rows(items)).toEqual([
+      "<head>",
+      "[Today]",
+      "01",
+      "02 (reminder)",
+      "03",
+      "<foot>",
+    ]);
+  });
+
+  it("are found by a jump, with room for a line of text", () => {
+    expect(indexOfMessage(items, "02")).toBe(3);
+    expect(estimateSize(items[3])).toBeGreaterThan(40);
   });
 });
 

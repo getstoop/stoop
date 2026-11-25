@@ -1,0 +1,176 @@
+/* ---- Reminders (docs/architecture/web.md → Reminders): the form that
+   sets one (routes/Channel/ReminderForm), its notice's place over the
+   composer, a delivered reminder's row (MessageList/ReminderRow.tsx) and
+   its brief form in a search result or a linked card. ---- */
+
+/* A form of a few short lines: as narrow as the poll's. */
+.modal:has(> .reminder-form) {
+  width: min(440px, 92vw);
+}
+
+.reminder-form-where {
+  /* The Field label's own gap is the form's; the subtitle sits closer
+     to the title above it. */
+  margin: -4px 0 0;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+/* When: a group of rows laid out as a Field is. */
+.reminder-when {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.reminder-when-legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+/* A choice is a row the whole width, the time it lands on at its end;
+   the chosen one carries the accent's border. */
+.reminder-when-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.reminder-when-option:hover {
+  border-color: color-mix(in srgb, var(--border) 50%, var(--text-muted));
+}
+
+.reminder-when-option.on {
+  border-color: var(--accent);
+}
+
+.reminder-when-option:has(input:disabled) {
+  cursor: default;
+}
+
+.reminder-when-option input {
+  flex: none;
+  margin: 0;
+}
+
+.reminder-when-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.reminder-when-lands {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.reminder-when-custom {
+  width: 100%;
+}
+
+.reminder-when > .hint,
+.reminder-when > .error {
+  margin: 0;
+}
+
+.reminder-form-failure {
+  margin: 0;
+}
+
+/* The notice sits over the composer's top edge, at its start. */
+.composer > .transient-notice-region {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.composer > .transient-notice-region > .transient-notice {
+  pointer-events: auto;
+}
+
+/* A delivered reminder: the system row's place and Delete, at a
+   message's size, so it is seen. A bare bell in the accent sits in the
+   avatar column; the head line says who set it and when, and the text is
+   under it in full ink. */
+.reminder-row {
+  /* off-scale: the avatar column, 10 + 40 + 12, as .message */
+  padding: 6px 10px 6px 62px;
+  color: var(--text);
+}
+
+.reminder-mark {
+  position: absolute;
+  left: 10px;
+  top: 6px;
+  /* off-scale: the avatar's width, so the bell centres in its column */
+  width: 40px;
+  /* off-scale: the avatar's height */
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.reminder-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.reminder-from {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.reminder-from strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.reminder-time {
+  flex: none;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.reminder-text {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* In brief: the bell and "Reminder:" with the text, as a poll's. */
+.reminder-preview {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.reminder-preview > svg {
+  flex: none;
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}

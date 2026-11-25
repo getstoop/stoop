@@ -9,6 +9,7 @@ import {
 } from "react";
 import { errorText } from "../../../api/errors";
 import { createPoll } from "../../../api/polls";
+import { composing, keepFocusIn } from "../../../components/dialogKeys";
 import { Field } from "../../../components/Field";
 import { Modal } from "../../../components/Modal";
 import {
@@ -21,7 +22,6 @@ import {
 } from "../../../core/pollForm";
 import { notice } from "../../../stores/dialogs";
 import { ChoiceControl } from "./ChoiceControl";
-import { composing, keepFocusIn } from "./keys";
 import { OptionFields } from "./OptionFields";
 
 // Create a poll (docs/architecture/web.md → Polls): the question, one

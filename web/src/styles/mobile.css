@@ -210,6 +210,20 @@
     width: 36px;
   }
 
+  .reminder-mark {
+    left: 8px;
+    /* off-scale: the phone's avatar width */
+    width: 36px;
+    /* off-scale: the phone's avatar height */
+    height: 36px;
+  }
+
+  /* The notice keeps to the composer's narrower gutters. */
+  .composer > .transient-notice-region {
+    left: 8px;
+    right: 8px;
+  }
+
   /* A poll's option is a finger's target. */
   .poll-pick {
     /* off-scale: the smallest touch target */

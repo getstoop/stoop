@@ -13,6 +13,7 @@ import { type LinkedMessage, messageSearch } from "../../api/shareLinks";
 import { fullDateTime, shortDateTime } from "../../core/dates";
 import { mentionMembers } from "../../core/mentions";
 import { pollPreview } from "../../core/polls";
+import { isReminderRow } from "../../core/reminders";
 import { Attachments } from "../Attachments";
 import { Avatar } from "../Avatar";
 import { BotMark } from "../BotMark";
@@ -20,6 +21,7 @@ import { ChannelName } from "../ChannelName";
 import { DeletedMark } from "../DeletedMark";
 import { MessageBody } from "../MessageBody";
 import { PollPreview } from "../PollPreview";
+import { ReminderPreview } from "../ReminderPreview";
 
 // The linked message itself: who said it, when and where, then the words
 // clamped to a few lines. Nothing for a message the reader can't see, one
@@ -81,6 +83,10 @@ export function LinkedMessageCard({ target }: { target: LinkedMessage }) {
       {pollPreview(message) !== null ? (
         <div className="linked-message-body message-content">
           <PollPreview message={message} />
+        </div>
+      ) : isReminderRow(message) ? (
+        <div className="linked-message-body message-content">
+          <ReminderPreview message={message} />
         </div>
       ) : (
         message.content && (
