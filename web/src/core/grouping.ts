@@ -3,6 +3,7 @@ import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import { dayLabel, sameDay } from "./dates";
 import { isPollRow } from "./polls";
 import { isSystemRow } from "./systemMessages";
+import { isOwnSend } from "./unreads";
 
 // A day separator goes above the first message of each calendar day.
 export const startsDay = (m: Message, prev: Message | undefined) =>
@@ -12,7 +13,8 @@ export const startsDay = (m: Message, prev: Message | undefined) =>
 
 // Where the "New messages" line goes: above the first message after the
 // read marker as it was when the channel opened, skipping the reader's
-// own (sending one is reading up to it) and quiet rows, which mark
+// own sends (sending one is reading up to it; a reminder of theirs the
+// server delivered is not one, isOwnSend) and quiet rows, which mark
 // nothing unread. None when afterId is null.
 export const firstNewMessageId = (
   messages: Message[],
@@ -25,7 +27,7 @@ export const firstNewMessageId = (
         (message) =>
           message.id > afterId &&
           !message.quiet &&
-          message.author?.id !== myUserId,
+          !isOwnSend(message, myUserId),
       )?.id;
 
 // A message continues the previous one when it's from the same author

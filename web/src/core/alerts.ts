@@ -34,7 +34,9 @@ export function alertingTotal(
 
 // Whether a message is addressed to the reader the way the server counts
 // alerts: it names them (@channel and @here reach everyone there), or it
-// replies to a message of theirs. Their own never is.
+// replies to a message of theirs. Their own never is, a reminder of
+// theirs that the server delivered included: it is unread for them, not
+// an alert.
 export function addressesMe(
   message: Message,
   me: string | null | undefined,

@@ -131,7 +131,7 @@ export function estimateSize(item: ListItem): number {
 // The reader's own row, which the list follows to the bottom as it does
 // their send: a message, a poll they asked, or the closing row of a poll
 // they closed. Not another system row: recording my rename is not my
-// sending.
+// sending, and nor is a reminder of mine that the server delivered.
 export function isOwnPost(
   message: Message | undefined,
   myUserId: string | undefined,

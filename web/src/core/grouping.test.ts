@@ -142,6 +142,22 @@ describe("firstNewMessageId", () => {
     expect(firstNewMessageId([from("02", "me")], "01", "me")).toBeUndefined();
   });
 
+  it("does not skip the reader's reminder the server delivered", () => {
+    const reminder = message("02", "10:00:00", {
+      author: { id: "me" },
+      content: "Order the pizza",
+      event: { kind: { case: "reminder", value: {} } },
+    });
+    expect(firstNewMessageId([from("01", "ada"), reminder], "01", "me")).toBe(
+      "02",
+    );
+    expect(
+      groupedRows([from("01", "ada"), reminder], "01", "me").map(
+        (row) => row.kind,
+      ),
+    ).toEqual(["day", "message", "new", "system"]);
+  });
+
   it("skips quiet rows, which mark nothing unread", () => {
     const quiet = message("02", "10:00:00", {
       author: { id: "ada" },
