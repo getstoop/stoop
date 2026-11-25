@@ -409,6 +409,9 @@ an argument hint, a one-line description and where it is offered.
 - **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
   poll button (on mobile, Poll in the attach sheet) shows, with the
   question filled and cut to its limit.
+- **`/remind [what]`** opens the reminder form ([Reminders](#reminders))
+  in the same places, with the text filled and cut to its limit. On web
+  it is the only way in; mobile does not offer it yet.
 
 Built: web and mobile.
 
@@ -1505,10 +1508,13 @@ as a [system message](#system-messages) of kind 9 (`reminder`) by the
 person who set it and deletes the waiting row. The code is
 `internal/chat/reminders.go` and `queries/chat/reminders.sql`.
 
-Built: the server side. Web and mobile draw a delivered reminder with
-the system row they have (a bell, "Reminder from", the name and the
-text); the form that sets one, the notice with Undo and the row's own
-look are not built yet.
+Built: the server side and web ([web.md](web.md) → The message list →
+Reminders): `/remind` and its form, the notice with Undo, and the row.
+The form's rules (`core/reminderForm.ts`), who may delete a delivered
+one (`core/reminders.ts`) and the wording of a future time
+(`futureTime` in `core/dates.ts`) are shared with mobile, which draws a
+delivered reminder with the system row it has (a bell, "Reminder
+from", the name and the text) and has no way to set one yet.
 
 - **Setting one** (`CreateReminder`). The checks are `CreatePoll`'s, in
   its order: the text and the time first, which cost nothing, then
