@@ -42,6 +42,7 @@ const JOB_LABELS: Record<string, string> = {
   sweep_credentials: "Credential sweep",
   sweep_hooks: "Hook sweep",
   sweep_jobs: "Job history sweep",
+  deliver_reminders: "Reminder delivery",
 };
 
 export function jobLabel(name: string): string {

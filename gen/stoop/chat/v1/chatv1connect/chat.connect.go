@@ -149,6 +149,12 @@ const (
 	ChatServiceSetPollVoteProcedure = "/stoop.chat.v1.ChatService/SetPollVote"
 	// ChatServiceClosePollProcedure is the fully-qualified name of the ChatService's ClosePoll RPC.
 	ChatServiceClosePollProcedure = "/stoop.chat.v1.ChatService/ClosePoll"
+	// ChatServiceCreateReminderProcedure is the fully-qualified name of the ChatService's
+	// CreateReminder RPC.
+	ChatServiceCreateReminderProcedure = "/stoop.chat.v1.ChatService/CreateReminder"
+	// ChatServiceDeleteReminderProcedure is the fully-qualified name of the ChatService's
+	// DeleteReminder RPC.
+	ChatServiceDeleteReminderProcedure = "/stoop.chat.v1.ChatService/DeleteReminder"
 	// ChatServiceListMessagesProcedure is the fully-qualified name of the ChatService's ListMessages
 	// RPC.
 	ChatServiceListMessagesProcedure = "/stoop.chat.v1.ChatService/ListMessages"
@@ -344,6 +350,15 @@ type ChatServiceClient interface {
 	// outcome that marks the channel unread as a message does. Its author
 	// may, or in a space someone with messages.moderate.
 	ClosePoll(context.Context, *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error)
+	// CreateReminder sets a reminder for a channel or conversation: at its
+	// time the server posts it there as a row by the caller. Whoever may
+	// send a message here may. Nothing is posted and nobody else is told
+	// until then. See docs/architecture/messaging.md → Reminders.
+	CreateReminder(context.Context, *connect.Request[v1.CreateReminderRequest]) (*connect.Response[v1.CreateReminderResponse], error)
+	// DeleteReminder takes back one of the caller's own reminders that has
+	// not been posted yet. Anything else is not found, one already posted
+	// included: that row is deleted as a message is.
+	DeleteReminder(context.Context, *connect.Request[v1.DeleteReminderRequest]) (*connect.Response[v1.DeleteReminderResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// ListChanges catches a channel up from a log position: every row with
 	// a higher seq, tombstones and thread replies included. Same access as
@@ -709,6 +724,18 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("ClosePoll")),
 			connect.WithClientOptions(opts...),
 		),
+		createReminder: connect.NewClient[v1.CreateReminderRequest, v1.CreateReminderResponse](
+			httpClient,
+			baseURL+ChatServiceCreateReminderProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("CreateReminder")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteReminder: connect.NewClient[v1.DeleteReminderRequest, v1.DeleteReminderResponse](
+			httpClient,
+			baseURL+ChatServiceDeleteReminderProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("DeleteReminder")),
+			connect.WithClientOptions(opts...),
+		),
 		listMessages: connect.NewClient[v1.ListMessagesRequest, v1.ListMessagesResponse](
 			httpClient,
 			baseURL+ChatServiceListMessagesProcedure,
@@ -869,6 +896,8 @@ type chatServiceClient struct {
 	createPoll                  *connect.Client[v1.CreatePollRequest, v1.CreatePollResponse]
 	setPollVote                 *connect.Client[v1.SetPollVoteRequest, v1.SetPollVoteResponse]
 	closePoll                   *connect.Client[v1.ClosePollRequest, v1.ClosePollResponse]
+	createReminder              *connect.Client[v1.CreateReminderRequest, v1.CreateReminderResponse]
+	deleteReminder              *connect.Client[v1.DeleteReminderRequest, v1.DeleteReminderResponse]
 	listMessages                *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 	listChanges                 *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
 	searchMessages              *connect.Client[v1.SearchMessagesRequest, v1.SearchMessagesResponse]
@@ -1124,6 +1153,16 @@ func (c *chatServiceClient) ClosePoll(ctx context.Context, req *connect.Request[
 	return c.closePoll.CallUnary(ctx, req)
 }
 
+// CreateReminder calls stoop.chat.v1.ChatService.CreateReminder.
+func (c *chatServiceClient) CreateReminder(ctx context.Context, req *connect.Request[v1.CreateReminderRequest]) (*connect.Response[v1.CreateReminderResponse], error) {
+	return c.createReminder.CallUnary(ctx, req)
+}
+
+// DeleteReminder calls stoop.chat.v1.ChatService.DeleteReminder.
+func (c *chatServiceClient) DeleteReminder(ctx context.Context, req *connect.Request[v1.DeleteReminderRequest]) (*connect.Response[v1.DeleteReminderResponse], error) {
+	return c.deleteReminder.CallUnary(ctx, req)
+}
+
 // ListMessages calls stoop.chat.v1.ChatService.ListMessages.
 func (c *chatServiceClient) ListMessages(ctx context.Context, req *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return c.listMessages.CallUnary(ctx, req)
@@ -1355,6 +1394,15 @@ type ChatServiceHandler interface {
 	// outcome that marks the channel unread as a message does. Its author
 	// may, or in a space someone with messages.moderate.
 	ClosePoll(context.Context, *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error)
+	// CreateReminder sets a reminder for a channel or conversation: at its
+	// time the server posts it there as a row by the caller. Whoever may
+	// send a message here may. Nothing is posted and nobody else is told
+	// until then. See docs/architecture/messaging.md → Reminders.
+	CreateReminder(context.Context, *connect.Request[v1.CreateReminderRequest]) (*connect.Response[v1.CreateReminderResponse], error)
+	// DeleteReminder takes back one of the caller's own reminders that has
+	// not been posted yet. Anything else is not found, one already posted
+	// included: that row is deleted as a message is.
+	DeleteReminder(context.Context, *connect.Request[v1.DeleteReminderRequest]) (*connect.Response[v1.DeleteReminderResponse], error)
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 	// ListChanges catches a channel up from a log position: every row with
 	// a higher seq, tombstones and thread replies included. Same access as
@@ -1716,6 +1764,18 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("ClosePoll")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceCreateReminderHandler := connect.NewUnaryHandler(
+		ChatServiceCreateReminderProcedure,
+		svc.CreateReminder,
+		connect.WithSchema(chatServiceMethods.ByName("CreateReminder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	chatServiceDeleteReminderHandler := connect.NewUnaryHandler(
+		ChatServiceDeleteReminderProcedure,
+		svc.DeleteReminder,
+		connect.WithSchema(chatServiceMethods.ByName("DeleteReminder")),
+		connect.WithHandlerOptions(opts...),
+	)
 	chatServiceListMessagesHandler := connect.NewUnaryHandler(
 		ChatServiceListMessagesProcedure,
 		svc.ListMessages,
@@ -1920,6 +1980,10 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceSetPollVoteHandler.ServeHTTP(w, r)
 		case ChatServiceClosePollProcedure:
 			chatServiceClosePollHandler.ServeHTTP(w, r)
+		case ChatServiceCreateReminderProcedure:
+			chatServiceCreateReminderHandler.ServeHTTP(w, r)
+		case ChatServiceDeleteReminderProcedure:
+			chatServiceDeleteReminderHandler.ServeHTTP(w, r)
 		case ChatServiceListMessagesProcedure:
 			chatServiceListMessagesHandler.ServeHTTP(w, r)
 		case ChatServiceListChangesProcedure:
@@ -2151,6 +2215,14 @@ func (UnimplementedChatServiceHandler) SetPollVote(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) ClosePoll(context.Context, *connect.Request[v1.ClosePollRequest]) (*connect.Response[v1.ClosePollResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.ClosePoll is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) CreateReminder(context.Context, *connect.Request[v1.CreateReminderRequest]) (*connect.Response[v1.CreateReminderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.CreateReminder is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) DeleteReminder(context.Context, *connect.Request[v1.DeleteReminderRequest]) (*connect.Response[v1.DeleteReminderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("stoop.chat.v1.ChatService.DeleteReminder is not implemented"))
 }
 
 func (UnimplementedChatServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {

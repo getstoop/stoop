@@ -224,7 +224,9 @@ CHECK (reference_message_id IS NULL OR kind <> 0)      -- messages_reference_nee
 ```
 
 `content` is empty on a system row, except a [poll](messaging.md#polls)
-and its closing row (kinds 7 and 8), which keep the question there.
+and its closing row (kinds 7 and 8), which keep the question there, and
+a delivered [reminder](messaging.md#reminders) (kind 9), which keeps its
+text there.
 
 **`threads`** — one row per root with live replies: `reply_count`,
 `last_reply_id`, `last_reply_at` and `recent_author_ids`, the summary
@@ -274,6 +276,16 @@ retroactively change who was mentioned.
 **`message_reactions`** — `(message_id, user_id, emoji)`. The emoji is its
 Unicode string, validated as a single grapheme cluster of at most 16 bytes;
 skin-tone and other modifiers make variants genuinely distinct.
+
+**`reminders`** — `id`, `channel_id`, `user_id`, `content`, `remind_at`,
+`created_at` (00079): a [reminder](messaging.md#reminders) waiting for
+its time, seen by nobody but the person who set it. Delivery deletes the
+row as it posts the message, so the table holds only what is waiting,
+at most 50 rows a person. `remind_at` is a whole minute. `channel_id`
+cascades, so a channel's delete takes its waiting reminders; `user_id`
+does not, since an account is never hard-deleted once anything points
+at it. Two indexes: `remind_at` for the delivery job's read of what is
+due, and `(user_id, remind_at)` for the cap's count.
 
 **`poll_votes`** — `(message_id, user_id, option_id)` with `created_at`
 (00078): one row per person and option of a

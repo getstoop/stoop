@@ -195,6 +195,7 @@ const GLYPH_PATHS: Record<SystemGlyph, string> = {
   pin: "M9 4h6l-1 6 3 3H7l3-3-1-6M12 13v7",
   megaphone: "M3 11v2l11 5V6L3 11M14 9h3a3 3 0 0 1 0 6h-3M6 14v4h3v-3",
   poll: "M5 20V10M12 20V4M19 20v-7",
+  bell: "M6 17v-6a6 6 0 0 1 12 0v6l2 2H4l2-2M10 21h4",
   update: "M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18",
 };
 

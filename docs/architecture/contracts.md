@@ -77,7 +77,10 @@ Grouped by what they touch rather than declaration order:
 - **Messages** — `SendMessage`, `CreatePoll` (a
   [poll](messaging.md#polls); gated as `SendMessage` is), `SetPollVote`
   (gated as `ToggleReaction` is), `ClosePoll` (its author, or
-  `messages.moderate` in a space), `ListMessages`, `ListChanges` (the
+  `messages.moderate` in a space), `CreateReminder` (a
+  [reminder](messaging.md#reminders); gated as `SendMessage` is; it
+  says what time is meant and the server works out the instant),
+  `DeleteReminder` (the caller's own waiting one), `ListMessages`, `ListChanges` (the
   channel log from a seq, for catching up; same gate as `ListMessages`),
   `SearchMessages`, `EditMessage`, `DeleteMessage`, `DismissLinkPreview`,
   `ToggleReaction`, `SetMessagePinned`, `ListPinnedMessages`

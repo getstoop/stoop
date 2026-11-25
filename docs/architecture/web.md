@@ -729,7 +729,9 @@ window" is what the view's range holds.
   closing row reads "closed the poll:", the question and the outcome
   from its own snapshot ("Winner: A, 3 votes", "Tied: A and B, 3 votes
   each", "Nobody voted"), with View to the poll while it is there; its
-  wording is `systemLine`'s, shared with mobile.
+  wording is `systemLine`'s, shared with mobile. A delivered
+  [reminder](messaging.md#reminders) is drawn by the same row for now:
+  a bell, "Reminder from", the name and the text as typed.
 - **Polls** ([messaging.md](messaging.md#polls)) are a system message on
   the wire but a card on screen: `pollOf` in `core/polls.ts` picks them
   out before `isSystemRow` would, and `MessageList/PollRow/` draws one

@@ -23,7 +23,7 @@ import (
 
 // scheduledKinds is every periodic kind a default instance schedules.
 var scheduledKinds = []string{
-	"sweep_activity", "sweep_attachments", "sweep_credentials", "sweep_files",
+	"deliver_reminders", "sweep_activity", "sweep_attachments", "sweep_credentials", "sweep_files",
 	"sweep_hooks", "sweep_jobs", "sweep_messages",
 }
 

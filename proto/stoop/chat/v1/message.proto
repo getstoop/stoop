@@ -67,7 +67,8 @@ message Message {
   // Markdown, with mentions as tokens: <@u:ID:handle> for a person,
   // <@g:ID:handle> for a group. The handle is the one current when the
   // message was saved. See docs/architecture/integrations.md → Mentions.
-  // On a poll and on its closing row, the poll's question as plain text.
+  // On a poll and on its closing row, the poll's question as plain text;
+  // on a reminder, its text, plain too.
   string content = 4;
   google.protobuf.Timestamp created_at = 5;
   // Members this message mentions, resolved at send time. Clients use it
@@ -122,14 +123,14 @@ message Message {
   int64 seq = 21;
   // Set only on a system message: a row that records something that
   // happened in the channel, by author. Its words are the client's, built
-  // from the event; a poll's question and options are the only text in
-  // one that a person wrote. A case the client does not know leaves the
+  // from the event; a poll's question and options, and a reminder's
+  // text in content, are the only text in one that a person wrote. A case the client does not know leaves the
   // oneof unset: it hides the row when quiet is set and otherwise asks
   // the reader to update.
   SystemEvent event = 22;
   // The row marks nothing unread: it is left out of unread counts and is
   // never a channel's last message. Written once, from the row's kind;
-  // false on a poll and on its closing row.
+  // false on a poll, on its closing row and on a reminder.
   bool quiet = 23;
   // The message a system message is about, as a reply's quote is sent:
   // only message_id once that message is deleted, and unset once the
@@ -148,6 +149,7 @@ message SystemEvent {
     PostPolicyChanged post_policy_changed = 6;
     Poll poll = 7;
     PollClosed poll_closed = 8;
+    Reminder reminder = 9;
   }
 }
 
@@ -220,6 +222,11 @@ message PollWinner {
   string text = 1;
   int32 votes = 2;
 }
+
+// Reminder: the author set a reminder for this channel and its time has
+// come. Its text is Message.content, plain text shown as typed. See
+// docs/architecture/messaging.md → Reminders.
+message Reminder {}
 
 // ThreadSummary is what the line under a root shows, so it renders with no
 // fetch of the thread.

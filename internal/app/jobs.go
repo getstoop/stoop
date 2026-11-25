@@ -15,11 +15,11 @@ import (
 	"github.com/getstoop/stoop/internal/jobs"
 )
 
-// Background jobs: the six sweeps as kinds on the jobs module, their
-// schedules, and the one list of job records the Diagnostics tab, the
-// jobs health row and a metrics scrape read.
+// Background jobs: the six sweeps and reminder delivery as kinds on the
+// jobs module, their schedules, and the one list of job records the
+// Diagnostics tab, the jobs health row and a metrics scrape read.
 
-// registerSweeps binds each module's sweep to its kind.
+// registerSweeps binds each module's periodic work to its kind.
 func registerSweeps(registry *jobs.Registry, cfg config.Config, log *slog.Logger,
 	authSvc *auth.Service, chatSvc *chat.Service, filesSvc *files.Service, hooksSvc *integrations.Service) {
 	jobs.Register(registry, files.SweepFilesKind, func(ctx context.Context, job *jobs.Job, _ jobs.NoArgs) error {
@@ -45,6 +45,15 @@ func registerSweeps(registry *jobs.Registry, cfg config.Config, log *slog.Logger
 		job.Record(jobs.Counters{"messages_removed": removed})
 		return err
 	}, jobs.Options{})
+	// One try: a retry's backoff would hold up the next run, which takes
+	// the same reminders anyway (the scheduler queues none while one waits).
+	jobs.Register(registry, chat.DeliverRemindersKind, func(ctx context.Context, job *jobs.Job, _ jobs.NoArgs) error {
+		report, err := chatSvc.DeliverReminders(ctx, time.Now())
+		job.Record(jobs.Counters{
+			"reminders_delivered": report.Delivered, "reminders_dropped": report.Dropped, "reminders_failed": report.Failed,
+		})
+		return err
+	}, jobs.Options{MaxAttempts: 1})
 	jobs.Register(registry, auth.SweepCredentialsKind, func(ctx context.Context, job *jobs.Job, _ jobs.NoArgs) error {
 		expired, err := authSvc.SweepCredentials(ctx)
 		if err != nil {
@@ -85,8 +94,9 @@ func sweepHooks(ctx context.Context, job *jobs.Job, hooksSvc *integrations.Servi
 	return failed
 }
 
-// scheduleSweeps makes the six sweeps and the module's own history sweep
-// periodic; an interval of 0, or nothing to retain, leaves the row disabled.
+// scheduleSweeps makes the six sweeps, reminder delivery and the module's
+// own history sweep periodic; an interval of 0, or nothing to retain,
+// leaves the row disabled.
 func scheduleSweeps(ctx context.Context, jobsSvc *jobs.Service, cfg config.Config) error {
 	activitySweep := cfg.FileSweepInterval
 	if cfg.ActivityRetention == 0 {
@@ -102,6 +112,7 @@ func scheduleSweeps(ctx context.Context, jobsSvc *jobs.Service, cfg config.Confi
 		{integrations.SweepHooksKind, cfg.FileSweepInterval},
 		{chat.SweepMessagesKind, chat.RetentionInterval},
 		{files.SweepAttachmentsKind, chat.RetentionInterval},
+		{chat.DeliverRemindersKind, chat.DeliverRemindersInterval},
 		{jobs.SweepJobsKind, jobs.SweepJobsInterval},
 	} {
 		if err := jobsSvc.Schedule(ctx, schedule.kind, schedule.every); err != nil {

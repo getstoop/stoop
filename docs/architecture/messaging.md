@@ -942,8 +942,9 @@ cursor. What the code does:
   so listing, search, pins and resent messages share one generated row
   type. A new `messages` column goes in the view and in the few queries
   that read `messages` directly. Only what someone wrote is searched,
-  a message (`kind = 0`) and a [poll](#polls) by its question
-  (`kind = 7`): any other [system message](#system-messages) has no
+  a message (`kind = 0`), a [poll](#polls) by its question
+  (`kind = 7`) and a delivered [reminder](#reminders) by its text
+  (`kind = 9`): any other [system message](#system-messages) has no
   text, and a query of nothing but negations matches exactly that.
 - **Parsing** (`search_query.go`). `from:@handle`, `in:#channel`,
   `before:YYYY-MM-DD` and `after:YYYY-MM-DD` come out as filters
@@ -1028,16 +1029,30 @@ channel log, live delivery and retention carry it with no second stream
 to merge. `UpdateChannel` records the three channel changes, a private
 channel's membership calls record who was added and who left, every way
 of leaving a space records "left" in its private channels, and `pin`
-records a pin. A [poll](#polls) and its closing row are system messages
-too, and the two kinds that differ from the rest: they carry a question
-someone wrote and they are not quiet.
+records a pin. A [poll](#polls), its closing row and a delivered
+[reminder](#reminders) are system messages too, and the three kinds that
+differ from the rest: they carry words someone wrote and they are not
+quiet.
+
+| Kind | Name | Records | `quiet` | `pinnable` | `authorDeletes` | `content` |
+| ---- | ---- | ------- | ------- | ---------- | --------------- | --------- |
+| 1 | `members_added` | people added to a private channel | yes | no | no | empty |
+| 2 | `member_left` | someone gone from a private channel | yes | no | no | empty |
+| 3 | `channel_renamed` | the channel's old and new name | yes | no | no | empty |
+| 4 | `topic_changed` | the new topic | yes | no | no | empty |
+| 5 | `message_pinned` | a pin, the message in `reference_message_id` | yes | no | no | empty |
+| 6 | `post_policy_changed` | announcement mode on or off | yes | no | no | empty |
+| 7 | `poll` | a [poll](#polls) | no | yes | yes | the question |
+| 8 | `poll_closed` | a poll's close and its outcome | no | no | no | the question |
+| 9 | `reminder` | a [reminder](#reminders) whose time came | no | no | yes | the text |
 
 - **The row.** `kind` is 0 for a message someone wrote and the kind's
   number otherwise; `data` is the kind's own values as JSON (user ids,
   old and new names, the topic), `'{}'` for a kind that carries nothing
   and `NULL` only on kind 0. `author_id` is who did it, or who left.
   `content` is empty, except on a poll and its closing row, which keep
-  the question there; `reply_to_message_id` is null and the row is
+  the question there, and on a reminder, which keeps its text there and
+  nothing in `data`; `reply_to_message_id` is null and the row is
   top-level. `reference_message_id` is the message the row is about (the
   pinned one), `ON DELETE SET NULL`. Two checks hold the columns
   together ([data.md](data.md#chat)).
@@ -1045,8 +1060,8 @@ someone wrote and they are not quiet.
   once at insert, from the kind, and stored so that SQL and both clients
   filter on it without knowing the list of kinds; a row keeps the
   behaviour it was written with. The six kinds that record housekeeping
-  are quiet; the two [poll](#polls) kinds are not, and count as a
-  message does. A quiet row is
+  are quiet; the two [poll](#polls) kinds and a
+  [reminder](#reminders) are not, and count as a message does. A quiet row is
   left out of `unread_count` (`ListChannelsBySpace`,
   `ListDMChannelsByUser`) and never becomes `channels.last_message_id`
   (`recordEvent` does not set it, `RecomputeChannelLastMessage` skips
@@ -1061,9 +1076,11 @@ someone wrote and they are not quiet.
   replies and activity items, and a quiet row has none.
 - **Writing one** (`internal/chat/system_messages.go`). The registry
   `systemKinds` lists each kind's number, whether it is quiet, and
-  whether it can be pinned and deleted by its author (a poll alone);
+  whether it can be pinned (a poll alone) and deleted by its author (a
+  poll and a reminder);
   each kind has an event type whose JSON is the row's `data`, and which
-  says what goes in `content` (nothing, but for the poll kinds).
+  says what goes in `content` (nothing, but for the poll kinds and a
+  reminder).
   `recordEvent(ctx, qtx, channel, actorID, event)` runs inside the
   transaction of the action it records, so the two succeed or fail
   together: it takes the channel's next seq, inserts the row, sets the
@@ -1080,7 +1097,8 @@ someone wrote and they are not quiet.
   event nor the reference.
   `recordEvent` marks nothing read, records no activity, writes no
   mentions, and is not subject to the channel's post policy; a caller
-  whose row is not quiet does those itself (`CreatePoll`, `ClosePoll`).
+  whose row is not quiet does those itself (`CreatePoll`, `ClosePoll`,
+  `deliverReminder`).
   It refuses an event with nothing in it to store: a pin with no
   message, a message that is not shown in the same channel, a member
   that is not a user id, a closing row about anything but a closed poll
@@ -1110,7 +1128,8 @@ someone wrote and they are not quiet.
   case set.
 - **Readers.** History, `ListChanges`, pins and resent messages carry
   the new columns through the `message_with_reply` view. Search matches
-  only kind 0 and a poll (kind 7, by its question): any other system row
+  only kind 0, a poll (kind 7, by its question) and a reminder (kind 9,
+  by its text): any other system row
   has no text, but a query of nothing but negations matches a row with
   no text. The retention sweep takes system
   rows with the messages around them. No code may assume a system row's
@@ -1127,8 +1146,8 @@ someone wrote and they are not quiet.
   refused the same way unless the registry marks its kind `pinnable`
   (`refuseUnpinnable`), which only a poll is.
 - **Deleting one** is moderation alone, unless the registry marks its
-  kind `authorDeletes`, which only a poll is: that row is deleted as a
-  message is, by its author or a moderator. For every other kind
+  kind `authorDeletes`, which a poll and a reminder are: that row is
+  deleted as a message is, by its author or a moderator. For every other kind
   `messages.moderate` covers it,
   as it covers other people's messages, and inside a private channel
   only for someone in it, as for any message. Being the row's author
@@ -1459,6 +1478,7 @@ app needs a server of 0.23.0 or newer, the release that carries polls.
   | the six housekeeping kinds | yes | no | no |
   | `poll` | no | yes | yes |
   | `poll_closed` | no | no | no |
+  | `reminder` ([Reminders](#reminders)) | no | no | yes |
 
   A poll is pinned by whoever may pin a message, open or closed, in a
   space channel only, and deleted by its author or with
@@ -1466,6 +1486,185 @@ app needs a server of 0.23.0 or newer, the release that carries polls.
   row is deleted as any system row is. A refused write on a poll says it
   is a poll (`errPollRow`), where every other kind says the row records
   something that happened.
+
+## Reminders
+
+A reminder is a line of text someone asks the server to post in a
+channel or conversation at a later time. It waits in its own table,
+`reminders`, where nobody else sees it, and at its time a job posts it
+as a [system message](#system-messages) of kind 9 (`reminder`) by the
+person who set it and deletes the waiting row. The code is
+`internal/chat/reminders.go` and `queries/chat/reminders.sql`.
+
+Built: the server side. Web and mobile draw a delivered reminder with
+the system row they have (a bell, "Reminder from", the name and the
+text); the form that sets one, the notice with Undo and the row's own
+look are not built yet.
+
+- **Setting one** (`CreateReminder`). The checks are `CreatePoll`'s, in
+  its order: the text and the time first, which cost nothing, then
+  `writableChannel`, then the post policy, so whoever may post here may
+  set one and nobody else learns the channel exists. The text is one
+  line of 1 to 200 characters under a poll question's rules
+  (`pollLine`): trimmed, at least one visible character, no control
+  character or text direction override. It is plain text, so an `@name`
+  in it mentions no one. A person has at most 50 waiting, across every
+  channel: the count and the insert run in one transaction under a
+  per-person advisory lock (`LockReminderOwner`), so two requests
+  cannot both take the last place. Messages have no rate limit, so this
+  cap is the table's only bound. The answer is the reminder's id and
+  the instant as stored (`remind_at`). Nothing is posted, published or
+  marked, and there is no thread field: a reminder is always top-level.
+- **When** (`reminder_time.go`). The request says what time is meant
+  and the server works out the instant from its own clock; a client
+  never sends an instant. A device whose clock is wrong, by minutes or
+  by a day, then still sets the reminder its person asked for, and
+  "at least a minute ahead" is judged by the one clock that will
+  deliver it. The request carries exactly one of:
+  - `preset`: `IN_20_MINUTES`, `IN_1_HOUR` or `IN_3_HOURS`, which are
+    the server's now plus that wait (a span, so a clock change in
+    between moves the reading and not the wait), or `TOMORROW_AT_9`,
+    which is 09:00 on the day after today in `time_zone`, today being
+    the server's now read in that zone;
+  - `local_time`: a reading of the clock in `time_zone` with no offset,
+    `2026-12-02T09:00`, as a date-and-time field holds it. Seconds may
+    follow and are ignored. It must be at least one minute and at most
+    one calendar year ahead by the server's clock.
+
+  `time_zone` is an IANA name (`America/New_York`). `TOMORROW_AT_9` and
+  `local_time` need it; the three waits do not use it, but one that is
+  sent must still name a zone. `Local` is refused: it would mean the
+  server's zone. Where the zone's clock changes there is one rule
+  (`wallClock`), the one a browser's `Date` follows, so the web form
+  and the server agree: a time the clock skips is read as the clock
+  shows it after the change (02:30 on a morning that goes from 02:00 to
+  03:00 is 03:30), and a time it shows twice is the first of the two.
+  Go's `time.Date` promises neither, so the rule is written out and
+  tested. The instant is stored rounded down to the whole minute, as a
+  `timestamptz`; neither the zone nor the preset is stored, so a
+  reminder does not move if the zone's rules change later. The zone
+  database is in the binary (`time/tzdata`), so a host with none still
+  knows every zone.
+
+  | Refused | Code |
+  | ------- | ---- |
+  | no text, too long, a line break, a control character, a direction override, nothing visible | `InvalidArgument` |
+  | neither `preset` nor `local_time`, or both; a preset the server does not know | `InvalidArgument` |
+  | no `time_zone` where one is needed; a zone the server does not know | `InvalidArgument` |
+  | a `local_time` that is not `YYYY-MM-DDTHH:MM`, or names no real date and time | `InvalidArgument` |
+  | a `local_time` less than a minute ahead, or more than a year ahead | `InvalidArgument` |
+  | 50 already waiting | `ResourceExhausted` |
+  | not in the space, an announcement channel, a block in a direct message, a token without the grant or out of bounds | `PermissionDenied` |
+  | a private channel the caller is not in, a hidden voice channel, no such channel | `NotFound` |
+
+- **Taking one back** (`DeleteReminder(id)`). It deletes a waiting
+  reminder of the caller's own and nothing else: someone else's, an id
+  that names none and one already posted are all `NotFound`, and so is
+  one in a channel a bounded token does not reach. It asks nothing of
+  the channel, so someone who has since left it still takes theirs
+  back. There is no list of waiting reminders (`ListReminders` does not
+  exist): the app's notice with Undo is the one way to it, and the
+  table keeps what a list would need. A reminder already posted is
+  deleted as a message is.
+- **Delivery** (`DeliverReminders`, the `deliver_reminders` job every 30
+  seconds, [runtime.md](runtime.md#background-work)). A run reads the
+  reminders due now without locking them, oldest first and at most 500,
+  and takes each in turn:
+  1. The person is looked up through `UserDirectory`, and an identity
+     is built for them as a session of theirs would carry it, so that
+     `writableChannel` and `requirePostPolicy` read them as the caller
+     with nothing changed: space membership, private channels,
+     conversations, blocks, announcement mode and bots are the checks a
+     send meets. A job has no caller of its own. An account that is
+     gone, deleted or deactivated posts nothing; a deleted person stays
+     a participant of their conversations, and a deactivated one a
+     member of their spaces, so neither is caught by the other checks.
+  2. One transaction locks the channel row and only then claims the
+     reminder with `DELETE ... RETURNING` (`ClaimReminder`). The order
+     is `seq.go`'s rule and matters here: a channel delete holds the
+     channel and cascades into `reminders`, so taking the reminder
+     first would deadlock with it. No channel means its delete took the
+     reminder with it; no row back means an Undo or another dispatcher
+     got there first. Either way there is nothing to do.
+  3. A reminder whose person was refused in step 1 is dropped: the
+     claim commits and nothing is posted. Otherwise the transaction
+     asks once more, under the lock, that the person can still read the
+     channel (one statement, for a removal that landed since step 1),
+     reads the channel's people, and records the row (`recordEvent`).
+  4. After the commit a closed conversation is put back on its lists
+     (`reopenDM`), the row goes out as `message_created`, and in a
+     direct message or group conversation the other participants get
+     the `dm` activity item a message would give them
+     (`recordActivity`), as for a poll.
+
+  Step 1 runs before the transaction, as a request's checks do, because
+  it reads through the pool and the ports: a transaction that held the
+  channel row while it waited for a second connection would stall
+  behind the senders waiting for that row. So a removal between step 1
+  and the lock is caught only by step 3's one question; a change of
+  announcement mode or a block in that window still posts.
+- **Dropped or kept.** A reminder is dropped, with no word to anyone,
+  only when the refusal is the person's standing: `NotFound`,
+  `PermissionDenied` or `FailedPrecondition` from the checks above
+  (left or removed, a private channel they are no longer in, an
+  announcement channel, a block, the account deleted or deactivated, a
+  voice channel's chat while voice is off). Any other error is taken to
+  be passing: the transaction rolls back, the reminder stays and the
+  next run takes it again. A failure is logged and the run goes on to
+  the next reminder, then ends in an error naming how many failed, so
+  it shows on the Diagnostics tab. Someone removed and added back
+  before the time gets their reminder.
+- **Timing.** A reminder is never early. Normally it is posted within
+  one interval (30 seconds) plus the dispatcher's poll (`STOOP_JOBS_POLL`,
+  2 seconds) of its minute beginning. Three cases are later. On a fresh
+  install the job's first run is two minutes after the server first
+  started, since a new schedule row is due then. If the dispatcher was
+  not running at the time (the server down, or `STOOP_JOBS=external`
+  with no `stoop jobs`), it is posted once one runs. And if the
+  dispatcher is killed in the middle of a run, no new run starts until
+  that run's lease lapses, 10 minutes by default
+  ([runtime.md](runtime.md#background-work)). A run that finds more
+  than 500 due leaves the rest for the next.
+- **Who is told.** In a channel it is the channel's last message and is
+  unread for everyone, and alerts nobody. In a conversation it reopens
+  it and alerts the others. Nobody's read marker moves, the person's
+  own included: they are not at the keyboard, and marking the channel
+  read for them would pass over messages they have not seen. So the row
+  is unread for the person who set it as it is for anyone, and both apps
+  agree with the server: a delivered reminder is not the reader's own
+  send (`isOwnSend` in `core/unreads.ts`, the one question every such
+  place asks). Live, it counts as unread for them and leaves their
+  marker alone unless they are looking at the channel, in which case it
+  is read as it lands and the server is told, as for anyone's row; the
+  "New messages" line can sit above it; and it reads none of their
+  activity. That unread mark is all the notice they get: no activity
+  item is written for them, it is never an alert (`addressesMe`), and
+  nothing is pushed. In a conversation the unread conversation counts
+  once on their badge total, as any unread conversation does. The list
+  does not follow it to the bottom as it follows their send
+  (`isOwnPost`).
+- **The row.** `content` is the text and `data` is `{}`: the event type
+  keeps the text out of its JSON (`json:"-"`) and hands it to `content`,
+  as a pin keeps its message in `reference_message_id`. On the wire the
+  event is `Reminder {}`; a client reads the text from `Message.content`
+  and the person from `Message.author`, and shows the text as typed: it
+  is not Markdown and a token-like run in it is nobody's mention.
+- **Previews** read "Reminder: " and the text, exactly as typed
+  (`previewOf`, `typedAsIs`), wherever a poll's are worded: the Activity
+  feed and push, the live `activity_item_created` and a conversation's
+  line in the list.
+- **Search** finds a delivered reminder by its text.
+- **What the row takes.** It refuses what every system row refuses
+  (edit, reaction, thread, quote, link preview) and cannot be pinned.
+  Its author deletes it, and so does `messages.moderate` in a space; in
+  a conversation its author alone.
+- **Deleting the channel** deletes its waiting reminders (the foreign
+  key cascades). Leaving a space or a channel deletes none: they are
+  dropped at their time unless the person is back by then.
+- **Rollback.** A server rolled back past this leaves kind 9 rows in
+  `messages`, which it sends as an event with no case, and both apps
+  ask the reader to update. Migration 00079's Down takes the waiting
+  reminders with the table.
 
 ## Edits, deletions, reactions, replies
 

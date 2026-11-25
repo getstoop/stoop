@@ -37,7 +37,7 @@ func (d userDirectory) GetUsers(ctx context.Context, ids []string) ([]chat.UserR
 		records[index] = chat.UserRecord{
 			ID: user.ID, Username: user.Username, DisplayName: user.DisplayName,
 			InstanceAdmin: user.Role == authctx.RoleAdmin, Kind: user.Kind, AvatarFileID: user.AvatarFileID,
-			Deleted: user.Deleted,
+			Deleted: user.Deleted, Deactivated: user.Deactivated,
 		}
 	}
 	return records, nil

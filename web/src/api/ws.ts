@@ -2,6 +2,7 @@ import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import type { QueryClient } from "@tanstack/react-query";
 import { addressesMe } from "../core/alerts";
 import { isPollRow } from "../core/polls";
+import { isOwnSend, withArrival } from "../core/unreads";
 import { ActivityKind } from "../gen/stoop/chat/v1/activity_pb";
 import type { Channel } from "../gen/stoop/chat/v1/channel_pb";
 import type { Message, MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
@@ -230,7 +231,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       if (m.quiet) break;
       noteMentionInThread(queryClient, m);
       const { userId, activeChannelId } = useConnectionStore.getState();
-      const mine = m.author?.id === userId;
+      // Our own send moved our marker on the server; a reminder of ours
+      // that the server delivered did not, so it lands as anyone's row.
+      const mine = isOwnSend(m, userId);
       // A reply that stays in its thread is not in the channel's timeline
       // and does not make the channel unread. Addressed to us, it is an
       // alert against the thread's marker, unless the thread is the one
@@ -254,12 +257,9 @@ function applyEvent(queryClient: QueryClient, event: ServerEvent) {
       const reading = m.channelId === activeChannelId && hasAttention();
       // The channel's newest message moved; if it's ours (or we're looking
       // right at it) the read marker follows, otherwise it goes bold.
-      patchChannel(queryClient, m.spaceId, m.channelId, (c) => ({
-        lastMessageId: m.id,
-        ...(mine || reading
-          ? { lastReadMessageId: m.id, unreadCount: 0 }
-          : { unreadCount: c.unreadCount + 1 }),
-      }));
+      patchChannel(queryClient, m.spaceId, m.channelId, (c) =>
+        withArrival(c, m, userId, reading),
+      );
       if (mine) {
         // Sending moved our read marker without a ChannelRead.
         refetchActivityAfterRead(queryClient, { channelId: m.channelId });

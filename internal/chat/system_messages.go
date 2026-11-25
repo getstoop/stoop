@@ -19,7 +19,8 @@ import (
 // messages row whose kind is above 0 records something that happened in
 // its channel. author_id is who did it, data holds the kind's own values
 // as JSON, and the clients write every word from the event on the wire.
-// A poll and its closing row are system messages too (polls.go).
+// A poll and its closing row are system messages too (polls.go), and so
+// is a delivered reminder (reminders.go).
 
 // The messages.kind values. 0 is a message someone wrote; a stored number
 // never changes meaning.
@@ -32,6 +33,7 @@ const (
 	kindPostPolicyChanged int16 = 6
 	kindPoll              int16 = 7
 	kindPollClosed        int16 = 8
+	kindReminder          int16 = 9
 )
 
 // systemKind is what the server knows about one kind.
@@ -58,6 +60,7 @@ var systemKinds = map[int16]systemKind{
 	kindPostPolicyChanged: {quiet: true, decode: decodeEvent[postPolicyChanged]},
 	kindPoll:              {pinnable: true, authorDeletes: true, decode: decodeEvent[pollCreated]},
 	kindPollClosed:        {decode: decodeEvent[pollClosed]},
+	kindReminder:          {authorDeletes: true, decode: decodeEvent[reminderFired]},
 }
 
 // systemEvent is one kind's event. Its JSON form is the row's data.
@@ -71,7 +74,8 @@ type systemEvent interface {
 	// stored on the row, so an event read back does not carry it.
 	referenceID() string
 	// content is the row's content: "" but for a kind that keeps text
-	// there for search and previews.
+	// there for search and previews. An event read back from a row does
+	// not carry what it keeps only there (a reminder's text).
 	content() string
 	// checkAbout refuses the event when the message it is about, read in
 	// the transaction that records it, is not one it may be about.

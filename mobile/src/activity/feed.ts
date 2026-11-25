@@ -1,6 +1,7 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { type ActivityData, withActivityRead, withoutRefreshed } from "@stoop/core/activity";
 import { isSystemRow } from "@stoop/core/systemMessages";
+import { isOwnSend } from "@stoop/core/unreads";
 import type { ActivityItem } from "@stoop/gen/stoop/chat/v1/activity_pb";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 
@@ -49,9 +50,10 @@ export function deletionMayClearActivity(data: ActivityData, older: ActivityItem
 // web's ws.ts; nor does a quiet system message recording the reader's own
 // action (a rename, a topic), which is not a send. A row that is not
 // quiet (a poll, or its closing row) moves its author's marker as a send
-// does (CreatePoll, ClosePoll).
+// does (CreatePoll, ClosePoll). A reminder of theirs that the server
+// delivered moves no marker (isOwnSend).
 export function ownPostRead(message: Message, readerId: string | undefined): string | null {
   if (message.threadRootId && !message.inChannel) return null;
   if (isSystemRow(message) && message.quiet) return null;
-  return readerId && message.author?.id === readerId ? message.channelId : null;
+  return isOwnSend(message, readerId) ? message.channelId : null;
 }

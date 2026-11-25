@@ -302,7 +302,8 @@ type Message struct {
 	// Markdown, with mentions as tokens: <@u:ID:handle> for a person,
 	// <@g:ID:handle> for a group. The handle is the one current when the
 	// message was saved. See docs/architecture/integrations.md → Mentions.
-	// On a poll and on its closing row, the poll's question as plain text.
+	// On a poll and on its closing row, the poll's question as plain text;
+	// on a reminder, its text, plain too.
 	Content   string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Members this message mentions, resolved at send time. Clients use it
@@ -357,14 +358,14 @@ type Message struct {
 	Seq int64 `protobuf:"varint,21,opt,name=seq,proto3" json:"seq,omitempty"`
 	// Set only on a system message: a row that records something that
 	// happened in the channel, by author. Its words are the client's, built
-	// from the event; a poll's question and options are the only text in
-	// one that a person wrote. A case the client does not know leaves the
+	// from the event; a poll's question and options, and a reminder's
+	// text in content, are the only text in one that a person wrote. A case the client does not know leaves the
 	// oneof unset: it hides the row when quiet is set and otherwise asks
 	// the reader to update.
 	Event *SystemEvent `protobuf:"bytes,22,opt,name=event,proto3" json:"event,omitempty"`
 	// The row marks nothing unread: it is left out of unread counts and is
 	// never a channel's last message. Written once, from the row's kind;
-	// false on a poll and on its closing row.
+	// false on a poll, on its closing row and on a reminder.
 	Quiet bool `protobuf:"varint,23,opt,name=quiet,proto3" json:"quiet,omitempty"`
 	// The message a system message is about, as a reply's quote is sent:
 	// only message_id once that message is deleted, and unset once the
@@ -585,6 +586,7 @@ type SystemEvent struct {
 	//	*SystemEvent_PostPolicyChanged
 	//	*SystemEvent_Poll
 	//	*SystemEvent_PollClosed
+	//	*SystemEvent_Reminder
 	Kind          isSystemEvent_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -699,6 +701,15 @@ func (x *SystemEvent) GetPollClosed() *PollClosed {
 	return nil
 }
 
+func (x *SystemEvent) GetReminder() *Reminder {
+	if x != nil {
+		if x, ok := x.Kind.(*SystemEvent_Reminder); ok {
+			return x.Reminder
+		}
+	}
+	return nil
+}
+
 type isSystemEvent_Kind interface {
 	isSystemEvent_Kind()
 }
@@ -735,6 +746,10 @@ type SystemEvent_PollClosed struct {
 	PollClosed *PollClosed `protobuf:"bytes,8,opt,name=poll_closed,json=pollClosed,proto3,oneof"`
 }
 
+type SystemEvent_Reminder struct {
+	Reminder *Reminder `protobuf:"bytes,9,opt,name=reminder,proto3,oneof"`
+}
+
 func (*SystemEvent_MembersAdded) isSystemEvent_Kind() {}
 
 func (*SystemEvent_MemberLeft) isSystemEvent_Kind() {}
@@ -750,6 +765,8 @@ func (*SystemEvent_PostPolicyChanged) isSystemEvent_Kind() {}
 func (*SystemEvent_Poll) isSystemEvent_Kind() {}
 
 func (*SystemEvent_PollClosed) isSystemEvent_Kind() {}
+
+func (*SystemEvent_Reminder) isSystemEvent_Kind() {}
 
 // MembersAdded: the author added these people to a private channel. One
 // member who is the author reads as "joined".
@@ -1286,6 +1303,45 @@ func (x *PollWinner) GetVotes() int32 {
 	return 0
 }
 
+// Reminder: the author set a reminder for this channel and its time has
+// come. Its text is Message.content, plain text shown as typed. See
+// docs/architecture/messaging.md → Reminders.
+type Reminder struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Reminder) Reset() {
+	*x = Reminder{}
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Reminder) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Reminder) ProtoMessage() {}
+
+func (x *Reminder) ProtoReflect() protoreflect.Message {
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Reminder.ProtoReflect.Descriptor instead.
+func (*Reminder) Descriptor() ([]byte, []int) {
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{15}
+}
+
 // ThreadSummary is what the line under a root shows, so it renders with no
 // fetch of the thread.
 type ThreadSummary struct {
@@ -1310,7 +1366,7 @@ type ThreadSummary struct {
 
 func (x *ThreadSummary) Reset() {
 	*x = ThreadSummary{}
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[15]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1322,7 +1378,7 @@ func (x *ThreadSummary) String() string {
 func (*ThreadSummary) ProtoMessage() {}
 
 func (x *ThreadSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[15]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1335,7 +1391,7 @@ func (x *ThreadSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ThreadSummary.ProtoReflect.Descriptor instead.
 func (*ThreadSummary) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{15}
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ThreadSummary) GetReplyCount() int32 {
@@ -1397,7 +1453,7 @@ type LinkPreview struct {
 
 func (x *LinkPreview) Reset() {
 	*x = LinkPreview{}
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[16]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1409,7 +1465,7 @@ func (x *LinkPreview) String() string {
 func (*LinkPreview) ProtoMessage() {}
 
 func (x *LinkPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_stoop_chat_v1_message_proto_msgTypes[16]
+	mi := &file_stoop_chat_v1_message_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1422,7 +1478,7 @@ func (x *LinkPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkPreview.ProtoReflect.Descriptor instead.
 func (*LinkPreview) Descriptor() ([]byte, []int) {
-	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{16}
+	return file_stoop_chat_v1_message_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *LinkPreview) GetUrl() string {
@@ -1530,7 +1586,7 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x03seq\x18\x15 \x01(\x03R\x03seq\x120\n" +
 	"\x05event\x18\x16 \x01(\v2\x1a.stoop.chat.v1.SystemEventR\x05event\x12\x14\n" +
 	"\x05quiet\x18\x17 \x01(\bR\x05quiet\x125\n" +
-	"\treference\x18\x18 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\treference\"\x8f\x04\n" +
+	"\treference\x18\x18 \x01(\v2\x17.stoop.chat.v1.ReplyRefR\treference\"\xc6\x04\n" +
 	"\vSystemEvent\x12B\n" +
 	"\rmembers_added\x18\x01 \x01(\v2\x1b.stoop.chat.v1.MembersAddedH\x00R\fmembersAdded\x12<\n" +
 	"\vmember_left\x18\x02 \x01(\v2\x19.stoop.chat.v1.MemberLeftH\x00R\n" +
@@ -1541,7 +1597,8 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\x13post_policy_changed\x18\x06 \x01(\v2 .stoop.chat.v1.PostPolicyChangedH\x00R\x11postPolicyChanged\x12)\n" +
 	"\x04poll\x18\a \x01(\v2\x13.stoop.chat.v1.PollH\x00R\x04poll\x12<\n" +
 	"\vpoll_closed\x18\b \x01(\v2\x19.stoop.chat.v1.PollClosedH\x00R\n" +
-	"pollClosedB\x06\n" +
+	"pollClosed\x125\n" +
+	"\breminder\x18\t \x01(\v2\x17.stoop.chat.v1.ReminderH\x00R\breminderB\x06\n" +
 	"\x04kind\"F\n" +
 	"\fMembersAdded\x126\n" +
 	"\amembers\x18\x01 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\amembers\"\f\n" +
@@ -1579,7 +1636,9 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\n" +
 	"PollWinner\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n" +
-	"\x05votes\x18\x02 \x01(\x05R\x05votes\"\x94\x02\n" +
+	"\x05votes\x18\x02 \x01(\x05R\x05votes\"\n" +
+	"\n" +
+	"\bReminder\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
 	"\vreply_count\x18\x01 \x01(\x05R\n" +
 	"replyCount\x12>\n" +
@@ -1611,7 +1670,7 @@ func file_stoop_chat_v1_message_proto_rawDescGZIP() []byte {
 	return file_stoop_chat_v1_message_proto_rawDescData
 }
 
-var file_stoop_chat_v1_message_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_stoop_chat_v1_message_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_stoop_chat_v1_message_proto_goTypes = []any{
 	(*MessageAuthor)(nil),         // 0: stoop.chat.v1.MessageAuthor
 	(*ReplyRef)(nil),              // 1: stoop.chat.v1.ReplyRef
@@ -1628,24 +1687,25 @@ var file_stoop_chat_v1_message_proto_goTypes = []any{
 	(*PollOption)(nil),            // 12: stoop.chat.v1.PollOption
 	(*PollClosed)(nil),            // 13: stoop.chat.v1.PollClosed
 	(*PollWinner)(nil),            // 14: stoop.chat.v1.PollWinner
-	(*ThreadSummary)(nil),         // 15: stoop.chat.v1.ThreadSummary
-	(*LinkPreview)(nil),           // 16: stoop.chat.v1.LinkPreview
-	(v1.IdentityKind)(0),          // 17: stoop.access.v1.IdentityKind
-	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
-	(*Reaction)(nil),              // 19: stoop.chat.v1.Reaction
-	(ChannelPostPolicy)(0),        // 20: stoop.chat.v1.ChannelPostPolicy
+	(*Reminder)(nil),              // 15: stoop.chat.v1.Reminder
+	(*ThreadSummary)(nil),         // 16: stoop.chat.v1.ThreadSummary
+	(*LinkPreview)(nil),           // 17: stoop.chat.v1.LinkPreview
+	(v1.IdentityKind)(0),          // 18: stoop.access.v1.IdentityKind
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*Reaction)(nil),              // 20: stoop.chat.v1.Reaction
+	(ChannelPostPolicy)(0),        // 21: stoop.chat.v1.ChannelPostPolicy
 }
 var file_stoop_chat_v1_message_proto_depIdxs = []int32{
-	17, // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
+	18, // 0: stoop.chat.v1.MessageAuthor.kind:type_name -> stoop.access.v1.IdentityKind
 	0,  // 1: stoop.chat.v1.ReplyRef.author:type_name -> stoop.chat.v1.MessageAuthor
 	0,  // 2: stoop.chat.v1.Message.author:type_name -> stoop.chat.v1.MessageAuthor
-	18, // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	19, // 3: stoop.chat.v1.Message.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: stoop.chat.v1.Message.reply_to:type_name -> stoop.chat.v1.ReplyRef
-	18, // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
-	19, // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
+	19, // 5: stoop.chat.v1.Message.edited_at:type_name -> google.protobuf.Timestamp
+	20, // 6: stoop.chat.v1.Message.reactions:type_name -> stoop.chat.v1.Reaction
 	2,  // 7: stoop.chat.v1.Message.attachments:type_name -> stoop.chat.v1.Attachment
-	16, // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
-	15, // 9: stoop.chat.v1.Message.thread:type_name -> stoop.chat.v1.ThreadSummary
+	17, // 8: stoop.chat.v1.Message.link_previews:type_name -> stoop.chat.v1.LinkPreview
+	16, // 9: stoop.chat.v1.Message.thread:type_name -> stoop.chat.v1.ThreadSummary
 	1,  // 10: stoop.chat.v1.Message.thread_root:type_name -> stoop.chat.v1.ReplyRef
 	4,  // 11: stoop.chat.v1.Message.event:type_name -> stoop.chat.v1.SystemEvent
 	1,  // 12: stoop.chat.v1.Message.reference:type_name -> stoop.chat.v1.ReplyRef
@@ -1657,20 +1717,21 @@ var file_stoop_chat_v1_message_proto_depIdxs = []int32{
 	10, // 18: stoop.chat.v1.SystemEvent.post_policy_changed:type_name -> stoop.chat.v1.PostPolicyChanged
 	11, // 19: stoop.chat.v1.SystemEvent.poll:type_name -> stoop.chat.v1.Poll
 	13, // 20: stoop.chat.v1.SystemEvent.poll_closed:type_name -> stoop.chat.v1.PollClosed
-	0,  // 21: stoop.chat.v1.MembersAdded.members:type_name -> stoop.chat.v1.MessageAuthor
-	20, // 22: stoop.chat.v1.PostPolicyChanged.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
-	12, // 23: stoop.chat.v1.Poll.options:type_name -> stoop.chat.v1.PollOption
-	18, // 24: stoop.chat.v1.Poll.closed_at:type_name -> google.protobuf.Timestamp
-	0,  // 25: stoop.chat.v1.Poll.closed_by:type_name -> stoop.chat.v1.MessageAuthor
-	0,  // 26: stoop.chat.v1.PollOption.voters:type_name -> stoop.chat.v1.MessageAuthor
-	14, // 27: stoop.chat.v1.PollClosed.winners:type_name -> stoop.chat.v1.PollWinner
-	18, // 28: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
-	0,  // 29: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
-	30, // [30:30] is the sub-list for method output_type
-	30, // [30:30] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	15, // 21: stoop.chat.v1.SystemEvent.reminder:type_name -> stoop.chat.v1.Reminder
+	0,  // 22: stoop.chat.v1.MembersAdded.members:type_name -> stoop.chat.v1.MessageAuthor
+	21, // 23: stoop.chat.v1.PostPolicyChanged.post_policy:type_name -> stoop.chat.v1.ChannelPostPolicy
+	12, // 24: stoop.chat.v1.Poll.options:type_name -> stoop.chat.v1.PollOption
+	19, // 25: stoop.chat.v1.Poll.closed_at:type_name -> google.protobuf.Timestamp
+	0,  // 26: stoop.chat.v1.Poll.closed_by:type_name -> stoop.chat.v1.MessageAuthor
+	0,  // 27: stoop.chat.v1.PollOption.voters:type_name -> stoop.chat.v1.MessageAuthor
+	14, // 28: stoop.chat.v1.PollClosed.winners:type_name -> stoop.chat.v1.PollWinner
+	19, // 29: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	0,  // 30: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
+	31, // [31:31] is the sub-list for method output_type
+	31, // [31:31] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_message_proto_init() }
@@ -1689,6 +1750,7 @@ func file_stoop_chat_v1_message_proto_init() {
 		(*SystemEvent_PostPolicyChanged)(nil),
 		(*SystemEvent_Poll)(nil),
 		(*SystemEvent_PollClosed)(nil),
+		(*SystemEvent_Reminder)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1696,7 +1758,7 @@ func file_stoop_chat_v1_message_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_stoop_chat_v1_message_proto_rawDesc), len(file_stoop_chat_v1_message_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

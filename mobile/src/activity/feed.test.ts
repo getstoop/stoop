@@ -120,4 +120,9 @@ describe("ownPostRead", () => {
     expect(ownPostRead(poll, "me")).toBe("c1");
     expect(ownPostRead(closed, "me")).toBe("c1");
   });
+
+  it("moves none for the reader's reminder the server delivered", () => {
+    const reminder = row({ content: "Order the pizza", event: { kind: { case: "reminder", value: {} } } });
+    expect(ownPostRead(reminder, "me")).toBeNull();
+  });
 });

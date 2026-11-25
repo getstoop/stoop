@@ -347,6 +347,15 @@ type PushSubscription struct {
 	LastFailure   string
 }
 
+type Reminder struct {
+	ID        string
+	ChannelID string
+	UserID    string
+	Content   string
+	RemindAt  time.Time
+	CreatedAt time.Time
+}
+
 type SchemaFloor struct {
 	MinMigration int64
 }

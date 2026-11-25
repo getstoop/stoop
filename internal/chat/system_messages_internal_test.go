@@ -26,12 +26,13 @@ import (
 // call recordEvent the way an action will: in a transaction that holds
 // the channel row first.
 
-// tableUsers reads users from the table, deleted accounts included.
+// tableUsers reads users from the table, deleted and deactivated
+// accounts included.
 type tableUsers struct{ pool *pgxpool.Pool }
 
 func (users tableUsers) GetUsers(ctx context.Context, ids []string) ([]UserRecord, error) {
 	rows, err := users.pool.Query(ctx,
-		`SELECT id, username, deleted_at IS NOT NULL FROM users WHERE id = ANY($1::uuid[])`, ids)
+		`SELECT id, username, deleted_at IS NOT NULL, deactivated_at IS NOT NULL FROM users WHERE id = ANY($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +40,7 @@ func (users tableUsers) GetUsers(ctx context.Context, ids []string) ([]UserRecor
 	var out []UserRecord
 	for rows.Next() {
 		var record UserRecord
-		if err := rows.Scan(&record.ID, &record.Username, &record.Deleted); err != nil {
+		if err := rows.Scan(&record.ID, &record.Username, &record.Deleted, &record.Deactivated); err != nil {
 			return nil, err
 		}
 		out = append(out, record)

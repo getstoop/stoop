@@ -36,6 +36,9 @@ type UserRecord struct {
 	// Deleted: the person deleted the account; the username is all that
 	// is left, and readers are told so.
 	Deleted bool
+	// Deactivated: an admin turned the account off, or it was deleted. It
+	// signs in nowhere, so nothing is posted in its name (reminders.go).
+	Deactivated bool
 }
 
 // UserDirectory is chat's port for looking up users; implemented by the auth
@@ -235,12 +238,17 @@ func (s *Service) resolveAuthors(ctx context.Context, ids []string) (map[string]
 	}
 	authors := make(map[string]*chatv1.MessageAuthor, len(users))
 	for id, user := range users {
-		authors[id] = &chatv1.MessageAuthor{
-			Id: user.ID, Username: user.Username, DisplayName: user.DisplayName, AvatarFileId: user.AvatarFileID,
-			Kind: accesswire.KindToProto(user.Kind), Deleted: user.Deleted,
-		}
+		authors[id] = authorOf(user)
 	}
 	return authors, nil
+}
+
+// authorOf is a user as a message names them.
+func authorOf(user UserRecord) *chatv1.MessageAuthor {
+	return &chatv1.MessageAuthor{
+		Id: user.ID, Username: user.Username, DisplayName: user.DisplayName, AvatarFileId: user.AvatarFileID,
+		Kind: accesswire.KindToProto(user.Kind), Deleted: user.Deleted,
+	}
 }
 
 // authorOrUnknown is the resolved author, or a placeholder for an id the

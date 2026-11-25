@@ -59,7 +59,8 @@ export type ActivityItem = Message<"stoop.chat.v1.ActivityItem"> & {
 
   /**
    * A short excerpt of the message (empty if it was deleted). A poll
-   * reads "Poll: " and its question, its closing row "Poll closed: ".
+   * reads "Poll: " and its question, its closing row "Poll closed: ", a
+   * reminder "Reminder: " and its text.
    *
    * @generated from field: string preview = 7;
    */

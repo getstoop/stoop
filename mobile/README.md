@@ -853,7 +853,10 @@ the poll's closing row from the reader's view at once
 (`withOwnDelete`). The closing row is a system row ("closed the poll:",
 the question and the outcome, from its own snapshot), whose View lands
 on the card and rings it, and which a screen reader is offered as View
-poll. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
+poll. A delivered reminder
+([messaging.md](../docs/architecture/messaging.md#reminders)) is a
+system row too, drawn by `SystemRow.tsx` as it stands: a bell, "Reminder
+from", the name and the text as typed. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
 on the keyboard: "Create a poll" and Cancel, the question, one option or
 several directly under it, the options with "N of 10", Add option and a
 remove button each (`PollFormOptions.tsx`), and Post poll on a strip of

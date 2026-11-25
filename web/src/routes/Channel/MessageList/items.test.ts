@@ -277,7 +277,7 @@ describe("estimateSize", () => {
 describe("isOwnPost", () => {
   const at = new Date(2026, 9, 21, 9, 0);
   const of = (
-    kind: "poll" | "pollClosed" | "memberLeft" | undefined,
+    kind: "poll" | "pollClosed" | "memberLeft" | "reminder" | undefined,
     authorId = "dee",
   ) => {
     const made = message("01", at, authorId);
@@ -288,6 +288,10 @@ describe("isOwnPost", () => {
     if (kind === "pollClosed")
       made.event = create(SystemEventSchema, {
         kind: { case: "pollClosed", value: { question: "Friday?" } },
+      });
+    if (kind === "reminder")
+      made.event = create(SystemEventSchema, {
+        kind: { case: "reminder", value: {} },
       });
     if (kind === "memberLeft")
       made.event = create(SystemEventSchema, {
@@ -304,6 +308,8 @@ describe("isOwnPost", () => {
 
   it("is not another system row of mine, nor anyone else's row", () => {
     expect(isOwnPost(of("memberLeft"), "dee")).toBe(false);
+    // A reminder of mine the server delivered: the list does not follow it.
+    expect(isOwnPost(of("reminder"), "dee")).toBe(false);
     expect(isOwnPost(of("pollClosed", "eve"), "dee")).toBe(false);
     expect(isOwnPost(of("poll", "eve"), "dee")).toBe(false);
     expect(isOwnPost(of(undefined), undefined)).toBe(false);
