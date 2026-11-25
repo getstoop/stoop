@@ -42,6 +42,15 @@ describe("the fields", () => {
     expect(pollOptionCount(form)).toBe("2 of 10");
   });
 
+  it("opens with a starting question, trimmed and cut to the limit", () => {
+    expect(newPollForm("  Pizza or tacos?  ").question).toBe("Pizza or tacos?");
+    expect(newPollForm("   ").question).toBe("");
+    const long = newPollForm(`${"😀".repeat(150)}${"a".repeat(100)}`);
+    expect(pollTextLength(long.question)).toBe(200);
+    expect(long.question).toBe(`${"😀".repeat(150)}${"a".repeat(50)}`);
+    expect(checkPollForm(long).question).toBeNull();
+  });
+
   it("adds up to ten, each with a key of its own", () => {
     let form = newPollForm();
     while (canAddOption(form)) form = addOption(form);

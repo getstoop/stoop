@@ -33,6 +33,7 @@ import {
   type PendingAttachment,
 } from "../../components/AttachmentStrip";
 import { BotMark } from "../../components/BotMark";
+import { CommandList } from "../../components/CommandList";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
@@ -41,6 +42,16 @@ import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
 import { restoreFiles } from "../../core/attachments";
+import {
+  type Command,
+  type CommandName,
+  type CommandQuery,
+  commandQueryAt,
+  matchingCommands,
+  type ParsedCommand,
+  parseCommand,
+  pickedText,
+} from "../../core/commands";
 import { draftKey, SEND_STALL_MS } from "../../core/drafts";
 import { isBlankMessage } from "../../core/markdown";
 import {
@@ -125,6 +136,11 @@ export function Composer({
     start: number;
     query: string;
   } | null>(null);
+  // The /command being typed, when no other list is open.
+  const [commandQuery, setCommandQuery] = useState<CommandQuery | null>(null);
+  // Escape shuts the command list until the draft stops being a command,
+  // so it stays shut while a question is typed after the name.
+  const commandDismissed = useRef(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<RichField>(null);
   const touchKeyboard = useTouchKeyboard();
@@ -137,20 +153,36 @@ export function Composer({
     ? Number(instanceStatus.maxUploadBytes)
     : MAX_ATTACHMENT_BYTES;
   const [dragging, setDragging] = useState(false);
-  // The channel the create-a-poll form was opened in, while it is open.
-  // Not offered in a thread, which takes no poll. The composer outlives
-  // a channel change, and the form does not: it is drawn only in the
-  // channel it was opened in, and closed on leaving it.
-  const [pollIn, setPollIn] = useState<string | null>(null);
-  const pollOpen = pollIn !== null && pollIn === channelId;
-  // Set when a poll was posted: focus goes back to the words, not to
-  // the poll button the form opened from.
-  const focusAfterPoll = useRef(false);
+  // The command form open (the poll button opens the poll's), the
+  // channel it was opened in and the words it starts with. Not offered in
+  // a thread, which takes no poll. The composer outlives a channel
+  // change, and the form does not: it is drawn only in the channel it was
+  // opened in, and closed on leaving it.
+  const [formIn, setFormIn] = useState<{
+    command: CommandName;
+    channelId: string;
+    text: string;
+  } | null>(null);
+  const pollIn =
+    formIn?.command === "poll" && formIn.channelId === channelId
+      ? formIn
+      : null;
+  // Where focus goes when the form closes. Opened by a command (a pick
+  // from the list, a send), it goes back to the words; opened by the poll
+  // button, a cancel leaves it to the dialog, which returns it to the
+  // button. A posted poll sends it to the words either way. Not when the
+  // form closes because the composer moved to another channel.
+  const formOpen = formIn !== null;
+  const focusAfterForm = useRef(false);
+  const openForm = (command: CommandName, text: string, typed: boolean) => {
+    focusAfterForm.current = typed;
+    setFormIn({ command, channelId, text });
+  };
   useEffect(() => {
-    if (pollOpen || !focusAfterPoll.current) return;
-    focusAfterPoll.current = false;
+    if (formOpen || !focusAfterForm.current) return;
+    focusAfterForm.current = false;
     inputRef.current?.focus();
-  }, [pollOpen]);
+  }, [formOpen]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
@@ -228,7 +260,10 @@ export function Composer({
       return [];
     });
     setAttachError(null);
-    setPollIn(null);
+    setCommandQuery(null);
+    commandDismissed.current = false;
+    focusAfterForm.current = false;
+    setFormIn(null);
   }, [channelId]);
   const members = usePeople(spaceId, channelId);
   const { data: spaces } = useSpaces();
@@ -255,9 +290,21 @@ export function Composer({
 
   const suggestions = shortcode ? searchShortcodes(shortcode.query) : [];
 
-  const updateMention = (value: string, caret: number) => {
+  // Where this composer is, for the commands it offers.
+  const place = { thread: !!threadRootId, canPost: true };
+  const commands =
+    commandQuery && !mention && !shortcode
+      ? matchingCommands(commandQuery, place)
+      : [];
+
+  // value and caret are the block's text up to the caret; whole is the
+  // draft, which a /command is judged on.
+  const updateMention = (value: string, caret: number, whole: string) => {
     // No picker in code or a link's words: a mention there is sent as text.
     const off = inputRef.current?.mentionsOffAtCaret();
+    const command = commandQueryAt(whole);
+    if (!command) commandDismissed.current = false;
+    setCommandQuery(off || commandDismissed.current ? null : command);
     const channelQuery = linkable.size > 0 && channelQueryAt(value, caret);
     const q = off
       ? null
@@ -305,6 +352,29 @@ export function Composer({
     setShortcode(null);
   };
 
+  // A command opens its form and posts nothing. Only its own words go:
+  // files and a reply stay for the next message, and closing the form
+  // does not bring the words back.
+  const openCommand = ({ command, text }: ParsedCommand) => {
+    setDraft("");
+    setMention(null);
+    setShortcode(null);
+    setCommandQuery(null);
+    commandDismissed.current = false;
+    openForm(command.name, text, true);
+  };
+
+  // What Enter would send, read the same way for a send and for a pick
+  // from the command list: mentions settled, shortcodes turned to emoji.
+  const outgoing = () => {
+    const typed = inputRef.current?.sendable() ?? draft;
+    const written = replaceShortcodes(typed);
+    return { typed, content: isBlankMessage(written) ? "" : written.trim() };
+  };
+
+  const pickCommand = (command: Command) =>
+    openCommand({ command, text: pickedText(outgoing().content, command) });
+
   // Focus the box when a reply is started.
   useEffect(() => {
     if (replyTo) inputRef.current?.focus();
@@ -318,7 +388,13 @@ export function Composer({
       return;
     }
     // Escape handled here is spent: it doesn't also close the side panel.
-    if (e.key === "Escape" && !mention && !shortcode && replyTo) {
+    if (
+      e.key === "Escape" &&
+      !mention &&
+      !shortcode &&
+      commands.length === 0 &&
+      replyTo
+    ) {
       e.preventDefault();
       onCancelReply();
       return;
@@ -329,7 +405,7 @@ export function Composer({
         ? candidates.length
         : shortcode
           ? suggestions.length
-          : 0;
+          : commands.length;
     // Enter sends; Shift+Enter breaks the line (a textarea never submits
     // its form on its own). An on-screen keyboard's Return breaks the line
     // and the send button sends.
@@ -346,20 +422,27 @@ export function Composer({
       }
       return;
     }
-    if (e.key === "ArrowDown") {
+    // A list of one has nowhere to move: the arrows stay the caret's,
+    // which a question typed after "/poll " needs.
+    const commandList = !mention && !shortcode;
+    const arrows = !commandList || count > 1;
+    if (e.key === "ArrowDown" && arrows) {
       e.preventDefault();
       setSelected((s) => (s + 1) % count);
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp" && arrows) {
       e.preventDefault();
       setSelected((s) => (s - 1 + count) % count);
     } else if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
       if (mention) pick(candidates[selected]);
-      else pickEmoji(suggestions[selected]);
+      else if (shortcode) pickEmoji(suggestions[selected]);
+      else pickCommand(commands[selected]);
     } else if (e.key === "Escape") {
       e.preventDefault();
+      if (commandList) commandDismissed.current = true;
       setMention(null);
       setShortcode(null);
+      setCommandQuery(null);
     }
   };
 
@@ -372,9 +455,14 @@ export function Composer({
   whereRef.current = where;
   const send = async () => {
     if (sendingRef.current) return;
-    const typed = inputRef.current?.sendable() ?? draft;
-    const written = replaceShortcodes(typed);
-    const content = isBlankMessage(written) ? "" : written.trim();
+    const { typed, content } = outgoing();
+    // A command offered here opens its form instead of sending; in a
+    // thread, or unknown, it is sent as typed.
+    const command = parseCommand(content, place);
+    if (command) {
+      openCommand(command);
+      return;
+    }
     const files = pendingRef.current;
     // Wait for uploads in flight; failed ones are dropped, not sent.
     if (files.some((p) => !p.fileId && !p.error)) return;
@@ -383,6 +471,8 @@ export function Composer({
     setDraft("");
     setMention(null);
     setShortcode(null);
+    setCommandQuery(null);
+    commandDismissed.current = false;
     setPending([]);
     setAttachError(null);
     onCancelReply();
@@ -469,6 +559,11 @@ export function Composer({
             onPick={pickEmoji}
           />
         )}
+        <CommandList
+          commands={commands}
+          selected={selected}
+          onPick={pickCommand}
+        />
         {replyTo && (
           <div className="reply-bar">
             <span>
@@ -525,7 +620,7 @@ export function Composer({
               <button
                 type="button"
                 className="format-button poll-button"
-                onClick={() => setPollIn(channelId)}
+                onClick={() => openForm("poll", "", false)}
                 aria-label="Create a poll"
                 aria-haspopup="dialog"
               >
@@ -549,16 +644,17 @@ export function Composer({
               onPaste={onPaste}
               onChange={(value, textBefore) => {
                 setDraft(value);
-                updateMention(textBefore, textBefore.length);
+                updateMention(textBefore, textBefore.length, value);
                 pingTyping(value);
               }}
               onCaret={(textBefore) =>
-                updateMention(textBefore, textBefore.length)
+                updateMention(textBefore, textBefore.length, draft)
               }
               onKeyDown={onKeyDown}
               onBlur={() => {
                 setMention(null);
                 setShortcode(null);
+                setCommandQuery(null);
               }}
               placeholder={
                 threadRootId
@@ -607,14 +703,15 @@ export function Composer({
       </form>
       {/* Beside the composer's form, not in it: a form in a form would
         send the message on the poll's submit. */}
-      {pollOpen && pollIn && (
+      {pollIn && (
         <PollForm
-          key={pollIn}
-          channelId={pollIn}
-          onClose={() => setPollIn(null)}
+          key={pollIn.channelId}
+          channelId={pollIn.channelId}
+          question={pollIn.text}
+          onClose={() => setFormIn(null)}
           onPosted={() => {
-            focusAfterPoll.current = true;
-            setPollIn(null);
+            focusAfterForm.current = true;
+            setFormIn(null);
           }}
         />
       )}

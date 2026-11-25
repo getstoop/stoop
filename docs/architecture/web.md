@@ -358,6 +358,9 @@ with web). `scripts/check-core.mjs` refuses any import from outside
   plain-text and link readers (`text.ts`).
 - `mentions.ts` — mention and channel-link tokens, and the autocomplete's
   matching. The pills' class names stay web's, in `api/mentionClasses.ts`.
+- `commands.ts` — the slash commands: the list, where each is offered,
+  and reading a draft against it
+  ([messaging.md](messaging.md#slash-commands)).
 - `permissions.ts` — reads `Space.my_permissions` (and `GetMe`'s permissions
   through `useMyPermissions` in `api/queries.ts`) to decide which controls
   to show; it keeps no copy of the role table. The server still enforces.
@@ -764,7 +767,10 @@ window" is what the view's range holds.
   A poll is made from the composer's poll button, after the paperclip,
   shown wherever the composer is (so not where posting is closed, and a
   blocked conversation hears the server's refusal) and never in a
-  thread's composer, since a thread takes no poll. It opens
+  thread's composer, since a thread takes no poll, or by typing
+  `/poll` with the question after it, which opens the form with the
+  question filled and the first option focused
+  ([messaging.md](messaging.md#slash-commands)). It opens
   `routes/Channel/PollForm/` in the `Modal`, rendered beside the
   composer's form rather than inside it: the question, "People can
   choose" (one option or several) directly under it, then two to ten
@@ -794,9 +800,14 @@ window" is what the view's range holds.
   in the server's words (or "Try again" for anything that may pass on a
   second try) and leaves everything as typed; one that arrives after
   the form was closed is a notice. There is no discard confirmation:
-  Cancel, Escape and the scrim close it. Cancel returns focus to the
-  poll button; a posted poll returns it to the composer's words, which
-  opening and posting a poll leave as they were.
+  Cancel, Escape and the scrim close it. Closed without posting, a form
+  opened from the poll button returns focus to the button, and one
+  opened by `/poll` (picked from the command list or sent) returns it to
+  the composer's words. A posted poll returns focus to the composer's
+  words however the form was opened. The button and posting leave the
+  words as they were; `/poll` takes its own words out. Nothing takes
+  focus when the form closes because the composer moved to another
+  channel.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:
