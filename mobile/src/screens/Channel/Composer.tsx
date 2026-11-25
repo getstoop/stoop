@@ -1,4 +1,5 @@
 import type { UploadedFile } from "@stoop/core/attachments";
+import { type Command, type CommandName, type ParsedCommand, parseCommand, pickedText } from "@stoop/core/commands";
 import type { Format } from "@stoop/core/editor/formats";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { isBlankMessage, plainText } from "@stoop/core/markdown";
@@ -30,11 +31,13 @@ import AlsoSendRow from "./AlsoSendRow";
 import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
 import AttachSheet from "./AttachSheet";
+import { useComposerAbove } from "./composerAbove";
 import ComposerFrame from "./ComposerFrame";
 import FormatRow from "./FormatRow";
 import LinkDialog from "./LinkDialog";
 import RichField, { type RichFieldHandle } from "./RichField";
 import { useAttachments } from "./useAttachments";
+import { useCommandQuery } from "./useCommandQuery";
 import type { ComposerMentions } from "./useMentionNames";
 import { useMentionQuery } from "./useMentionQuery";
 import { restoredDraft, useSavedDraft } from "./useSavedDraft";
@@ -98,6 +101,17 @@ import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 // ends (core/mentions typedMentionEnding), as web's editor makes one, and
 // any left as words go as their tokens on send (withTypedMentions).
 //
+// Where the screen opens command forms (`onCommand`), a draft of "/" and
+// letters lists the commands offered here over the card instead
+// (core/commands, useCommandQuery, CommandList), shut while a @handle or
+// #name is typed. A tap on one, or Send on a draft that starts with a
+// known name (then a space or the end), opens that command's form with
+// the words after the name, read as a send reads them, and sends
+// nothing: the words leave the field and do not come back if the form
+// is cancelled, while the files and a quote stay for the next message.
+// An unknown "/word" is a message; a thread's composer offers none and
+// sends one as typed; an edit never runs one.
+//
 // In a thread (`inThread`) the pill says "Reply in thread", and the card
 // has "Also send to #channel" over the field, a checkbox that sends the
 // reply to the channel's timeline as well. As on web it is cleared by
@@ -147,6 +161,9 @@ export default forwardRef<
     inThread?: boolean;
     // Poll in the attach sheet: the screen opens the poll's form.
     onPoll?: () => void;
+    // A command picked or sent: the screen opens its form, starting with
+    // the words typed after the name (core/commands). None, no commands.
+    onCommand?: (command: CommandName, text: string) => void;
     // Whose draft this is, and where: the server, the account, the
     // channel and the root (api/drafts).
     draftAddress: DraftAddress;
@@ -176,6 +193,7 @@ export default forwardRef<
     token,
     inThread = false,
     onPoll,
+    onCommand,
     draftAddress,
     onRestoreQuote,
     send,
@@ -271,6 +289,17 @@ export default forwardRef<
     replace: ({ count, text, mention }) =>
       mention ? input.current?.insertMention(count, mention, text) : input.current?.replaceBeforeCaret(count, text),
   });
+  // Where this composer is, for the commands it offers; none where the
+  // screen opens no forms, and none in an edit.
+  const commandPlace = { thread: inThread, canPost: true };
+  const commandsOn = !!onCommand && !editing;
+  const commandList = useCommandQuery({
+    draft,
+    open: commandsOn && writing && !mentions.active,
+    place: commandPlace,
+    onPick: (command) => void pickCommand(command),
+  });
+  useComposerAbove(mentions.list ?? commandList);
 
   // The card, with the field focused: mounted so (autoFocus), and focused
   // once more on the frame after it is up, since Android does not always
@@ -353,6 +382,37 @@ export default forwardRef<
     }
   };
 
+  // What Send would send, read the same way for a send and for a pick
+  // from the command list: the field's text as it stands, a word still
+  // being composed taken (the draft as last reported if the field can't
+  // answer), and the content with any handle typed in full as its token.
+  const outgoing = async () => {
+    let typed: string;
+    try {
+      typed = (await input.current?.commit()) ?? draft;
+    } catch {
+      typed = draft;
+    }
+    return { typed, content: isBlankMessage(typed) ? "" : withTypedMentions(typed.trim(), mentionNames) };
+  };
+
+  // A command opens its form and sends nothing. Only its own words go:
+  // the files and a quote stay for the next message, and closing the form
+  // does not bring the words back. The card goes down, as for Poll in the
+  // attach sheet: the form is a sheet of its own.
+  const openCommand = ({ command, text }: ParsedCommand) => {
+    putDraft("");
+    input.current?.blur();
+    onCommand?.(command.name, text);
+  };
+  const pickCommand = async (command: Command) => {
+    const { content } = await outgoing();
+    openCommand({ command, text: pickedText(content, command) });
+  };
+  // The draft as last reported is a command: Send opens its form even
+  // while files upload, since nothing is sent.
+  const commandAhead = commandsOn && parseCommand(draft.trim(), commandPlace) !== null;
+
   const submit = async () => {
     if (sendingRef.current) return;
     if (editing) {
@@ -361,15 +421,16 @@ export default forwardRef<
     }
     // Uploads in flight are waited for (Send is dimmed meanwhile); failed
     // files are left out.
-    if (attachments.uploading || (blank && !attachments.ready)) return;
+    if ((attachments.uploading && !commandAhead) || (blank && !attachments.ready)) return;
     sendingRef.current = true;
-    // The field's text as it stands, a word still being composed taken;
-    // the draft as last reported if the field can't answer.
-    let typed: string;
-    try {
-      typed = (await input.current?.commit()) ?? draft;
-    } catch {
-      typed = draft;
+    const { typed, content } = await outgoing();
+    // A command offered here opens its form instead of sending; in a
+    // thread, or unknown, it is sent as typed.
+    const command = commandsOn ? parseCommand(content, commandPlace) : null;
+    if (command || attachments.uploading) {
+      sendingRef.current = false;
+      if (command) openCommand(command);
+      return;
     }
     const quoted = replyTo;
     const also = alsoSend;
@@ -385,7 +446,7 @@ export default forwardRef<
     // composer is still there to show the refusal.
     const ticket = startSend({ text: typed, quotedMessageId: quoted?.id });
     try {
-      await send(isBlankMessage(typed) ? "" : withTypedMentions(typed.trim(), mentionNames), quoted?.id ?? "", also, attachmentIds);
+      await send(content, quoted?.id ?? "", also, attachmentIds);
       ticket.finish();
     } catch (err) {
       ticket.fail();
@@ -456,7 +517,7 @@ export default forwardRef<
     frameHeight.current = height;
   };
   const raised = glass ? styles.glassRaised : styles.raised;
-  const waiting = attachments.uploading && !editing;
+  const waiting = attachments.uploading && !editing && !commandAhead;
   const openAttach = () => attachments.openSheet(writing);
   // Keyed, so it stays the same sheet when the field's blur swaps the card
   // for the pill, which hold it at different positions. Remounted, the iOS

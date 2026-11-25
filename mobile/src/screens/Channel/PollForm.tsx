@@ -43,9 +43,9 @@ const REVEAL_MARGIN = 8;
 // How tall the fade the fields scroll under is, above Post poll.
 const FADE = 24;
 
-// Creating a poll, from Poll in the attach sheet (docs/architecture/
-// messaging.md → Polls): a sheet over a scrim, as the attach sheet is
-// (useSheet), with "Create a poll" and Cancel, the question, one option
+// Creating a poll, from Poll in the attach sheet or /poll in the composer
+// (docs/architecture/messaging.md → Polls, Slash commands): a sheet over
+// a scrim, as the attach sheet is (useSheet), with "Create a poll" and Cancel, the question, one option
 // or several directly under it, then the options (PollFormOptions), and
 // Post poll. The rules are web's, shared (core/pollForm): a field the
 // server would refuse says why under it, and Post is on once there is a
@@ -63,12 +63,15 @@ const FADE = 24;
 // nothing sent.
 export default function PollForm({
   channelId,
+  question: startQuestion = "",
   onPost,
   onPosted,
   onLateFailure,
   onClose,
 }: {
   channelId: string;
+  // The question it opens with: the words typed after /poll.
+  question?: string;
   onPost: (request: PollRequest) => Promise<void>;
   // The poll was saved while the sheet was still up.
   onPosted: () => void;
@@ -84,7 +87,9 @@ export default function PollForm({
   const shown = useSharedValue(0);
   const sheet = useSheet(shown, onClose);
   const { dismiss, closing, hold, fade } = sheet;
-  const [form, setForm] = useState(newPollForm);
+  const [form, setForm] = useState(() => newPollForm(startQuestion));
+  // Opened with a question: the first option is where typing goes next.
+  const [startsFilled] = useState(form.question !== "");
   const [posting, setPosting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [focus, setFocus] = useState<"question" | number | null>(null);
@@ -149,11 +154,12 @@ export default function PollForm({
       animationType="none"
       onRequestClose={dismiss}
       // The question takes the caret once the modal is up, a moment
-      // after: autoFocus, or a focus as it shows, focuses it on Android
-      // before the modal's window has the input method, and the keyboard
-      // never comes.
+      // after (the first option, when /poll filled the question):
+      // autoFocus, or a focus as it shows, focuses it on Android before
+      // the modal's window has the input method, and the keyboard never
+      // comes.
       onShow={() => {
-        setTimeout(() => question.current?.focus(), FOCUS_DELAY_MS);
+        setTimeout(() => (startsFilled ? firstOption : question).current?.focus(), FOCUS_DELAY_MS);
       }}
       statusBarTranslucent
       navigationBarTranslucent

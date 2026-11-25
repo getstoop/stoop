@@ -239,6 +239,15 @@ import a screen; the screens themselves live in `src/screens`, so
   and under a rule Poll, in a channel's or a conversation's composer
   (never a thread's; nor where the reader can't post, which has no
   composer). Poll opens the poll's form once the sheet has gone (below).
+  There too, a draft of `/` and letters lists the commands offered
+  over the card, as the mention list is (`useCommandQuery`,
+  `CommandList.tsx`; [messaging.md](../docs/architecture/messaging.md#slash-commands)):
+  touch only, no row chosen ahead, shut while a @handle or #name is
+  typed. A tap on `/poll`, or Send on `/poll` and a question, puts the
+  card down and opens the same form with the question filled (the
+  first option then takes the caret), sending nothing; the words leave
+  the field for good, while files and a quote stay. A thread's composer
+  offers none and sends `/poll` as typed; an edit never runs one.
   Each opens its system picker (`src/screens/Channel/pickers.ts`;
   `expo-image-picker` and `expo-document-picker`, native modules, so a
   build on the phone needs `make mobile-ios` again) once the sheet's
@@ -856,7 +865,8 @@ on the card and rings it, and which a screen reader is offered as View
 poll. A delivered reminder
 ([messaging.md](../docs/architecture/messaging.md#reminders)) is a
 system row too, drawn by `SystemRow.tsx` as it stands: a bell, "Reminder
-from", the name and the text as typed. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
+from", the name and the text as typed. Poll in the attach sheet, or
+`/poll` in the composer (above), opens `PollForm.tsx`, a sheet that sits
 on the keyboard: "Create a poll" and Cancel, the question, one option or
 several directly under it, the options with "N of 10", Add option and a
 remove button each (`PollFormOptions.tsx`), and Post poll on a strip of
@@ -873,8 +883,8 @@ kept; Cancel works while the request is out, and a refusal landing after
 the sheet has gone is said over the composer, while a poll saved then
 simply appears. The question takes the caret a moment after the
 modal shows (autoFocus, in a modal on Android, focused it with no
-keyboard). The form is held with the channel it was opened in,
-posts there, and goes when the screen shows another. The list follows
+keyboard), or the first option when `/poll` filled the question. The
+form is held with the channel it was opened in, posts there, and goes when the screen shows another. The list follows
 the new poll as it follows a send. A vote's `message_updated` does not mark the conversations,
 channels or alerts lists stale (`touchesConversations`,
 `eventSpaceId`, `touchesAlerts`), and a search result shows a poll as
