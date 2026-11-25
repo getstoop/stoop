@@ -25,8 +25,8 @@ result. What 0.22.0 makes of the new rows is under "For operators".
 - **Who a poll tells.** In a channel a poll and its closing line mark
   the channel unread and alert nobody. In a direct message or group
   conversation both alert the others as a message does. A vote marks
-  nothing unread and alerts nobody. An `@name` in a question is plain text and mentions
-  no one.
+  nothing unread and alerts nobody. An `@name` in a question is plain
+  text and mentions no one.
 - **Slash commands.** Typing `/` at the start of a message lists the
   commands, filtered as you type; Enter, Tab or a click picks one.
   There are two. `/poll` opens the poll form, with anything typed after
