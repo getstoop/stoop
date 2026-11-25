@@ -387,11 +387,20 @@ an argument hint, a one-line description and where it is offered.
   one entry (with one they stay the caret's), Enter or Tab picks, and
   Escape closes it and keeps the text; it stays shut until the draft
   stops being a command, so a question typed after the name is left
-  alone. A pick reads the draft exactly as a send does.
+  alone. On mobile it is touch only, drawn over the composer's card as
+  the mention list is (`useCommandQuery`, `CommandList.tsx`), with no
+  row chosen ahead: a tap picks and Return makes a new line. There is
+  nothing to close it with: it is shut while a @handle or #name is
+  typed, and otherwise shows until the draft stops being a command or
+  the card goes down. The form opens once the keyboard has gone, so its
+  sheet rises once, and not at all if the reader has moved on
+  meanwhile (a menu, a sheet, the viewer or another screen). A pick
+  reads the draft exactly as a send does.
 - **On send.** A draft starting with a known name, then a space or the
   end, opens that command's form and posts nothing. The command's words
   leave the field and are not put back if the form is cancelled; files
-  and a reply waiting in the composer stay. The words after the name
+  and a reply waiting in the composer stay (on mobile Send opens the
+  form even while those files upload). The words after the name
   go into the form's first field as one plain line (`plainText`, with
   any run of spaces, tabs, line breaks or control characters made one
   space). An
@@ -399,9 +408,10 @@ an argument hint, a one-line description and where it is offered.
   is anything formatted as code. A thread's composer offers no command
   and sends one as typed; editing a message never runs one.
 - **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
-  poll button shows, with the question filled and cut to its limit.
+  poll button (on mobile, Poll in the attach sheet) shows, with the
+  question filled and cut to its limit.
 
-Built: web. Mobile has no command list yet.
+Built: web and mobile.
 
 ## Mentions
 

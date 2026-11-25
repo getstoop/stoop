@@ -284,6 +284,18 @@ import a screen; the screens themselves live in `src/screens`, so
   after that is ignored; and while a message is edited they are out of
   sight and Attach is dimmed. A sent file shows in the row as the next
   item says.
+- A draft of `/` and letters lists the commands offered over the card,
+  as the mention list is (`useCommandQuery`, `CommandList.tsx`;
+  [messaging.md](../docs/architecture/messaging.md#slash-commands)):
+  touch only, no row chosen ahead, and shut while a @handle or #name is
+  typed. A tap on `/poll`, or Send on `/poll` and a question, sends
+  nothing: the card goes down at once and, once the keyboard has gone
+  (`afterKeyboard.ts`), the poll's form opens as from Poll in the attach
+  sheet, the question filled and the first option taking the caret
+  (dropped instead if the reader has moved on meanwhile: Attach tapped,
+  a menu, a sheet or another screen opened). The words leave the field for good, and a send's old refusal with them,
+  while files and a quote stay. A thread's composer offers none and
+  sends `/poll` as typed; an edit never runs one.
 - A message's files are drawn under its words, in the channel and the
   thread (`src/components/Attachments`, sized before layout by its
   `layout.ts` from the width and height the server measured, so a row
@@ -856,7 +868,8 @@ on the card and rings it, and which a screen reader is offered as View
 poll. A delivered reminder
 ([messaging.md](../docs/architecture/messaging.md#reminders)) is a
 system row too, drawn by `SystemRow.tsx` as it stands: a bell, "Reminder
-from", the name and the text as typed. Poll in the attach sheet opens `PollForm.tsx`, a sheet that sits
+from", the name and the text as typed. Poll in the attach sheet, or
+`/poll` in the composer (above), opens `PollForm.tsx`, a sheet that sits
 on the keyboard: "Create a poll" and Cancel, the question, one option or
 several directly under it, the options with "N of 10", Add option and a
 remove button each (`PollFormOptions.tsx`), and Post poll on a strip of
@@ -873,8 +886,8 @@ kept; Cancel works while the request is out, and a refusal landing after
 the sheet has gone is said over the composer, while a poll saved then
 simply appears. The question takes the caret a moment after the
 modal shows (autoFocus, in a modal on Android, focused it with no
-keyboard). The form is held with the channel it was opened in,
-posts there, and goes when the screen shows another. The list follows
+keyboard), or the first option when `/poll` filled the question. The
+form is held with the channel it was opened in, posts there, and goes when the screen shows another. The list follows
 the new poll as it follows a send. A vote's `message_updated` does not mark the conversations,
 channels or alerts lists stale (`touchesConversations`,
 `eventSpaceId`, `touchesAlerts`), and a search result shows a poll as

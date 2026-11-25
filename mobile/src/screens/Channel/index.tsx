@@ -1,5 +1,6 @@
 import { headerBeginning, headerPlace } from "@stoop/core/channelHeader";
 import { channelItems } from "@stoop/core/channelLog";
+import type { CommandName } from "@stoop/core/commands";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
 import { withoutHiddenSystemRows } from "@stoop/core/systemMessages";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
@@ -331,15 +332,37 @@ export default function Channel({
     threadAfterMenu.current = null;
     pushThread(rootId);
   }, [menuFor, pushThread]);
-  // The poll's form, from Poll in the attach sheet, held with the channel
-  // and the log it was opened on: it posts there whatever the screen
-  // shows by then, and goes when the screen shows another channel, as the
-  // menus and the votes sheet do. The reader's own poll is followed as
-  // their message is, while the form that posted it is still up; one
-  // refused after the form has gone is said over the composer.
-  const [pollFor, setPollFor] = useState<{ channelId: string; engine: ChannelEngine } | null>(null);
+  // The poll's form, from Poll in the attach sheet or /poll in the
+  // composer (with the words after it as its question), held with the
+  // channel and the log it was opened on: it posts there whatever the
+  // screen shows by then, and goes when the screen shows another channel,
+  // as the menus and the votes sheet do. The reader's own poll is
+  // followed as their message is, while the form that posted it is still
+  // up; one refused after the form has gone is said over the composer.
+  const [pollFor, setPollFor] = useState<{ channelId: string; engine: ChannelEngine; question: string } | null>(null);
   if (pollFor && pollFor.channelId !== channelId) setPollFor(null);
-  const openPollForm = useCallback(() => setPollFor({ channelId, engine }), [channelId, engine]);
+  const openPollForm = useCallback(
+    (question = "") => setPollFor({ channelId, engine, question }),
+    [channelId, engine],
+  );
+  // A command from the composer opens its form (core/commands), once its
+  // keyboard has gone; by then the reader may have moved on (a thread or
+  // another screen pushed over this one, a menu, a sheet or the viewer
+  // opened), and
+  // the command is then dropped rather than opened over that.
+  const elsewhere = useRef(false);
+  elsewhere.current = !focused || !!menuFor || !!pollFor || !!polls.votesMessage || !!viewer.viewing;
+  const openCommand = useCallback(
+    (command: CommandName, text: string) => {
+      if (elsewhere.current) return;
+      switch (command) {
+        case "poll":
+          openPollForm(text);
+          break;
+      }
+    },
+    [openPollForm],
+  );
   const closePollForm = useCallback(() => setPollFor(null), []);
   const postPoll = useCallback(
     ({ question, options, multiple }: PollRequest) => {
@@ -588,6 +611,7 @@ export default function Channel({
               key={channelId}
               place={headerPlace(header)}
               onPoll={openPollForm}
+              onCommand={openCommand}
               mentionNames={mentionNames}
               origin={server.origin}
               token={token}
@@ -667,6 +691,7 @@ export default function Channel({
         <PollForm
           key={pollFor.channelId}
           channelId={pollFor.channelId}
+          question={pollFor.question}
           onPost={postPoll}
           onPosted={pollPosted}
           onLateFailure={pollRefusedLate}
