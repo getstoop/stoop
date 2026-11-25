@@ -38,6 +38,15 @@ test("the command list and /poll", async ({ browser }) => {
   const root = rowByText(A, "Friday is on");
   await expect(root).toHaveCount(1);
 
+  // Opened from the poll button and cancelled, focus goes back to the
+  // button, as for any dialog.
+  const pollButton = A.getByRole("button", { name: "Create a poll" });
+  await pollButton.click();
+  await expect(form).toBeVisible();
+  await form.getByRole("button", { name: "Cancel" }).click();
+  await expect(form).toHaveCount(0);
+  await expect(pollButton, "button-opened cancel returns to it").toBeFocused();
+
   // A lone "/" opens the list, the first entry selected and marked by
   // more than colour.
   await composer.click();

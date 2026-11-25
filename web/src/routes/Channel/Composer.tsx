@@ -167,13 +167,15 @@ export function Composer({
     formIn?.command === "poll" && formIn.channelId === channelId
       ? formIn
       : null;
-  // However the form was opened (the button, the list, a send) and
-  // however it closes (cancelled, posted), focus goes back to the words.
-  // Not when it closes because the composer moved to another channel.
+  // Where focus goes when the form closes. Opened by a command (a pick
+  // from the list, a send), it goes back to the words; opened by the poll
+  // button, a cancel leaves it to the dialog, which returns it to the
+  // button. A posted poll sends it to the words either way. Not when the
+  // form closes because the composer moved to another channel.
   const formOpen = formIn !== null;
   const focusAfterForm = useRef(false);
-  const openForm = (command: CommandName, text: string) => {
-    focusAfterForm.current = true;
+  const openForm = (command: CommandName, text: string, typed: boolean) => {
+    focusAfterForm.current = typed;
     setFormIn({ command, channelId, text });
   };
   useEffect(() => {
@@ -359,7 +361,7 @@ export function Composer({
     setShortcode(null);
     setCommandQuery(null);
     commandDismissed.current = false;
-    openForm(command.name, text);
+    openForm(command.name, text, true);
   };
 
   // What Enter would send, read the same way for a send and for a pick
@@ -618,7 +620,7 @@ export function Composer({
               <button
                 type="button"
                 className="format-button poll-button"
-                onClick={() => openForm("poll", "")}
+                onClick={() => openForm("poll", "", false)}
                 aria-label="Create a poll"
                 aria-haspopup="dialog"
               >
@@ -707,7 +709,10 @@ export function Composer({
           channelId={pollIn.channelId}
           question={pollIn.text}
           onClose={() => setFormIn(null)}
-          onPosted={() => setFormIn(null)}
+          onPosted={() => {
+            focusAfterForm.current = true;
+            setFormIn(null);
+          }}
         />
       )}
     </>
