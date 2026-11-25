@@ -1,5 +1,12 @@
 import type { UploadedFile } from "@stoop/core/attachments";
-import { type Command, type CommandName, type ParsedCommand, parseCommand, pickedText } from "@stoop/core/commands";
+import {
+  type Command,
+  type CommandName,
+  commandsOffered,
+  type ParsedCommand,
+  parseCommand,
+  pickedText,
+} from "@stoop/core/commands";
 import type { Format } from "@stoop/core/editor/formats";
 import { fromMarkdown, toMarkdown } from "@stoop/core/editor/markdown";
 import { isBlankMessage, plainText } from "@stoop/core/markdown";
@@ -72,9 +79,10 @@ import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 // message may be files alone. With the keyboard down the pill shows a
 // paperclip and how many files are held, before the draft. A refused
 // send puts its files back with the draft, ahead of any picked since.
-// Where the screen offers a poll (`onPoll`: a channel's or a
-// conversation's composer, never a thread's), the sheet has Poll under
-// its sources, which hands over to the screen once the sheet has gone.
+// Where the screen opens command forms (`onCommand`, below), the sheet
+// has the ones offered here under its sources (Poll and Reminder in a
+// channel or a conversation, none in a thread), each handing over to
+// the screen once the sheet has gone, with no words.
 //
 // A message being quoted (`replyTo`, the screen's to hold) is the card's
 // first line, the reply strip: "Replying to NAME · the first words", and
@@ -160,10 +168,9 @@ export default forwardRef<
     token: string;
     // A thread's composer, with Also send to the channel.
     inThread?: boolean;
-    // Poll in the attach sheet: the screen opens the poll's form.
-    onPoll?: () => void;
-    // A command picked or sent: the screen opens its form, starting with
-    // the words typed after the name (core/commands). None, no commands.
+    // A command picked or sent, or its form picked in the attach sheet:
+    // the screen opens its form, starting with the words typed after the
+    // name (core/commands). None, no commands and no forms.
     onCommand?: (command: CommandName, text: string) => void;
     // Whose draft this is, and where: the server, the account, the
     // channel and the root (api/drafts).
@@ -193,7 +200,6 @@ export default forwardRef<
     origin,
     token,
     inThread = false,
-    onPoll,
     onCommand,
     draftAddress,
     onRestoreQuote,
@@ -232,7 +238,12 @@ export default forwardRef<
   const [before, setBefore] = useState<string | null>(null);
   const [formats, setFormats] = useState<Format[]>([]);
   // The files held, and the attach sheet; back to the card after a pick.
-  const attachments = useAttachments(upload, maxUploadBytes, () => openCard(), onPoll);
+  const attachments = useAttachments(
+    upload,
+    maxUploadBytes,
+    () => openCard(),
+    onCommand && ((form) => onCommand(form, "")),
+  );
   const input = useRef<RichFieldHandle>(null);
   // The draft set aside while a message is edited, to come back after,
   // and a send's refusal that waits with it.
@@ -548,7 +559,11 @@ export default forwardRef<
   // Keyed, so it stays the same sheet when the field's blur swaps the card
   // for the pill, which hold it at different positions. Remounted, the iOS
   // modal being dismissed reports its dismissal to the new sheet.
-  const sheet = attachments.attaching && <AttachSheet key="attach-sheet" poll={!!onPoll} onClose={attachments.sheetClosed} />;
+  // The forms the attach sheet offers: the commands offered here.
+  const sheetForms = onCommand ? commandsOffered(commandPlace).map((command) => command.name) : [];
+  const sheet = attachments.attaching && (
+    <AttachSheet key="attach-sheet" forms={sheetForms} onClose={attachments.sheetClosed} />
+  );
 
   if (!writing) {
     const words = plainText(draft);
@@ -932,6 +947,5 @@ function makeStyles(theme: Theme) {
   });
 }
 
-// The commands this composer has a form for (core/commands opens). The
-// reminders pull request for mobile adds "remind" once its sheet exists.
-const MOBILE_FORMS: readonly CommandName[] = ["poll"];
+// The commands this composer has a form for (core/commands opens).
+const MOBILE_FORMS: readonly CommandName[] = ["poll", "remind"];

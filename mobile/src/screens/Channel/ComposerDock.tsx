@@ -14,7 +14,10 @@ import type { Notice } from "./useMessageActions";
 
 // A list of messages with the composer floating over its foot, riding
 // up with the keyboard, and a refusal's line over the composer, or what
-// the composer shows over itself (ComposerAbove): the channel's layout,
+// the composer shows over itself (ComposerAbove), and a standing notice
+// of the screen's (`standing`: the reminder just set, with Undo) over
+// the composer under both, a refusal's line rising above it: the
+// channel's layout,
 // and a thread's. The list is drawn by the screen, given how far its
 // newest row must stay clear of the composer. The header floats over
 // the list's head the same way (ScreenHeader); on iOS 26 the
@@ -31,11 +34,14 @@ export default function ComposerDock({
   list,
   composer,
   notice,
+  standing,
   corner,
 }: {
   list: (clearance: number) => ReactElement;
   composer: ReactNode;
   notice: Notice | null;
+  // Drawn over the composer, under its lists and a refusal's line.
+  standing?: ReactNode;
   // What sits over the composer's right end (the channel's jump to the
   // latest message); a notice or what the composer shows over itself
   // draws over it.
@@ -48,6 +54,9 @@ export default function ComposerDock({
   const [composerHeight, setComposerHeight] = useState(PILL);
   const [above, setAbove] = useState<ReactNode>(null);
   const [overlay, setOverlay] = useState<ReactNode>(null);
+  // The standing notice's height as drawn, for a refusal's line to rise
+  // over it.
+  const [standingHeight, setStandingHeight] = useState(0);
   // The composer sits FOOT above the home indicator (GAP above the edge
   // of a screen without one), always: the avoiding view pads by that
   // much less than the keyboard's height, which leaves the composer GAP
@@ -93,9 +102,20 @@ export default function ComposerDock({
           {corner && (
             <View style={[styles.corner, { bottom: composerBottom + composerHeight + GAP }]}>{corner}</View>
           )}
+          {standing && (
+            <View
+              style={[styles.standing, { bottom: composerBottom + composerHeight + GAP }]}
+              onLayout={(event) => setStandingHeight(event.nativeEvent.layout.height)}
+            >
+              {standing}
+            </View>
+          )}
           {notice && (
             <View
-              style={[styles.toast, { bottom: composerBottom + composerHeight + GAP }]}
+              style={[
+                styles.toast,
+                { bottom: composerBottom + composerHeight + GAP + (standing ? standingHeight + GAP : 0) },
+              ]}
               accessibilityRole="alert"
               testID="channel-notice"
               pointerEvents="none"
@@ -149,6 +169,11 @@ function makeStyles(theme: Theme) {
       position: "absolute",
       left: 8,
       right: 8,
+    },
+    standing: {
+      position: "absolute",
+      left: 16,
+      right: 16,
     },
     toast: {
       position: "absolute",

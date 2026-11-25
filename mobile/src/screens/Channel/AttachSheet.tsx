@@ -1,27 +1,28 @@
+import type { CommandName } from "@stoop/core/commands";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CameraIcon, FileIcon, PhotoIcon, PollIcon } from "../../components/Icons";
+import { BellIcon, CameraIcon, FileIcon, PhotoIcon, PollIcon } from "../../components/Icons";
 import SheetFrame from "../../components/SheetFrame";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
 
 // Where the composer's Attach (the + in the pill or the card) picks files
 // from: a sheet over a scrim, drawn as the message menu's is (useSheet),
-// with the photo library, the camera and files, and under a rule Poll,
-// where the composer offers one (`poll`: a channel's or a conversation's,
-// never a thread's). A pick closes the sheet and is handed over (onClose)
-// once it has gone: on iOS once the modal itself is dismissed, since a
-// picker, or the poll's form, presented over it would be dismissed with
+// with the photo library, the camera and files, and under a rule the
+// forms the composer opens (`forms`: Poll and Reminder in a channel's or
+// a conversation's, none in a thread's). A pick closes the sheet and is
+// handed over (onClose) once it has gone: on iOS once the modal itself is
+// dismissed, since a picker, or a form, presented over it would be dismissed with
 // it, or after a moment should that never be said, so a pick is never
 // lost and the sheet never stays up. A tap on the scrim, a swipe down or
 // Android's back closes it with nothing.
 
 export type AttachSource = "library" | "camera" | "files";
-// What the sheet hands over: a source of files, or the poll's form.
-export type AttachChoice = AttachSource | "poll";
+// What the sheet hands over: a source of files, or a command's form.
+export type AttachChoice = AttachSource | CommandName;
 
 const ITEMS = [
   { source: "library", label: "Photo library", Icon: PhotoIcon },
@@ -29,14 +30,21 @@ const ITEMS = [
   { source: "files", label: "Files", Icon: FileIcon },
 ] as const;
 
+// The forms, in the order the sheet lists them, as the composer's
+// command list names them.
+const FORMS = [
+  { name: "poll", label: "Poll", Icon: PollIcon },
+  { name: "remind", label: "Reminder", Icon: BellIcon },
+] as const;
+
 // How long iOS gets to say the modal has gone before it is taken as gone.
 const DISMISS_FALLBACK_MS = 1000;
 
 export default function AttachSheet({
-  poll = false,
+  forms = [],
   onClose,
 }: {
-  poll?: boolean;
+  forms?: readonly CommandName[];
   onClose: (choice: AttachChoice | null) => void;
 }) {
   const theme = useTheme();
@@ -114,21 +122,20 @@ export default function AttachSheet({
               <Text style={styles.label}>{label}</Text>
             </Pressable>
           ))}
-          {poll && (
-            <>
-              <View style={styles.rule} />
-              <Pressable
-                accessibilityRole="menuitem"
-                accessibilityLabel="Poll"
-                testID="attach-sheet-poll"
-                onPress={() => pick("poll")}
-                style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-              >
-                <PollIcon color={theme.textMuted} size={22} />
-                <Text style={styles.label}>Poll</Text>
-              </Pressable>
-            </>
-          )}
+          {forms.length > 0 && <View style={styles.rule} />}
+          {FORMS.filter(({ name }) => forms.includes(name)).map(({ name, label, Icon }) => (
+            <Pressable
+              key={name}
+              accessibilityRole="menuitem"
+              accessibilityLabel={label}
+              testID={`attach-sheet-${name}`}
+              onPress={() => pick(name)}
+              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+            >
+              <Icon color={theme.textMuted} size={22} />
+              <Text style={styles.label}>{label}</Text>
+            </Pressable>
+          ))}
         </SheetFrame>
       </GestureHandlerRootView>
     </Modal>
