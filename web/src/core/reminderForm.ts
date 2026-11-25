@@ -1,15 +1,19 @@
 // The form that sets a reminder, as both apps hold it
 // (docs/architecture/messaging.md → Reminders): its fields, the rules the
-// server applies to them (pollLine and reminderTime in
-// internal/chat/reminders.go), the four preset times, when Set reminder
+// server applies to them (pollLine in internal/chat/reminders.go and
+// reminderTime in reminder_time.go), the four presets, when Set reminder
 // is on, the request it sends, how a refusal is said, and the words of
 // the notice that confirms it. The drawing is each app's own. Every
 // change returns a new form, so it sits in React state as is.
 //
-// Times are judged against a `now` the caller passes. A preset's time is
-// worked out again from the clock when the form is sent, never kept from
-// when it was shown, so a form left open sends the time it says then.
+// The server's clock decides when a reminder is: the request names a
+// preset, or the wall-clock time picked and the device's time zone, and
+// never an instant. The device's clock (the `now` a caller passes) is
+// used only for what the form shows: the time each preset lands on, the
+// picker's bounds, and a picked time that has plainly gone by. The
+// notice shows the time the server answers.
 
+import { ReminderPreset as WirePreset } from "../gen/stoop/chat/v1/chat_pb";
 import { futureTime } from "./dates";
 import {
   type PollTextProblem,
@@ -19,7 +23,7 @@ import {
 
 export const REMINDER_TEXT_MAX = 200;
 
-// The nearest and furthest a reminder may be, as the server judges them.
+// The nearest a picked time may be, as the server judges it.
 export const REMINDER_MIN_LEAD_MS = 60_000;
 
 const MINUTE_MS = 60_000;
@@ -38,8 +42,9 @@ export const REMINDER_PRESETS: readonly ReminderPreset[] = [
 // The hour of the "tomorrow" preset, in the person's own time.
 const TOMORROW_HOUR = 9;
 
-// When a preset lands from now: a fixed span for the first three (so a
-// daylight-saving change in between moves the clock reading, not the
+// When a preset lands from now, as the form shows it (the server works
+// it out again from its own clock): a fixed span for the first three (so
+// a daylight-saving change in between moves the clock reading, not the
 // wait), and 9:00 on the next calendar day in local time for the last.
 export function presetTime(preset: ReminderPreset, now: Date): Date {
   switch (preset) {
@@ -155,15 +160,18 @@ export function latestReminderTime(now: Date): Date {
   return latest;
 }
 
-// The bounds for the date-and-time field: from the first whole minute at
-// least a minute away to the last whole minute within a year.
+// A day either side of the bounds, for a device clock that is off: the
+// picker's bounds are a guide, and the server judges the time.
+const DAY_MS = 24 * HOUR_MS;
+
+// The bounds for the date-and-time field: from a day before now to a day
+// past a year ahead, by this device's clock. A browser's picker will not
+// offer what lies outside them, so they are kept wide enough that a
+// device clock a few hours off never stops a time the server would take.
 export function customBounds(now: Date): { min: string; max: string } {
-  const soonest = new Date(
-    Math.ceil((now.getTime() + REMINDER_MIN_LEAD_MS) / MINUTE_MS) * MINUTE_MS,
-  );
   return {
-    min: localInputValue(soonest),
-    max: localInputValue(latestReminderTime(now)),
+    min: localInputValue(new Date(now.getTime() - DAY_MS)),
+    max: localInputValue(new Date(latestReminderTime(now).getTime() + DAY_MS)),
   };
 }
 
@@ -175,9 +183,10 @@ export function reminderTime(form: ReminderForm, now: Date): Date | null {
   return presetTime(form.choice, now);
 }
 
-// Why the server would refuse a time: before now, less than a minute
-// ahead, more than a year ahead. Judged as sent, before the server rounds
-// it down to the minute.
+// What this device's clock makes of a picked time: gone by, less than a
+// minute ahead, more than a year ahead. Only "past" stops Set reminder;
+// the other two are said as a caution, since the server's clock, which
+// decides, may read the time otherwise.
 export type ReminderTimeProblem = "past" | "soon" | "far";
 
 export function reminderTimeProblem(
@@ -194,27 +203,32 @@ export type ReminderTextProblem = PollTextProblem;
 
 export type ReminderFormCheck = {
   text: ReminderTextProblem | null;
+  // A picked time as this device's clock reads it; never set for a
+  // preset.
   when: ReminderTimeProblem | null;
-  // The time it would send now, or null.
+  // When it would land by this device's clock, for showing; null with
+  // nothing (or no real date and time) chosen.
   at: Date | null;
-  // Whether Set reminder can be on: some text, a valid time, nothing
-  // wrong. A request in flight is the caller's to add.
+  // Whether Set reminder can be on: some text, a preset or a real picked
+  // time that has not plainly gone by. A request in flight is the
+  // caller's to add.
   canSet: boolean;
 };
 
-// Both fields judged at once, as the server would.
+// Both fields judged at once, the text as the server would.
 export function checkReminderForm(
   form: ReminderForm,
   now: Date,
 ): ReminderFormCheck {
   const text = pollTextProblem(form.text, REMINDER_TEXT_MAX);
   const at = reminderTime(form, now);
-  const when = at ? reminderTimeProblem(at, now) : null;
+  const when =
+    at && form.choice === "custom" ? reminderTimeProblem(at, now) : null;
   return {
     text,
     when,
     at,
-    canSet: trimPollText(form.text) !== "" && !text && !!at && !when,
+    canSet: trimPollText(form.text) !== "" && !text && !!at && when !== "past",
   };
 }
 
@@ -238,31 +252,73 @@ export function reminderTimeProblemText(problem: ReminderTimeProblem): string {
     case "past":
       return "That time has passed. Pick one at least a minute from now.";
     case "soon":
-      return "That's less than a minute away. Pick one at least a minute from now.";
+      return "That's less than a minute away by this device's clock. A reminder needs at least a minute.";
     case "far":
-      return "That's more than a year away. Pick one within a year from now.";
+      return "That's more than a year away by this device's clock. A reminder can be at most a year ahead.";
   }
 }
 
 // Said under the date-and-time field while nothing is wrong with it.
 export const REMINDER_CUSTOM_HINT = "From a minute to a year from now.";
 
-// What CreateReminder is sent, with the time worked out from now: null
-// when the form is not one the server takes at this moment.
+// What CreateReminder is sent: exactly one of a preset and the picked
+// wall-clock time ("" and UNSPECIFIED for the other), and the device's
+// time zone always, which "tomorrow at 9:00" and a picked time are read
+// in. Never an instant.
 export type ReminderRequest = {
   channelId: string;
   text: string;
-  remindAt: Date;
+  preset: WirePreset;
+  localTime: string;
+  timeZone: string;
 };
 
+const WIRE_PRESETS: Record<ReminderPreset, WirePreset> = {
+  "20m": WirePreset.IN_20_MINUTES,
+  "1h": WirePreset.IN_1_HOUR,
+  "3h": WirePreset.IN_3_HOURS,
+  tomorrow: WirePreset.TOMORROW_AT_9,
+};
+
+// The request for the form, or null when Set reminder is off. now only
+// judges whether a picked time has plainly gone by.
 export function reminderRequest(
   form: ReminderForm,
   channelId: string,
   now: Date,
+  timeZone: string,
 ): ReminderRequest | null {
-  const check = checkReminderForm(form, now);
-  if (!check.canSet || !check.at) return null;
-  return { channelId, text: trimPollText(form.text), remindAt: check.at };
+  const { choice } = form;
+  if (!checkReminderForm(form, now).canSet || choice === null) return null;
+  const text = trimPollText(form.text);
+  return choice === "custom"
+    ? {
+        channelId,
+        text,
+        preset: WirePreset.UNSPECIFIED,
+        localTime: form.custom,
+        timeZone,
+      }
+    : {
+        channelId,
+        text,
+        preset: WIRE_PRESETS[choice],
+        localTime: "",
+        timeZone,
+      };
+}
+
+// The device's IANA time zone ("America/New_York"), or "" when the
+// runtime names none. With none, the server takes the three waits and
+// refuses "tomorrow at 9:00" and a picked time, and the form says its
+// refusal under When.
+export function deviceTimeZone(): string {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof zone === "string" ? zone : "";
+  } catch {
+    return "";
+  }
 }
 
 // A refusal as the form says it, and the field it is about (null: above
@@ -272,24 +328,12 @@ export function reminderRequest(
 // may pass on a second try.
 export type ReminderRefusal = { field: "text" | "when" | null; text: string };
 
-// Said when the server finds a preset's time less than a minute away. A
-// preset is twenty minutes or more by this device's clock, so the clock
-// is what is wrong, and repeating the rule would leave nothing to do.
-export const REMINDER_CLOCK_WRONG =
-  "The server says that time is less than a minute away, so this device's clock may be wrong. Check its date and time, or pick a date and time.";
-
-export function reminderRefusal(
-  said: string | null,
-  // The time sent was a preset's.
-  preset = false,
-): ReminderRefusal {
+export function reminderRefusal(said: string | null): ReminderRefusal {
   const lead = "Couldn't set the reminder.";
   const words = said?.trim() ?? "";
   if (!words) return { field: null, text: `${lead} Try again.` };
   const sentence = words[0].toUpperCase() + words.slice(1);
   const text = /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
-  if (preset && /^a reminder's time must be at least a minute/i.test(words))
-    return { field: "when", text: REMINDER_CLOCK_WRONG };
   // The server's words about a time name it: "a reminder's time …",
   // "a reminder needs a time".
   if (/^a reminder('s time| needs a time)/i.test(words))

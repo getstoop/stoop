@@ -15,6 +15,7 @@ import { Field } from "../../../components/Field";
 import { Modal } from "../../../components/Modal";
 import {
   checkReminderForm,
+  deviceTimeZone,
   newReminderForm,
   type ReminderRefusal,
   reminderRefusal,
@@ -34,8 +35,9 @@ const TICK_MS = 15_000;
 
 // Set a reminder (docs/architecture/web.md → Reminders): the text and
 // when. Set reminder is on only once the form is one the server takes
-// (core/reminderForm), and off while it is out. A preset's time is worked
-// out from the clock as it is sent. A refusal is said on the field it is
+// (core/reminderForm), and off while it is out. The request names the
+// preset, or the picked wall-clock time and the device's time zone, and
+// the server works out the instant from its own clock. A refusal is said on the field it is
 // about, or above the actions, and leaves everything as chosen. The
 // reminder goes to the channel the form was opened in, whatever the page
 // shows by then; onSet hears of it even if the form was closed meanwhile,
@@ -88,16 +90,17 @@ export function ReminderForm({
     event?.preventDefault();
     if (settingRef.current) return;
     const sentAt = new Date();
-    const request = reminderRequest(form, channel, sentAt);
+    const request = reminderRequest(form, channel, sentAt, deviceTimeZone());
     // Judged again at this moment: a picked time may have gone by.
     setNow(sentAt);
-    if (!request) return;
+    const shown = checkReminderForm(form, sentAt).at;
+    if (!request || !shown) return;
     settingRef.current = true;
     setSetting(true);
     setFailure(null);
     let answer: SetReminder;
     try {
-      answer = await createReminder(request);
+      answer = await createReminder(request, shown);
     } catch (err) {
       settingRef.current = false;
       // Closed meanwhile: the form is gone, so the refusal is a notice.
@@ -105,7 +108,7 @@ export function ReminderForm({
         notice({ title: "Couldn't set the reminder", body: errorText(err) });
         return;
       }
-      setFailure(reminderRefusal(saidByServer(err), form.choice !== "custom"));
+      setFailure(reminderRefusal(saidByServer(err)));
       setSetting(false);
       return;
     }
@@ -125,10 +128,17 @@ export function ReminderForm({
     failure?.field === "text"
       ? failure.text
       : check.text && reminderTextProblemText(check.text);
+  // A picked time gone by stops Set reminder; one under a minute or over
+  // a year away by this device's clock is a caution, since the server's
+  // clock decides.
   const whenProblem =
     failure?.field === "when"
       ? failure.text
-      : check.when && reminderTimeProblemText(check.when);
+      : check.when === "past" && reminderTimeProblemText(check.when);
+  const whenCaution =
+    check.when && check.when !== "past"
+      ? reminderTimeProblemText(check.when)
+      : null;
 
   return (
     // Holds the whole dialog, so Tab goes round it rather than out to
@@ -185,6 +195,7 @@ export function ReminderForm({
             form={form}
             now={now}
             problem={whenProblem || null}
+            caution={whenCaution}
             locked={setting}
             onChoice={(choice) =>
               change((current) => withChoice(current, choice))

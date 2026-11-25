@@ -1,4 +1,4 @@
-import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { ReminderRequest } from "../core/reminderForm";
 import { chatClient } from "./clients";
@@ -10,20 +10,17 @@ import { chatClient } from "./clients";
 export type SetReminder = { id: string; remindAt: Date };
 
 // Sets it, answering with its id and the time as the server stored it,
-// rounded down to the minute, which is the time to show.
+// rounded down to the minute, which is the time to show. The server
+// always answers one; shown (the device's reading of the form) only
+// stands in should an answer ever come without it.
 export async function createReminder(
   request: ReminderRequest,
+  shown: Date,
 ): Promise<SetReminder> {
-  const answer = await chatClient.createReminder({
-    channelId: request.channelId,
-    text: request.text,
-    remindAt: timestampFromDate(request.remindAt),
-  });
+  const answer = await chatClient.createReminder(request);
   return {
     id: answer.id,
-    remindAt: answer.remindAt
-      ? timestampDate(answer.remindAt)
-      : request.remindAt,
+    remindAt: answer.remindAt ? timestampDate(answer.remindAt) : shown,
   };
 }
 

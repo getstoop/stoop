@@ -1,15 +1,16 @@
 import { afterAll, describe, expect, it } from "vitest";
+import { ReminderPreset } from "../gen/stoop/chat/v1/chat_pb";
 import { futureDay, futureTime } from "./dates";
 import {
   checkReminderForm,
   customBounds,
+  deviceTimeZone,
   latestReminderTime,
   localInputValue,
   newReminderForm,
   parseLocalInput,
   presetLabel,
   presetTime,
-  REMINDER_CLOCK_WRONG,
   REMINDER_PRESETS,
   type ReminderForm,
   reminderPlace,
@@ -176,14 +177,14 @@ describe("the date-and-time field", () => {
     expect(skipped?.getHours()).toBe(3);
   });
 
-  it("bounds the field from a minute ahead to a year ahead", () => {
+  it("bounds the field a day wider than a minute to a year ahead", () => {
+    // A guide for the picker, wide enough for a device clock that is off:
+    // the server's clock judges the time.
     const now = at(2026, 11, 24, 16, 10, 30);
     expect(customBounds(now)).toEqual({
-      min: "2026-11-24T16:12",
-      max: "2027-11-24T16:10",
+      min: "2026-11-23T16:10",
+      max: "2027-11-25T16:10",
     });
-    // On the minute, a minute ahead is the next minute exactly.
-    expect(customBounds(at(2026, 11, 24, 16, 10)).min).toBe("2026-11-24T16:11");
   });
 
   it("takes a leap day's year ahead as the server does", () => {
@@ -297,28 +298,65 @@ describe("reminderRequest", () => {
     withText(newReminderForm(), "  Order the pizza "),
     "20m",
   );
+  const now = at(2026, 11, 24, 16, 10);
+  const zone = "America/New_York";
 
-  it("works a preset out from the moment it is sent", () => {
-    const opened = at(2026, 11, 24, 16, 10);
-    const sent = at(2026, 11, 24, 16, 20);
-    expect(reminderRequest(form, "c1", opened)?.remindAt).toEqual(
-      at(2026, 11, 24, 16, 30),
-    );
-    expect(reminderRequest(form, "c1", sent)).toEqual({
+  it("names a preset and the zone, never an instant", () => {
+    expect(reminderRequest(form, "c1", now, zone)).toEqual({
       channelId: "c1",
       text: "Order the pizza",
-      remindAt: at(2026, 11, 24, 16, 40),
+      preset: ReminderPreset.IN_20_MINUTES,
+      localTime: "",
+      timeZone: zone,
+    });
+    const wire = (choice: "1h" | "3h" | "tomorrow") =>
+      reminderRequest(withChoice(form, choice), "c1", now, zone)?.preset;
+    expect(wire("1h")).toBe(ReminderPreset.IN_1_HOUR);
+    expect(wire("3h")).toBe(ReminderPreset.IN_3_HOURS);
+    expect(wire("tomorrow")).toBe(ReminderPreset.TOMORROW_AT_9);
+  });
+
+  it("sends a picked time as the field holds it, with the zone", () => {
+    expect(
+      reminderRequest(withCustom(form, "2026-12-02T09:00"), "c1", now, zone),
+    ).toEqual({
+      channelId: "c1",
+      text: "Order the pizza",
+      preset: ReminderPreset.UNSPECIFIED,
+      localTime: "2026-12-02T09:00",
+      timeZone: zone,
     });
   });
 
-  it("sends nothing once a picked time is no longer a minute away", () => {
-    const picked = withCustom(form, "2026-11-24T16:30");
+  it("sends a preset whatever this device's clock reads", () => {
+    // A clock a day off still sends the preset: the server decides.
     expect(
-      reminderRequest(picked, "c1", at(2026, 11, 24, 16, 20)),
+      reminderRequest(form, "c1", at(2020, 1, 1, 0, 0), zone)?.preset,
+    ).toBe(ReminderPreset.IN_20_MINUTES);
+  });
+
+  it("stops only a picked time that has plainly gone by", () => {
+    const picked = withCustom(form, "2026-11-24T16:30");
+    expect(reminderRequest(picked, "c1", now, zone)).not.toBeNull();
+    // Less than a minute ahead by this clock: said, but sent; the
+    // server's clock decides.
+    expect(
+      reminderRequest(picked, "c1", at(2026, 11, 24, 16, 29, 30), zone),
     ).not.toBeNull();
     expect(
-      reminderRequest(picked, "c1", at(2026, 11, 24, 16, 29, 30)),
+      reminderRequest(picked, "c1", at(2026, 11, 24, 16, 31), zone),
     ).toBeNull();
+    expect(reminderRequest(withCustom(form, ""), "c1", now, zone)).toBeNull();
+  });
+
+  it("sends with no zone when the device names none", () => {
+    expect(reminderRequest(form, "c1", now, "")?.timeZone).toBe("");
+  });
+});
+
+describe("deviceTimeZone", () => {
+  it("is the runtime's zone name", () => {
+    expect(deviceTimeZone()).toBe("America/New_York");
   });
 });
 
@@ -345,22 +383,17 @@ describe("reminderRefusal", () => {
     expect(reminderRefusal("a reminder needs a time").field).toBe("when");
   });
 
-  it("says a preset refused as too soon points at the device's clock", () => {
-    const said = "a reminder's time must be at least a minute from now";
-    expect(reminderRefusal(said, true)).toEqual({
-      field: "when",
-      text: REMINDER_CLOCK_WRONG,
-    });
-    expect(REMINDER_CLOCK_WRONG).toMatch(/clock may be wrong/);
-    // A picked time keeps the server's rule.
-    expect(reminderRefusal(said, false).text).toBe(
-      "A reminder's time must be at least a minute from now.",
-    );
-    // Too far is not the clock's fault in the same way.
-    expect(
-      reminderRefusal("a reminder's time can be at most a year from now", true)
-        .text,
-    ).toBe("A reminder's time can be at most a year from now.");
+  it("puts every refusal of a time on When", () => {
+    for (const said of [
+      "a reminder's time is a preset or a date and time, not both",
+      "a reminder's time is not a preset the server knows",
+      "a reminder's time needs a time zone",
+      "a reminder's time zone is not one the server knows",
+      "a reminder's time must read like 2026-12-02T09:00",
+      "a reminder's time is not a real date and time",
+      "a reminder's time can be at most a year from now",
+    ])
+      expect(reminderRefusal(said).field).toBe("when");
   });
 
   it("says anything else above the actions", () => {

@@ -12,7 +12,7 @@ import {
 } from "../../../core/reminderForm";
 
 // When: a radio group of the four presets, each with the time it lands on
-// from now, and "Pick a date and time", which opens the browser's own
+// by this device's clock (a guide: the server's clock decides), and "Pick a date and time", which opens the browser's own
 // date-and-time field under it, bounded to a minute to a year ahead.
 // Nothing is chosen at first. problem (a time the server would refuse,
 // or did) is said under the group, tied to the date-and-time field.
@@ -20,6 +20,7 @@ export function WhenField({
   form,
   now,
   problem,
+  caution,
   locked,
   onChoice,
   onCustom,
@@ -27,6 +28,9 @@ export function WhenField({
   form: ReminderForm;
   now: Date;
   problem: string | null;
+  // Said in place of the hint: a picked time this device's clock reads as
+  // under a minute or over a year away, which the server may still take.
+  caution: string | null;
   locked: boolean;
   onChoice: (choice: ReminderChoice) => void;
   onCustom: (value: string) => void;
@@ -89,7 +93,7 @@ export function WhenField({
       ) : (
         custom && (
           <p className="hint" id={messageId}>
-            {REMINDER_CUSTOM_HINT}
+            {caution ?? REMINDER_CUSTOM_HINT}
           </p>
         )
       )}

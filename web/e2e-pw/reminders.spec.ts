@@ -10,7 +10,19 @@ import {
   signIn,
   test,
   waitingReminders,
+  waitingReminderTimes,
 } from "./lib";
+
+// A time as the page words it on a notice ("4:30 PM").
+const shownTime = (page: Page, time: Date) =>
+  page.evaluate(
+    (ms) =>
+      new Date(ms).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    time.getTime(),
+  );
 
 // Reminders on web (STOOP-554): /remind in the command list beside /poll,
 // the form (text, four presets, a picked date and time, the past-time
@@ -25,7 +37,7 @@ test("set, undo, and a reminder posted for the channel", async ({
 }) => {
   // Ada is the space's owner, so a moderator; Bea sets the reminders; Cal
   // is a member with no say over them.
-  const { tokens } = await seed({
+  const { tokens, channels } = await seed({
     users: ["ada", "bea", "cal"],
     channels: ["general"],
   });
@@ -128,11 +140,27 @@ test("set, undo, and a reminder posted for the channel", async ({
   await expect(picked).not.toHaveAttribute("aria-invalid", "true");
   await expect(set, "two days ahead: on").toBeEnabled();
 
-  // ---- Set: the notice says the time as stored, and nothing is posted.
+  // ---- Set: the request names the preset and the zone and no instant;
+  // the notice says the time the server stored, and nothing is posted.
+  const zone = await B.evaluate(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
   await when("In 20 minutes").check();
+  const presetSent = B.waitForRequest(
+    "**/stoop.chat.v1.ChatService/CreateReminder",
+  );
   await set.click();
+  expect((await presetSent).postDataJSON()).toEqual({
+    channelId: channels.general,
+    text: "Order the pizza before seven",
+    preset: "REMINDER_PRESET_IN_20_MINUTES",
+    timeZone: zone,
+  });
   await expect(form).toHaveCount(0);
   await expect(notice).toContainText(/^Reminder set for (today|tomorrow) at /);
+  await expect(notice, "the time as the server stored it").toContainText(
+    await shownTime(B, (await waitingReminderTimes())[0]),
+  );
   await expect(
     B.locator(".transient-notice-region [role=status]"),
     "the live region holds the words alone",
@@ -181,9 +209,24 @@ test("set, undo, and a reminder posted for the channel", async ({
   await composer.pressSequentially("/remind Order the pizza before seven");
   await B.keyboard.press("Escape");
   await B.keyboard.press("Enter");
-  await when("In 3 hours").check();
+  // A picked time goes as the field holds it, with the zone.
+  await when("Pick a date and time").check();
+  const pickedValue = await localValue(2 * 24 * 60 * 60_000);
+  await picked.fill(pickedValue);
+  const pickedSent = B.waitForRequest(
+    "**/stoop.chat.v1.ChatService/CreateReminder",
+  );
   await set.click();
+  expect((await pickedSent).postDataJSON()).toEqual({
+    channelId: channels.general,
+    text: "Order the pizza before seven",
+    localTime: pickedValue,
+    timeZone: zone,
+  });
   await expect(undo).toBeVisible();
+  await expect(notice).toContainText(
+    await shownTime(B, (await waitingReminderTimes())[0]),
+  );
   await B.mouse.move(0, 0);
   await expect(notice, "the notice goes on its own").toHaveCount(0, {
     timeout: 10_000,
@@ -265,4 +308,40 @@ test("set, undo, and a reminder posted for the channel", async ({
   await acceptDialog(B);
   await expect(forBea).toHaveCount(0);
   await expect(forAda, "gone for Ada too").toHaveCount(0);
+});
+
+// The server's clock decides: a device whose clock is hours off still
+// sets a preset from the server's now, and the notice shows the time the
+// server stored, not one the device worked out.
+test("a preset follows the server's clock", async ({ browser }) => {
+  const { tokens } = await seed({ users: ["ada"], channels: ["general"] });
+  const B = await (await browser.newContext()).newPage();
+  const behind = 6 * 60 * 60_000;
+  await B.clock.install({ time: new Date(Date.now() - behind) });
+  await signIn(B, tokens.ada);
+  const lag = Date.now() - (await B.evaluate(() => Date.now()));
+  expect(lag, "the page's clock is hours behind").toBeGreaterThan(
+    behind - 60_000,
+  );
+  const composer = B.locator(COMPOSER);
+  await composer.click();
+  await composer.pressSequentially("/remind Feed the cat");
+  await B.keyboard.press("Escape");
+  await B.keyboard.press("Enter");
+  const form = B.getByRole("dialog", { name: "Set a reminder" });
+  await form.getByRole("radio", { name: "In 1 hour" }).check();
+  const asked = Date.now();
+  await form.getByRole("button", { name: "Set reminder" }).click();
+  const notice = B.locator(".transient-notice");
+  await expect(notice).toContainText(/^Reminder set for /);
+  const [stored] = await waitingReminderTimes();
+  // An hour from the server's now, rounded down to the minute.
+  expect(Math.abs(stored.getTime() - (asked + 60 * 60_000))).toBeLessThan(
+    2 * 60_000,
+  );
+  await expect(notice).toContainText(await shownTime(B, stored));
+  // Not the time the device would have worked out for itself.
+  await expect(notice).not.toContainText(
+    await shownTime(B, new Date(stored.getTime() - behind)),
+  );
 });

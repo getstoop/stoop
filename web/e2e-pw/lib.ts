@@ -72,6 +72,20 @@ export async function reminderTimeComes() {
   }
 }
 
+// When each waiting reminder is stored for, soonest first.
+export async function waitingReminderTimes(): Promise<Date[]> {
+  const client = new pg.Client({ connectionString: DB });
+  await client.connect();
+  try {
+    const { rows } = await client.query(
+      "SELECT remind_at FROM reminders ORDER BY remind_at",
+    );
+    return rows.map((row) => new Date(row.remind_at));
+  } finally {
+    await client.end();
+  }
+}
+
 // How many reminders are waiting, across the instance.
 export async function waitingReminders(): Promise<number> {
   const client = new pg.Client({ connectionString: DB });

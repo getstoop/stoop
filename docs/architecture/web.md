@@ -839,20 +839,29 @@ window" is what the view's range holds.
   question's rules (200 characters), the four presets (in 20 minutes,
   in 1 hour, in 3 hours, tomorrow at 9:00 local), the picked time, the
   checks and their words, the request, and the server's refusals put
-  on the field they are about. When is a radio group of the presets,
-  each with the time it lands on ("Today at 4:30 PM", worked out again
-  every 15 seconds while the form is open), and "Pick a date and time",
-  which opens the browser's own `<input type="datetime-local">` bounded
-  by `min` and `max` to a minute to a year ahead, with the hint or the
-  problem under it in words and tied to it. Nothing is chosen at first,
-  and Set reminder is on only with text and a time the server would
-  take. A preset's time is worked out when the form is sent, never kept
-  from when it opened, and a picked time is judged again then. Tab goes
-  round the dialog; Enter in the text sets it. A refusal is said on the
-  field it is about, or above the actions; one that comes after the
-  form was closed is a notice. A preset the server finds less than a
-  minute away says the device's clock may be wrong, since nothing in
-  the form would help. Each opening of a form has its own id, and an
+  on the field they are about. The request names a preset, or sends the
+  picked value as the field holds it (`2026-12-02T09:00`, no offset),
+  with the device's IANA zone always (`deviceTimeZone`); it never
+  carries an instant, and the server works the instant out from its own
+  clock ([messaging.md](messaging.md#reminders)). A runtime that names
+  no zone sends none: the three waits still work, and the server's
+  refusal of "tomorrow at 9:00" or a picked time is said under When.
+  When is a radio group of the presets, each with the time it lands on
+  by this device's clock ("Today at 4:30 PM", worked out again every 15
+  seconds while the form is open), a guide only, and "Pick a date and
+  time", which opens the browser's own `<input type="datetime-local">`,
+  with the hint or the problem under it in words and tied to it. Its
+  `min` and `max` are a day wider than a minute to a year ahead, so a
+  device clock a few hours off never stops a time the server would
+  take. Nothing is chosen at first, and Set reminder is on with text and
+  a preset, or a real picked time that has not plainly gone by by this
+  device's clock ("That time has passed"); one under a minute or over a
+  year away by this clock is a caution in place of the hint and is
+  still sent, since the server's clock decides. Tab goes round the
+  dialog; Enter in the text sets it. A refusal is said on the field it
+  is about (every refusal of a time on When), or above the actions; one
+  that comes after the form was closed is a notice. Each opening of a
+  form has its own id, and an
   answer closes only the form that sent it, never one opened since.
 
   Setting one posts nothing. The composer shows a transient notice
