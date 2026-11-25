@@ -12,6 +12,10 @@ export type CommandPlace = {
   thread: boolean;
   // Whether the person may post here at all.
   canPost: boolean;
+  // The commands this app's composer has a form for. A command not named
+  // here is neither listed nor read from a send, so an app never offers
+  // one it cannot open: its "/name" is sent as an ordinary message.
+  opens: readonly CommandName[];
 };
 
 // Every command's name, typed after "/" in lower case. A new command is a
@@ -48,7 +52,9 @@ export const COMMANDS: readonly Command[] = [
 ];
 
 export const commandsOffered = (place: CommandPlace): Command[] =>
-  COMMANDS.filter((command) => command.offered(place));
+  COMMANDS.filter(
+    (command) => place.opens.includes(command.name) && command.offered(place),
+  );
 
 // What the draft so far asks of the list: the letters typed after "/",
 // and whether a space has followed them. Null when the list is shut.

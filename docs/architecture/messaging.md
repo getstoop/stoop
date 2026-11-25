@@ -376,7 +376,10 @@ A command is the apps' own: the server never reads a leading `/`, and
 every command ends in an ordinary RPC it already checks. The list, and
 the two functions that read a draft against it, are
 `web/src/core/commands.ts`, shared with mobile; each entry has a name,
-an argument hint, a one-line description and where it is offered.
+an argument hint, a one-line description and where it is offered. Each
+app's composer also says which commands it has a form for
+(`CommandPlace.opens`): one it cannot open is neither listed nor read
+from a send, so its `/name` goes as an ordinary message.
 
 - **The list.** While the whole draft is `/` and letters (the Markdown,
   so code, a quote or a list item never counts), a list of the commands

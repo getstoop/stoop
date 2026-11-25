@@ -46,6 +46,7 @@ import { restoreFiles } from "../../core/attachments";
 import {
   type Command,
   type CommandName,
+  type CommandPlace,
   type CommandQuery,
   commandQueryAt,
   matchingCommands,
@@ -332,7 +333,11 @@ export function Composer({
   const suggestions = shortcode ? searchShortcodes(shortcode.query) : [];
 
   // Where this composer is, for the commands it offers.
-  const place = { thread: !!threadRootId, canPost: true };
+  const place: CommandPlace = {
+    thread: !!threadRootId,
+    canPost: true,
+    opens: WEB_FORMS,
+  };
   const commands =
     commandQuery && !mention && !shortcode
       ? matchingCommands(commandQuery, place)
@@ -801,3 +806,6 @@ function reminderSetElsewhere(set: SetReminder, where: string) {
     body: `${reminderSetText(set.remindAt, new Date(), where)}.`,
   });
 }
+
+// The commands this composer has a form for: all of them.
+const WEB_FORMS: readonly CommandName[] = ["poll", "remind"];

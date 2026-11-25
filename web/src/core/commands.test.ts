@@ -9,9 +9,16 @@ import {
   pickedText,
 } from "./commands";
 
-const channel: CommandPlace = { thread: false, canPost: true };
-const thread: CommandPlace = { thread: true, canPost: true };
-const closed: CommandPlace = { thread: false, canPost: false };
+const BOTH = ["poll", "remind"] as const;
+const channel: CommandPlace = { thread: false, canPost: true, opens: BOTH };
+const thread: CommandPlace = { thread: true, canPost: true, opens: BOTH };
+const closed: CommandPlace = { thread: false, canPost: false, opens: BOTH };
+// An app with a form for /poll alone.
+const pollOnly: CommandPlace = {
+  thread: false,
+  canPost: true,
+  opens: ["poll"],
+};
 
 const names = (draft: string, place = channel) => {
   const query = commandQueryAt(draft);
@@ -28,6 +35,18 @@ describe("commandsOffered", () => {
       hint: "[what]",
       description: "Set a reminder here",
     });
+  });
+
+  it("offers only what the app has a form for, and reads only that", () => {
+    expect(commandsOffered(pollOnly).map((c) => c.name)).toEqual(["poll"]);
+    const query = commandQueryAt("/");
+    expect(
+      query && matchingCommands(query, pollOnly).map((c) => c.name),
+    ).toEqual(["poll"]);
+    expect(parseCommand("/remind Call the venue", pollOnly)).toBeNull();
+    expect(
+      commandsOffered({ thread: false, canPost: true, opens: [] }),
+    ).toEqual([]);
   });
 
   it("offers nothing in a thread or where posting is closed", () => {
