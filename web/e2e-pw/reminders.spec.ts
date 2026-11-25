@@ -62,7 +62,7 @@ test("set, undo, and a reminder posted for the channel", async ({
   await expect(options, "a lone slash lists both commands").toHaveCount(2);
   await expect(options.nth(1)).toContainText("/remind");
   await expect(options.nth(1)).toContainText("[what]");
-  await expect(options.nth(1)).toContainText("Set a reminder for this channel");
+  await expect(options.nth(1)).toContainText("Set a reminder here");
   await B.keyboard.press("ArrowDown");
   await expect(options.nth(1), "ArrowDown moves to /remind").toHaveClass(
     /selected/,
@@ -133,11 +133,31 @@ test("set, undo, and a reminder posted for the channel", async ({
   await set.click();
   await expect(form).toHaveCount(0);
   await expect(notice).toContainText(/^Reminder set for (today|tomorrow) at /);
-  await expect(B.locator(".transient-notice-region")).toHaveAttribute(
-    "role",
-    "status",
-  );
+  await expect(
+    B.locator(".transient-notice-region [role=status]"),
+    "the live region holds the words alone",
+  ).toHaveText(/^Reminder set for (today|tomorrow) at [^U]*$/);
   await expect(undo).toBeVisible();
+
+  // The composer's lists open over the notice and stay whole: the point
+  // at the bottom of each list's last row is that row.
+  const lastRowOnTop = (list: string) =>
+    B.locator(`${list} .option`)
+      .last()
+      .evaluate((row) => {
+        const box = row.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + 24, box.bottom - 3);
+        return !!hit && row.contains(hit);
+      });
+  await composer.pressSequentially("/");
+  await expect(options).toHaveCount(2);
+  expect(await lastRowOnTop(".command-list"), "the command list").toBe(true);
+  await B.keyboard.press("Backspace");
+  await composer.pressSequentially("@");
+  await expect(B.locator(".mention-picker .option").first()).toBeVisible();
+  expect(await lastRowOnTop(".mention-picker"), "the mention list").toBe(true);
+  await B.keyboard.press("Backspace");
+  await expect(composer).toHaveText("");
   expect(await waitingReminders()).toBe(1);
   await say(B, "marker one");
   await expect(rowByText(B, "marker one")).toHaveCount(1);
@@ -208,6 +228,35 @@ test("set, undo, and a reminder posted for the channel", async ({
   await expect(notice, "held while pointed at").toBeVisible();
   await undo.click();
   await expect(notice).toHaveText("That reminder has already been posted");
+
+  // ---- A late answer closes only the form that sent it: the first
+  // form is closed while its request is out, a second is opened, and the
+  // first answer leaves the second open with its words.
+  await B.route(
+    "**/stoop.chat.v1.ChatService/CreateReminder",
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    },
+  );
+  await composer.click();
+  await composer.pressSequentially("/remind first");
+  await B.keyboard.press("Enter");
+  await when("In 1 hour").check();
+  await set.click();
+  await expect(form.getByRole("button", { name: "Setting…" })).toBeDisabled();
+  await B.keyboard.press("Escape");
+  await expect(form).toHaveCount(0);
+  await composer.pressSequentially("/remind second thoughts");
+  await B.keyboard.press("Enter");
+  await expect(text).toHaveValue("second thoughts");
+  await expect(notice, "the first answer still gets its notice").toContainText(
+    /^Reminder set for/,
+  );
+  await expect(form, "and leaves the second form open").toBeVisible();
+  await expect(text).toHaveValue("second thoughts");
+  await form.getByRole("button", { name: "Cancel" }).click();
+  await B.unroute("**/stoop.chat.v1.ChatService/CreateReminder");
 
   // Bea deletes the one she set, and it goes for everyone.
   const forBea = fired(B, "Order the pizza before seven");

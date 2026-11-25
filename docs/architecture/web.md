@@ -850,32 +850,53 @@ window" is what the view's range holds.
   from when it opened, and a picked time is judged again then. Tab goes
   round the dialog; Enter in the text sets it. A refusal is said on the
   field it is about, or above the actions; one that comes after the
-  form was closed is a notice.
+  form was closed is a notice. A preset the server finds less than a
+  minute away says the device's clock may be wrong, since nothing in
+  the form would help. Each opening of a form has its own id, and an
+  answer closes only the form that sent it, never one opened since.
 
   Setting one posts nothing. The composer shows a transient notice
   (below) with the time as the server stored it, rounded down to the
   minute ("Reminder set for today at 4:30 PM", `futureTime` in
   `core/dates.ts`), and Undo, an icon button named "Undo", which calls
   `DeleteReminder`: then it reads "Reminder removed" for three seconds;
-  if the reminder was posted meanwhile (`NotFound`), "That reminder has
-  already been posted"; if Undo fails, "Couldn't remove the reminder"
-  with Undo still there. The notice is the composer's and belongs to
-  the channel it was set in: moving to another channel or conversation
-  takes it away, and with it the way back to that reminder. A reminder
-  whose answer arrives after the move (or after the form was cancelled
-  while it was out) still gets its notice, where the person is, so it
-  is never set without a word.
+  if the reminder was posted meanwhile (`NotFound` on the first try),
+  "That reminder has already been posted"; if Undo fails, "Couldn't
+  remove the reminder" with Undo still there, and it keeps saying that,
+  with Undo busy, while a retry is out. `NotFound` after a failed try
+  reads "That reminder is no longer waiting", since the failed try may
+  have taken it back itself. The notice is the composer's and belongs
+  to the channel it was set in: moving to another channel or
+  conversation takes it away, and with it the way back to that
+  reminder. A reminder whose answer arrives after the form was
+  cancelled still gets its notice; one whose answer arrives after a
+  move gets it in the composer now on screen, naming where it posts
+  ("Reminder set in #general for …", or "in your conversation with
+  …"), with an Undo that takes back that reminder; and one whose
+  answer arrives when no composer is on screen (the conversation list,
+  search, a channel the person can't post in) is a notice dialog naming
+  the place, with no Undo. A reminder is never set without a word.
 - **Transient notices** (`components/TransientNotice.tsx`,
   `styles/transient-notice.css`): a line over the bottom of a view that
   goes away on its own, with at most one icon button. It stays while
-  the pointer is on it or focus is in it (asked of the element when its
-  time is up, not followed by events) and while its action is out. It
-  never takes focus: it is placed in the tab order after the control
-  that comes before it (the composer's words), Escape inside it
-  dismisses it, and focus that was on a control it loses goes back
-  there. The region is always in the page as `role="status"`, so each
-  notice is read out as it appears. The reminder notice is the only one
-  so far.
+  focus is in it, or the pointer is on it where the pointer hovers
+  (`(hover: hover)`: a tap leaves `:hover` set), asked of the element
+  when its time is up rather than followed by events, and while its
+  action is out. It never takes focus: it is placed in the tab order
+  after the control that comes before it (the composer's words), a
+  mouse press on its button leaves focus where it was (in every
+  browser, Safari included), Escape inside it dismisses it, and focus
+  that came into it by keyboard goes back to the words when the
+  control that had it goes, kept by focus events so a channel change
+  straight after is covered. The words are read out from a
+  visually hidden `role="status"` span that is always in the page and
+  holds the words alone; the drawn words are `aria-hidden`, and the
+  button's tooltip is outside the live region and is not its
+  description (`Tooltip describes={false}`), so "Undo" is said once.
+  Above the composer it sits under the composer's lists (`@`, `#`, `:`
+  and the command list, `z-index` 2 in `mention-picker.css`), which
+  stay whole and usable while a notice is up. The reminder notice is
+  the only one so far.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:

@@ -105,7 +105,7 @@ export function ReminderForm({
         notice({ title: "Couldn't set the reminder", body: errorText(err) });
         return;
       }
-      setFailure(reminderRefusal(saidByServer(err)));
+      setFailure(reminderRefusal(saidByServer(err), form.choice !== "custom"));
       setSetting(false);
       return;
     }

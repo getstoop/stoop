@@ -9,8 +9,10 @@ import {
   parseLocalInput,
   presetLabel,
   presetTime,
+  REMINDER_CLOCK_WRONG,
   REMINDER_PRESETS,
   type ReminderForm,
+  reminderPlace,
   reminderRefusal,
   reminderRequest,
   reminderSetText,
@@ -343,6 +345,24 @@ describe("reminderRefusal", () => {
     expect(reminderRefusal("a reminder needs a time").field).toBe("when");
   });
 
+  it("says a preset refused as too soon points at the device's clock", () => {
+    const said = "a reminder's time must be at least a minute from now";
+    expect(reminderRefusal(said, true)).toEqual({
+      field: "when",
+      text: REMINDER_CLOCK_WRONG,
+    });
+    expect(REMINDER_CLOCK_WRONG).toMatch(/clock may be wrong/);
+    // A picked time keeps the server's rule.
+    expect(reminderRefusal(said, false).text).toBe(
+      "A reminder's time must be at least a minute from now.",
+    );
+    // Too far is not the clock's fault in the same way.
+    expect(
+      reminderRefusal("a reminder's time can be at most a year from now", true)
+        .text,
+    ).toBe("A reminder's time can be at most a year from now.");
+  });
+
   it("says anything else above the actions", () => {
     expect(
       reminderRefusal("you can have at most 50 reminders waiting"),
@@ -366,6 +386,18 @@ describe("reminderSetText", () => {
     const stored = at(2026, 11, 24, 16, 30);
     expect(reminderSetText(stored, now)).toBe(
       `Reminder set for today at ${timeOf(stored)}`,
+    );
+  });
+
+  it("names where it posts when shown elsewhere", () => {
+    const now = at(2026, 11, 24, 16, 10);
+    const stored = at(2026, 11, 24, 16, 30);
+    const channel = reminderPlace({ conversation: false, name: "#general" });
+    expect(reminderSetText(stored, now, channel)).toBe(
+      `Reminder set in #general for today at ${timeOf(stored)}`,
+    );
+    expect(reminderPlace({ conversation: true, name: "Sam Reyes" })).toBe(
+      "your conversation with Sam Reyes",
     );
   });
 });

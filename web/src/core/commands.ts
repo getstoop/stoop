@@ -42,7 +42,7 @@ export const COMMANDS: readonly Command[] = [
   {
     name: "remind",
     hint: "[what]",
-    description: "Set a reminder for this channel",
+    description: "Set a reminder here",
     offered: pollPlace,
   },
 ];

@@ -409,9 +409,10 @@ an argument hint, a one-line description and where it is offered.
 - **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
   poll button (on mobile, Poll in the attach sheet) shows, with the
   question filled and cut to its limit.
-- **`/remind [what]`** opens the reminder form ([Reminders](#reminders))
-  in the same places, with the text filled and cut to its limit. On web
-  it is the only way in; mobile does not offer it yet.
+- **`/remind [what]`** ("Set a reminder here") opens the reminder form
+  ([Reminders](#reminders)) in the same places, with the text filled and
+  cut to its limit. On web it is the only way in; mobile does not offer
+  it yet.
 
 Built: web and mobile.
 

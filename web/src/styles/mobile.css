@@ -212,9 +212,9 @@
 
   .reminder-mark {
     left: 8px;
-    /* off-scale: the phone's avatar width */
+    /* off-scale: the avatar's width on mobile */
     width: 36px;
-    /* off-scale: the phone's avatar height */
+    /* off-scale: the avatar's height on mobile */
     height: 36px;
   }
 

@@ -27,10 +27,11 @@ export async function createReminder(
   };
 }
 
-// Takes one back: "removed", "posted" when the server no longer has it
-// waiting (delivered meanwhile; Undo is the only other way to it), or
-// "failed" for anything that may pass on a second try.
-export type UndoOutcome = "removed" | "posted" | "failed";
+// Takes one back: "removed", "notFound" when the server no longer has it
+// waiting (delivered meanwhile, or taken back by an earlier try whose
+// answer was lost; the caller words which), or "failed" for anything
+// that may pass on a second try.
+export type UndoOutcome = "removed" | "notFound" | "failed";
 
 export async function deleteReminder(id: string): Promise<UndoOutcome> {
   try {
@@ -38,7 +39,7 @@ export async function deleteReminder(id: string): Promise<UndoOutcome> {
     return "removed";
   } catch (err) {
     return err instanceof ConnectError && err.code === Code.NotFound
-      ? "posted"
+      ? "notFound"
       : "failed";
   }
 }

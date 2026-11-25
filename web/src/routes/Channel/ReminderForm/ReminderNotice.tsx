@@ -7,6 +7,7 @@ import {
 } from "../../../components/TransientNotice";
 import {
   REMINDER_ALREADY_POSTED,
+  REMINDER_NO_LONGER_WAITING,
   REMINDER_NOTICE_AFTER_MS,
   REMINDER_NOTICE_MS,
   REMINDER_REMOVED,
@@ -14,21 +15,35 @@ import {
   reminderSetText,
 } from "../../../core/reminderForm";
 
-type Phase = "set" | "undoing" | "removed" | "posted" | "failed";
+// A reminder just set, as its notice shows it: where names the channel or
+// conversation it posts in when the notice is shown away from there.
+export type ShownReminder = SetReminder & { where?: string };
+
+// set: just set, Undo offered. undoing: the first Undo is out. failed:
+// an Undo failed, Undo offered again. retrying: a later Undo is out.
+// Then removed, posted (not found on the first try), or gone (not found
+// after a failed try, which may have taken it back itself).
+type Phase =
+  | "set"
+  | "undoing"
+  | "failed"
+  | "retrying"
+  | "removed"
+  | "posted"
+  | "gone";
 
 // The notice after a reminder is set (docs/architecture/web.md →
 // Reminders): the time as the server stored it and Undo. Undo takes the
 // reminder back and the notice then says so for a moment; if it was
 // posted meanwhile, it says that; if Undo fails, it says so and Undo
-// stays. After the notice goes there is no way back to the reminder
-// before it is posted. Nothing is shown while no reminder was just set,
-// but the live region stays, so the next one is announced.
+// stays, and a retry keeps saying so while it is out. After the notice
+// goes there is no way back to the reminder before it is posted.
 export function ReminderNotice({
   set,
   onDone,
   returnFocus,
 }: {
-  set: SetReminder | null;
+  set: ShownReminder | null;
   onDone: () => void;
   returnFocus: () => void;
 }) {
@@ -40,10 +55,15 @@ export function ReminderNotice({
   const undo = async () => {
     if (!set) return;
     const { id } = set;
-    setPhase({ id, phase: "undoing" });
+    const retry = now === "failed";
+    setPhase({ id, phase: retry ? "retrying" : "undoing" });
+    const outcome = await deleteReminder(id);
     // Focus on Undo goes back to the words when the button goes
     // (TransientNotice).
-    setPhase({ id, phase: await deleteReminder(id) });
+    setPhase({
+      id,
+      phase: outcome === "notFound" ? (retry ? "gone" : "posted") : outcome,
+    });
   };
 
   return (
@@ -56,35 +76,52 @@ export function ReminderNotice({
 }
 
 function content(
-  set: SetReminder,
+  set: ShownReminder,
   phase: Phase,
   undo: () => void,
 ): TransientNoticeContent {
-  const key = `${set.id}-${phase === "undoing" ? "set" : phase}`;
+  const action = (busy: boolean) => ({
+    label: "Undo",
+    icon: <UndoIcon />,
+    busy,
+    onPress: undo,
+  });
   switch (phase) {
     case "removed":
       return {
-        key,
+        key: `${set.id}-removed`,
         text: REMINDER_REMOVED,
         icon: <CheckIcon />,
         ms: REMINDER_NOTICE_AFTER_MS,
       };
     case "posted":
-      return { key, text: REMINDER_ALREADY_POSTED, ms: REMINDER_NOTICE_MS };
-    default:
+    case "gone":
       return {
-        key,
+        key: `${set.id}-${phase}`,
         text:
-          phase === "failed"
-            ? REMINDER_UNDO_FAILED
-            : reminderSetText(set.remindAt, new Date()),
-        icon: phase === "failed" ? undefined : <CheckIcon />,
-        action: {
-          label: "Undo",
-          icon: <UndoIcon />,
-          busy: phase === "undoing",
-          onPress: undo,
-        },
+          phase === "posted"
+            ? REMINDER_ALREADY_POSTED
+            : REMINDER_NO_LONGER_WAITING,
+        ms: REMINDER_NOTICE_MS,
+      };
+    case "failed":
+    case "retrying":
+      // One key for both, so a retry neither says it again nor restarts
+      // the time.
+      return {
+        key: `${set.id}-failed`,
+        text: REMINDER_UNDO_FAILED,
+        action: action(phase === "retrying"),
+        ms: REMINDER_NOTICE_MS,
+        hold: phase === "retrying",
+      };
+    case "set":
+    case "undoing":
+      return {
+        key: `${set.id}-set`,
+        text: reminderSetText(set.remindAt, new Date(), set.where),
+        icon: <CheckIcon />,
+        action: action(phase === "undoing"),
         ms: REMINDER_NOTICE_MS,
         hold: phase === "undoing",
       };

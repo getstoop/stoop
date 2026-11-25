@@ -66,12 +66,17 @@ import {
 } from "../../core/mentions";
 import { messagePreview } from "../../core/messagePreview";
 import { canMentionEntireChannel } from "../../core/permissions";
+import { reminderPlace, reminderSetText } from "../../core/reminderForm";
 import { restoreDraft } from "../../core/unsent";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
+import { notice } from "../../stores/dialogs";
 import { PollForm } from "./PollForm";
 import { ReminderForm } from "./ReminderForm";
-import { ReminderNotice } from "./ReminderForm/ReminderNotice";
+import {
+  ReminderNotice,
+  type ShownReminder,
+} from "./ReminderForm/ReminderNotice";
 import { useSavedDraft } from "./useSavedDraft";
 
 export function Composer({
@@ -160,12 +165,17 @@ export function Composer({
   // channel it was opened in and the words it starts with. Not offered in
   // a thread, which takes no poll. The composer outlives a channel
   // change, and the form does not: it is drawn only in the channel it was
-  // opened in, and closed on leaving it.
+  // opened in, and closed on leaving it. id tells one opening from the
+  // next, so a late answer closes only the form that sent it; where names
+  // the channel or conversation, for a notice shown away from it.
   const [formIn, setFormIn] = useState<{
     command: CommandName;
     channelId: string;
     text: string;
+    id: number;
+    where: string;
   } | null>(null);
+  const formCount = useRef(0);
   const pollIn =
     formIn?.command === "poll" && formIn.channelId === channelId
       ? formIn
@@ -176,9 +186,20 @@ export function Composer({
       : null;
   // The reminder just set, for its notice and Undo. The notice belongs to
   // the channel it was set in and goes when the composer moves to
-  // another; a reminder whose answer comes after that move is still
-  // shown, so its Undo is not lost.
-  const [reminderSet, setReminderSet] = useState<SetReminder | null>(null);
+  // another. A reminder whose answer comes after that move is still
+  // shown, naming where it posts, so its Undo is not lost; one that
+  // comes when no composer is left on screen is a notice dialog
+  // (reminderSetElsewhere).
+  const [reminderSet, setReminderSet] = useState<ShownReminder | null>(null);
+  const shownChannel = useRef(channelId);
+  shownChannel.current = channelId;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // Where focus goes when the form closes. Opened by a command (a pick
   // from the list, a send), it goes back to the words; opened by the poll
   // button, a cancel leaves it to the dialog, which returns it to the
@@ -188,7 +209,14 @@ export function Composer({
   const focusAfterForm = useRef(false);
   const openForm = (command: CommandName, text: string, typed: boolean) => {
     focusAfterForm.current = typed;
-    setFormIn({ command, channelId, text });
+    formCount.current += 1;
+    setFormIn({
+      command,
+      channelId,
+      text,
+      id: formCount.current,
+      where: reminderPlace({ conversation: dm, name: channelName ?? "" }),
+    });
   };
   useEffect(() => {
     if (formOpen || !focusAfterForm.current) return;
@@ -742,10 +770,18 @@ export function Composer({
           text={remindIn.text}
           onClose={() => setFormIn(null)}
           onSet={(set) => {
-            setReminderSet(set);
-            // Closes the form unless it was closed meanwhile.
+            const { id, channelId: setIn, where } = remindIn;
+            if (!mounted.current) {
+              reminderSetElsewhere(set, where);
+              return;
+            }
+            setReminderSet({
+              ...set,
+              where: shownChannel.current === setIn ? undefined : where,
+            });
+            // Closes the form that sent it, if that one is still open.
             setFormIn((open) => {
-              if (open?.command !== "remind") return open;
+              if (open?.id !== id) return open;
               focusAfterForm.current = true;
               return null;
             });
@@ -754,4 +790,14 @@ export function Composer({
       )}
     </>
   );
+}
+
+// A reminder whose answer came when its composer was gone (the person
+// moved to a view with none): said in a notice dialog, naming where it
+// posts, so it is never set without a word. There is no Undo there.
+function reminderSetElsewhere(set: SetReminder, where: string) {
+  notice({
+    title: "Reminder set",
+    body: `${reminderSetText(set.remindAt, new Date(), where)}.`,
+  });
 }

@@ -24,6 +24,10 @@ describe("commandsOffered", () => {
       "poll",
       "remind",
     ]);
+    expect(commandsOffered(channel)[1]).toMatchObject({
+      hint: "[what]",
+      description: "Set a reminder here",
+    });
   });
 
   it("offers nothing in a thread or where posting is closed", () => {

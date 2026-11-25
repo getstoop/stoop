@@ -89,9 +89,14 @@ export function Tooltip({
   text,
   detail,
   side = "top",
+  describes = true,
   children,
 }: {
   text?: string;
+  // Whether the tip is given to the anchor as its description. Off when
+  // the anchor's name already says the same words (an icon button whose
+  // aria-label is the tip), so a screen reader does not say them twice.
+  describes?: boolean;
   // A second, quieter line under the first — a description under a name.
   detail?: string;
   side?: Side;
@@ -146,7 +151,7 @@ export function Tooltip({
   if (!text) return children;
 
   const own = children.props;
-  const describedBy = [own["aria-describedby"], open ? id : null]
+  const describedBy = [own["aria-describedby"], open && describes ? id : null]
     .filter(Boolean)
     .join(" ");
   const anchored = cloneElement(children, {

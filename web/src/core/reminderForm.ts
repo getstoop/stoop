@@ -272,12 +272,24 @@ export function reminderRequest(
 // may pass on a second try.
 export type ReminderRefusal = { field: "text" | "when" | null; text: string };
 
-export function reminderRefusal(said: string | null): ReminderRefusal {
+// Said when the server finds a preset's time less than a minute away. A
+// preset is twenty minutes or more by this device's clock, so the clock
+// is what is wrong, and repeating the rule would leave nothing to do.
+export const REMINDER_CLOCK_WRONG =
+  "The server says that time is less than a minute away, so this device's clock may be wrong. Check its date and time, or pick a date and time.";
+
+export function reminderRefusal(
+  said: string | null,
+  // The time sent was a preset's.
+  preset = false,
+): ReminderRefusal {
   const lead = "Couldn't set the reminder.";
   const words = said?.trim() ?? "";
   if (!words) return { field: null, text: `${lead} Try again.` };
   const sentence = words[0].toUpperCase() + words.slice(1);
   const text = /[.!?]$/.test(sentence) ? sentence : `${sentence}.`;
+  if (preset && /^a reminder's time must be at least a minute/i.test(words))
+    return { field: "when", text: REMINDER_CLOCK_WRONG };
   // The server's words about a time name it: "a reminder's time …",
   // "a reminder needs a time".
   if (/^a reminder('s time| needs a time)/i.test(words))
@@ -286,18 +298,38 @@ export function reminderRefusal(said: string | null): ReminderRefusal {
   return { field: null, text: `${lead} ${text}` };
 }
 
+// Where a reminder posts, as a notice names it when it is shown away
+// from there: a channel by its name as given ("#game-night"), a
+// conversation by who is in it.
+export function reminderPlace(place: {
+  conversation: boolean;
+  name: string;
+}): string {
+  return place.conversation
+    ? `your conversation with ${place.name}`
+    : place.name;
+}
+
 // The notice after setting one, with the time as the server stored it
 // (rounded down to the minute, so it can read a minute earlier than the
-// form said).
-export const reminderSetText = (at: Date, now: Date): string =>
-  `Reminder set for ${futureTime(at, now)}`;
+// form said), and where it posts when that is not the view it is shown
+// in (reminderPlace).
+export const reminderSetText = (at: Date, now: Date, where?: string): string =>
+  where
+    ? `Reminder set in ${where} for ${futureTime(at, now)}`
+    : `Reminder set for ${futureTime(at, now)}`;
 
 // The notice after Undo.
 export const REMINDER_REMOVED = "Reminder removed";
 
-// Undo answered "not found": the reminder was posted meanwhile (or taken
-// back elsewhere, which only its setter can do).
+// Undo answered "not found" on its first try: the reminder was posted
+// meanwhile.
 export const REMINDER_ALREADY_POSTED = "That reminder has already been posted";
+
+// Undo answered "not found" after an earlier try failed: that try may
+// have reached the server and lost its answer, so this does not say it
+// was posted.
+export const REMINDER_NO_LONGER_WAITING = "That reminder is no longer waiting";
 
 // Undo failed for another reason; Undo stays.
 export const REMINDER_UNDO_FAILED = "Couldn't remove the reminder";
