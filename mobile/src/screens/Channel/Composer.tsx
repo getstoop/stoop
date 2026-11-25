@@ -27,6 +27,7 @@ import type { LocalFile } from "../../api/files";
 import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, QuoteReplyIcon, SendIcon } from "../../components/Icons";
 import type { LinkDraft } from "../../../modules/stoop-rich-text";
 import { type Theme, tokens, useTheme } from "../../theme";
+import { afterKeyboard } from "./afterKeyboard";
 import AlsoSendRow from "./AlsoSendRow";
 import AttachmentCount from "./AttachmentCount";
 import AttachmentStrip from "./AttachmentStrip";
@@ -398,12 +399,23 @@ export default forwardRef<
 
   // A command opens its form and sends nothing. Only its own words go:
   // the files and a quote stay for the next message, and closing the form
-  // does not bring the words back. The card goes down, as for Poll in the
-  // attach sheet: the form is a sheet of its own.
+  // does not bring the words back; a send's old refusal goes with them,
+  // as a new send clears it. The card goes down, and the form opens once
+  // the keyboard has gone, as Poll in the attach sheet opens it once the
+  // sheet has: the form is a sheet of its own on the keyboard. Until
+  // then Send does nothing, so a second tap while the field lets go can't
+  // send the files alone. (The field is blurred, not unmounted: a blur
+  // reaching a view already gone is refused on Android.)
+  const commandOut = useRef(false);
   const openCommand = ({ command, text }: ParsedCommand) => {
+    commandOut.current = true;
     putDraft("");
+    setError(null);
     input.current?.blur();
-    onCommand?.(command.name, text);
+    afterKeyboard(() => {
+      commandOut.current = false;
+      onCommand?.(command.name, text);
+    });
   };
   const pickCommand = async (command: Command) => {
     const { content } = await outgoing();
@@ -414,7 +426,7 @@ export default forwardRef<
   const commandAhead = commandsOn && parseCommand(draft.trim(), commandPlace) !== null;
 
   const submit = async () => {
-    if (sendingRef.current) return;
+    if (sendingRef.current || commandOut.current) return;
     if (editing) {
       await save(editing);
       return;

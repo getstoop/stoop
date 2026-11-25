@@ -239,15 +239,6 @@ import a screen; the screens themselves live in `src/screens`, so
   and under a rule Poll, in a channel's or a conversation's composer
   (never a thread's; nor where the reader can't post, which has no
   composer). Poll opens the poll's form once the sheet has gone (below).
-  There too, a draft of `/` and letters lists the commands offered
-  over the card, as the mention list is (`useCommandQuery`,
-  `CommandList.tsx`; [messaging.md](../docs/architecture/messaging.md#slash-commands)):
-  touch only, no row chosen ahead, shut while a @handle or #name is
-  typed. A tap on `/poll`, or Send on `/poll` and a question, puts the
-  card down and opens the same form with the question filled (the
-  first option then takes the caret), sending nothing; the words leave
-  the field for good, while files and a quote stay. A thread's composer
-  offers none and sends `/poll` as typed; an edit never runs one.
   Each opens its system picker (`src/screens/Channel/pickers.ts`;
   `expo-image-picker` and `expo-document-picker`, native modules, so a
   build on the phone needs `make mobile-ios` again) once the sheet's
@@ -293,6 +284,17 @@ import a screen; the screens themselves live in `src/screens`, so
   after that is ignored; and while a message is edited they are out of
   sight and Attach is dimmed. A sent file shows in the row as the next
   item says.
+- A draft of `/` and letters lists the commands offered over the card,
+  as the mention list is (`useCommandQuery`, `CommandList.tsx`;
+  [messaging.md](../docs/architecture/messaging.md#slash-commands)):
+  touch only, no row chosen ahead, and shut while a @handle or #name is
+  typed. A tap on `/poll`, or Send on `/poll` and a question, sends
+  nothing: the card goes down at once and, once the keyboard has gone
+  (`afterKeyboard.ts`), the poll's form opens as from Poll in the attach
+  sheet, the question filled and the first option taking the caret. The
+  words leave the field for good, and a send's old refusal with them,
+  while files and a quote stay. A thread's composer offers none and
+  sends `/poll` as typed; an edit never runs one.
 - A message's files are drawn under its words, in the channel and the
   thread (`src/components/Attachments`, sized before layout by its
   `layout.ts` from the width and height the server measured, so a row
