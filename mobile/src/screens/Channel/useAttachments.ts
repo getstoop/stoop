@@ -1,3 +1,4 @@
+import type { CommandName } from "@stoop/core/commands";
 import { formatBytes, MAX_ATTACHMENTS, restoreFiles, type UploadedFile } from "@stoop/core/attachments";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard } from "react-native";
@@ -24,9 +25,9 @@ import { type Picked, type PickResult, pickFrom } from "./pickers";
 // the photo library, the camera or files), and `reopen` (the card with
 // focus) is called when there is something to show or the card was up
 // before. A picker's refusal, such as the camera not allowed, is said
-// in the card as too many files are. Poll, offered where the composer
-// is given `onPoll`, hands over to it once the sheet has gone, the card
-// left down: the poll's form is a sheet of its own.
+// in the card as too many files are. A form (Poll, Reminder), offered
+// where the composer is given `onForm`, hands over to it once the sheet
+// has gone, the card left down: each form is a sheet of its own.
 
 export type PendingFile = {
   key: string;
@@ -48,7 +49,7 @@ export function useAttachments(
   upload: (file: LocalFile, signal: AbortSignal) => Promise<UploadedFile>,
   maxBytes: number,
   reopen: () => void,
-  onPoll?: () => void,
+  onForm?: (form: CommandName) => void,
 ) {
   const [files, setFiles] = useState<PendingFile[]>([]);
   // A pick refused as a whole: too many, or the picker failing.
@@ -148,8 +149,8 @@ export function useAttachments(
   const cardBefore = useRef(false);
   const reopenLatest = useRef(reopen);
   reopenLatest.current = reopen;
-  const pollLatest = useRef(onPoll);
-  pollLatest.current = onPoll;
+  const formLatest = useRef(onForm);
+  formLatest.current = onForm;
   const openSheet = (cardUp: boolean) => {
     cardBefore.current = cardUp;
     Keyboard.dismiss();
@@ -157,8 +158,8 @@ export function useAttachments(
   };
   const sheetClosed = async (choice: AttachChoice | null) => {
     setAttaching(false);
-    if (choice === "poll") {
-      if (mounted.current) pollLatest.current?.();
+    if (choice === "poll" || choice === "remind") {
+      if (mounted.current) formLatest.current?.(choice);
       return;
     }
     const shown = choice !== null && (await pick(choice));

@@ -2,12 +2,13 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { sameDay } from "@stoop/core/dates";
 import { previewText } from "@stoop/core/markdown/text";
 import { pollPreview } from "@stoop/core/polls";
+import { reminderPreview } from "@stoop/core/reminders";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
-import { PaperclipIcon, PollIcon } from "../../components/Icons";
+import { BellIcon, PaperclipIcon, PollIcon } from "../../components/Icons";
 import MessageBody from "../../components/MessageBody";
 import { type Theme, tokens, useTheme } from "../../theme";
 
@@ -24,7 +25,8 @@ const GAP = 10;
 // mobile's MessageBody has no highlight yet. A poll is found by its
 // question and shown as its preview line ("Poll: " and the question, as
 // typed, never as Markdown), after the poll's glyph, as web's row shows
-// it.
+// it; a delivered reminder likewise, by its text, as "Reminder: " and
+// the text exactly as typed after a bell.
 export default memo(function ResultRow({
   message,
   channelName,
@@ -51,7 +53,9 @@ export default memo(function ResultRow({
   // Read aloud: the words with a spoiler covered, as the body draws it,
   // then the files' names, or those alone when there are no words.
   const poll = pollPreview(message);
-  const words = poll ?? previewText(message.content);
+  const reminder = reminderPreview(message);
+  const brief = poll ?? reminder;
+  const words = brief ?? previewText(message.content);
   const said = words && files.length > 0 ? `${words}, files: ${files.join(", ")}` : words || files.join(", ");
   return (
     <Pressable
@@ -71,10 +75,16 @@ export default memo(function ResultRow({
           </Text>
           <Text style={styles.time}>{date}</Text>
         </View>
-        {poll !== null ? (
+        {brief !== null ? (
           <View style={styles.poll}>
-            <PollIcon color={theme.textMuted} size={16} />
-            <Text style={styles.pollText}>{poll}</Text>
+            <View style={styles.glyph}>
+              {poll !== null ? (
+                <PollIcon color={theme.textMuted} size={16} />
+              ) : (
+                <BellIcon color={theme.textMuted} size={16} />
+              )}
+            </View>
+            <Text style={styles.pollText}>{brief}</Text>
           </View>
         ) : message.content !== "" && (
           <MessageBody
@@ -150,10 +160,14 @@ function makeStyles(theme: Theme) {
       color: theme.textMuted,
       fontSize: tokens.textSm,
     },
+    // The glyph on the first line of words that may wrap.
     poll: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: 6,
+    },
+    glyph: {
+      paddingTop: 2,
     },
     pollText: {
       flexShrink: 1,

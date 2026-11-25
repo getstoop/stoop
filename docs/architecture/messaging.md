@@ -415,8 +415,8 @@ from a send, so its `/name` goes as an ordinary message.
   question filled and cut to its limit.
 - **`/remind [what]`** ("Set a reminder here") opens the reminder form
   ([Reminders](#reminders)) in the same places, with the text filled and
-  cut to its limit. On web it is the only way in; mobile does not offer
-  it yet.
+  cut to its limit. On web it is the only way in; on mobile Reminder in
+  the attach sheet, under Poll, opens it too.
 
 Built: web and mobile.
 
@@ -1513,13 +1513,14 @@ as a [system message](#system-messages) of kind 9 (`reminder`) by the
 person who set it and deletes the waiting row. The code is
 `internal/chat/reminders.go` and `queries/chat/reminders.sql`.
 
-Built: the server side and web ([web.md](web.md) → The message list →
-Reminders): `/remind` and its form, the notice with Undo, and the row.
-The form's rules (`core/reminderForm.ts`), who may delete a delivered
-one (`core/reminders.ts`) and the wording of a future time
-(`futureTime` in `core/dates.ts`) are shared with mobile, which draws a
-delivered reminder with the system row it has (a bell, "Reminder
-from", the name and the text) and has no way to set one yet.
+Built: the server side, web ([web.md](web.md) → The message list →
+Reminders) and mobile ([mobile/README.md](../../mobile/README.md) →
+Screens and routes): `/remind` and its form, the notice with Undo, and
+the row. The form's rules (`core/reminderForm.ts`), who may delete a
+delivered one (`core/reminders.ts`), the wording of a future time
+(`futureTime` in `core/dates.ts`) and a reminder's place among a
+channel's rows (`groupedRows` in `core/grouping.ts`, kind `reminder`)
+are shared by the two apps.
 
 - **Setting one** (`CreateReminder`). The checks are `CreatePoll`'s, in
   its order: the text and the time first, which cost nothing, then

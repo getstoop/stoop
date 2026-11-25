@@ -368,6 +368,7 @@ describe("deviceTimeZone", () => {
   it("sends no zone for a name the server would not know", () => {
     for (const zone of [
       "UTC",
+      "GMT",
       "Europe/London",
       "America/Argentina/Buenos_Aires",
       "America/Port-au-Prince",

@@ -155,7 +155,7 @@ describe("firstNewMessageId", () => {
       groupedRows([from("01", "ada"), reminder], "01", "me").map(
         (row) => row.kind,
       ),
-    ).toEqual(["day", "message", "new", "system"]);
+    ).toEqual(["day", "message", "new", "reminder"]);
   });
 
   it("skips quiet rows, which mark nothing unread", () => {
@@ -201,7 +201,9 @@ describe("groupedRows", () => {
     rows.map((row) =>
       row.kind === "message"
         ? `${row.key}${row.continued ? " +" : ""}`
-        : row.kind === "system" || row.kind === "poll"
+        : row.kind === "system" ||
+            row.kind === "poll" ||
+            row.kind === "reminder"
           ? `${row.key} (${row.kind})`
           : `[${row.label}]`,
     );
@@ -292,6 +294,28 @@ describe("groupedRows", () => {
     ]);
   });
 
+  it("draws a delivered reminder as its own kind, never run on", () => {
+    const reminder = (id: string, when: Date): Message => {
+      const made = dated(id, when);
+      made.content = "Order the pizza";
+      made.event = create(SystemEventSchema, {
+        kind: { case: "reminder", value: {} },
+      });
+      return made;
+    };
+    const messages = [
+      dated("01", new Date(2026, 9, 21, 9, 0)),
+      reminder("02", new Date(2026, 9, 21, 9, 0, 10)),
+      dated("03", new Date(2026, 9, 21, 9, 0, 20)),
+    ];
+    expect(drawn(groupedRows(messages, null, "me", now))).toEqual([
+      "[Today]",
+      "01",
+      "02 (reminder)",
+      "03",
+    ]);
+  });
+
   it("skips the reader's own messages for the New line", () => {
     const messages = [
       dated("01", new Date(2026, 9, 21, 9, 0), "me"),
@@ -343,7 +367,9 @@ describe("threadRows", () => {
     rows.map((row) =>
       row.kind === "message"
         ? `${row.key}${row.continued ? " +" : ""}`
-        : row.kind === "system" || row.kind === "poll"
+        : row.kind === "system" ||
+            row.kind === "poll" ||
+            row.kind === "reminder"
           ? `${row.key} (${row.kind})`
           : `[${row.label}]`,
     );

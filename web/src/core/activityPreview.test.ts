@@ -48,4 +48,10 @@ describe("splitPreview", () => {
       { text: "Poll closed: ask @ada", mention: false },
     ]);
   });
+
+  it("highlights nothing in a reminder's text, which mentions no one", () => {
+    expect(splitPreview("Reminder: ask @ada about @here", "ada")).toEqual([
+      { text: "Reminder: ask @ada about @here", mention: false },
+    ]);
+  });
 });

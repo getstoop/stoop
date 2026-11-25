@@ -6,13 +6,16 @@ import { withoutHiddenSystemRows } from "@stoop/core/systemMessages";
 import { canDeleteAnyMessage, canManageChannels, canPost, canStartThreads } from "@stoop/core/permissions";
 import type { PollRequest } from "@stoop/core/pollForm";
 import { isPollRow, pollPermissions } from "@stoop/core/polls";
+import { type ReminderRequest, reminderPlace, reminderSetText } from "@stoop/core/reminderForm";
+import { isReminderRow, mayDeleteReminder } from "@stoop/core/reminders";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Platform, StyleSheet, Text, View } from "react-native";
 import { errorText } from "../../api/errors";
 import { useServerStatus } from "../../api/instance";
 import { markRead } from "../../api/messages";
+import { createReminder, deleteReminder, type SetReminder } from "../../api/reminders";
 import { messageLink } from "../../api/shareLinks";
 import { useAudioPlayback } from "../../components/Attachments/audio";
 import { useLinkPreviewActions } from "../../components/LinkPreviews/context";
@@ -41,6 +44,10 @@ import PollMenu from "./PollMenu";
 import PollRow from "./PollRow";
 import PollVotes from "./PollVotes";
 import PostingClosed from "./PostingClosed";
+import ReminderForm from "./ReminderForm";
+import ReminderMenu from "./ReminderMenu";
+import ReminderNotice, { type ShownReminder } from "./ReminderNotice";
+import ReminderRow from "./ReminderRow";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
 import SystemMenu from "./SystemMenu";
 import SystemRow from "./SystemRow";
@@ -106,7 +113,12 @@ import { useScrollRetry } from "./useScrollRetry";
 // topic set) is a row of its own (SystemRow); a long press on one opens
 // its menu, Delete alone, for a moderator (SystemMenu), and nothing for
 // anyone else. A pin row's excerpt goes to the pinned message, as a link
-// to it does.
+// to it does. A delivered reminder is a row of its own (ReminderRow),
+// whose long press opens its menu (ReminderMenu) for anyone: Copy text,
+// and Delete for whoever may. Reminder in the attach sheet, or /remind
+// in the composer, opens the reminder's form (ReminderForm); once the
+// server has set it, a notice over the composer (ReminderNotice) says
+// when, with Undo, until the channel changes.
 //
 // A direct message is this screen with no space (an empty spaceId, its
 // route under /dm): titled by who it is with (ConversationTitle), with
@@ -345,13 +357,34 @@ export default function Channel({
     (question = "") => setPollFor({ channelId, engine, question }),
     [channelId, engine],
   );
+  // The reminder's form, the same way, from Reminder in the attach sheet
+  // or /remind (with the words after it as its text), held with the
+  // channel it was opened on and where that is, as its subtitle and a
+  // late answer name it.
+  const [remindFor, setRemindFor] = useState<{
+    channelId: string;
+    text: string;
+    where: string | null;
+    place: string;
+  } | null>(null);
+  if (remindFor && remindFor.channelId !== channelId) setRemindFor(null);
+  const placeRef = useRef<{ where: string | null; place: string }>({ where: null, place: "" });
+  const openReminderForm = useCallback(
+    (text: string) => setRemindFor({ channelId, text, ...placeRef.current }),
+    [channelId],
+  );
+  // The reminder just set here, for its notice and Undo, which go when
+  // the screen shows another channel.
+  const [reminderSet, setReminderSet] = useState<(ShownReminder & { channelId: string }) | null>(null);
+  if (reminderSet && reminderSet.channelId !== channelId) setReminderSet(null);
   // A command from the composer opens its form (core/commands), once its
   // keyboard has gone; by then the reader may have moved on (a thread or
   // another screen pushed over this one, a menu, a sheet or the viewer
   // opened), and
   // the command is then dropped rather than opened over that.
   const elsewhere = useRef(false);
-  elsewhere.current = !focused || !!menuFor || !!pollFor || !!polls.votesMessage || !!viewer.viewing;
+  elsewhere.current =
+    !focused || !!menuFor || !!pollFor || !!remindFor || !!polls.votesMessage || !!viewer.viewing;
   const openCommand = useCallback(
     (command: CommandName, text: string) => {
       if (elsewhere.current) return;
@@ -359,9 +392,12 @@ export default function Channel({
         case "poll":
           openPollForm(text);
           break;
+        case "remind":
+          openReminderForm(text);
+          break;
       }
     },
-    [openPollForm],
+    [openPollForm, openReminderForm],
   );
   const closePollForm = useCallback(() => setPollFor(null), []);
   const postPoll = useCallback(
@@ -378,6 +414,50 @@ export default function Channel({
   const pollRefusedLate = useCallback(
     (err: unknown) => {
       if (alive.current) notify("Couldn't post the poll", errorText(err));
+    },
+    [notify],
+  );
+  const closeReminderForm = useCallback(() => setRemindFor(null), []);
+  // Whether this screen is on top and uncovered, for a reminder's answer
+  // that comes late (shownChannel, above, is the channel it shows): no
+  // other screen pushed over it, no menu, sheet or viewer over it, and
+  // no reminder form but the one that sent the request.
+  const onTop = useRef(focused);
+  onTop.current = focused;
+  const covered = useRef(false);
+  covered.current = !!menuFor || !!pollFor || !!polls.votesMessage || !!viewer.viewing;
+  const remindOpen = useRef(remindFor);
+  remindOpen.current = remindFor;
+  const seen = (from: object) =>
+    alive.current && onTop.current && !covered.current && (!remindOpen.current || remindOpen.current === from);
+  const setReminder = useCallback(
+    (request: ReminderRequest, shown: Date) => createReminder(server.origin, token, request, shown),
+    [server.origin, token],
+  );
+  const undoReminder = useCallback((id: string) => deleteReminder(server.origin, token, id), [server.origin, token]);
+  // A reminder the server has set: its notice here, naming where it
+  // posts when the screen has moved to another channel meanwhile; a
+  // system alert naming the place, with no Undo, when this screen has
+  // gone or is covered. One is never set without a word.
+  const reminderAnswered = useCallback(
+    (from: { channelId: string; place: string }) => (set: SetReminder) => {
+      if (!seen(from)) {
+        Alert.alert("Reminder set", `${reminderSetText(set.remindAt, new Date(), from.place)}.`);
+        return;
+      }
+      const here = shownChannel.current === from.channelId;
+      setReminderSet({ ...set, where: here ? undefined : from.place, channelId: shownChannel.current });
+    },
+    [],
+  );
+  const reminderRefusedLate = useCallback(
+    (from: { channelId: string; place: string }) => (err: unknown) => {
+      const said = errorText(err);
+      if (seen(from) && shownChannel.current === from.channelId) {
+        notify("Couldn't set the reminder", said);
+        return;
+      }
+      Alert.alert(`Couldn't set the reminder in ${from.place}`, said || undefined);
     },
     [notify],
   );
@@ -478,6 +558,10 @@ export default function Channel({
   }
 
   const { space, channel, myUserId } = header;
+  placeRef.current = {
+    where: header.dm ? null : headerPlace(header),
+    place: reminderPlace({ conversation: !!header.dm, name: headerPlace(header) }),
+  };
   const { hasOlder } = log.channel;
   // A system message's menu is a moderator's alone (SystemMenu); for
   // anyone else a long press on one does nothing.
@@ -494,6 +578,16 @@ export default function Channel({
       {top}
       <ComposerDock
         notice={actions.notice}
+        standing={
+          reminderSet && (
+            <ReminderNotice
+              key={reminderSet.id}
+              set={reminderSet}
+              undo={undoReminder}
+              onDone={() => setReminderSet(null)}
+            />
+          )
+        }
         list={(clearance) => (
           <MessageContexts links={links} previews={previews} view={viewer.open} audio={audio}>
             <FlatList
@@ -511,6 +605,12 @@ export default function Channel({
                     flashed={item.message.id === flashId}
                     onVote={polls.vote}
                     onViewVotes={polls.viewVotes}
+                    onLongPress={actions.openMenu}
+                  />
+                ) : item.kind === "reminder" ? (
+                  <ReminderRow
+                    message={item.message}
+                    flashed={item.message.id === flashId}
                     onLongPress={actions.openMenu}
                   />
                 ) : item.kind === "system" ? (
@@ -610,7 +710,6 @@ export default function Channel({
               ref={actions.composer}
               key={channelId}
               place={headerPlace(header)}
-              onPoll={openPollForm}
               onCommand={openCommand}
               mentionNames={mentionNames}
               origin={server.origin}
@@ -644,6 +743,16 @@ export default function Channel({
             onPin={pollMay.pin ? () => actions.togglePin(menuMessage) : undefined}
             onClosePoll={pollMay.close ? () => polls.close(menuMessage) : undefined}
             onDelete={pollMay.delete ? () => polls.deletePoll(menuMessage) : undefined}
+            onClose={actions.closeMenu}
+          />
+        ) : menuMessage && isReminderRow(menuMessage) ? (
+          <ReminderMenu
+            message={menuMessage}
+            onDelete={
+              mayDeleteReminder({ message: menuMessage, myUserId, inSpace: !!space, canModerate: moderates })
+                ? () => actions.deleteReminder(menuMessage)
+                : undefined
+            }
             onClose={actions.closeMenu}
           />
         ) : menuMessage?.event ? (
@@ -696,6 +805,18 @@ export default function Channel({
           onPosted={pollPosted}
           onLateFailure={pollRefusedLate}
           onClose={closePollForm}
+        />
+      )}
+      {remindFor && (
+        <ReminderForm
+          key={remindFor.channelId}
+          channelId={remindFor.channelId}
+          where={remindFor.where}
+          text={remindFor.text}
+          create={setReminder}
+          onSet={reminderAnswered(remindFor)}
+          onLateFailure={reminderRefusedLate(remindFor)}
+          onClose={closeReminderForm}
         />
       )}
       {polls.votesMessage && (

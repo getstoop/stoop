@@ -288,14 +288,16 @@ import a screen; the screens themselves live in `src/screens`, so
   as the mention list is (`useCommandQuery`, `CommandList.tsx`;
   [messaging.md](../docs/architecture/messaging.md#slash-commands)):
   touch only, no row chosen ahead, and shut while a @handle or #name is
-  typed. A tap on `/poll`, or Send on `/poll` and a question, sends
-  nothing: the card goes down at once and, once the keyboard has gone
-  (`afterKeyboard.ts`), the poll's form opens as from Poll in the attach
-  sheet, the question filled and the first option taking the caret
-  (dropped instead if the reader has moved on meanwhile: Attach tapped,
-  a menu, a sheet or another screen opened). The words leave the field for good, and a send's old refusal with them,
-  while files and a quote stay. A thread's composer offers none and
-  sends `/poll` as typed; an edit never runs one.
+  typed. A tap on `/poll` or `/remind`, or Send on one and its words,
+  sends nothing: the card goes down at once and, once the keyboard has
+  gone (`afterKeyboard.ts`), its form opens as from Poll or Reminder in
+  the attach sheet, the poll's question filled and the first option
+  taking the caret, or the reminder's text filled (dropped instead if
+  the reader has moved on meanwhile: Attach tapped, a menu, a sheet,
+  the viewer or another screen opened). The words leave the field for
+  good, and a send's old refusal with them, while files and a quote
+  stay. A thread's composer offers none, and its attach sheet neither
+  form, and sends `/poll` as typed; an edit never runs one.
 - A message's files are drawn under its words, in the channel and the
   thread (`src/components/Attachments`, sized before layout by its
   `layout.ts` from the width and height the server measured, so a row
@@ -865,10 +867,7 @@ the poll's closing row from the reader's view at once
 (`withOwnDelete`). The closing row is a system row ("closed the poll:",
 the question and the outcome, from its own snapshot), whose View lands
 on the card and rings it, and which a screen reader is offered as View
-poll. A delivered reminder
-([messaging.md](../docs/architecture/messaging.md#reminders)) is a
-system row too, drawn by `SystemRow.tsx` as it stands: a bell, "Reminder
-from", the name and the text as typed. Poll in the attach sheet, or
+poll. Poll in the attach sheet, or
 `/poll` in the composer (above), opens `PollForm.tsx`, a sheet that sits
 on the keyboard: "Create a poll" and Cancel, the question, one option or
 several directly under it, the options with "N of 10", Add option and a
@@ -892,6 +891,54 @@ the new poll as it follows a send. A vote's `message_updated` does not mark the 
 channels or alerts lists stale (`touchesConversations`,
 `eventSpaceId`, `touchesAlerts`), and a search result shows a poll as
 its preview line, "Poll: " and the question as typed.
+
+A reminder ([messaging.md](../docs/architecture/messaging.md#reminders))
+is set from Reminder in the attach sheet, under Poll, or `/remind` in
+the composer (above), which opens `ReminderForm.tsx`, a sheet drawn as
+the poll's: "Set a reminder" and Cancel, where it posts, the text (the
+words after `/remind`, or empty and taking the caret), and When
+(`ReminderWhen.tsx`), one choice of the four presets, each with the time
+it lands on by this device's clock, worked out again every 15 seconds,
+and "Pick a date and time", which shows a date field and a time field
+(`ReminderDateTime.tsx`) that open the system's pickers
+(`@react-native-community/datetimepicker`, a native module): on iOS in
+the sheet under the fields, the calendar for the date (the wheels with
+large text) and the wheels for the time, one at a time; on Android the
+system's dialogs, the date's going on to the time's when no time is
+picked yet. Nothing is chosen at first, and Set reminder is on with
+text and a preset or both a date and a time. The rules are web's
+(`core/reminderForm`): a picked time this device's clock reads as gone
+by, under a minute or over a year away is a caution in words under When
+that stops nothing; the request is made as Set is pressed and names the
+preset, or the picked wall-clock time, with the device's IANA zone
+(`deviceTimeZone`), never an instant; the server's refusal is said on
+the field it is about, or over Set. Cancel works while the request is
+out, and either answer is still said. Once the server has it, a notice
+over the composer (`ReminderNotice.tsx`, in ComposerDock's `standing`
+place, under the mention and command lists) says when, from the
+server's answer, with Undo, an icon button: it goes after about six
+seconds, not while touched or while Undo is out, and is read out once;
+Undo calls `DeleteReminder` and then says "Reminder removed", or that
+the reminder was already posted (not found on a first try) or is no
+longer waiting (after a failed one), or that it couldn't be removed,
+with Undo kept. Moving to another channel takes the notice away. An
+answer that comes after the screen moved names where it posts; one
+that comes when the channel screen is covered or gone is a system
+alert naming the place, with no Undo; a late refusal is said over the
+composer, or as an alert when the screen has moved on.
+
+A delivered reminder is a row of its own (`ReminderRow.tsx`, kind
+`reminder` from `core/grouping`, never run on from its neighbours): a
+bare bell in the accent where an avatar goes, "Reminder from" the name
+and the time, and the text under it at a message's size as plain text
+exactly as typed. A long press opens `ReminderMenu.tsx`: the row as a
+card, Copy text, and Delete for the person who set it and, in a space,
+a moderator (`mayDeleteReminder`), asking first in web's words; nothing
+else. A search result shows one as a bell and "Reminder: " and the
+text. The conversation list words one the reader set as "You:
+Reminder: …" (`dmPreview`, shared with web; the list item does not say
+which kind a message is), and the Activity row lights no mention in
+it.
 
 Sending is send-then-merge, as on web: the
 composer clears the draft, awaits `SendMessage`, and the answer's row is

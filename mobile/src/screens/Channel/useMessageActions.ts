@@ -133,6 +133,13 @@ export function useMessageActions({
     },
     [remove, notify],
   );
+  // A delivered reminder, by the person who set it or a moderator.
+  const deleteReminder = useCallback(
+    (message: Message) => {
+      remove(message).catch((err) => notify("Couldn't delete the reminder", errorText(err)));
+    },
+    [remove, notify],
+  );
   // Pin message or Unpin message, whichever the row's flag makes it.
   const togglePin = useCallback(
     (message: Message) => {
@@ -279,6 +286,7 @@ export function useMessageActions({
     reactTo,
     deleteMessage,
     deleteSystem,
+    deleteReminder,
     togglePin,
     dismissPreview,
     linkNotCopied,
