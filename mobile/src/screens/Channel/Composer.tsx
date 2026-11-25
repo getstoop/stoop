@@ -292,7 +292,7 @@ export default forwardRef<
   });
   // Where this composer is, for the commands it offers; none where the
   // screen opens no forms, and none in an edit.
-  const commandPlace = { thread: inThread, canPost: true };
+  const commandPlace = { thread: inThread, canPost: true, opens: MOBILE_FORMS };
   const commandsOn = !!onCommand && !editing;
   const commandList = useCommandQuery({
     draft,
@@ -931,3 +931,7 @@ function makeStyles(theme: Theme) {
     },
   });
 }
+
+// The commands this composer has a form for (core/commands opens). The
+// reminders pull request for mobile adds "remind" once its sheet exists.
+const MOBILE_FORMS: readonly CommandName[] = ["poll"];

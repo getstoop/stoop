@@ -24,10 +24,10 @@ export function useCommandQuery({
   onPick: (command: Command) => void;
 }) {
   const query = open ? commandQueryAt(draft) : null;
-  const { thread, canPost } = place;
+  const { thread, canPost, opens } = place;
   const commands = useMemo(
-    () => (query ? matchingCommands(query, { thread, canPost }) : []),
-    [query?.query, query?.spaced, thread, canPost],
+    () => (query ? matchingCommands(query, { thread, canPost, opens }) : []),
+    [query?.query, query?.spaced, thread, canPost, opens],
   );
 
   // The list keeps one callback, which reads the latest pick.
