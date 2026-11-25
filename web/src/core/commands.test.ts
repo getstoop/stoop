@@ -19,8 +19,11 @@ const names = (draft: string, place = channel) => {
 };
 
 describe("commandsOffered", () => {
-  it("offers /poll where the poll button shows", () => {
-    expect(commandsOffered(channel).map((c) => c.name)).toEqual(["poll"]);
+  it("offers /poll and /remind where the poll button shows", () => {
+    expect(commandsOffered(channel).map((c) => c.name)).toEqual([
+      "poll",
+      "remind",
+    ]);
   });
 
   it("offers nothing in a thread or where posting is closed", () => {
@@ -76,7 +79,7 @@ describe("commandQueryAt", () => {
 
 describe("matchingCommands", () => {
   it("lists every command for a lone slash", () => {
-    expect(names("/")).toEqual(["poll"]);
+    expect(names("/")).toEqual(["poll", "remind"]);
   });
 
   it("filters by the letters typed", () => {
@@ -84,16 +87,20 @@ describe("matchingCommands", () => {
     expect(names("/poll")).toEqual(["poll"]);
     expect(names("/x")).toEqual([]);
     expect(names("/polls")).toEqual([]);
+    expect(names("/re")).toEqual(["remind"]);
+    expect(names("/reminders")).toEqual([]);
   });
 
   it("after a space keeps only the command so named", () => {
     expect(names("/poll Pizza?")).toEqual(["poll"]);
     expect(names("/po Pizza?")).toEqual([]);
+    expect(names("/remind Order the pizza")).toEqual(["remind"]);
   });
 
   it("lists nothing in a thread", () => {
     expect(names("/", thread)).toEqual([]);
     expect(names("/poll Pizza?", thread)).toEqual([]);
+    expect(names("/remind Pizza", thread)).toEqual([]);
   });
 });
 
@@ -151,6 +158,16 @@ describe("parseCommand", () => {
 
   it("is a message in a thread", () => {
     expect(parseCommand("/poll Pizza?", thread)).toBeNull();
+    expect(parseCommand("/remind Pizza", thread)).toBeNull();
+  });
+
+  it("reads /remind and its words", () => {
+    expect(parsed("/remind")).toEqual({ name: "remind", text: "" });
+    expect(parsed("/remind Order the **pizza** before seven")).toEqual({
+      name: "remind",
+      text: "Order the pizza before seven",
+    });
+    expect(parseCommand("/reminder at six", channel)).toBeNull();
   });
 });
 
@@ -167,5 +184,12 @@ describe("pickedText", () => {
     expect(pickedText("/poll What are we playing?", poll)).toBe(
       "What are we playing?",
     );
+  });
+
+  it("carries the words only to the command named", () => {
+    const remind = COMMANDS.find((command) => command.name === "remind");
+    if (!remind) throw new Error("no /remind");
+    expect(pickedText("/remind Call the venue", remind)).toBe("Call the venue");
+    expect(pickedText("/poll Call the venue", remind)).toBe("");
   });
 });

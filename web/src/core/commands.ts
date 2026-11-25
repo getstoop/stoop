@@ -8,7 +8,7 @@ import { plainText } from "./markdown/text";
 
 // Where the composer is: what decides which commands it offers.
 export type CommandPlace = {
-  // A thread's composer. A thread takes no poll.
+  // A thread's composer. A thread takes no poll and no reminder.
   thread: boolean;
   // Whether the person may post here at all.
   canPost: boolean;
@@ -16,7 +16,7 @@ export type CommandPlace = {
 
 // Every command's name, typed after "/" in lower case. A new command is a
 // name here and an entry in COMMANDS.
-export type CommandName = "poll";
+export type CommandName = "poll" | "remind";
 
 export type Command = {
   name: CommandName;
@@ -28,7 +28,8 @@ export type Command = {
 };
 
 // Where a poll can be made: as for the poll button, a channel's or a
-// conversation's composer, never a thread's.
+// conversation's composer, never a thread's. A reminder is offered in the
+// same places: it is always posted at the top level.
 const pollPlace = (place: CommandPlace) => place.canPost && !place.thread;
 
 export const COMMANDS: readonly Command[] = [
@@ -36,6 +37,12 @@ export const COMMANDS: readonly Command[] = [
     name: "poll",
     hint: "[question]",
     description: "Create a poll",
+    offered: pollPlace,
+  },
+  {
+    name: "remind",
+    hint: "[what]",
+    description: "Set a reminder for this channel",
     offered: pollPlace,
   },
 ];
