@@ -9,6 +9,7 @@ import {
   localInputValue,
   newReminderForm,
   parseLocalInput,
+  plausibleZone,
   presetLabel,
   presetTime,
   REMINDER_PRESETS,
@@ -209,7 +210,7 @@ describe("reminderTimeProblem", () => {
 
   it("words each problem", () => {
     expect(reminderTimeProblemText("past")).toBe(
-      "That time has passed. Pick one at least a minute from now.",
+      "That time has passed by this device's clock. Pick one at least a minute from now.",
     );
     expect(reminderTimeProblemText("soon")).toMatch(/at least a minute/);
     expect(reminderTimeProblemText("far")).toMatch(/year/);
@@ -265,15 +266,16 @@ describe("checkReminderForm", () => {
     );
   });
 
-  it("judges a picked time and says when it has passed", () => {
+  it("says when a picked time has passed, and still lets it be sent", () => {
     const form = filled(newReminderForm());
     expect(checkReminderForm(withChoice(form, "custom"), now).canSet).toBe(
       false,
     );
     const past = withCustom(form, "2026-11-24T15:00");
+    // This device's clock may be ahead of the server's, which decides.
     expect(checkReminderForm(past, now)).toMatchObject({
       when: "past",
-      canSet: false,
+      canSet: true,
     });
     const fine = withCustom(form, "2026-12-02T09:00");
     expect(checkReminderForm(fine, now)).toMatchObject({
@@ -335,7 +337,7 @@ describe("reminderRequest", () => {
     ).toBe(ReminderPreset.IN_20_MINUTES);
   });
 
-  it("stops only a picked time that has plainly gone by", () => {
+  it("stops only a missing or unreal picked time", () => {
     const picked = withCustom(form, "2026-11-24T16:30");
     expect(reminderRequest(picked, "c1", now, zone)).not.toBeNull();
     // Less than a minute ahead by this clock: said, but sent; the
@@ -343,10 +345,14 @@ describe("reminderRequest", () => {
     expect(
       reminderRequest(picked, "c1", at(2026, 11, 24, 16, 29, 30), zone),
     ).not.toBeNull();
+    // Gone by on this clock: said, and still sent.
     expect(
-      reminderRequest(picked, "c1", at(2026, 11, 24, 16, 31), zone),
-    ).toBeNull();
+      reminderRequest(picked, "c1", at(2026, 11, 24, 18, 0), zone)?.localTime,
+    ).toBe("2026-11-24T16:30");
     expect(reminderRequest(withCustom(form, ""), "c1", now, zone)).toBeNull();
+    expect(
+      reminderRequest(withCustom(form, "2026-02-30T09:00"), "c1", now, zone),
+    ).toBeNull();
   });
 
   it("sends with no zone when the device names none", () => {
@@ -357,6 +363,28 @@ describe("reminderRequest", () => {
 describe("deviceTimeZone", () => {
   it("is the runtime's zone name", () => {
     expect(deviceTimeZone()).toBe("America/New_York");
+  });
+
+  it("sends no zone for a name the server would not know", () => {
+    for (const zone of [
+      "UTC",
+      "Europe/London",
+      "America/Argentina/Buenos_Aires",
+      "America/Port-au-Prince",
+      "Etc/GMT+5",
+    ])
+      expect(plausibleZone(zone), zone).toBe(zone);
+    for (const zone of [
+      "",
+      "Etc/Unknown",
+      "+05:30",
+      "GMT+5",
+      "Europe",
+      "a/b/c/d",
+      undefined,
+      42,
+    ])
+      expect(plausibleZone(zone), String(zone)).toBe("");
   });
 });
 

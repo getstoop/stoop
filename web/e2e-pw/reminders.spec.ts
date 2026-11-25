@@ -129,15 +129,19 @@ test("set, undo, and a reminder posted for the channel", async ({
   ).toBeVisible();
   await expect(set, "no time picked yet: off").toBeDisabled();
   await picked.fill(await localValue(-60 * 60_000));
+  // Said as a caution: this device's clock may be ahead of the
+  // server's, which decides, so it stops nothing.
   await expect(
     form.getByText(
-      "That time has passed. Pick one at least a minute from now.",
+      "That time has passed by this device's clock. Pick one at least a minute from now.",
     ),
   ).toBeVisible();
-  await expect(picked).toHaveAttribute("aria-invalid", "true");
-  await expect(set, "a past time: off").toBeDisabled();
-  await picked.fill(await localValue(2 * 24 * 60 * 60_000));
   await expect(picked).not.toHaveAttribute("aria-invalid", "true");
+  await expect(set, "a past time is still sent").toBeEnabled();
+  await picked.fill(await localValue(2 * 24 * 60 * 60_000));
+  await expect(
+    form.getByText("From a minute to a year from now."),
+  ).toBeVisible();
   await expect(set, "two days ahead: on").toBeEnabled();
 
   // ---- Set: the request names the preset and the zone and no instant;
@@ -273,12 +277,16 @@ test("set, undo, and a reminder posted for the channel", async ({
   await expect(notice).toHaveText("That reminder has already been posted");
 
   // ---- A late answer closes only the form that sent it: the first
-  // form is closed while its request is out, a second is opened, and the
-  // first answer leaves the second open with its words.
+  // form is closed while its request is out, a second is opened with its
+  // words, and only then is the first answer let through.
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   await B.route(
     "**/stoop.chat.v1.ChatService/CreateReminder",
     async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await held;
       await route.continue();
     },
   );
@@ -293,6 +301,8 @@ test("set, undo, and a reminder posted for the channel", async ({
   await composer.pressSequentially("/remind second thoughts");
   await B.keyboard.press("Enter");
   await expect(text).toHaveValue("second thoughts");
+  await expect(notice).not.toContainText(/^Reminder set for/);
+  release();
   await expect(notice, "the first answer still gets its notice").toContainText(
     /^Reminder set for/,
   );

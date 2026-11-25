@@ -128,17 +128,11 @@ export function ReminderForm({
     failure?.field === "text"
       ? failure.text
       : check.text && reminderTextProblemText(check.text);
-  // A picked time gone by stops Set reminder; one under a minute or over
-  // a year away by this device's clock is a caution, since the server's
-  // clock decides.
-  const whenProblem =
-    failure?.field === "when"
-      ? failure.text
-      : check.when === "past" && reminderTimeProblemText(check.when);
-  const whenCaution =
-    check.when && check.when !== "past"
-      ? reminderTimeProblemText(check.when)
-      : null;
+  // A picked time this device's clock reads as gone by, under a minute
+  // or over a year away is a caution that stops nothing, since the
+  // server's clock decides; the server's refusal is the problem.
+  const whenProblem = failure?.field === "when" ? failure.text : null;
+  const whenCaution = check.when ? reminderTimeProblemText(check.when) : null;
 
   return (
     // Holds the whole dialog, so Tab goes round it rather than out to

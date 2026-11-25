@@ -51,13 +51,12 @@ export function TransientNotice({
   onDismiss: () => void;
   returnFocus: () => void;
 }) {
-  const region = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
-  // Focus came into the notice and has not moved on to anything else: if
-  // the control that had it is gone, it goes back rather than to the page.
-  // Kept by focus events, not by renders, so focus that arrived after the
-  // last render is known when the notice goes.
-  const hadFocus = useRef(false);
+  // The control in the notice that has focus, set by focus events. When
+  // it is taken out of the page with focus still on it, focus goes back
+  // to the words; focus the person moved elsewhere (a click on the page,
+  // a selection) clears it, and is never pulled back.
+  const focused = useRef<HTMLElement | null>(null);
   const dismiss = useRef(onDismiss);
   dismiss.current = onDismiss;
   const giveBack = useRef(returnFocus);
@@ -88,9 +87,9 @@ export function TransientNotice({
   }, [key, hold, ms]);
 
   useLayoutEffect(() => {
-    if (!hadFocus.current) return;
-    if (region.current?.contains(document.activeElement)) return;
-    hadFocus.current = false;
+    const control = focused.current;
+    if (!control || control.isConnected) return;
+    focused.current = null;
     const active = document.activeElement;
     if (!active || active === document.body) giveBack.current();
   });
@@ -105,7 +104,7 @@ export function TransientNotice({
 
   const action = notice?.action;
   return (
-    <div ref={region} className="transient-notice-region">
+    <div className="transient-notice-region">
       <span className="visually-hidden" role="status">
         {notice?.text ?? ""}
       </span>
@@ -115,15 +114,18 @@ export function TransientNotice({
           ref={box}
           className="transient-notice popover"
           onKeyDown={onKeyDown}
-          onFocus={() => {
-            hadFocus.current = true;
+          onFocus={(event) => {
+            focused.current = event.target;
           }}
           onBlur={(event) => {
-            // Focus moved on to something else; a control taken away
-            // with focus on it gives no such target.
-            const next = event.relatedTarget as Node | null;
-            if (next && !event.currentTarget.contains(next))
-              hadFocus.current = false;
+            // Asked once the change has settled: a control still in the
+            // page lost focus to something the person did; one taken out
+            // is the layout effect's to answer.
+            const control = event.target;
+            window.setTimeout(() => {
+              if (control.isConnected && focused.current === control)
+                focused.current = null;
+            }, 0);
           }}
         >
           {notice.icon && (

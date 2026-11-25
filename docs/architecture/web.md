@@ -841,8 +841,9 @@ window" is what the view's range holds.
   checks and their words, the request, and the server's refusals put
   on the field they are about. The request names a preset, or sends the
   picked value as the field holds it (`2026-12-02T09:00`, no offset),
-  with the device's IANA zone always (`deviceTimeZone`); it never
-  carries an instant, and the server works the instant out from its own
+  with the device's IANA zone always (`deviceTimeZone`, which sends
+  none for a name the server would not know, such as `Etc/Unknown` or
+  `+05:30`); it never carries an instant, and the server works the instant out from its own
   clock ([messaging.md](messaging.md#reminders)). A runtime that names
   no zone sends none: the three waits still work, and the server's
   refusal of "tomorrow at 9:00" or a picked time is said under When.
@@ -854,10 +855,10 @@ window" is what the view's range holds.
   `min` and `max` are a day wider than a minute to a year ahead, so a
   device clock a few hours off never stops a time the server would
   take. Nothing is chosen at first, and Set reminder is on with text and
-  a preset, or a real picked time that has not plainly gone by by this
-  device's clock ("That time has passed"); one under a minute or over a
-  year away by this clock is a caution in place of the hint and is
-  still sent, since the server's clock decides. Tab goes round the
+  a preset or a real picked date and time. A picked time this device's
+  clock reads as gone by, under a minute or over a year away is a
+  caution in place of the hint and is still sent, since the server's
+  clock decides; the server's refusal, if any, is said under When. Tab goes round the
   dialog; Enter in the text sets it. A refusal is said on the field it
   is about (every refusal of a time on When), or above the actions; one
   that comes after the form was closed is a notice. Each opening of a

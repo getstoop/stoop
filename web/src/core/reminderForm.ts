@@ -184,9 +184,9 @@ export function reminderTime(form: ReminderForm, now: Date): Date | null {
 }
 
 // What this device's clock makes of a picked time: gone by, less than a
-// minute ahead, more than a year ahead. Only "past" stops Set reminder;
-// the other two are said as a caution, since the server's clock, which
-// decides, may read the time otherwise.
+// minute ahead, more than a year ahead. Each is said as a caution and
+// none stops Set reminder, since the server's clock, which decides, may
+// read the time otherwise; the server's refusal is said if it does.
 export type ReminderTimeProblem = "past" | "soon" | "far";
 
 export function reminderTimeProblem(
@@ -209,9 +209,8 @@ export type ReminderFormCheck = {
   // When it would land by this device's clock, for showing; null with
   // nothing (or no real date and time) chosen.
   at: Date | null;
-  // Whether Set reminder can be on: some text, a preset or a real picked
-  // time that has not plainly gone by. A request in flight is the
-  // caller's to add.
+  // Whether Set reminder can be on: some text, and a preset or a real
+  // picked date and time. A request in flight is the caller's to add.
   canSet: boolean;
 };
 
@@ -228,7 +227,7 @@ export function checkReminderForm(
     text,
     when,
     at,
-    canSet: trimPollText(form.text) !== "" && !text && !!at && when !== "past",
+    canSet: trimPollText(form.text) !== "" && !text && !!at,
   };
 }
 
@@ -250,7 +249,7 @@ export function reminderTextProblemText(problem: ReminderTextProblem): string {
 export function reminderTimeProblemText(problem: ReminderTimeProblem): string {
   switch (problem) {
     case "past":
-      return "That time has passed. Pick one at least a minute from now.";
+      return "That time has passed by this device's clock. Pick one at least a minute from now.";
     case "soon":
       return "That's less than a minute away by this device's clock. A reminder needs at least a minute.";
     case "far":
@@ -280,8 +279,8 @@ const WIRE_PRESETS: Record<ReminderPreset, WirePreset> = {
   tomorrow: WirePreset.TOMORROW_AT_9,
 };
 
-// The request for the form, or null when Set reminder is off. now only
-// judges whether a picked time has plainly gone by.
+// The request for the form, or null when Set reminder is off. now
+// decides nothing the server would take.
 export function reminderRequest(
   form: ReminderForm,
   channelId: string,
@@ -314,11 +313,22 @@ export function reminderRequest(
 // refusal under When.
 export function deviceTimeZone(): string {
   try {
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return typeof zone === "string" ? zone : "";
+    return plausibleZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   } catch {
     return "";
   }
+}
+
+// A zone name the server can be expected to know: "UTC", or
+// Area/Location with an optional third part, of letters, digits, "_",
+// "-" and "+". Anything else ("Etc/Unknown", "+05:30", nothing) is sent
+// as no zone, so the three waits still work rather than every reminder
+// being refused for a zone the server does not know.
+export function plausibleZone(zone: unknown): string {
+  if (typeof zone !== "string") return "";
+  if (zone === "UTC") return zone;
+  if (zone === "Etc/Unknown") return "";
+  return /^[A-Za-z][\w+-]*\/[\w+-]+(?:\/[\w+-]+)?$/.test(zone) ? zone : "";
 }
 
 // A refusal as the form says it, and the field it is about (null: above
