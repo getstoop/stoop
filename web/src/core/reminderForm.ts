@@ -319,14 +319,14 @@ export function deviceTimeZone(): string {
   }
 }
 
-// A zone name the server can be expected to know: "UTC", or
+// A zone name the server can be expected to know: "UTC" or "GMT", or
 // Area/Location with an optional third part, of letters, digits, "_",
 // "-" and "+". Anything else ("Etc/Unknown", "+05:30", nothing) is sent
 // as no zone, so the three waits still work rather than every reminder
 // being refused for a zone the server does not know.
 export function plausibleZone(zone: unknown): string {
   if (typeof zone !== "string") return "";
-  if (zone === "UTC") return zone;
+  if (zone === "UTC" || zone === "GMT") return zone;
   if (zone === "Etc/Unknown") return "";
   return /^[A-Za-z][\w+-]*\/[\w+-]+(?:\/[\w+-]+)?$/.test(zone) ? zone : "";
 }

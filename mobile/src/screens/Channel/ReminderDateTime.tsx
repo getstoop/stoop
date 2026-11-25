@@ -114,6 +114,15 @@ export default function ReminderDateTime({
   useEffect(() => {
     if (open) onPickerShown();
   }, [open, onPickerShown]);
+  // Android's dialogs are the system's: closed with the form.
+  useEffect(
+    () => () => {
+      if (Platform.OS !== "android") return;
+      DateTimePickerAndroid.dismiss("date").catch(() => {});
+      DateTimePickerAndroid.dismiss("time").catch(() => {});
+    },
+    [],
+  );
 
   const dateText = parts.day?.toLocaleDateString([], {
     weekday: "short",
@@ -180,11 +189,10 @@ export default function ReminderDateTime({
 // The text size from which the fields stack (LARGE_TEXT, above).
 const LARGE_TEXT = 1.35;
 
-// What a picker opens on with nothing picked: today, and the next whole
-// hour.
-function defaultFor(mode: "date" | "time"): Date {
+// What a picker opens on with nothing picked: the next whole hour, and
+// its day (tomorrow, from 23:00), so the two together are ahead.
+function defaultFor(_mode: "date" | "time"): Date {
   const now = new Date();
-  if (mode === "date") return now;
   return new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0);
 }
 

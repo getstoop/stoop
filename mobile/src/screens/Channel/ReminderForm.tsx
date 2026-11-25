@@ -165,7 +165,13 @@ export default function ReminderForm({
   const revealPicker = useRef(false);
   const showPicker = useCallback(() => {
     revealPicker.current = true;
-    setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), REVEAL_DELAY_MS);
+    setTimeout(() => {
+      // Used once, whichever comes first, so a later change of size
+      // (an error line) does not scroll the fields to their end.
+      if (!revealPicker.current) return;
+      revealPicker.current = false;
+      scroll.current?.scrollToEnd({ animated: true });
+    }, REVEAL_DELAY_MS);
   }, []);
 
   const bottom = keyboard > 0 ? 8 : Math.max(insets.bottom, 8) + 8;

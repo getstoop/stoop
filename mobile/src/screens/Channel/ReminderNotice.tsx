@@ -8,7 +8,7 @@ import {
   reminderSetText,
 } from "@stoop/core/reminderForm";
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { type SetReminder, type UndoOutcome } from "../../api/reminders";
 import { CheckIcon } from "../../components/Icons";
@@ -62,6 +62,10 @@ export default function ReminderNotice({
   held.current = !!shown.hold;
   const doneLatest = useRef(onDone);
   doneLatest.current = onDone;
+  // The guard against a second Undo before the first has re-rendered.
+  const undoing = useRef(false);
+  // Counts failed Undos, so each failure shows its line for a full spell.
+  const [failures, setFailures] = useState(0);
 
   // Told once per line: a retry keeps the failed line's key, and so is
   // not said again.
@@ -69,22 +73,36 @@ export default function ReminderNotice({
     AccessibilityInfo.announceForAccessibility(shown.text);
   }, [shown.key]);
 
-  // Its time, from when each line came; asked again while it is held.
+  // Its time, from when each line came (and from each failed Undo);
+  // asked again while it is held. Time spent with the app in the
+  // background does not count: back in front, it runs again in full.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: failures restarts it.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let away = false;
     const up = () => {
-      if (touching.current || held.current) timer = setTimeout(up, RECHECK_MS);
+      if (AppState.currentState !== "active") {
+        away = true;
+        timer = setTimeout(up, RECHECK_MS);
+      } else if (away) {
+        away = false;
+        timer = setTimeout(up, shown.ms);
+      } else if (touching.current || held.current) timer = setTimeout(up, RECHECK_MS);
       else doneLatest.current();
     };
     timer = setTimeout(up, shown.ms);
     return () => clearTimeout(timer);
-  }, [shown.key, shown.ms]);
+  }, [shown.key, shown.ms, failures]);
 
   const press = async () => {
+    if (undoing.current) return;
+    undoing.current = true;
     const { id } = set;
     const retry = now === "failed";
     setPhase({ id, phase: retry ? "retrying" : "undoing" });
     const outcome = await undo(id);
+    undoing.current = false;
+    if (outcome === "failed") setFailures((count) => count + 1);
     const reached: Phase = outcome === "notFound" ? (retry ? "gone" : "posted") : outcome;
     // An answer for a reminder whose notice has since given way to a
     // newer one's is dropped.
