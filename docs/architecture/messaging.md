@@ -370,6 +370,34 @@ activity preview — knows shortcodes exist. Custom per-space emoji, when
 they arrive, will keep the `:name:` form and be resolved at render time,
 which is a different mechanism for a genuinely different thing.
 
+### Slash commands
+
+A command is the apps' own: the server never reads a leading `/`, and
+every command ends in an ordinary RPC it already checks. The list, and
+the two functions that read a draft against it, are
+`web/src/core/commands.ts`, shared with mobile; each entry has a name,
+an argument hint, a one-line description and where it is offered.
+
+- **The list.** While the whole draft is `/` and letters (the Markdown,
+  so code, a quote or a list item never counts), a list of the commands
+  offered here opens over the composer, beside the `@`, `#` and `:`
+  lists and shut where they are (in code or a link's words). Letters
+  filter it, nothing matching shuts it, and after a space it stays on
+  the one command so named. On web, arrows move, Enter or Tab picks,
+  Escape closes and keeps the text.
+- **On send.** A draft starting with a known name, then a space or the
+  end, opens that command's form and posts nothing. The command's words
+  leave the field and are not put back if the form is cancelled; files
+  and a reply waiting in the composer stay. The words after the name
+  go into the form's first field as plain text (`plainText`). An
+  unknown `/word` is an ordinary message, so a path still sends, and so
+  is anything formatted as code. A thread's composer offers no command
+  and sends one as typed; editing a message never runs one.
+- **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
+  poll button shows, with the question filled and cut to its limit.
+
+Built: web. Mobile has no command list yet.
+
 ## Mentions
 
 **Only a token mentions anyone.** `<@u:ID:handle>` names a person and

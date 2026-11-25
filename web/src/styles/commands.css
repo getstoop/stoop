@@ -1,0 +1,43 @@
+/* ---- Slash commands: the list above the composer ----
+   The mention list's panel and rows (.mention-picker, .option), with a
+   command's name and hint in a column of their own, its description,
+   and an Enter keycap on the row the keyboard is on. */
+
+.command-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  /* off-scale: wide enough for "/remind [what]", so descriptions line up */
+  min-width: 176px;
+  font-family: var(--font-mono);
+}
+
+.command-slash {
+  font-weight: 700;
+}
+
+.command-hint {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+}
+
+.command-description {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-key {
+  display: inline-flex;
+  align-items: center;
+  /* off-scale: the keycap's own height, a little under the text line */
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  line-height: 1;
+}

@@ -24,12 +24,15 @@ export function OptionFields({
   form,
   problems,
   locked,
+  focusFirst,
   onChange,
 }: {
   form: PollForm;
   problems: Record<number, PollFieldProblem>;
   // While the poll is being posted: nothing changes.
   locked?: boolean;
+  // The form opened with its question filled: start on the first option.
+  focusFirst?: boolean;
   onChange: (form: PollForm) => void;
 }) {
   const baseId = useId();
@@ -129,6 +132,8 @@ export function OptionFields({
                 aria-invalid={problem ? true : undefined}
                 aria-describedby={problem ? errorId : undefined}
                 autoComplete="off"
+                // biome-ignore lint/a11y/noAutofocus: a dialog takes focus; with the question given, the first option is next
+                autoFocus={focusFirst && index === 0}
                 readOnly={locked}
                 onChange={(event) =>
                   onChange(withOptionText(form, option.key, event.target.value))

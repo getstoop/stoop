@@ -21,10 +21,12 @@ export type PollForm = {
   nextKey: number;
 };
 
-// A form as it opens: no question, one choice, two empty options.
-export function newPollForm(): PollForm {
+// A form as it opens: one choice, two empty options, and the question
+// given (the words typed after /poll), trimmed and cut to the longest
+// question the server takes, or none.
+export function newPollForm(question = ""): PollForm {
   return {
-    question: "",
+    question: [...trimPollText(question)].slice(0, POLL_QUESTION_MAX).join(""),
     multiple: false,
     options: [
       { key: 1, text: "" },

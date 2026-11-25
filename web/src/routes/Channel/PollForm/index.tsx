@@ -33,16 +33,21 @@ import { OptionFields } from "./OptionFields";
 // shows by the time Post is pressed.
 export function PollForm({
   channelId,
+  question = "",
   onClose,
   onPosted,
 }: {
   channelId: string;
+  // The question it opens with: the words typed after /poll.
+  question?: string;
   onClose: () => void;
   onPosted: () => void;
 }) {
   const formId = useId();
   const [channel] = useState(channelId);
-  const [form, setForm] = useState(newPollForm);
+  const [form, setForm] = useState(() => newPollForm(question));
+  // Opened with a question: the first option is where typing goes next.
+  const [startsFilled] = useState(form.question !== "");
   const [posting, setPosting] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const check = checkPollForm(form);
@@ -156,6 +161,7 @@ export function PollForm({
             form={form}
             problems={check.options}
             locked={posting}
+            focusFirst={startsFilled}
             onChange={setForm}
           />
           {failure && (
