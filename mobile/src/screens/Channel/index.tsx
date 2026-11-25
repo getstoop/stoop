@@ -418,10 +418,18 @@ export default function Channel({
     [notify],
   );
   const closeReminderForm = useCallback(() => setRemindFor(null), []);
-  // Whether this screen is the one on top, for an answer that comes late
-  // (shownChannel, above, is the channel it shows).
+  // Whether this screen is on top and uncovered, for a reminder's answer
+  // that comes late (shownChannel, above, is the channel it shows): no
+  // other screen pushed over it, no menu, sheet or viewer over it, and
+  // no reminder form but the one that sent the request.
   const onTop = useRef(focused);
   onTop.current = focused;
+  const covered = useRef(false);
+  covered.current = !!menuFor || !!pollFor || !!polls.votesMessage || !!viewer.viewing;
+  const remindOpen = useRef(remindFor);
+  remindOpen.current = remindFor;
+  const seen = (from: object) =>
+    alive.current && onTop.current && !covered.current && (!remindOpen.current || remindOpen.current === from);
   const setReminder = useCallback(
     (request: ReminderRequest, shown: Date) => createReminder(server.origin, token, request, shown),
     [server.origin, token],
@@ -433,7 +441,7 @@ export default function Channel({
   // gone or is covered. One is never set without a word.
   const reminderAnswered = useCallback(
     (from: { channelId: string; place: string }) => (set: SetReminder) => {
-      if (!alive.current || !onTop.current) {
+      if (!seen(from)) {
         Alert.alert("Reminder set", `${reminderSetText(set.remindAt, new Date(), from.place)}.`);
         return;
       }
@@ -445,7 +453,7 @@ export default function Channel({
   const reminderRefusedLate = useCallback(
     (from: { channelId: string; place: string }) => (err: unknown) => {
       const said = errorText(err);
-      if (alive.current && onTop.current && shownChannel.current === from.channelId) {
+      if (seen(from) && shownChannel.current === from.channelId) {
         notify("Couldn't set the reminder", said);
         return;
       }
@@ -572,7 +580,12 @@ export default function Channel({
         notice={actions.notice}
         standing={
           reminderSet && (
-            <ReminderNotice set={reminderSet} undo={undoReminder} onDone={() => setReminderSet(null)} />
+            <ReminderNotice
+              key={reminderSet.id}
+              set={reminderSet}
+              undo={undoReminder}
+              onDone={() => setReminderSet(null)}
+            />
           )
         }
         list={(clearance) => (
