@@ -306,9 +306,14 @@ seconds, posts the reminders whose time has come
 is queued or running, so a failed run waiting on the retry ladder would
 hold delivery up for about two and a half minutes, and the next
 scheduled run takes the same reminders anyway. A run that could not
-post one keeps it, goes on, and ends as failed with the count. Each run
-leaves a `jobs` row for `STOOP_JOBS_RETENTION`, about 20,000 rows at
-the default.
+post one keeps it, goes on, and ends as failed with the count. A
+dispatcher killed in the middle of a run leaves its row `running` until
+the lease lapses, and delivery waits that long. Each run leaves one
+`jobs` row: 2,880 a day, so 20,160 held at the default
+`STOOP_JOBS_RETENTION` of a week, which is far more than the other
+seven kinds leave together (about 600 a week). With
+`STOOP_JOBS_RETENTION=0` they are all kept, about a million rows a
+year.
 
 Four one-shot kinds. `fan_out_webhook_event` is queued by the
 integrations module per event a hook wants, and queues a
@@ -418,6 +423,10 @@ jobs are in Postgres, so nothing in flight is lost across a restart.
 Only the dispatcher moves out under `STOOP_JOBS`. The subscriber, the
 sampler and the front-door managers stay in the server in every mode;
 `stoop jobs` builds the modules and runs the dispatcher and nothing else.
+It builds no voice module, so it is told whether voice is configured
+from the same settings the server reads (`voiceConfigured`): reminder
+delivery asks whether a person may post in a voice channel's chat, and
+a process that took voice for off would drop that reminder.
 Its bus relays every publish to the server's over Postgres `NOTIFY`
 ([realtime.md](realtime.md#across-processes)), and the server holds one
 connection outside the pool to hear it, so an avatar a job finished or a

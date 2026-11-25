@@ -6329,7 +6329,10 @@ type CreateReminderResponse struct {
 	// What DeleteReminder takes.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// The time as stored: remind_at rounded down to the whole minute. The
-	// reminder is posted within about half a minute after it, never before.
+	// reminder is never posted before it, and normally within the delivery
+	// job's interval (30 seconds) and the dispatcher's poll after it; later
+	// when no dispatcher was running then. docs/architecture/messaging.md
+	// → Reminders → Timing.
 	RemindAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=remind_at,json=remindAt,proto3" json:"remind_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

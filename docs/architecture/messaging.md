@@ -1586,18 +1586,35 @@ look are not built yet.
   the next reminder, then ends in an error naming how many failed, so
   it shows on the Diagnostics tab. Someone removed and added back
   before the time gets their reminder.
-- **Timing.** A reminder is never early. It is posted up to one
-  interval, plus the dispatcher's poll, after its minute begins; if the
-  server was down then, when it is back. A run that finds more than 500
-  due leaves the rest for the next.
+- **Timing.** A reminder is never early. Normally it is posted within
+  one interval (30 seconds) plus the dispatcher's poll (`STOOP_JOBS_POLL`,
+  2 seconds) of its minute beginning. Three cases are later. On a fresh
+  install the job's first run is two minutes after the server first
+  started, since a new schedule row is due then. If the dispatcher was
+  not running at the time (the server down, or `STOOP_JOBS=external`
+  with no `stoop jobs`), it is posted once one runs. And if the
+  dispatcher is killed in the middle of a run, no new run starts until
+  that run's lease lapses, 10 minutes by default
+  ([runtime.md](runtime.md#background-work)). A run that finds more
+  than 500 due leaves the rest for the next.
 - **Who is told.** In a channel it is the channel's last message and is
   unread for everyone, and alerts nobody. In a conversation it reopens
   it and alerts the others. Nobody's read marker moves, the person's
   own included: they are not at the keyboard, and marking the channel
-  read for them would pass over messages they have not seen. So to the
-  server the row is unread for the person who set it as well, while a
-  client that holds the row treats it as that person's own, which is
-  all the notice they get: no activity item is written for them.
+  read for them would pass over messages they have not seen. So the row
+  is unread for the person who set it as it is for anyone, and both apps
+  agree with the server: a delivered reminder is not the reader's own
+  send (`isOwnSend` in `core/unreads.ts`, the one question every such
+  place asks). Live, it counts as unread for them and leaves their
+  marker alone unless they are looking at the channel, in which case it
+  is read as it lands and the server is told, as for anyone's row; the
+  "New messages" line can sit above it; and it reads none of their
+  activity. That unread mark is all the notice they get: no activity
+  item is written for them, it is never an alert (`addressesMe`), and
+  nothing is pushed. In a conversation the unread conversation counts
+  once on their badge total, as any unread conversation does. The list
+  does not follow it to the bottom as it follows their send
+  (`isOwnPost`).
 - **The row.** `content` is the text and `data` is `{}`: the event type
   keeps the text out of its JSON (`json:"-"`) and hands it to `content`,
   as a pin keeps its message in `reference_message_id`. On the wire the

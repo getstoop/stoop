@@ -2801,7 +2801,10 @@ export type CreateReminderResponse = Message<"stoop.chat.v1.CreateReminderRespon
 
   /**
    * The time as stored: remind_at rounded down to the whole minute. The
-   * reminder is posted within about half a minute after it, never before.
+   * reminder is never posted before it, and normally within the delivery
+   * job's interval (30 seconds) and the dispatcher's poll after it; later
+   * when no dispatcher was running then. docs/architecture/messaging.md
+   * → Reminders → Timing.
    *
    * @generated from field: google.protobuf.Timestamp remind_at = 2;
    */
