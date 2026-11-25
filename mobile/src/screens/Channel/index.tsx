@@ -345,9 +345,15 @@ export default function Channel({
     (question = "") => setPollFor({ channelId, engine, question }),
     [channelId, engine],
   );
-  // A command from the composer opens its form (core/commands).
+  // A command from the composer opens its form (core/commands), once its
+  // keyboard has gone; by then the reader may have moved on (a thread or
+  // another screen pushed over this one, a menu or a sheet opened), and
+  // the command is then dropped rather than opened over that.
+  const elsewhere = useRef(false);
+  elsewhere.current = !focused || !!menuFor || !!pollFor || !!polls.votesMessage;
   const openCommand = useCallback(
     (command: CommandName, text: string) => {
+      if (elsewhere.current) return;
       switch (command) {
         case "poll":
           openPollForm(text);

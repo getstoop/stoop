@@ -405,14 +405,25 @@ export default forwardRef<
   // sheet has: the form is a sheet of its own on the keyboard. Until
   // then Send does nothing, so a second tap while the field lets go can't
   // send the files alone. (The field is blurred, not unmounted: a blur
-  // reaching a view already gone is refused on Android.)
+  // reaching a view already gone is refused on Android.) A wait the
+  // person moves on from (Attach tapped, the composer gone) is dropped
+  // with its command; the words are already gone, which is accepted.
   const commandOut = useRef(false);
+  const commandWait = useRef<(() => void) | null>(null);
+  const dropCommand = () => {
+    commandWait.current?.();
+    commandWait.current = null;
+    commandOut.current = false;
+  };
+  useEffect(() => () => dropCommand(), []);
   const openCommand = ({ command, text }: ParsedCommand) => {
+    dropCommand();
     commandOut.current = true;
     putDraft("");
     setError(null);
     input.current?.blur();
-    afterKeyboard(() => {
+    commandWait.current = afterKeyboard(() => {
+      commandWait.current = null;
       commandOut.current = false;
       onCommand?.(command.name, text);
     });
@@ -530,7 +541,10 @@ export default forwardRef<
   };
   const raised = glass ? styles.glassRaised : styles.raised;
   const waiting = attachments.uploading && !editing && !commandAhead;
-  const openAttach = () => attachments.openSheet(writing);
+  const openAttach = () => {
+    dropCommand();
+    attachments.openSheet(writing);
+  };
   // Keyed, so it stays the same sheet when the field's blur swaps the card
   // for the pill, which hold it at different positions. Remounted, the iOS
   // modal being dismissed reports its dismissal to the new sheet.

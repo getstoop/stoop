@@ -291,8 +291,9 @@ import a screen; the screens themselves live in `src/screens`, so
   typed. A tap on `/poll`, or Send on `/poll` and a question, sends
   nothing: the card goes down at once and, once the keyboard has gone
   (`afterKeyboard.ts`), the poll's form opens as from Poll in the attach
-  sheet, the question filled and the first option taking the caret. The
-  words leave the field for good, and a send's old refusal with them,
+  sheet, the question filled and the first option taking the caret
+  (dropped instead if the reader has moved on meanwhile: Attach tapped,
+  a menu, a sheet or another screen opened). The words leave the field for good, and a send's old refusal with them,
   while files and a quote stay. A thread's composer offers none and
   sends `/poll` as typed; an edit never runs one.
 - A message's files are drawn under its words, in the channel and the

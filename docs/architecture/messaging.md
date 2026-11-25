@@ -393,7 +393,8 @@ an argument hint, a one-line description and where it is offered.
   nothing to close it with: it is shut while a @handle or #name is
   typed, and otherwise shows until the draft stops being a command or
   the card goes down. The form opens once the keyboard has gone, so its
-  sheet rises once. A pick reads the draft exactly as a send does.
+  sheet rises once, and not at all if the reader has moved on
+  meanwhile. A pick reads the draft exactly as a send does.
 - **On send.** A draft starting with a known name, then a space or the
   end, opens that command's form and posts nothing. The command's words
   leave the field and are not put back if the form is cancelled; files

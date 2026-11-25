@@ -8,20 +8,27 @@ const MOST_MS = 1000;
 // system never say so. A sheet that sits on the keyboard (the poll's
 // form) opened while the composer's keyboard is still going would rise
 // with it, drop as it went and rise again as the sheet's own field took
-// it; opened after, it rises once, as from the attach sheet.
-export function afterKeyboard(then: () => void) {
+// it; opened after, it rises once, as from the attach sheet. Returns a
+// cancel, for a wait the person has moved on from meanwhile.
+export function afterKeyboard(then: () => void): () => void {
   if (!Keyboard.isVisible()) {
     then();
-    return;
+    return () => {};
   }
   let done = false;
-  const finish = () => {
-    if (done) return;
+  const stop = () => {
     done = true;
     hidden.remove();
     clearTimeout(timer);
+  };
+  const finish = () => {
+    if (done) return;
+    stop();
     then();
   };
   const hidden = Keyboard.addListener("keyboardDidHide", finish);
   const timer = setTimeout(finish, MOST_MS);
+  return () => {
+    if (!done) stop();
+  };
 }
