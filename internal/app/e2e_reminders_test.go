@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -83,12 +82,19 @@ func TestE2EReminderRequests(t *testing.T) {
 		time.Until(at) <= 0 || time.Until(at) > 48*time.Hour {
 		t.Errorf("tomorrow at 9:00 in Kolkata answered %s, want 03:30 UTC within two days", tomorrow.raw)
 	}
-	nextYear := time.Now().UTC().Year() + 1
+	// Midday on the 15th, half a year on: well inside the year allowed
+	// whatever today is, and nowhere near a clock change.
+	newYork, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ahead := time.Now().UTC().AddDate(0, 6, 0)
+	meant := time.Date(ahead.Year(), ahead.Month(), 15, 12, 30, 0, 0, newYork)
 	local := site.rpc(ada, chatService+"CreateReminder", map[string]any{
-		"channelId": general, "text": "Renew the domain", "localTime": fmt.Sprintf("%d-01-01T00:30:15", nextYear), "timeZone": "America/New_York",
+		"channelId": general, "text": "Renew the domain", "localTime": meant.Format("2006-01-02T15:04") + ":15", "timeZone": "America/New_York",
 	}).expect(t, "ok")
-	if want := fmt.Sprintf("%d-01-01T05:30:00Z", nextYear); local.str("remindAt") != want {
-		t.Errorf("00:30 on 1 January in New York answered %s, want %s", local.raw, want)
+	if want := meant.UTC().Format(time.RFC3339); local.str("remindAt") != want {
+		t.Errorf("%s in New York answered %s, want %s", meant.Format("2006-01-02T15:04"), local.raw, want)
 	}
 	if rows := site.messages(casey, general); len(rows) != 0 {
 		t.Errorf("setting a reminder posted %v", rows)
