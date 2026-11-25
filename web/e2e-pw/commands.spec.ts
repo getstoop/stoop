@@ -115,14 +115,25 @@ test("the command list and /poll", async ({ browser }) => {
     options,
     "after a space the list stays on the one command",
   ).toHaveCount(1);
-  // A list of one leaves the arrows to the caret.
+  // A list of one leaves the arrows to the caret: the composer lets the
+  // key through rather than spending it. Read from the event itself, as
+  // where the caret lands on a one-line draft differs by platform.
+  await A.evaluate(() => {
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key.startsWith("Arrow")) {
+          document.body.dataset.arrowSpent = String(event.defaultPrevented);
+        }
+      },
+      { once: true },
+    );
+  });
   await A.keyboard.press("ArrowUp");
-  await expect
-    .poll(
-      () => A.evaluate(() => window.getSelection()?.anchorOffset),
-      "ArrowUp moves the caret, not the selection",
-    )
-    .toBe(0);
+  await expect(
+    A.locator("body"),
+    "ArrowUp is left to the caret",
+  ).toHaveAttribute("data-arrow-spent", "false");
   await expect(options).toHaveCount(1);
   await A.keyboard.press("Enter");
   await expect(form, "Enter opens the poll form").toBeVisible();
