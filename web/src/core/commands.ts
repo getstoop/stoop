@@ -8,15 +8,19 @@ import { plainText } from "./markdown/text";
 
 // Where the composer is: what decides which commands it offers.
 export type CommandPlace = {
-  // A thread's composer. A thread takes no poll.
+  // A thread's composer. A thread takes no poll and no reminder.
   thread: boolean;
   // Whether the person may post here at all.
   canPost: boolean;
+  // The commands this app's composer has a form for. A command not named
+  // here is neither listed nor read from a send, so an app never offers
+  // one it cannot open: its "/name" is sent as an ordinary message.
+  opens: readonly CommandName[];
 };
 
 // Every command's name, typed after "/" in lower case. A new command is a
 // name here and an entry in COMMANDS.
-export type CommandName = "poll";
+export type CommandName = "poll" | "remind";
 
 export type Command = {
   name: CommandName;
@@ -28,7 +32,8 @@ export type Command = {
 };
 
 // Where a poll can be made: as for the poll button, a channel's or a
-// conversation's composer, never a thread's.
+// conversation's composer, never a thread's. A reminder is offered in the
+// same places: it is always posted at the top level.
 const pollPlace = (place: CommandPlace) => place.canPost && !place.thread;
 
 export const COMMANDS: readonly Command[] = [
@@ -38,10 +43,18 @@ export const COMMANDS: readonly Command[] = [
     description: "Create a poll",
     offered: pollPlace,
   },
+  {
+    name: "remind",
+    hint: "[what]",
+    description: "Set a reminder here",
+    offered: pollPlace,
+  },
 ];
 
 export const commandsOffered = (place: CommandPlace): Command[] =>
-  COMMANDS.filter((command) => command.offered(place));
+  COMMANDS.filter(
+    (command) => place.opens.includes(command.name) && command.offered(place),
+  );
 
 // What the draft so far asks of the list: the letters typed after "/",
 // and whether a space has followed them. Null when the list is shut.

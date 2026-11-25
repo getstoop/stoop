@@ -14,4 +14,6 @@
   list-style: none;
   max-height: 260px;
   overflow-y: auto;
+  /* Over a transient notice above the composer (reminders.css). */
+  z-index: 2;
 }

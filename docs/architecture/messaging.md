@@ -376,7 +376,10 @@ A command is the apps' own: the server never reads a leading `/`, and
 every command ends in an ordinary RPC it already checks. The list, and
 the two functions that read a draft against it, are
 `web/src/core/commands.ts`, shared with mobile; each entry has a name,
-an argument hint, a one-line description and where it is offered.
+an argument hint, a one-line description and where it is offered. Each
+app's composer also says which commands it has a form for
+(`CommandPlace.opens`): one it cannot open is neither listed nor read
+from a send, so its `/name` goes as an ordinary message.
 
 - **The list.** While the whole draft is `/` and letters (the Markdown,
   so code, a quote or a list item never counts), a list of the commands
@@ -410,6 +413,10 @@ an argument hint, a one-line description and where it is offered.
 - **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
   poll button (on mobile, Poll in the attach sheet) shows, with the
   question filled and cut to its limit.
+- **`/remind [what]`** ("Set a reminder here") opens the reminder form
+  ([Reminders](#reminders)) in the same places, with the text filled and
+  cut to its limit. On web it is the only way in; mobile does not offer
+  it yet.
 
 Built: web and mobile.
 
@@ -1506,10 +1513,13 @@ as a [system message](#system-messages) of kind 9 (`reminder`) by the
 person who set it and deletes the waiting row. The code is
 `internal/chat/reminders.go` and `queries/chat/reminders.sql`.
 
-Built: the server side. Web and mobile draw a delivered reminder with
-the system row they have (a bell, "Reminder from", the name and the
-text); the form that sets one, the notice with Undo and the row's own
-look are not built yet.
+Built: the server side and web ([web.md](web.md) → The message list →
+Reminders): `/remind` and its form, the notice with Undo, and the row.
+The form's rules (`core/reminderForm.ts`), who may delete a delivered
+one (`core/reminders.ts`) and the wording of a future time
+(`futureTime` in `core/dates.ts`) are shared with mobile, which draws a
+delivered reminder with the system row it has (a bell, "Reminder
+from", the name and the text) and has no way to set one yet.
 
 - **Setting one** (`CreateReminder`). The checks are `CreatePoll`'s, in
   its order: the text and the time first, which cost nothing, then

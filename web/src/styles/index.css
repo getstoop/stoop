@@ -72,4 +72,6 @@
 @import "./poll-popovers.css";
 @import "./poll-form.css";
 @import "./commands.css";
+@import "./transient-notice.css";
+@import "./reminders.css";
 @import "./mobile.css";

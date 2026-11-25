@@ -630,8 +630,9 @@ window" is what the view's range holds.
 - **One item per row** (`MessageList/items.ts`): the head (the window's
   older edge — skeleton rows while more lies older, the beginning marker
   with the first-run card, or a thread's root above its reply count), a day line,
-  the "New messages" line, each message, a poll and any other system
-  message as items of their own kinds (`MessageList/PollRow/` and
+  the "New messages" line, each message, a poll, a delivered reminder
+  and any other system message as items of their own kinds
+  (`MessageList/PollRow/`, `MessageList/ReminderRow.tsx` and
   `MessageList/SystemRow.tsx`, below), and the foot (the newer edge).
   Dividers are rows beside the messages, never wrappers round them
   (`.new-divider + *` is still the message it introduces). The head and
@@ -729,9 +730,8 @@ window" is what the view's range holds.
   closing row reads "closed the poll:", the question and the outcome
   from its own snapshot ("Winner: A, 3 votes", "Tied: A and B, 3 votes
   each", "Nobody voted"), with View to the poll while it is there; its
-  wording is `systemLine`'s, shared with mobile. A delivered
-  [reminder](messaging.md#reminders) is drawn by the same row for now:
-  a bell, "Reminder from", the name and the text as typed.
+  wording is `systemLine`'s, shared with mobile. A delivered reminder
+  has a row of its own (Reminders, below).
 - **Polls** ([messaging.md](messaging.md#polls)) are a system message on
   the wire but a card on screen: `pollOf` in `core/polls.ts` picks them
   out before `isSystemRow` would, and `MessageList/PollRow/` draws one
@@ -810,6 +810,103 @@ window" is what the view's range holds.
   words as they were; `/poll` takes its own words out. Nothing takes
   focus when the form closes because the composer moved to another
   channel.
+- **Reminders** ([messaging.md](messaging.md#reminders)). A delivered
+  reminder is a system row with a look of its own, so it is seen:
+  `MessageList/ReminderRow.tsx` (`.system-row.reminder-row`, in
+  `styles/reminders.css`), picked out by `isReminderRow` in
+  `core/reminders.ts` before `isSystemRow` would. A bare bell in the
+  accent sits in the avatar column; the head line is "Reminder from"
+  and the name (the user card's button, through the live-name overlay)
+  and the time; the text is under it at message size in full ink, as
+  plain text exactly as typed: no Markdown, no mention, and a URL is
+  not made a link, as a poll's question is not. It never groups with
+  the rows round it and is a jump's target as a message is
+  (`indexOfMessage`). The one action is Delete, for the person who set
+  it and, in a space, `messages.moderate`; in a conversation the person
+  who set it alone (`mayDeleteReminder`, shared with mobile), with its
+  own confirm (`removeReminder` in `useRowHandlers.ts`). Where a
+  message is shown in brief (a search result, a linked message's card)
+  it is a bell and "Reminder: " and the text
+  (`components/ReminderPreview.tsx`); it can't be pinned, so a pin
+  never shows one.
+
+  One is set by typing `/remind` with the text after it, the one way in
+  on web ([messaging.md](messaging.md#slash-commands)), which opens
+  `routes/Channel/ReminderForm/` in the `Modal`, beside the composer's
+  form as the poll's is, bound to the channel it was opened in and
+  closed when the composer moves. Its rules are
+  `core/reminderForm.ts`, shared with mobile: the text under a poll
+  question's rules (200 characters), the four presets (in 20 minutes,
+  in 1 hour, in 3 hours, tomorrow at 9:00 local), the picked time, the
+  checks and their words, the request, and the server's refusals put
+  on the field they are about. The request names a preset, or sends the
+  picked value as the field holds it (`2026-12-02T09:00`, no offset),
+  with the device's IANA zone always (`deviceTimeZone`, which sends
+  none for a name the server would not know, such as `Etc/Unknown` or
+  `+05:30`); it never carries an instant, and the server works the instant out from its own
+  clock ([messaging.md](messaging.md#reminders)). A runtime that names
+  no zone sends none: the three waits still work, and the server's
+  refusal of "tomorrow at 9:00" or a picked time is said under When.
+  When is a radio group of the presets, each with the time it lands on
+  by this device's clock ("Today at 4:30 PM", worked out again every 15
+  seconds while the form is open), a guide only, and "Pick a date and
+  time", which opens the browser's own `<input type="datetime-local">`,
+  with the hint or the problem under it in words and tied to it. Its
+  `min` and `max` are a day wider than a minute to a year ahead, so a
+  device clock a few hours off never stops a time the server would
+  take. Nothing is chosen at first, and Set reminder is on with text and
+  a preset or a real picked date and time. A picked time this device's
+  clock reads as gone by, under a minute or over a year away is a
+  caution in place of the hint and is still sent, since the server's
+  clock decides; the server's refusal, if any, is said under When. Tab goes round the
+  dialog; Enter in the text sets it. A refusal is said on the field it
+  is about (every refusal of a time on When), or above the actions; one
+  that comes after the form was closed is a notice. Each opening of a
+  form has its own id, and an
+  answer closes only the form that sent it, never one opened since.
+
+  Setting one posts nothing. The composer shows a transient notice
+  (below) with the time as the server stored it, rounded down to the
+  minute ("Reminder set for today at 4:30 PM", `futureTime` in
+  `core/dates.ts`), and Undo, an icon button named "Undo", which calls
+  `DeleteReminder`: then it reads "Reminder removed" for three seconds;
+  if the reminder was posted meanwhile (`NotFound` on the first try),
+  "That reminder has already been posted"; if Undo fails, "Couldn't
+  remove the reminder" with Undo still there, and it keeps saying that,
+  with Undo busy, while a retry is out. `NotFound` after a failed try
+  reads "That reminder is no longer waiting", since the failed try may
+  have taken it back itself. The notice is the composer's and belongs
+  to the channel it was set in: moving to another channel or
+  conversation takes it away, and with it the way back to that
+  reminder. A reminder whose answer arrives after the form was
+  cancelled still gets its notice; one whose answer arrives after a
+  move gets it in the composer now on screen, naming where it posts
+  ("Reminder set in #general for …", or "in your conversation with
+  …"), with an Undo that takes back that reminder; and one whose
+  answer arrives when no composer is on screen (the conversation list,
+  search, a channel the person can't post in) is a notice dialog naming
+  the place, with no Undo. A reminder is never set without a word.
+- **Transient notices** (`components/TransientNotice.tsx`,
+  `styles/transient-notice.css`): a line over the bottom of a view that
+  goes away on its own, with at most one icon button. It stays while
+  focus is in it, or the pointer is on it where the pointer hovers
+  (`(hover: hover)`: a tap leaves `:hover` set), asked of the element
+  when its time is up rather than followed by events, and while its
+  action is out. It never takes focus: it is placed in the tab order
+  after the control that comes before it (the composer's words), a
+  mouse press on its button leaves focus where it was (in every
+  browser, Safari included), Escape inside it dismisses it, and focus
+  that came into it by keyboard goes back to the words when the
+  control that had it goes, kept by focus events so a channel change
+  straight after is covered. The words are read out from a
+  visually hidden `role="status"` span that is always in the page and
+  holds the words alone; the drawn words are `aria-hidden`, and the
+  button's tooltip is outside the live region and is not its
+  description (`Tooltip describes={false}`), so "Undo" is said once.
+  Above the composer it sits under the composer's lists (`@`, `#`, `:`
+  and the command list, `z-index` 2 in `mention-picker.css`), which
+  stay whole and usable while a notice is up. The reminder notice is
+  the only one so far.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:

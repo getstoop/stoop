@@ -48,10 +48,11 @@ test("the command list and /poll", async ({ browser }) => {
   await expect(pollButton, "button-opened cancel returns to it").toBeFocused();
 
   // A lone "/" opens the list, the first entry selected and marked by
-  // more than colour.
+  // more than colour. The arrows move between /poll and /remind
+  // (reminders.spec.ts); typing on narrows it to /poll alone.
   await composer.click();
   await composer.pressSequentially("/");
-  await expect(options, "a lone slash lists /poll").toHaveCount(1);
+  await expect(options, "a lone slash lists both").toHaveCount(2);
   await expect(options.first()).toContainText("/poll");
   await expect(options.first()).toContainText("[question]");
   await expect(options.first()).toContainText("Create a poll");
@@ -62,15 +63,16 @@ test("the command list and /poll", async ({ browser }) => {
     options.first().locator(".command-key"),
     "and carries the Enter keycap",
   ).toHaveText("Enter");
+
+  // Letters filter; a letter nothing starts with closes the list.
+  await composer.pressSequentially("po");
+  await expect(options, '"/po" lists /poll alone').toHaveCount(1);
+  await expect(options.first()).toContainText("/poll");
   await A.keyboard.press("ArrowDown");
   await expect(
     options.first(),
     "ArrowDown with one entry stays on it",
   ).toHaveClass(/selected/);
-
-  // Letters filter; a letter nothing starts with closes the list.
-  await composer.pressSequentially("po");
-  await expect(options, '"/po" still lists /poll').toHaveCount(1);
   await composer.pressSequentially("x");
   await expect(composer).toHaveText("/pox");
   await expect(list, '"/pox" matches nothing').toHaveCount(0);

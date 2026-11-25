@@ -11,13 +11,16 @@ import { ChannelName } from "../../components/ChannelName";
 import { DeletedMark } from "../../components/DeletedMark";
 import { MessageBody } from "../../components/MessageBody";
 import { PollPreview } from "../../components/PollPreview";
+import { ReminderPreview } from "../../components/ReminderPreview";
 import { fullDateTime, shortDateTime } from "../../core/dates";
 import type { MentionMembers } from "../../core/mentions";
 import { isPollRow } from "../../core/polls";
+import { isReminderRow } from "../../core/reminders";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 
 // One search result: who said it where and when, then the message with
-// the matching words marked. The whole row opens the channel at that
+// the matching words marked (a poll or a delivered reminder as its
+// one-line preview, by whoever asked or set it). The whole row opens the channel at that
 // message.
 export function ResultRow({
   message,
@@ -76,6 +79,8 @@ export function ResultRow({
       <span className="search-row-body message-content">
         {isPollRow(message) ? (
           <PollPreview message={message} highlight={highlight} />
+        ) : isReminderRow(message) ? (
+          <ReminderPreview message={message} highlight={highlight} />
         ) : (
           <MessageBody
             content={message.content}

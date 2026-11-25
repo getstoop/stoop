@@ -73,3 +73,33 @@ export function shortDateTime(d: Date, now: Date = new Date()): string {
   });
   return `${day}, ${time}`;
 }
+
+// Calendar days from now's day to d's, by the local dates alone, so a day
+// of 23 or 25 hours (a daylight-saving change) still counts as one.
+function daysAhead(d: Date, now: Date): number {
+  const dayOf = (x: Date) =>
+    Date.UTC(x.getFullYear(), x.getMonth(), x.getDate());
+  return Math.round((dayOf(d) - dayOf(now)) / DAY_MS);
+}
+
+// A day still to come where its time is said beside it: "Tue 2 Dec" (in
+// the reader's locale), with the year only when it differs from now's.
+export function futureDay(d: Date, now: Date = new Date()): string {
+  return d.toLocaleDateString([], {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
+// A time still to come, worded to sit after "for" or "at" in a sentence:
+// "today at 4:30 PM", "tomorrow at 9:00 AM", then "Tue 2 Dec at 9:00 AM".
+// The time is cut to the minute, as a stored reminder is.
+export function futureTime(d: Date, now: Date = new Date()): string {
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const days = daysAhead(d, now);
+  if (days === 0) return `today at ${time}`;
+  if (days === 1) return `tomorrow at ${time}`;
+  return `${futureDay(d, now)} at ${time}`;
+}

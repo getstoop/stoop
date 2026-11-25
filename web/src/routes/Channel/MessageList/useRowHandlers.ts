@@ -81,6 +81,24 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     }
   }, []);
 
+  // A delivered reminder, by the person who set it or a moderator: gone
+  // from the list at once, as a message is.
+  const removeReminder = useCallback(async (message: Message) => {
+    const ok = await confirm({
+      title: "Delete this reminder?",
+      body: "It's removed for everyone.",
+      action: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await chatClient.deleteMessage({ messageId: message.id });
+      patchOwnDelete(message.channelId, message.id);
+    } catch (err) {
+      notice({ title: "Couldn't delete the reminder", body: errorText(err) });
+    }
+  }, []);
+
   // The card goes for everyone; the server's update for the message
   // takes it out of the row.
   const dismissPreview = useCallback(async (message: Message, url: string) => {
@@ -140,6 +158,7 @@ export function useRowHandlers(spaceId: string, channelId: string) {
     remove,
     removePoll,
     removeSystem,
+    removeReminder,
     dismissPreview,
     showCard,
     showGroup,

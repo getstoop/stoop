@@ -2,6 +2,7 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { dayLabel } from "../../../core/dates";
 import { continues, startsDay } from "../../../core/grouping";
 import { pollOf } from "../../../core/polls";
+import { isReminderRow } from "../../../core/reminders";
 import { isSystemRow } from "../../../core/systemMessages";
 import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 
@@ -9,8 +10,8 @@ import type { Message } from "../../../gen/stoop/chat/v1/message_pb";
 // positions and measures on its own: the head (the window's older edge —
 // skeleton rows, the beginning marker, or a thread's root), a day line above
 // the first message of each day, the "New messages" line above the first
-// unread one, every message (a poll and any other system message are
-// items of their own kinds), and the foot (the newer edge). A divider is a row beside the
+// unread one, every message (a poll, a delivered reminder and any other
+// system message are items of their own kinds), and the foot (the newer edge). A divider is a row beside the
 // messages, never a wrapper round one: from a divider, the message it
 // introduces is the next sibling. The mobile app's channel
 // draws core/grouping's groupedRows; this is the web's form, with a
@@ -23,6 +24,8 @@ export type ListItem =
   | { kind: "new"; key: string; label: string; startsDay: boolean }
   | { kind: "message"; key: string; message: Message; continued: boolean }
   | { kind: "system"; key: string; message: Message }
+  // A delivered reminder: a system row of its own look, never grouped.
+  | { kind: "reminder"; key: string; message: Message }
   // A poll: a card under its author's name, always heading its own group.
   | { kind: "poll"; key: string; message: Message; options: number };
 
@@ -72,14 +75,16 @@ export function listItems({
             message,
             options: poll.options.length,
           }
-        : isSystemRow(message)
-          ? { kind: "system", key: message.id, message }
-          : {
-              kind: "message",
-              key: message.id,
-              message,
-              continued: continues(message, previous, firstNewId, inThread),
-            },
+        : isReminderRow(message)
+          ? { kind: "reminder", key: message.id, message }
+          : isSystemRow(message)
+            ? { kind: "system", key: message.id, message }
+            : {
+                kind: "message",
+                key: message.id,
+                message,
+                continued: continues(message, previous, firstNewId, inThread),
+              },
     );
   });
   items.push({ kind: "foot", key: "foot" });
@@ -93,6 +98,7 @@ export function indexOfMessage(items: ListItem[], messageId: string): number {
     (item) =>
       ((item.kind === "message" ||
         item.kind === "system" ||
+        item.kind === "reminder" ||
         item.kind === "poll") &&
         item.message.id === messageId) ||
       (item.kind === "head" && item.rootId === messageId),
@@ -121,6 +127,9 @@ export function estimateSize(item: ListItem): number {
       return item.continued ? 24 : 46;
     case "system":
       return 26;
+    case "reminder":
+      // The head line and one line of text.
+      return 52;
     case "poll":
       // The author line, the card's question, kind and foot, and an
       // option with a line of voters each.

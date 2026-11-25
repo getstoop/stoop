@@ -723,3 +723,43 @@ export function MailIcon() {
     </svg>
   );
 }
+
+// Undo: an arrow turning back. The reminder notice's one action.
+export function UndoIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
+    </svg>
+  );
+}
+
+// A delivered reminder's bell, the system row's bell glyph at the size
+// of an avatar's mark.
+export function ReminderIcon() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 17v-6a6 6 0 0 1 12 0v6l2 2H4l2-2M10 21h4" />
+    </svg>
+  );
+}

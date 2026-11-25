@@ -52,6 +52,54 @@ export async function ageSessions() {
   }
 }
 
+// Makes every waiting reminder due, as if its time had come, and brings
+// the delivery sweep's next run forward to now, as if its 30 seconds had
+// passed, so the dispatcher's next poll (STOOP_JOBS_POLL, 2 seconds)
+// delivers them through the server's own path. Only the clock is moved:
+// nothing is posted from here.
+export async function reminderTimeComes() {
+  const client = new pg.Client({ connectionString: DB });
+  await client.connect();
+  try {
+    await client.query(
+      "UPDATE reminders SET remind_at = date_trunc('minute', now()) - interval '1 minute'",
+    );
+    await client.query(
+      "UPDATE job_schedules SET next_due = now() WHERE kind = 'deliver_reminders'",
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+// When each waiting reminder is stored for, soonest first.
+export async function waitingReminderTimes(): Promise<Date[]> {
+  const client = new pg.Client({ connectionString: DB });
+  await client.connect();
+  try {
+    const { rows } = await client.query(
+      "SELECT remind_at FROM reminders ORDER BY remind_at",
+    );
+    return rows.map((row) => new Date(row.remind_at));
+  } finally {
+    await client.end();
+  }
+}
+
+// How many reminders are waiting, across the instance.
+export async function waitingReminders(): Promise<number> {
+  const client = new pg.Client({ connectionString: DB });
+  await client.connect();
+  try {
+    const { rows } = await client.query(
+      "SELECT count(*)::int AS waiting FROM reminders",
+    );
+    return rows[0].waiting;
+  } finally {
+    await client.end();
+  }
+}
+
 // Every test gets a fresh instance without saying so, and leaves no pages
 // behind.
 //

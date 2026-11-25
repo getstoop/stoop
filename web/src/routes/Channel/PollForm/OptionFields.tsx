@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import { composing } from "../../../components/dialogKeys";
 import { CloseIcon, PlusIcon } from "../../../components/Icons";
 import {
   addOption,
@@ -14,7 +15,6 @@ import {
   trimPollText,
   withOptionText,
 } from "../../../core/pollForm";
-import { composing } from "./keys";
 
 // The options: a field each, a remove button beside it, Add option under
 // them, between two and ten. The keys suit a list of lines: Enter goes
