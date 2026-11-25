@@ -157,6 +157,15 @@ service ChatService {
   // outcome that marks the channel unread as a message does. Its author
   // may, or in a space someone with messages.moderate.
   rpc ClosePoll(ClosePollRequest) returns (ClosePollResponse) {}
+  // CreateReminder sets a reminder for a channel or conversation: at its
+  // time the server posts it there as a row by the caller. Whoever may
+  // send a message here may. Nothing is posted and nobody else is told
+  // until then. See docs/architecture/messaging.md → Reminders.
+  rpc CreateReminder(CreateReminderRequest) returns (CreateReminderResponse) {}
+  // DeleteReminder takes back one of the caller's own reminders that has
+  // not been posted yet. Anything else is not found, one already posted
+  // included: that row is deleted as a message is.
+  rpc DeleteReminder(DeleteReminderRequest) returns (DeleteReminderResponse) {}
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse) {}
   // ListChanges catches a channel up from a log position: every row with
   // a higher seq, tombstones and thread replies included. Same access as
@@ -923,6 +932,31 @@ message DirectMessage {
   DirectMessageLast last_message = 4;
 }
 
+message CreateReminderRequest {
+  string channel_id = 1;
+  // 1 to 200 characters on one line, counted after trimming, at least
+  // one of them visible; no control characters or direction overrides.
+  // Plain text: an @name in it mentions no one.
+  string text = 2;
+  // When to post it, as an instant: at least one minute and at most one
+  // year ahead by the server's clock.
+  google.protobuf.Timestamp remind_at = 3;
+}
+
+message CreateReminderResponse {
+  // What DeleteReminder takes.
+  string id = 1;
+  // The time as stored: remind_at rounded down to the whole minute. The
+  // reminder is posted within about half a minute after it, never before.
+  google.protobuf.Timestamp remind_at = 2;
+}
+
+message DeleteReminderRequest {
+  string id = 1;
+}
+
+message DeleteReminderResponse {}
+
 // DirectMessageLast is a conversation's newest message as one line: who
 // sent it, what it says and when.
 message DirectMessageLast {
@@ -930,7 +964,7 @@ message DirectMessageLast {
   MessageAuthor author = 2;
   // Plain text with mentions as names, truncated; the first file's name
   // when it has no text; "Poll: " and the question for a poll, "Poll
-  // closed: " for its closing row. Empty when the message was deleted (a deleted
+  // closed: " for its closing row, "Reminder: " and its text for a reminder. Empty when the message was deleted (a deleted
   // message stays newest while its thread still has replies).
   string preview = 3;
   bool deleted = 4;

@@ -18,7 +18,7 @@ import type { Message as Message$1 } from "@bufbuild/protobuf";
  * Describes the file stoop/chat/v1/message.proto.
  */
 export const file_stoop_chat_v1_message: GenFile = /*@__PURE__*/
-  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSKaAQoKQXR0YWNobWVudBIPCgdmaWxlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgwKBHNpemUYBCABKAMSDwoHZXhwaXJlZBgFIAEoCBINCgV3aWR0aBgGIAEoBRIOCgZoZWlnaHQYByABKAUSGQoRdGh1bWJuYWlsX2ZpbGVfaWQYCCABKAkigQYKB01lc3NhZ2USCgoCaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIsCgZhdXRob3IYAyABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHY29udGVudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBtZW50aW9uX3VzZXJfaWRzGAYgAygJEhAKCHNwYWNlX2lkGAcgASgJEh8KF21lbnRpb25zX2VudGlyZV9jaGFubmVsGAggASgIEikKCHJlcGx5X3RvGAkgASgLMhcuc3Rvb3AuY2hhdC52MS5SZXBseVJlZhIVCg1tZW50aW9uc19oZXJlGAogASgIEi0KCWVkaXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoJcmVhY3Rpb25zGAwgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbhIuCgthdHRhY2htZW50cxgNIAMoCzIZLnN0b29wLmNoYXQudjEuQXR0YWNobWVudBIxCg1saW5rX3ByZXZpZXdzGA4gAygLMhouc3Rvb3AuY2hhdC52MS5MaW5rUHJldmlldxIOCgZwaW5uZWQYDyABKAgSFgoOdGhyZWFkX3Jvb3RfaWQYECABKAkSLAoGdGhyZWFkGBEgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5Eg8KB2RlbGV0ZWQYEiABKAgSEgoKaW5fY2hhbm5lbBgTIAEoCBIsCgt0aHJlYWRfcm9vdBgUIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSCwoDc2VxGBUgASgDEikKBWV2ZW50GBYgASgLMhouc3Rvb3AuY2hhdC52MS5TeXN0ZW1FdmVudBINCgVxdWlldBgXIAEoCBIqCglyZWZlcmVuY2UYGCABKAsyFy5zdG9vcC5jaGF0LnYxLlJlcGx5UmVmIq0DCgtTeXN0ZW1FdmVudBI0Cg1tZW1iZXJzX2FkZGVkGAEgASgLMhsuc3Rvb3AuY2hhdC52MS5NZW1iZXJzQWRkZWRIABIwCgttZW1iZXJfbGVmdBgCIAEoCzIZLnN0b29wLmNoYXQudjEuTWVtYmVyTGVmdEgAEjgKD2NoYW5uZWxfcmVuYW1lZBgDIAEoCzIdLnN0b29wLmNoYXQudjEuQ2hhbm5lbFJlbmFtZWRIABI0Cg10b3BpY19jaGFuZ2VkGAQgASgLMhsuc3Rvb3AuY2hhdC52MS5Ub3BpY0NoYW5nZWRIABImCgNwaW4YBSABKAsyFy5zdG9vcC5jaGF0LnYxLlBpbkV2ZW50SAASPwoTcG9zdF9wb2xpY3lfY2hhbmdlZBgGIAEoCzIgLnN0b29wLmNoYXQudjEuUG9zdFBvbGljeUNoYW5nZWRIABIjCgRwb2xsGAcgASgLMhMuc3Rvb3AuY2hhdC52MS5Qb2xsSAASMAoLcG9sbF9jbG9zZWQYCCABKAsyGS5zdG9vcC5jaGF0LnYxLlBvbGxDbG9zZWRIAEIGCgRraW5kIj0KDE1lbWJlcnNBZGRlZBItCgdtZW1iZXJzGAEgAygLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yIgwKCk1lbWJlckxlZnQiNAoOQ2hhbm5lbFJlbmFtZWQSEAoIb2xkX25hbWUYASABKAkSEAoIbmV3X25hbWUYAiABKAkiHQoMVG9waWNDaGFuZ2VkEg0KBXRvcGljGAEgASgJIgoKCFBpbkV2ZW50IkoKEVBvc3RQb2xpY3lDaGFuZ2VkEjUKC3Bvc3RfcG9saWN5GAEgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeSLLAQoEUG9sbBIQCghxdWVzdGlvbhgBIAEoCRIqCgdvcHRpb25zGAIgAygLMhkuc3Rvb3AuY2hhdC52MS5Qb2xsT3B0aW9uEhAKCG11bHRpcGxlGAMgASgIEi0KCWNsb3NlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoJY2xvc2VkX2J5GAUgASgLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEhMKC3ZvdGVyX2NvdW50GAYgASgFIlQKClBvbGxPcHRpb24SCgoCaWQYASABKAUSDAoEdGV4dBgCIAEoCRIsCgZ2b3RlcnMYAyADKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3IiXwoKUG9sbENsb3NlZBIQCghxdWVzdGlvbhgBIAEoCRIqCgd3aW5uZXJzGAIgAygLMhkuc3Rvb3AuY2hhdC52MS5Qb2xsV2lubmVyEhMKC3ZvdGVyX2NvdW50GAMgASgFIikKClBvbGxXaW5uZXISDAoEdGV4dBgBIAEoCRINCgV2b3RlcxgCIAEoBSLJAQoNVGhyZWFkU3VtbWFyeRITCgtyZXBseV9jb3VudBgBIAEoBRIxCg1sYXN0X3JlcGx5X2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0Cg5yZWNlbnRfYXV0aG9ycxgDIAMoCzIcLnN0b29wLmNoYXQudjEuTWVzc2FnZUF1dGhvchIVCg1wYXJ0aWNpcGF0aW5nGAQgASgIEg0KBW11dGVkGAUgASgIEhQKDHVucmVhZF9jb3VudBgGIAEoBSKTAQoLTGlua1ByZXZpZXcSCwoDdXJsGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhEKCXNpdGVfbmFtZRgEIAEoCRIVCg1pbWFnZV9maWxlX2lkGAUgASgJEhMKC2ltYWdlX3dpZHRoGAYgASgFEhQKDGltYWdlX2hlaWdodBgHIAEoBUKrAQoRY29tLnN0b29wLmNoYXQudjFCDE1lc3NhZ2VQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_channel, file_stoop_chat_v1_reaction]);
+  fileDesc("ChtzdG9vcC9jaGF0L3YxL21lc3NhZ2UucHJvdG8SDXN0b29wLmNoYXQudjEimQEKDU1lc3NhZ2VBdXRob3ISCgoCaWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSFAoMZGlzcGxheV9uYW1lGAMgASgJEhYKDmF2YXRhcl9maWxlX2lkGAQgASgJEisKBGtpbmQYBSABKA4yHS5zdG9vcC5hY2Nlc3MudjEuSWRlbnRpdHlLaW5kEg8KB2RlbGV0ZWQYBiABKAgiXQoIUmVwbHlSZWYSEgoKbWVzc2FnZV9pZBgBIAEoCRIsCgZhdXRob3IYAiABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHcHJldmlldxgDIAEoCSKaAQoKQXR0YWNobWVudBIPCgdmaWxlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEgwKBHNpemUYBCABKAMSDwoHZXhwaXJlZBgFIAEoCBINCgV3aWR0aBgGIAEoBRIOCgZoZWlnaHQYByABKAUSGQoRdGh1bWJuYWlsX2ZpbGVfaWQYCCABKAkigQYKB01lc3NhZ2USCgoCaWQYASABKAkSEgoKY2hhbm5lbF9pZBgCIAEoCRIsCgZhdXRob3IYAyABKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3ISDwoHY29udGVudBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBtZW50aW9uX3VzZXJfaWRzGAYgAygJEhAKCHNwYWNlX2lkGAcgASgJEh8KF21lbnRpb25zX2VudGlyZV9jaGFubmVsGAggASgIEikKCHJlcGx5X3RvGAkgASgLMhcuc3Rvb3AuY2hhdC52MS5SZXBseVJlZhIVCg1tZW50aW9uc19oZXJlGAogASgIEi0KCWVkaXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoJcmVhY3Rpb25zGAwgAygLMhcuc3Rvb3AuY2hhdC52MS5SZWFjdGlvbhIuCgthdHRhY2htZW50cxgNIAMoCzIZLnN0b29wLmNoYXQudjEuQXR0YWNobWVudBIxCg1saW5rX3ByZXZpZXdzGA4gAygLMhouc3Rvb3AuY2hhdC52MS5MaW5rUHJldmlldxIOCgZwaW5uZWQYDyABKAgSFgoOdGhyZWFkX3Jvb3RfaWQYECABKAkSLAoGdGhyZWFkGBEgASgLMhwuc3Rvb3AuY2hhdC52MS5UaHJlYWRTdW1tYXJ5Eg8KB2RlbGV0ZWQYEiABKAgSEgoKaW5fY2hhbm5lbBgTIAEoCBIsCgt0aHJlYWRfcm9vdBgUIAEoCzIXLnN0b29wLmNoYXQudjEuUmVwbHlSZWYSCwoDc2VxGBUgASgDEikKBWV2ZW50GBYgASgLMhouc3Rvb3AuY2hhdC52MS5TeXN0ZW1FdmVudBINCgVxdWlldBgXIAEoCBIqCglyZWZlcmVuY2UYGCABKAsyFy5zdG9vcC5jaGF0LnYxLlJlcGx5UmVmItoDCgtTeXN0ZW1FdmVudBI0Cg1tZW1iZXJzX2FkZGVkGAEgASgLMhsuc3Rvb3AuY2hhdC52MS5NZW1iZXJzQWRkZWRIABIwCgttZW1iZXJfbGVmdBgCIAEoCzIZLnN0b29wLmNoYXQudjEuTWVtYmVyTGVmdEgAEjgKD2NoYW5uZWxfcmVuYW1lZBgDIAEoCzIdLnN0b29wLmNoYXQudjEuQ2hhbm5lbFJlbmFtZWRIABI0Cg10b3BpY19jaGFuZ2VkGAQgASgLMhsuc3Rvb3AuY2hhdC52MS5Ub3BpY0NoYW5nZWRIABImCgNwaW4YBSABKAsyFy5zdG9vcC5jaGF0LnYxLlBpbkV2ZW50SAASPwoTcG9zdF9wb2xpY3lfY2hhbmdlZBgGIAEoCzIgLnN0b29wLmNoYXQudjEuUG9zdFBvbGljeUNoYW5nZWRIABIjCgRwb2xsGAcgASgLMhMuc3Rvb3AuY2hhdC52MS5Qb2xsSAASMAoLcG9sbF9jbG9zZWQYCCABKAsyGS5zdG9vcC5jaGF0LnYxLlBvbGxDbG9zZWRIABIrCghyZW1pbmRlchgJIAEoCzIXLnN0b29wLmNoYXQudjEuUmVtaW5kZXJIAEIGCgRraW5kIj0KDE1lbWJlcnNBZGRlZBItCgdtZW1iZXJzGAEgAygLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yIgwKCk1lbWJlckxlZnQiNAoOQ2hhbm5lbFJlbmFtZWQSEAoIb2xkX25hbWUYASABKAkSEAoIbmV3X25hbWUYAiABKAkiHQoMVG9waWNDaGFuZ2VkEg0KBXRvcGljGAEgASgJIgoKCFBpbkV2ZW50IkoKEVBvc3RQb2xpY3lDaGFuZ2VkEjUKC3Bvc3RfcG9saWN5GAEgASgOMiAuc3Rvb3AuY2hhdC52MS5DaGFubmVsUG9zdFBvbGljeSLLAQoEUG9sbBIQCghxdWVzdGlvbhgBIAEoCRIqCgdvcHRpb25zGAIgAygLMhkuc3Rvb3AuY2hhdC52MS5Qb2xsT3B0aW9uEhAKCG11bHRpcGxlGAMgASgIEi0KCWNsb3NlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoJY2xvc2VkX2J5GAUgASgLMhwuc3Rvb3AuY2hhdC52MS5NZXNzYWdlQXV0aG9yEhMKC3ZvdGVyX2NvdW50GAYgASgFIlQKClBvbGxPcHRpb24SCgoCaWQYASABKAUSDAoEdGV4dBgCIAEoCRIsCgZ2b3RlcnMYAyADKAsyHC5zdG9vcC5jaGF0LnYxLk1lc3NhZ2VBdXRob3IiXwoKUG9sbENsb3NlZBIQCghxdWVzdGlvbhgBIAEoCRIqCgd3aW5uZXJzGAIgAygLMhkuc3Rvb3AuY2hhdC52MS5Qb2xsV2lubmVyEhMKC3ZvdGVyX2NvdW50GAMgASgFIikKClBvbGxXaW5uZXISDAoEdGV4dBgBIAEoCRINCgV2b3RlcxgCIAEoBSIKCghSZW1pbmRlciLJAQoNVGhyZWFkU3VtbWFyeRITCgtyZXBseV9jb3VudBgBIAEoBRIxCg1sYXN0X3JlcGx5X2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0Cg5yZWNlbnRfYXV0aG9ycxgDIAMoCzIcLnN0b29wLmNoYXQudjEuTWVzc2FnZUF1dGhvchIVCg1wYXJ0aWNpcGF0aW5nGAQgASgIEg0KBW11dGVkGAUgASgIEhQKDHVucmVhZF9jb3VudBgGIAEoBSKTAQoLTGlua1ByZXZpZXcSCwoDdXJsGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhEKCXNpdGVfbmFtZRgEIAEoCRIVCg1pbWFnZV9maWxlX2lkGAUgASgJEhMKC2ltYWdlX3dpZHRoGAYgASgFEhQKDGltYWdlX2hlaWdodBgHIAEoBUKrAQoRY29tLnN0b29wLmNoYXQudjFCDE1lc3NhZ2VQcm90b1ABWjJnaXRodWIuY29tL2dldHN0b29wL3N0b29wL2dlbi9zdG9vcC9jaGF0L3YxO2NoYXR2MaICA1NDWKoCDVN0b29wLkNoYXQuVjHKAg1TdG9vcFxDaGF0XFYx4gIZU3Rvb3BcQ2hhdFxWMVxHUEJNZXRhZGF0YeoCD1N0b29wOjpDaGF0OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp, file_stoop_access_v1_access, file_stoop_chat_v1_channel, file_stoop_chat_v1_reaction]);
 
 /**
  * MessageAuthor is a denormalized snapshot of the author, resolved by the
@@ -202,7 +202,8 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
    * Markdown, with mentions as tokens: <@u:ID:handle> for a person,
    * <@g:ID:handle> for a group. The handle is the one current when the
    * message was saved. See docs/architecture/integrations.md → Mentions.
-   * On a poll and on its closing row, the poll's question as plain text.
+   * On a poll and on its closing row, the poll's question as plain text;
+   * on a reminder, its text, plain too.
    *
    * @generated from field: string content = 4;
    */
@@ -346,8 +347,8 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
   /**
    * Set only on a system message: a row that records something that
    * happened in the channel, by author. Its words are the client's, built
-   * from the event; a poll's question and options are the only text in
-   * one that a person wrote. A case the client does not know leaves the
+   * from the event; a poll's question and options, and a reminder's
+   * text in content, are the only text in one that a person wrote. A case the client does not know leaves the
    * oneof unset: it hides the row when quiet is set and otherwise asks
    * the reader to update.
    *
@@ -358,7 +359,7 @@ export type Message = Message$1<"stoop.chat.v1.Message"> & {
   /**
    * The row marks nothing unread: it is left out of unread counts and is
    * never a channel's last message. Written once, from the row's kind;
-   * false on a poll and on its closing row.
+   * false on a poll, on its closing row and on a reminder.
    *
    * @generated from field: bool quiet = 23;
    */
@@ -438,6 +439,12 @@ export type SystemEvent = Message$1<"stoop.chat.v1.SystemEvent"> & {
      */
     value: PollClosed;
     case: "pollClosed";
+  } | {
+    /**
+     * @generated from field: stoop.chat.v1.Reminder reminder = 9;
+     */
+    value: Reminder;
+    case: "reminder";
   } | { case: undefined; value?: undefined };
 };
 
@@ -704,6 +711,23 @@ export const PollWinnerSchema: GenMessage<PollWinner> = /*@__PURE__*/
   messageDesc(file_stoop_chat_v1_message, 14);
 
 /**
+ * Reminder: the author set a reminder for this channel and its time has
+ * come. Its text is Message.content, plain text shown as typed. See
+ * docs/architecture/messaging.md → Reminders.
+ *
+ * @generated from message stoop.chat.v1.Reminder
+ */
+export type Reminder = Message$1<"stoop.chat.v1.Reminder"> & {
+};
+
+/**
+ * Describes the message stoop.chat.v1.Reminder.
+ * Use `create(ReminderSchema)` to create a new message.
+ */
+export const ReminderSchema: GenMessage<Reminder> = /*@__PURE__*/
+  messageDesc(file_stoop_chat_v1_message, 15);
+
+/**
  * ThreadSummary is what the line under a root shows, so it renders with no
  * fetch of the thread.
  *
@@ -758,7 +782,7 @@ export type ThreadSummary = Message$1<"stoop.chat.v1.ThreadSummary"> & {
  * Use `create(ThreadSummarySchema)` to create a new message.
  */
 export const ThreadSummarySchema: GenMessage<ThreadSummary> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 15);
+  messageDesc(file_stoop_chat_v1_message, 16);
 
 /**
  * LinkPreview is the unfurled metadata of a URL in a message.
@@ -809,5 +833,5 @@ export type LinkPreview = Message$1<"stoop.chat.v1.LinkPreview"> & {
  * Use `create(LinkPreviewSchema)` to create a new message.
  */
 export const LinkPreviewSchema: GenMessage<LinkPreview> = /*@__PURE__*/
-  messageDesc(file_stoop_chat_v1_message, 16);
+  messageDesc(file_stoop_chat_v1_message, 17);
 

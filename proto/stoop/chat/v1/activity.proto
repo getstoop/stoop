@@ -30,7 +30,8 @@ message ActivityItem {
   // Who did it, resolved through the user-directory port.
   MessageAuthor actor = 6;
   // A short excerpt of the message (empty if it was deleted). A poll
-  // reads "Poll: " and its question, its closing row "Poll closed: ".
+  // reads "Poll: " and its question, its closing row "Poll closed: ", a
+  // reminder "Reminder: " and its text.
   string preview = 7;
   google.protobuf.Timestamp created_at = 8;
   // Set once read.

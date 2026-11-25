@@ -286,8 +286,8 @@ shortened interval would pass first; one whose kind this build no longer
 registers is disabled when it falls due. `job_dispatchers` is a heartbeat
 row per dispatcher.
 
-The seven scheduled kinds, registered and scheduled in `internal/app`
-except the last, which the module owns:
+The eight scheduled kinds, registered and scheduled in `internal/app`
+except `sweep_jobs`, which the module owns. Seven are sweeps:
 
 | Kind | Every | Removes |
 | --- | --- | --- |
@@ -298,6 +298,17 @@ except the last, which the module owns:
 | `sweep_messages` | hourly | messages past `message_retention_days` ([messaging.md](messaging.md#message-retention)) |
 | `sweep_attachments` | hourly | attachments past `attachment_retention_days` ([files.md](files.md#retention)) |
 | `sweep_jobs` | hourly | finished `jobs` rows older than `STOOP_JOBS_RETENTION`, and dispatcher rows not seen for an hour |
+
+The eighth does work people wait for: `deliver_reminders`, every 30
+seconds, posts the reminders whose time has come
+([messaging.md](messaging.md#reminders)). It is registered with
+`MaxAttempts: 1`: the scheduler queues no new run of a kind while one
+is queued or running, so a failed run waiting on the retry ladder would
+hold delivery up for about two and a half minutes, and the next
+scheduled run takes the same reminders anyway. A run that could not
+post one keeps it, goes on, and ends as failed with the count. Each run
+leaves a `jobs` row for `STOOP_JOBS_RETENTION`, about 20,000 rows at
+the default.
 
 Four one-shot kinds. `fan_out_webhook_event` is queued by the
 integrations module per event a hook wants, and queues a
@@ -383,8 +394,9 @@ The Storage tab's **Clean now** is `FileService.SweepFiles`: it enqueues
 one `sweep_files` job and returns its id, and the Diagnostics tab's
 Background work panel shows the pass ([diagnostics.md](diagnostics.md)).
 
-None is required for correctness. A server that never sweeps works; it
-just accumulates.
+No sweep is required for correctness. A server that never sweeps works;
+it just accumulates. Reminders are the exception: with no dispatcher
+they wait, and are posted late once one runs.
 
 Why it is shaped this way. The queue is Stoop's own, not a library: the
 lease pattern was proven by the webhook queue before it, and the feature

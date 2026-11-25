@@ -576,8 +576,9 @@ func TestSearchFindsAPollByItsQuestion(t *testing.T) {
 	}
 }
 
-// The registry's flags: only a poll is pinnable and its author's to
-// delete, and neither poll kind is quiet.
+// The registry's flags: only a poll is pinnable, a poll and a reminder
+// are their author's to delete, and neither they nor a closing row are
+// quiet.
 func TestPollKindFlags(t *testing.T) {
 	for kind, registered := range systemKinds {
 		want := systemKind{quiet: true}
@@ -586,6 +587,8 @@ func TestPollKindFlags(t *testing.T) {
 			want = systemKind{pinnable: true, authorDeletes: true}
 		case kindPollClosed:
 			want = systemKind{}
+		case kindReminder:
+			want = systemKind{authorDeletes: true}
 		}
 		if registered.quiet != want.quiet || registered.pinnable != want.pinnable || registered.authorDeletes != want.authorDeletes {
 			t.Errorf("kind %d: quiet %v pinnable %v authorDeletes %v, want %v %v %v", kind,

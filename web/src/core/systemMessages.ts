@@ -9,10 +9,10 @@ import type {
 // System messages): a row that records something that happened in its
 // channel. The server sends the event and every word of the row is built
 // here, as parts each client draws its own way, so web and mobile say
-// the same thing. (A poll is the kind that carries words someone wrote,
-// and the server words the one-line previews of one.) A poll itself is
-// drawn as a card (core/polls.ts), not as a line; its closing row is a
-// line.
+// the same thing. (A poll and a reminder are the kinds that carry words
+// someone wrote, and the server words the one-line previews of both.) A
+// poll itself is drawn as a card (core/polls.ts), not as a line; its
+// closing row is a line.
 
 // The glyph in the avatar column, by name: each client maps it to its own
 // icon.
@@ -25,6 +25,7 @@ export type SystemGlyph =
   | "pin"
   | "megaphone"
   | "poll"
+  | "bell"
   | "update";
 
 export type SystemPart =
@@ -38,7 +39,8 @@ export type SystemPart =
   // A channel's name with its #; current is the name it has now (the new
   // one in a rename), drawn in full ink.
   | { kind: "channel"; name: string; current: boolean }
-  // Words the row stresses, in full ink: a closed poll's winners.
+  // Words the row stresses, in full ink: a closed poll's winners, a
+  // reminder's text.
   | { kind: "emphasis"; text: string }
   // The message a row is about, in the server's excerpt ("" when the
   // message has no words to excerpt, or the row words it itself), and
@@ -193,6 +195,17 @@ export function systemLine(
                 },
               ]
             : []),
+        ],
+      };
+    // The text is the row's content, plain text shown as it was typed.
+    case "reminder":
+      return {
+        glyph: "bell",
+        parts: [
+          text("Reminder from "),
+          actor,
+          text(": "),
+          { kind: "emphasis", text: message.content },
         ],
       };
     case undefined:

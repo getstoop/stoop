@@ -85,6 +85,8 @@ type PublicUser struct {
 	AvatarFileID string
 	// Deleted: the person deleted the account; the username is all that is left.
 	Deleted bool
+	// Deactivated: the account is turned off, by an admin or by its deletion.
+	Deactivated bool
 }
 
 // GetPublicUsers is the lookup other modules consume (via ports wired in
@@ -99,7 +101,7 @@ func (s *Service) GetPublicUsers(ctx context.Context, ids []string) ([]PublicUse
 		users[i] = PublicUser{
 			ID: r.ID, Username: r.Username, DisplayName: r.DisplayName,
 			Role: authctx.Role(r.Role), Kind: authctx.IdentityKind(r.Kind), AvatarFileID: deref(r.AvatarFileID),
-			Deleted: r.DeletedAt != nil,
+			Deleted: r.DeletedAt != nil, Deactivated: r.DeactivatedAt != nil,
 		}
 	}
 	return users, nil

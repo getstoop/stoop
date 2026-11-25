@@ -94,7 +94,7 @@ rather than by what the provider happens to expose, and it stays small.
 
 | Consumer | Port | Backed by | What it buys |
 | -------- | ---- | --------- | ------------ |
-| `chat` | `UserDirectory` | auth | Author and member records for rendering messages and rosters. |
+| `chat` | `UserDirectory` | auth | Author and member records for rendering messages and rosters; whether an account is deleted or deactivated, which reminder delivery asks before it posts in someone's name. |
 | `chat` | `PresenceLister` | realtime | Which of these users are connected — the whole of `@here`. |
 | `chat` | `InstancePolicy` | instance | Whether members may create spaces, and whether voice is available. |
 | `chat` | `FileDirectory` | files | Verify an attachment claim; delete a deleted message's files. |
@@ -192,7 +192,7 @@ module's tests construct it alone.
 | Module | Tables |
 | ------ | ------ |
 | `auth` | `users`, `credentials`, `credential_bounds`, `user_identities` |
-| `chat` | `spaces`, `space_members`, `space_bans`, `user_blocks`, `channels`, `channel_reads`, `channel_mutes`, `space_mutes`, `channel_pins`, `dm_members`, `messages`, `message_mentions`, `message_reactions`, `message_attachments`, `message_links`, `link_previews`, `activity_items`, `invites`, `invite_uses` |
+| `chat` | `spaces`, `space_members`, `space_bans`, `user_blocks`, `channels`, `channel_reads`, `channel_mutes`, `space_mutes`, `channel_pins`, `dm_members`, `messages`, `message_mentions`, `message_reactions`, `message_attachments`, `message_links`, `link_previews`, `activity_items`, `invites`, `invite_uses`, `reminders` |
 | `instance` | `instance_settings` |
 | `files` | `files` |
 | `integrations` | `incoming_webhooks`, `outgoing_webhooks`, `webhook_deliveries` |

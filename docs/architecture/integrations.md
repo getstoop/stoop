@@ -223,10 +223,11 @@ receiver dedupes on `Stoop-Delivery` and reads a gap off
 Reading history is not filtered like the hooks are: a bot or personal
 token that reads `ListMessages` or `ListChanges` receives system rows in
 their places, with `event` set and no text of their own (a
-[poll](messaging.md#polls) has its question in `content`), and should skip what it
+[poll](messaging.md#polls) has its question in `content`, and a
+[reminder](messaging.md#reminders) its text), and should skip what it
 does not want. A token that may post may also call `CreatePoll`,
-`SetPollVote` and `ClosePoll`, each under the rules a person's own call
-meets.
+`SetPollVote`, `ClosePoll`, `CreateReminder` and `DeleteReminder`, each
+under the rules a person's own call meets.
 
 ## Deliveries as jobs
 

@@ -144,21 +144,24 @@ func (event pollClosed) proto(map[string]*chatv1.MessageAuthor) *chatv1.SystemEv
 }
 
 // typedAsIs says a kind's content is plain text shown exactly as it was
-// typed: a poll's question, on the poll and on its closing row. It is
-// not Markdown and holds no mention tokens, whatever it looks like.
+// typed: a poll's question, on the poll and on its closing row, and a
+// reminder's text. It is not Markdown and holds no mention tokens,
+// whatever it looks like.
 func typedAsIs(kind int16) bool {
-	return kind == kindPoll || kind == kindPollClosed
+	return kind == kindPoll || kind == kindPollClosed || kind == kindReminder
 }
 
 // previewOf is previewText for a row of any kind: a poll and its closing
-// row are worded from the question, anything else is its text or first
-// attachment.
+// row are worded from the question and a reminder from its text,
+// anything else is its text or first attachment.
 func previewOf(kind int16, content, firstAttachment string) string {
 	switch kind {
 	case kindPoll:
 		return "Poll: " + content
 	case kindPollClosed:
 		return "Poll closed: " + content
+	case kindReminder:
+		return "Reminder: " + content
 	}
 	return previewText(content, firstAttachment)
 }

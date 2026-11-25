@@ -50,7 +50,7 @@ func TestE2EDiagnosticsHealth(t *testing.T) {
 	if ps := rows["push"]; ps["state"] != "CHECK_STATE_OFF" || ps["detail"] != "no devices registered" {
 		t.Errorf("push = %v", ps)
 	}
-	if jb := rows["jobs"]; jb["state"] != "CHECK_STATE_OK" || !strings.Contains(jb["detail"].(string), "7 jobs on schedule") {
+	if jb := rows["jobs"]; jb["state"] != "CHECK_STATE_OK" || !strings.Contains(jb["detail"].(string), "8 jobs on schedule") {
 		t.Errorf("jobs = %v", jb)
 	}
 	// The dispatcher registers its heartbeat shortly after the start, and
@@ -215,8 +215,8 @@ func TestE2EDiagnosticsJobs(t *testing.T) {
 			t.Errorf("%s = %v, want an interval and a nextDue", name, j)
 		}
 	}
-	if len(jobs) != 7 {
-		t.Errorf("%d jobs, want 7: %s", len(jobs), r.raw)
+	if len(jobs) != 8 {
+		t.Errorf("%d jobs, want 8: %s", len(jobs), r.raw)
 	}
 	if !strings.Contains(r.raw, `"webhooks"`) {
 		t.Errorf("no webhooks in %s", r.raw)

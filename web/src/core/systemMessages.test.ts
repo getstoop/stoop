@@ -342,10 +342,28 @@ describe("systemLine", () => {
     expect(isHiddenSystemRow(poll)).toBe(false);
   });
 
+  it("says who a reminder is from and its text, exactly as typed", () => {
+    const reminder = row(
+      { case: "reminder", value: {} },
+      { quiet: false, content: "Order the *pizza* before seven" },
+    );
+    expect(said(reminder)).toEqual({
+      glyph: "bell",
+      text: "Reminder from Maya Okafor: Order the *pizza* before seven",
+    });
+    expect(systemLine(reminder)?.parts).toEqual([
+      { kind: "text", text: "Reminder from " },
+      { kind: "person", person: maya },
+      { kind: "text", text: ": " },
+      { kind: "emphasis", text: "Order the *pizza* before seven" },
+    ]);
+    expect(isHiddenSystemRow(reminder)).toBe(false);
+  });
+
   // A kind added to the wire must get its wording here.
   it("has wording for every kind the wire has", () => {
     const cases = SystemEventSchema.fields.map((field) => field.localName);
-    expect(cases.length).toBeGreaterThanOrEqual(8);
+    expect(cases.length).toBeGreaterThanOrEqual(9);
     for (const kindCase of cases) {
       const event = create(SystemEventSchema);
       // biome-ignore lint/suspicious/noExplicitAny: each case's empty message
