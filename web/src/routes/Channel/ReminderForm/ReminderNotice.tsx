@@ -59,11 +59,14 @@ export function ReminderNotice({
     setPhase({ id, phase: retry ? "retrying" : "undoing" });
     const outcome = await deleteReminder(id);
     // Focus on Undo goes back to the words when the button goes
-    // (TransientNotice).
-    setPhase({
-      id,
-      phase: outcome === "notFound" ? (retry ? "gone" : "posted") : outcome,
-    });
+    // (TransientNotice). An answer for a reminder whose notice has since
+    // given way to a newer one's state is dropped, so it cannot reset
+    // that one's.
+    const reached: Phase =
+      outcome === "notFound" ? (retry ? "gone" : "posted") : outcome;
+    setPhase((current) =>
+      current?.id === id ? { id, phase: reached } : current,
+    );
   };
 
   return (
