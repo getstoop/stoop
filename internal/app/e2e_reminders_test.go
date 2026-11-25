@@ -2,11 +2,16 @@ package app_test
 
 import (
 	"context"
+	"io"
+	"log/slog"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/getstoop/stoop/internal/app"
+	"github.com/getstoop/stoop/internal/config"
 	"github.com/getstoop/stoop/internal/db/dbtest"
 )
 
@@ -136,5 +141,60 @@ func TestE2EReminderIsDeliveredByTheJob(t *testing.T) {
 	site.rpc(ada, chatService+"DeleteMessage", map[string]any{"messageId": messageID}).expect(t, "ok")
 	if rows := site.messages(casey, general); len(rows) != 0 {
 		t.Errorf("after its author deleted it the channel holds %v", rows)
+	}
+}
+
+// A `stoop jobs` process knows whether voice is configured as the server
+// does: a reminder in a voice channel's chat is posted by a dispatcher
+// that runs outside the server, not dropped as if the channel were hidden.
+func TestE2EReminderInVoiceChatIsDeliveredByAnExternalRunner(t *testing.T) {
+	databaseURL := dbtest.NewURL(t)
+	site := newHarnessOn(t, databaseURL, "STOOP_JOBS", "external",
+		"STOOP_LIVEKIT_URL", "http://127.0.0.1:7880",
+		"STOOP_LIVEKIT_KEY_FILE", filepath.Join(t.TempDir(), "keys.yaml"))
+	pool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	casey := site.person("casey")
+	spaceID, general := site.space(casey, "The Stoop")
+	hangout := site.rpc(casey, chatService+"CreateChannel", map[string]any{
+		"spaceId": spaceID, "name": "hangout", "kind": "CHANNEL_KIND_VOICE",
+	}).expect(t, "ok").str("channel.id")
+	remindIn(site, casey, hangout, "Unmute before the call", time.Hour).expect(t, "ok")
+	remindIn(site, casey, general, "Order the pizza", time.Hour).expect(t, "ok")
+
+	// The runner the operator would start, from the same environment.
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, err := app.NewRunner(context.Background(), cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		_ = runner.Run(ctx)
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(15 * time.Second):
+			t.Error("Run did not return after cancel")
+		}
+	})
+
+	ran := deliverRemindersNow(t, site, pool, casey)
+	counters, _ := ran["counters"].(map[string]any)
+	if counters["reminders_delivered"] != "2" || counters["reminders_dropped"] != "0" {
+		t.Errorf("the run's counters = %v, want both delivered and none dropped", counters)
+	}
+	if rows := site.messages(casey, hangout); len(rows) != 1 || rows[0]["content"] != "Unmute before the call" {
+		t.Errorf("the voice channel's chat holds %v, want the reminder", rows)
 	}
 }

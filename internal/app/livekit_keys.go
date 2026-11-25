@@ -17,6 +17,14 @@ type keyStore interface {
 	SetLiveKitKeys(ctx context.Context, keys instance.LiveKitCredentials) error
 }
 
+// voiceConfigured is whether voice works on this instance, for a process
+// that builds no voice module (`stoop jobs`). It is what the server's
+// voice.Service.Enabled answers: with a LiveKit URL and voice left on,
+// livekitKeys always ends with a pair, or the server does not start.
+func voiceConfigured(cfg config.Config) bool {
+	return cfg.LiveKitURL != "" && cfg.Voice
+}
+
 // livekitKeys settles which API key pair signs room tokens, and leaves it
 // where a LiveKit sidecar can read it. See docs/architecture/voice.md →
 // Credentials are minted, not configured.

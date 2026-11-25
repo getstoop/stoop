@@ -31,6 +31,9 @@ func NewRunner(ctx context.Context, cfg config.Config, log *slog.Logger) (*Runne
 	if err != nil {
 		return nil, err
 	}
+	// A job that asks whether a person may post in a voice channel's chat
+	// (reminder delivery) must see voice as the server does.
+	shared.instance.UseVoiceConfigured(voiceConfigured(cfg))
 	return &Runner{jobs: shared.jobs, pool: shared.pool, log: log, workers: cfg.JobsWorkers}, nil
 }
 
