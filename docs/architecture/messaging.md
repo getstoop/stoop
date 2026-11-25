@@ -1501,30 +1501,58 @@ the system row they have (a bell, "Reminder from", the name and the
 text); the form that sets one, the notice with Undo and the row's own
 look are not built yet.
 
-- **Setting one** (`CreateReminder(channel_id, text, remind_at)`). The
-  checks are `CreatePoll`'s, in its order: the text and the time first,
-  which cost nothing, then `writableChannel`, then the post policy, so
-  whoever may post here may set one and nobody else learns the channel
-  exists. The text is one line of 1 to 200 characters under a poll
-  question's rules (`pollLine`): trimmed, at least one visible
-  character, no control character or text direction override. It is
-  plain text, so an `@name` in it mentions no one. `remind_at` is an
-  instant, which the app makes from the person's local date and time;
-  the server stores no time zone. It must be at least one minute and at
-  most one year ahead by the server's clock, judged as it was sent, and
-  is then stored rounded down to the whole minute, so a reminder is due
-  at :00 of the minute the person was shown. A person has at most 50
-  waiting, across every channel: the count and the insert run in one
-  transaction under a per-person advisory lock (`LockReminderOwner`),
-  so two requests cannot both take the last place. Messages have no
-  rate limit, so this cap is the table's only bound. The answer is the
-  reminder's id and the time as stored. Nothing is posted, published or
+- **Setting one** (`CreateReminder`). The checks are `CreatePoll`'s, in
+  its order: the text and the time first, which cost nothing, then
+  `writableChannel`, then the post policy, so whoever may post here may
+  set one and nobody else learns the channel exists. The text is one
+  line of 1 to 200 characters under a poll question's rules
+  (`pollLine`): trimmed, at least one visible character, no control
+  character or text direction override. It is plain text, so an `@name`
+  in it mentions no one. A person has at most 50 waiting, across every
+  channel: the count and the insert run in one transaction under a
+  per-person advisory lock (`LockReminderOwner`), so two requests
+  cannot both take the last place. Messages have no rate limit, so this
+  cap is the table's only bound. The answer is the reminder's id and
+  the instant as stored (`remind_at`). Nothing is posted, published or
   marked, and there is no thread field: a reminder is always top-level.
+- **When** (`reminder_time.go`). The request says what time is meant
+  and the server works out the instant from its own clock; a client
+  never sends an instant. A device whose clock is wrong, by minutes or
+  by a day, then still sets the reminder its person asked for, and
+  "at least a minute ahead" is judged by the one clock that will
+  deliver it. The request carries exactly one of:
+  - `preset`: `IN_20_MINUTES`, `IN_1_HOUR` or `IN_3_HOURS`, which are
+    the server's now plus that wait (a span, so a clock change in
+    between moves the reading and not the wait), or `TOMORROW_AT_9`,
+    which is 09:00 on the day after today in `time_zone`, today being
+    the server's now read in that zone;
+  - `local_time`: a reading of the clock in `time_zone` with no offset,
+    `2026-12-02T09:00`, as a date-and-time field holds it. Seconds may
+    follow and are ignored. It must be at least one minute and at most
+    one calendar year ahead by the server's clock.
+
+  `time_zone` is an IANA name (`America/New_York`). `TOMORROW_AT_9` and
+  `local_time` need it; the three waits do not use it, but one that is
+  sent must still name a zone. `Local` is refused: it would mean the
+  server's zone. Where the zone's clock changes there is one rule
+  (`wallClock`), the one a browser's `Date` follows, so the web form
+  and the server agree: a time the clock skips is read as the clock
+  shows it after the change (02:30 on a morning that goes from 02:00 to
+  03:00 is 03:30), and a time it shows twice is the first of the two.
+  Go's `time.Date` promises neither, so the rule is written out and
+  tested. The instant is stored rounded down to the whole minute, as a
+  `timestamptz`; neither the zone nor the preset is stored, so a
+  reminder does not move if the zone's rules change later. The zone
+  database is in the binary (`time/tzdata`), so a host with none still
+  knows every zone.
 
   | Refused | Code |
   | ------- | ---- |
   | no text, too long, a line break, a control character, a direction override, nothing visible | `InvalidArgument` |
-  | no `remind_at`, less than a minute ahead, more than a year ahead | `InvalidArgument` |
+  | neither `preset` nor `local_time`, or both; a preset the server does not know | `InvalidArgument` |
+  | no `time_zone` where one is needed; a zone the server does not know | `InvalidArgument` |
+  | a `local_time` that is not `YYYY-MM-DDTHH:MM`, or names no real date and time | `InvalidArgument` |
+  | a `local_time` less than a minute ahead, or more than a year ahead | `InvalidArgument` |
   | 50 already waiting | `ResourceExhausted` |
   | not in the space, an announcement channel, a block in a direct message, a token without the grant or out of bounds | `PermissionDenied` |
   | a private channel the caller is not in, a hidden voice channel, no such channel | `NotFound` |

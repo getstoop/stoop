@@ -932,22 +932,51 @@ message DirectMessage {
   DirectMessageLast last_message = 4;
 }
 
+// ReminderPreset is a time said without a date: the server works it out
+// from its own clock when the request arrives.
+enum ReminderPreset {
+  REMINDER_PRESET_UNSPECIFIED = 0;
+  REMINDER_PRESET_IN_20_MINUTES = 1;
+  REMINDER_PRESET_IN_1_HOUR = 2;
+  REMINDER_PRESET_IN_3_HOURS = 3;
+  // 09:00 on the next calendar day in time_zone.
+  REMINDER_PRESET_TOMORROW_AT_9 = 4;
+}
+
+// CreateReminderRequest says what time is meant, never the instant: the
+// server's clock is the one that counts, so a device with a wrong clock
+// sets the reminder it asked for. Exactly one of preset and local_time
+// is set. See docs/architecture/messaging.md → Reminders.
 message CreateReminderRequest {
+  // Was remind_at, an instant the client worked out.
+  reserved 3;
+  reserved "remind_at";
+
   string channel_id = 1;
   // 1 to 200 characters on one line, counted after trimming, at least
   // one of them visible; no control characters or direction overrides.
   // Plain text: an @name in it mentions no one.
   string text = 2;
-  // When to post it, as an instant: at least one minute and at most one
-  // year ahead by the server's clock.
-  google.protobuf.Timestamp remind_at = 3;
+  // One of the preset times.
+  ReminderPreset preset = 4;
+  // A date and time on the wall clock in time_zone, as a date-and-time
+  // field holds it: "2026-12-02T09:00", with no offset. Seconds may
+  // follow (":30") and are ignored. It must be at least one minute and
+  // at most one year ahead by the server's clock. A time the zone's clock
+  // skips is read as the clock shows it after the change (02:30 on the
+  // morning clocks go forward is 03:30); one it shows twice is the first.
+  string local_time = 5;
+  // The IANA name of the zone the person is in, such as
+  // "America/New_York". Needed for local_time and for tomorrow at 9:00;
+  // not used by the other presets, but when sent it must name a zone.
+  string time_zone = 6;
 }
 
 message CreateReminderResponse {
   // What DeleteReminder takes.
   string id = 1;
-  // The time as stored: remind_at rounded down to the whole minute. The
-  // reminder is never posted before it, and normally within the delivery
+  // The instant the server worked out, as stored: rounded down to the
+  // whole minute. The reminder is never posted before it, and normally within the delivery
   // job's interval (30 seconds) and the dispatcher's poll after it; later
   // when no dispatcher was running then. docs/architecture/messaging.md
   // → Reminders → Timing.

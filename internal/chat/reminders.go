@@ -29,7 +29,6 @@ import (
 const (
 	maxReminderLen      = 200
 	maxWaitingReminders = 50
-	minReminderLead     = time.Minute
 	// reminderBatch bounds one delivery run; what is left is due at the next.
 	reminderBatch = 500
 
@@ -62,26 +61,10 @@ func errReminderNotFound() error {
 	return connect.NewError(connect.CodeNotFound, errors.New("reminder not found"))
 }
 
-// reminderTime is the time a request asks for, as it is stored: checked
-// against now as sent, then rounded down to the whole minute.
-func reminderTime(requested *timestamppb.Timestamp, now time.Time) (time.Time, error) {
-	if requested == nil || requested.CheckValid() != nil {
-		return time.Time{}, connect.NewError(connect.CodeInvalidArgument, errors.New("a reminder needs a time"))
-	}
-	remindAt := requested.AsTime()
-	if remindAt.Before(now.Add(minReminderLead)) {
-		return time.Time{}, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("a reminder's time must be at least a minute from now"))
-	}
-	if remindAt.After(now.AddDate(1, 0, 0)) {
-		return time.Time{}, connect.NewError(connect.CodeInvalidArgument,
-			errors.New("a reminder's time can be at most a year from now"))
-	}
-	return remindAt.UTC().Truncate(time.Minute), nil
-}
-
 // CreateReminder stores a reminder for a channel the caller may send a
-// message in. Nothing is posted and nobody is told until its time.
+// message in. The request says what time is meant and the server's clock
+// decides the instant (reminder_time.go). Nothing is posted and nobody
+// is told until then.
 func (s *Service) CreateReminder(ctx context.Context, req *connect.Request[chatv1.CreateReminderRequest]) (*connect.Response[chatv1.CreateReminderResponse], error) {
 	userID := authctx.UserID(ctx)
 	content, err := pollLine(req.Msg.Text, "a reminder", maxReminderLen)
@@ -91,7 +74,7 @@ func (s *Service) CreateReminder(ctx context.Context, req *connect.Request[chatv
 	if content == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a reminder needs some text"))
 	}
-	remindAt, err := reminderTime(req.Msg.RemindAt, time.Now())
+	remindAt, err := reminderTime(req.Msg, time.Now())
 	if err != nil {
 		return nil, err
 	}

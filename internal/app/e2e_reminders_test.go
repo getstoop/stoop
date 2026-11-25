@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
@@ -45,9 +46,12 @@ func deliverRemindersNow(t *testing.T, site *harness, pool *pgxpool.Pool, admin 
 	return site.awaitJobOutcome(admin, "deliver_reminders", "JOB_OUTCOME_SUCCEEDED", 15*time.Second)
 }
 
+// remindIn asks for a reminder at the first whole minute at least that
+// far ahead, as a date and time on UTC's clock.
 func remindIn(site *harness, token, channelID, text string, ahead time.Duration) reply {
+	at := time.Now().Add(ahead).UTC().Truncate(time.Minute).Add(time.Minute)
 	return site.rpc(token, chatService+"CreateReminder", map[string]any{
-		"channelId": channelID, "text": text, "remindAt": time.Now().Add(ahead).UTC().Format(time.RFC3339),
+		"channelId": channelID, "text": text, "localTime": at.Format("2006-01-02T15:04"), "timeZone": "UTC",
 	})
 }
 
@@ -64,10 +68,27 @@ func TestE2EReminderRequests(t *testing.T) {
 		return site.rpc(token, chatService+"DeleteReminder", map[string]any{"id": id})
 	}
 
-	set := remindIn(site, ada, general, "Order the pizza", 20*time.Minute).expect(t, "ok")
+	set := site.rpc(ada, chatService+"CreateReminder", map[string]any{
+		"channelId": general, "text": "Order the pizza", "preset": "REMINDER_PRESET_IN_20_MINUTES",
+	}).expect(t, "ok")
 	stored, err := time.Parse(time.RFC3339, set.str("remindAt"))
 	if set.str("id") == "" || err != nil || stored.Second() != 0 || time.Until(stored) > 20*time.Minute || time.Until(stored) < 18*time.Minute {
 		t.Fatalf("CreateReminder answered %s, want an id and the time on the whole minute", set.raw)
+	}
+	// Each way of saying when, and the instant the server made of it.
+	tomorrow := site.rpc(ada, chatService+"CreateReminder", map[string]any{
+		"channelId": general, "text": "Water the plants", "preset": "REMINDER_PRESET_TOMORROW_AT_9", "timeZone": "Asia/Kolkata",
+	}).expect(t, "ok")
+	if at, err := time.Parse(time.RFC3339, tomorrow.str("remindAt")); err != nil || at.UTC().Hour() != 3 || at.UTC().Minute() != 30 ||
+		time.Until(at) <= 0 || time.Until(at) > 48*time.Hour {
+		t.Errorf("tomorrow at 9:00 in Kolkata answered %s, want 03:30 UTC within two days", tomorrow.raw)
+	}
+	nextYear := time.Now().UTC().Year() + 1
+	local := site.rpc(ada, chatService+"CreateReminder", map[string]any{
+		"channelId": general, "text": "Renew the domain", "localTime": fmt.Sprintf("%d-01-01T00:30:15", nextYear), "timeZone": "America/New_York",
+	}).expect(t, "ok")
+	if want := fmt.Sprintf("%d-01-01T05:30:00Z", nextYear); local.str("remindAt") != want {
+		t.Errorf("00:30 on 1 January in New York answered %s, want %s", local.raw, want)
 	}
 	if rows := site.messages(casey, general); len(rows) != 0 {
 		t.Errorf("setting a reminder posted %v", rows)
@@ -81,10 +102,23 @@ func TestE2EReminderRequests(t *testing.T) {
 
 	remindIn(site, ada, general, "", time.Hour).expect(t, "invalid_argument", "needs some text")
 	remindIn(site, ada, general, "one\ntwo", time.Hour).expect(t, "invalid_argument", "line break")
-	remindIn(site, ada, general, "Friday", 30*time.Second).expect(t, "invalid_argument", "at least a minute")
-	remindIn(site, ada, general, "Friday", 400*24*time.Hour).expect(t, "invalid_argument", "at most a year")
-	site.rpc(ada, chatService+"CreateReminder", map[string]any{"channelId": general, "text": "Friday"}).
-		expect(t, "invalid_argument", "needs a time")
+	when := func(fields map[string]any) reply {
+		fields["channelId"], fields["text"] = general, "Friday"
+		return site.rpc(ada, chatService+"CreateReminder", fields)
+	}
+	when(map[string]any{"localTime": "2020-01-01T09:00", "timeZone": "UTC"}).expect(t, "invalid_argument", "at least a minute")
+	when(map[string]any{"localTime": "2099-01-01T09:00", "timeZone": "UTC"}).expect(t, "invalid_argument", "at most a year")
+	when(map[string]any{}).expect(t, "invalid_argument", "needs a time")
+	when(map[string]any{"preset": "REMINDER_PRESET_IN_1_HOUR", "localTime": "2099-01-01T09:00", "timeZone": "UTC"}).
+		expect(t, "invalid_argument", "not both")
+	when(map[string]any{"localTime": "2099-01-01T09:00"}).expect(t, "invalid_argument", "needs a time zone")
+	when(map[string]any{"preset": "REMINDER_PRESET_TOMORROW_AT_9"}).expect(t, "invalid_argument", "needs a time zone")
+	when(map[string]any{"preset": "REMINDER_PRESET_IN_1_HOUR", "timeZone": "Mars/Olympus"}).
+		expect(t, "invalid_argument", "not one the server knows")
+	when(map[string]any{"localTime": "next Friday", "timeZone": "UTC"}).expect(t, "invalid_argument", "must read like")
+	when(map[string]any{"localTime": "2099-02-30T09:00", "timeZone": "UTC"}).expect(t, "invalid_argument", "not a real date")
+	// The field an earlier draft of the request had is gone.
+	when(map[string]any{"remindAt": "2099-01-01T09:00:00Z"}).expect(t, "invalid_argument")
 	outsider := site.person("bea")
 	remindIn(site, outsider, general, "Friday", time.Hour).expect(t, "permission_denied")
 

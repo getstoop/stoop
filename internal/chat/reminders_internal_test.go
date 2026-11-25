@@ -11,7 +11,6 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -30,13 +29,20 @@ func (f *systemRows) remind(setter context.Context, channelID, text string, ahea
 	if channelID == "" {
 		channelID = f.channel.ID
 	}
-	res, err := f.svc.CreateReminder(setter, connect.NewRequest(&chatv1.CreateReminderRequest{
-		ChannelId: channelID, Text: text, RemindAt: timestamppb.New(time.Now().Add(ahead)),
-	}))
+	res, err := f.svc.CreateReminder(setter, connect.NewRequest(remindRequest(channelID, text, ahead)))
 	if err != nil {
 		f.t.Fatal(err)
 	}
 	return res.Msg
+}
+
+// remindRequest asks for a reminder at the first whole minute at least
+// that far ahead, as a date and time on UTC's clock.
+func remindRequest(channelID, text string, ahead time.Duration) *chatv1.CreateReminderRequest {
+	at := time.Now().Add(ahead).UTC().Truncate(time.Minute).Add(time.Minute)
+	return &chatv1.CreateReminderRequest{
+		ChannelId: channelID, Text: text, LocalTime: at.Format("2006-01-02T15:04"), TimeZone: "UTC",
+	}
 }
 
 // waiting is how many reminders wait, everyone's.
@@ -62,16 +68,19 @@ func TestCreateReminderStoresItPrivately(t *testing.T) {
 	defer space.Close()
 	before := fixture.state(fixture.bea)
 
-	asked := time.Now().Add(20 * time.Minute)
+	// The server's clock decides: twenty minutes from when it heard.
+	heard := time.Now()
 	res, err := fixture.svc.CreateReminder(fixture.ada, connect.NewRequest(&chatv1.CreateReminderRequest{
-		ChannelId: fixture.channel.ID, Text: "  Order the pizza  ", RemindAt: timestamppb.New(asked),
+		ChannelId: fixture.channel.ID, Text: "  Order the pizza  ",
+		Preset: chatv1.ReminderPreset_REMINDER_PRESET_IN_20_MINUTES,
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := asked.UTC().Truncate(time.Minute)
-	if got := res.Msg.RemindAt.AsTime(); !got.Equal(want) {
-		t.Errorf("answered remind_at = %s, want %s", got, want)
+	want := res.Msg.RemindAt.AsTime()
+	earliest, latest := heard.Add(20*time.Minute).Truncate(time.Minute), time.Now().Add(20*time.Minute)
+	if want.Before(earliest) || want.After(latest) || !want.Equal(want.Truncate(time.Minute)) {
+		t.Errorf("answered remind_at = %s, want a whole minute from %s to %s", want, earliest, latest)
 	}
 	var stored dbgen.Reminder
 	if err := fixture.pool.QueryRow(context.Background(),
@@ -95,31 +104,34 @@ func TestCreateReminderStoresItPrivately(t *testing.T) {
 }
 
 // The text is one line of 1 to 200 characters under a poll question's
-// rules, and the time is from one minute to one year ahead, judged as
-// it was sent and only then rounded down.
+// rules, and a refused time stores nothing (the times themselves are in
+// reminder_time_internal_test.go).
 func TestCreateReminderValidation(t *testing.T) {
 	fixture := newSystemRows(t)
-	ahead := func(lead time.Duration) *timestamppb.Timestamp { return timestamppb.New(time.Now().Add(lead)) }
+	in := func(text string) *chatv1.CreateReminderRequest {
+		return &chatv1.CreateReminderRequest{Text: text, Preset: chatv1.ReminderPreset_REMINDER_PRESET_IN_1_HOUR}
+	}
+	at := func(local, zone string) *chatv1.CreateReminderRequest {
+		return &chatv1.CreateReminderRequest{Text: "Order the pizza", LocalTime: local, TimeZone: zone}
+	}
 	for name, tc := range map[string]struct {
-		text string
-		at   *timestamppb.Timestamp
+		req  *chatv1.CreateReminderRequest
 		want string
 	}{
-		"no text":              {"   ", ahead(time.Hour), "needs some text"},
-		"too long":             {strings.Repeat("a", 201), ahead(time.Hour), "at most 200 characters"},
-		"a line break":         {"one\ntwo", ahead(time.Hour), "line break"},
-		"a tab":                {"one\ttwo", ahead(time.Hour), "control character"},
-		"a direction override": {"one\u202etwo", ahead(time.Hour), "text direction override"},
-		"nothing visible":      {"\u200b\u200b", ahead(time.Hour), "visible character"},
-		"no time":              {"Order the pizza", nil, "needs a time"},
-		"a time out of range":  {"Order the pizza", &timestamppb.Timestamp{Seconds: 1 << 60}, "needs a time"},
-		"in the past":          {"Order the pizza", ahead(-time.Hour), "at least a minute"},
-		"too soon":             {"Order the pizza", ahead(55 * time.Second), "at least a minute"},
-		"too far":              {"Order the pizza", ahead(366*24*time.Hour + time.Hour), "at most a year"},
+		"no text":              {in("   "), "needs some text"},
+		"too long":             {in(strings.Repeat("a", 201)), "at most 200 characters"},
+		"a line break":         {in("one\ntwo"), "line break"},
+		"a tab":                {in("one\ttwo"), "control character"},
+		"a direction override": {in("one\u202etwo"), "text direction override"},
+		"nothing visible":      {in("\u200b\u200b"), "visible character"},
+		"no time":              {&chatv1.CreateReminderRequest{Text: "Order the pizza"}, "needs a time"},
+		"in the past":          {at("2020-01-01T09:00", "UTC"), "at least a minute"},
+		"too far":              {at("2099-01-01T09:00", "UTC"), "at most a year"},
+		"no zone":              {at("2099-01-01T09:00", ""), "needs a time zone"},
+		"an unknown zone":      {at("2099-01-01T09:00", "Mars/Olympus"), "not one the server knows"},
 	} {
-		_, err := fixture.svc.CreateReminder(fixture.ada, connect.NewRequest(&chatv1.CreateReminderRequest{
-			ChannelId: fixture.channel.ID, Text: tc.text, RemindAt: tc.at,
-		}))
+		tc.req.ChannelId = fixture.channel.ID
+		_, err := fixture.svc.CreateReminder(fixture.ada, connect.NewRequest(tc.req))
 		if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: err = %v, want InvalidArgument naming %q", name, err, tc.want)
 		}
@@ -137,40 +149,6 @@ func TestCreateReminderValidation(t *testing.T) {
 	}
 }
 
-// "At least a minute ahead" is asked of the time as sent: one that
-// passes and then rounds down to under a minute ahead is still stored.
-func TestReminderTimeIsCheckedBeforeRounding(t *testing.T) {
-	// 12:00:50, asking for 12:01:55: 65 seconds ahead, stored as 12:01:00.
-	now := time.Date(2026, 11, 24, 12, 0, 50, 0, time.UTC)
-	got, err := reminderTime(timestamppb.New(now.Add(65*time.Second)), now)
-	if want := time.Date(2026, 11, 24, 12, 1, 0, 0, time.UTC); err != nil || !got.Equal(want) {
-		t.Errorf("65 seconds ahead = %s, %v; want %s", got, err, want)
-	}
-	// Exactly a minute and exactly a year are both taken; a second less
-	// and a second more are not.
-	for lead, ok := range map[time.Duration]bool{
-		time.Minute:               true,
-		time.Minute - time.Second: false,
-	} {
-		if _, err := reminderTime(timestamppb.New(now.Add(lead)), now); (err == nil) != ok {
-			t.Errorf("%s ahead: err = %v, want taken = %v", lead, err, ok)
-		}
-	}
-	year := now.AddDate(1, 0, 0)
-	if _, err := reminderTime(timestamppb.New(year), now); err != nil {
-		t.Errorf("a year ahead: %v", err)
-	}
-	if _, err := reminderTime(timestamppb.New(year.Add(time.Second)), now); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Errorf("a year and a second ahead: err = %v, want InvalidArgument", err)
-	}
-	// A time in another zone is the same instant.
-	zone := time.FixedZone("east", 5*3600+1800)
-	got, err = reminderTime(timestamppb.New(now.Add(time.Hour).In(zone)), now)
-	if want := time.Date(2026, 11, 24, 13, 0, 0, 0, time.UTC); err != nil || !got.Equal(want) {
-		t.Errorf("an hour ahead in another zone = %s, %v; want %s", got, err, want)
-	}
-}
-
 // Whoever may send a message may set a reminder, and nobody else: a
 // member of an announcement channel, someone outside the space and
 // someone outside a private channel are refused as their message would
@@ -185,9 +163,7 @@ func TestCreateReminderNeedsToBeAbleToPost(t *testing.T) {
 		t.Fatal(err)
 	}
 	create := func(setter context.Context, channelID, text string) error {
-		_, err := fixture.svc.CreateReminder(setter, connect.NewRequest(&chatv1.CreateReminderRequest{
-			ChannelId: channelID, Text: text, RemindAt: timestamppb.New(time.Now().Add(time.Hour)),
-		}))
+		_, err := fixture.svc.CreateReminder(setter, connect.NewRequest(remindRequest(channelID, text, time.Hour)))
 		return err
 	}
 	if err := create(fixture.cat, fixture.channel.ID, "Friday"); connect.CodeOf(err) != connect.CodePermissionDenied || !strings.Contains(err.Error(), "announcement channel") {
@@ -243,9 +219,7 @@ func TestReminderCap(t *testing.T) {
 	}
 	last := fixture.remind(fixture.ada, "", "the fiftieth", time.Hour)
 	create := func(setter context.Context) error {
-		_, err := fixture.svc.CreateReminder(setter, connect.NewRequest(&chatv1.CreateReminderRequest{
-			ChannelId: fixture.channel.ID, Text: "one more", RemindAt: timestamppb.New(time.Now().Add(time.Hour)),
-		}))
+		_, err := fixture.svc.CreateReminder(setter, connect.NewRequest(remindRequest(fixture.channel.ID, "one more", time.Hour)))
 		return err
 	}
 	if err := create(fixture.ada); connect.CodeOf(err) != connect.CodeResourceExhausted || !strings.Contains(err.Error(), "at most 50") {
