@@ -383,13 +383,18 @@ an argument hint, a one-line description and where it is offered.
   offered here opens over the composer, beside the `@`, `#` and `:`
   lists and shut where they are (in code or a link's words). Letters
   filter it, nothing matching shuts it, and after a space it stays on
-  the one command so named. On web, arrows move, Enter or Tab picks,
-  Escape closes and keeps the text.
+  the one command so named. On web, arrows move when there is more than
+  one entry (with one they stay the caret's), Enter or Tab picks, and
+  Escape closes it and keeps the text; it stays shut until the draft
+  stops being a command, so a question typed after the name is left
+  alone. A pick reads the draft exactly as a send does.
 - **On send.** A draft starting with a known name, then a space or the
   end, opens that command's form and posts nothing. The command's words
   leave the field and are not put back if the form is cancelled; files
   and a reply waiting in the composer stay. The words after the name
-  go into the form's first field as plain text (`plainText`). An
+  go into the form's first field as one plain line (`plainText`, with
+  any run of spaces, tabs, line breaks or control characters made one
+  space). An
   unknown `/word` is an ordinary message, so a path still sends, and so
   is anything formatted as code. A thread's composer offers no command
   and sends one as typed; editing a message never runs one.

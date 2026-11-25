@@ -125,6 +125,13 @@ describe("parseCommand", () => {
     expect(parsed("/poll one\ntwo")).toEqual({ name: "poll", text: "one two" });
   });
 
+  it("makes tabs and control characters one space", () => {
+    expect(parsed("/poll Pizza\tor\u0007 \u00a0tacos?\t")).toEqual({
+      name: "poll",
+      text: "Pizza or tacos?",
+    });
+  });
+
   it("is a message for anything else", () => {
     for (const content of [
       "/shrug",

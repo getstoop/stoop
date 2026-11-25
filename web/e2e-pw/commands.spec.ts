@@ -17,6 +17,22 @@ test("the command list and /poll", async ({ browser }) => {
   const list = A.locator(".command-list");
   const options = list.locator(".command-option");
   const form = A.getByRole("dialog", { name: "Create a poll" });
+  // Where focus is, asked of the page: nothing here focuses it first.
+  const focusInComposer = () =>
+    expect
+      .poll(() =>
+        A.evaluate(
+          () =>
+            document.activeElement?.closest(".channel-view .composer") != null,
+        ),
+      )
+      .toBe(true);
+  // Sends a message and waits for it, so that anything an earlier step
+  // might have posted has had the time to show.
+  const marker = async (text: string) => {
+    await say(A, text);
+    await expect(rowByText(A, text)).toHaveCount(1);
+  };
   await expect(composer).toBeVisible();
   await say(A, "Friday is on. What are we playing?");
   const root = rowByText(A, "Friday is on");
@@ -47,18 +63,25 @@ test("the command list and /poll", async ({ browser }) => {
   await composer.pressSequentially("po");
   await expect(options, '"/po" still lists /poll').toHaveCount(1);
   await composer.pressSequentially("x");
+  await expect(composer).toHaveText("/pox");
   await expect(list, '"/pox" matches nothing').toHaveCount(0);
   await A.keyboard.press("Backspace");
   await expect(options, "deleting the letter brings it back").toHaveCount(1);
 
-  // Escape closes and keeps the text.
+  // Escape closes and keeps the text, and the list stays shut while the
+  // draft is still a command; emptied, the draft opens it again.
   await A.keyboard.press("Escape");
   await expect(list, "Escape closes the list").toHaveCount(0);
   await expect(composer, "and keeps the text").toHaveText("/po");
+  await composer.pressSequentially("l");
+  await expect(composer).toHaveText("/pol");
+  await expect(list, "typing on leaves it shut").toHaveCount(0);
+  for (let i = 0; i < 4; i++) await A.keyboard.press("Backspace");
+  await expect(composer).toHaveText("");
+  await composer.pressSequentially("/pol");
+  await expect(options, "a new draft opens it again").toHaveCount(1);
 
   // Tab picks: the form opens empty, the command's words leave the field.
-  await composer.pressSequentially("l");
-  await expect(options, "typing on reopens it").toHaveCount(1);
   await A.keyboard.press("Tab");
   await expect(form, "Tab opens the poll form").toBeVisible();
   await expect(form.getByRole("textbox", { name: "Question" })).toHaveValue("");
@@ -71,6 +94,7 @@ test("the command list and /poll", async ({ browser }) => {
   await expect(composer, "cancelling does not bring the words back").toHaveText(
     "",
   );
+  await focusInComposer();
 
   // /poll and a question, with a reply pending: Enter opens the form with
   // the question as plain words. The reply stays for the next message.
@@ -82,6 +106,15 @@ test("the command list and /poll", async ({ browser }) => {
     options,
     "after a space the list stays on the one command",
   ).toHaveCount(1);
+  // A list of one leaves the arrows to the caret.
+  await A.keyboard.press("ArrowUp");
+  await expect
+    .poll(
+      () => A.evaluate(() => window.getSelection()?.anchorOffset),
+      "ArrowUp moves the caret, not the selection",
+    )
+    .toBe(0);
+  await expect(options).toHaveCount(1);
   await A.keyboard.press("Enter");
   await expect(form, "Enter opens the poll form").toBeVisible();
   await expect(
@@ -93,28 +126,53 @@ test("the command list and /poll", async ({ browser }) => {
     "and the first option focused",
   ).toBeFocused();
   await form.getByRole("button", { name: "Cancel" }).click();
+  await expect(form).toHaveCount(0);
+  await focusInComposer();
   await expect(composer, "the command's words are gone").toHaveText("");
   await expect(A.locator(".reply-bar"), "the reply stays").toBeVisible();
+  await A.locator('.reply-bar [aria-label="Cancel reply"]').click();
+  await marker("marker one");
   await expect(
     rowByText(A, "What are we playing on Friday?"),
     "nothing was posted",
   ).toHaveCount(0);
-  await A.locator('.reply-bar [aria-label="Cancel reply"]').click();
 
-  // Sent with the list shut, /poll still opens the form, never posts.
-  await composer.pressSequentially("/poll Pizza or tacos?");
+  // Escape shuts the list for the rest of the question; sent, /poll still
+  // opens the form, and Escape there gives focus back to the words.
+  await composer.click();
+  await composer.pressSequentially("/poll Pizza");
   await A.keyboard.press("Escape");
-  await expect(list).toHaveCount(0);
+  await composer.pressSequentially(" or tacos?");
+  await expect(composer).toHaveText("/poll Pizza or tacos?");
+  await expect(list, "the list stays shut").toHaveCount(0);
   await A.keyboard.press("Enter");
   await expect(form, "sending /poll opens the form").toBeVisible();
   await expect(form.getByRole("textbox", { name: "Question" })).toHaveValue(
     "Pizza or tacos?",
   );
+  await A.keyboard.press("Escape");
+  await expect(form).toHaveCount(0);
+  await focusInComposer();
+
+  // Picked from the list, the words are read as a send reads them: a
+  // shortcode is its emoji.
+  await composer.pressSequentially("/poll Pizza :pizza: ok");
+  await expect(composer).toHaveText("/poll Pizza :pizza: ok");
+  await expect(options).toHaveCount(1);
+  await A.keyboard.press("Enter");
+  await expect(form.getByRole("textbox", { name: "Question" })).toHaveValue(
+    "Pizza 🍕 ok",
+  );
   await form.getByRole("button", { name: "Cancel" }).click();
+  await expect(form).toHaveCount(0);
+  await marker("marker two");
   await expect(rowByText(A, "Pizza or tacos?")).toHaveCount(0);
+  await expect(rowByText(A, "Pizza 🍕 ok")).toHaveCount(0);
 
   // An unknown /word is an ordinary message.
+  await composer.click();
   await composer.pressSequentially("/shrug");
+  await expect(composer).toHaveText("/shrug");
   await expect(list, "an unknown word lists nothing").toHaveCount(0);
   await A.keyboard.press("Enter");
   await expect(rowByText(A, "/shrug"), "/shrug is sent as typed").toHaveCount(
@@ -132,11 +190,12 @@ test("the command list and /poll", async ({ browser }) => {
   await expect(threadComposer).toBeVisible();
   await threadComposer.click();
   await threadComposer.pressSequentially("/");
-  // Something that has not happened is not polled (docs/agent-workflow.md).
-  await A.waitForTimeout(300);
+  await expect(threadComposer).toHaveText("/");
   await expect(list, "no list in a thread").toHaveCount(0);
   await threadComposer.pressSequentially("poll Co-op or racing?");
+  await expect(threadComposer).toHaveText("/poll Co-op or racing?");
   await expect(list).toHaveCount(0);
+  // Enter sends rather than picks, which is what shows the list was shut.
   await A.keyboard.press("Enter");
   await expect(
     panel.locator(".message-content", { hasText: "/poll Co-op or racing?" }),

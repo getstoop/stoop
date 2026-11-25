@@ -77,6 +77,15 @@ export function matchingCommands(
 // first field.
 export type ParsedCommand = { command: Command; text: string };
 
+// The words after a command as one plain line: markup dropped, and any
+// run of spaces, tabs, line breaks or other control characters made one
+// space, so a pasted tab does not trip the form's own checks.
+function plainWords(markdown: string): string {
+  return plainText(markdown)
+    .replace(/[\s\p{Cc}]+/gu, " ")
+    .trim();
+}
+
 // "/name" at the very start, then a space or the end: the name in lower
 // case and the Markdown after the space.
 function split(content: string): { name: string; rest: string } | null {
@@ -102,7 +111,7 @@ export function parseCommand(
     (each) => each.name === typed.name,
   );
   if (!command) return null;
-  return { command, text: plainText(typed.rest) };
+  return { command, text: plainWords(typed.rest) };
 }
 
 // The text a command picked from the list carries: the words after its
@@ -110,5 +119,5 @@ export function parseCommand(
 // none ("/po").
 export function pickedText(draft: string, command: Command): string {
   const typed = split(draft);
-  return typed?.name === command.name ? plainText(typed.rest) : "";
+  return typed?.name === command.name ? plainWords(typed.rest) : "";
 }

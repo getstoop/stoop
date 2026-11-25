@@ -800,10 +800,11 @@ window" is what the view's range holds.
   in the server's words (or "Try again" for anything that may pass on a
   second try) and leaves everything as typed; one that arrives after
   the form was closed is a notice. There is no discard confirmation:
-  Cancel, Escape and the scrim close it. Cancel returns focus to what
-  opened it, the poll button or the composer; a posted poll returns it
-  to the composer's words, which the button and posting leave as they
-  were (`/poll` takes its own words out).
+  Cancel, Escape and the scrim close it. However it was opened and
+  however it closes, focus goes back to the composer's words, which the
+  button and posting leave as they were (`/poll` takes its own words
+  out); not when it closed because the composer moved to another
+  channel.
 
 The view is bounded by the log's `LOG_CAP` (2,000 shown rows,
 `core/channelLog/types.ts`), which is about memory rather than the DOM:

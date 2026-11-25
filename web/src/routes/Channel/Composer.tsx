@@ -138,6 +138,9 @@ export function Composer({
   } | null>(null);
   // The /command being typed, when no other list is open.
   const [commandQuery, setCommandQuery] = useState<CommandQuery | null>(null);
+  // Escape shuts the command list until the draft stops being a command,
+  // so it stays shut while a question is typed after the name.
+  const commandDismissed = useRef(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<RichField>(null);
   const touchKeyboard = useTouchKeyboard();
@@ -164,15 +167,20 @@ export function Composer({
     formIn?.command === "poll" && formIn.channelId === channelId
       ? formIn
       : null;
-  const pollOpen = pollIn !== null;
-  // Set when a poll was posted: focus goes back to the words, not to
-  // the poll button the form opened from.
-  const focusAfterPoll = useRef(false);
+  // However the form was opened (the button, the list, a send) and
+  // however it closes (cancelled, posted), focus goes back to the words.
+  // Not when it closes because the composer moved to another channel.
+  const formOpen = formIn !== null;
+  const focusAfterForm = useRef(false);
+  const openForm = (command: CommandName, text: string) => {
+    focusAfterForm.current = true;
+    setFormIn({ command, channelId, text });
+  };
   useEffect(() => {
-    if (pollOpen || !focusAfterPoll.current) return;
-    focusAfterPoll.current = false;
+    if (formOpen || !focusAfterForm.current) return;
+    focusAfterForm.current = false;
     inputRef.current?.focus();
-  }, [pollOpen]);
+  }, [formOpen]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
@@ -251,6 +259,8 @@ export function Composer({
     });
     setAttachError(null);
     setCommandQuery(null);
+    commandDismissed.current = false;
+    focusAfterForm.current = false;
     setFormIn(null);
   }, [channelId]);
   const members = usePeople(spaceId, channelId);
@@ -290,7 +300,9 @@ export function Composer({
   const updateMention = (value: string, caret: number, whole: string) => {
     // No picker in code or a link's words: a mention there is sent as text.
     const off = inputRef.current?.mentionsOffAtCaret();
-    setCommandQuery(off ? null : commandQueryAt(whole));
+    const command = commandQueryAt(whole);
+    if (!command) commandDismissed.current = false;
+    setCommandQuery(off || commandDismissed.current ? null : command);
     const channelQuery = linkable.size > 0 && channelQueryAt(value, caret);
     const q = off
       ? null
@@ -346,11 +358,20 @@ export function Composer({
     setMention(null);
     setShortcode(null);
     setCommandQuery(null);
-    setFormIn({ command: command.name, channelId, text });
+    commandDismissed.current = false;
+    openForm(command.name, text);
+  };
+
+  // What Enter would send, read the same way for a send and for a pick
+  // from the command list: mentions settled, shortcodes turned to emoji.
+  const outgoing = () => {
+    const typed = inputRef.current?.sendable() ?? draft;
+    const written = replaceShortcodes(typed);
+    return { typed, content: isBlankMessage(written) ? "" : written.trim() };
   };
 
   const pickCommand = (command: Command) =>
-    openCommand({ command, text: pickedText(draft, command) });
+    openCommand({ command, text: pickedText(outgoing().content, command) });
 
   // Focus the box when a reply is started.
   useEffect(() => {
@@ -399,10 +420,14 @@ export function Composer({
       }
       return;
     }
-    if (e.key === "ArrowDown") {
+    // A list of one has nowhere to move: the arrows stay the caret's,
+    // which a question typed after "/poll " needs.
+    const commandList = !mention && !shortcode;
+    const arrows = !commandList || count > 1;
+    if (e.key === "ArrowDown" && arrows) {
       e.preventDefault();
       setSelected((s) => (s + 1) % count);
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp" && arrows) {
       e.preventDefault();
       setSelected((s) => (s - 1 + count) % count);
     } else if (e.key === "Enter" || e.key === "Tab") {
@@ -412,6 +437,7 @@ export function Composer({
       else pickCommand(commands[selected]);
     } else if (e.key === "Escape") {
       e.preventDefault();
+      if (commandList) commandDismissed.current = true;
       setMention(null);
       setShortcode(null);
       setCommandQuery(null);
@@ -427,9 +453,7 @@ export function Composer({
   whereRef.current = where;
   const send = async () => {
     if (sendingRef.current) return;
-    const typed = inputRef.current?.sendable() ?? draft;
-    const written = replaceShortcodes(typed);
-    const content = isBlankMessage(written) ? "" : written.trim();
+    const { typed, content } = outgoing();
     // A command offered here opens its form instead of sending; in a
     // thread, or unknown, it is sent as typed.
     const command = parseCommand(content, place);
@@ -446,6 +470,7 @@ export function Composer({
     setMention(null);
     setShortcode(null);
     setCommandQuery(null);
+    commandDismissed.current = false;
     setPending([]);
     setAttachError(null);
     onCancelReply();
@@ -593,9 +618,7 @@ export function Composer({
               <button
                 type="button"
                 className="format-button poll-button"
-                onClick={() =>
-                  setFormIn({ command: "poll", channelId, text: "" })
-                }
+                onClick={() => openForm("poll", "")}
                 aria-label="Create a poll"
                 aria-haspopup="dialog"
               >
@@ -684,10 +707,7 @@ export function Composer({
           channelId={pollIn.channelId}
           question={pollIn.text}
           onClose={() => setFormIn(null)}
-          onPosted={() => {
-            focusAfterPoll.current = true;
-            setFormIn(null);
-          }}
+          onPosted={() => setFormIn(null)}
         />
       )}
     </>
