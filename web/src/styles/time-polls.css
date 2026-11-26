@@ -1,0 +1,48 @@
+/* ---- Find a time: what a time poll adds to the poll card (polls.css)
+   and to the poll form (poll-form.css, routes/Channel/PollForm/
+   TimePollForm.tsx). ---- */
+
+/* The open card's line: how many may be chosen, and at its end the
+   zone the times are in. */
+.poll-kind-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.poll-zone svg {
+  flex-shrink: 0;
+}
+
+/* A time gone by while the poll is open: its words dimmed, a badge
+   beside the count. It still takes votes. */
+.poll-option.passed .poll-option-text {
+  color: var(--text-muted);
+}
+
+.poll-passed {
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+/* The form: each time's field fills its row beside the remove button. */
+.time-poll-form .poll-option-line .date-time-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The zone the times are read in, under Add time. */
+.time-poll-zone {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-sm);
+}
+
+.time-poll-zone svg {
+  flex-shrink: 0;
+  /* off-scale: centres the globe on the first line of the words */
+  margin-top: 2px;
+}

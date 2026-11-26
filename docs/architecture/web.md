@@ -811,6 +811,33 @@ window" is what the view's range holds.
   words as they were; `/poll` takes its own words out. Nothing takes
   focus when the form closes because the composer moved to another
   channel.
+
+  A time poll ("Find a time") is made from the Find a time button, a
+  calendar after the poll button and shown where it is, or by typing
+  `/when` with the question after it. It opens
+  `routes/Channel/PollForm/TimePollForm.tsx`, the poll form's sibling
+  with the same frame, keys, pending and refusal handling (`refusal.ts`
+  is shared): the question, "People can choose" starting on several
+  times, then two to ten times (`TimeFields.tsx`), each a
+  `DateTimeField` bounded by day from today to a year ahead, with a
+  remove button, Add time (which focuses the new row), and a line naming
+  the reader's zone (`zoneLabel`). Rows stay in the order added; the
+  server sorts them. The rules are `core/timePollForm.ts`, shared with
+  mobile: each time held as the picker's local reading, an empty row
+  dropped, a repeated minute, a time not after now and one past a year
+  ahead each said under its row by this device's clock (worked out
+  again every 15 seconds and at Post), and the request turning each
+  reading into an instant by the device's zone rules and sending `times`
+  alone. The server's own refusal is said above the actions. On the
+  card (`styles/time-polls.css` for what it adds) a time poll has a
+  calendar for its glyph, draws each option as `slotLabel` in the
+  reader's zone and locale ("Thu, Dec 3, 7:00 PM", the year when it is
+  not this year) wherever the text would be (the option, its name for a
+  screen reader, the voters list, the announcement after a vote), and
+  says "Your time zone: New York (GMT−5)" on the line under the
+  question. A time that has gone by while the poll is open is dimmed and
+  badged Passed and still takes votes; that is worked out as the card
+  draws, with no timer, so it shows at the next redraw.
 - **Reminders** ([messaging.md](messaging.md#reminders)). A delivered
   reminder is a system row with a look of its own, so it is seen:
   `MessageList/ReminderRow.tsx` (`.system-row.reminder-row`, in

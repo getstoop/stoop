@@ -130,7 +130,7 @@ function VoterList({
       className="popover poll-voter-list"
       style={style}
       role="dialog"
-      aria-label={`Who chose ${result.text}`}
+      aria-label={`Who chose ${result.label}`}
       tabIndex={-1}
       // Before the card's own Escape closes it, from the window.
       onKeyDown={(event) => {
@@ -138,7 +138,7 @@ function VoterList({
       }}
     >
       <div className="poll-voter-list-head">
-        <strong>{result.text}</strong>
+        <strong>{result.label}</strong>
         <span className="muted">{votesLabel(result.votes)}</span>
       </div>
       <ul>

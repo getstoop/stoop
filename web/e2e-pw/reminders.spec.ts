@@ -130,23 +130,27 @@ test("set, undo, and a reminder posted for the channel", async ({
   const DAY_MS = 24 * 60 * 60_000;
   await expect(composer).toBeVisible();
 
-  // ---- The list: both commands, and the arrows move between them.
+  // ---- The list: all three commands, /remind last, and the arrows move
+  // between them.
   await composer.click();
   await composer.pressSequentially("/");
-  await expect(options, "a lone slash lists both commands").toHaveCount(2);
-  await expect(options.nth(1)).toContainText("/remind");
-  await expect(options.nth(1)).toContainText("[what]");
-  await expect(options.nth(1)).toContainText("Set a reminder here");
+  await expect(options, "a lone slash lists all three commands").toHaveCount(3);
+  await expect(options.nth(1)).toContainText("/when");
+  await expect(options.nth(2)).toContainText("/remind");
+  await expect(options.nth(2)).toContainText("[what]");
+  await expect(options.nth(2)).toContainText("Set a reminder here");
   await B.keyboard.press("ArrowDown");
-  await expect(options.nth(1), "ArrowDown moves to /remind").toHaveClass(
+  await expect(options.nth(1), "ArrowDown moves to /when").toHaveClass(
     /selected/,
   );
+  await B.keyboard.press("ArrowDown");
+  await expect(options.nth(2), "and on to /remind").toHaveClass(/selected/);
   await B.keyboard.press("ArrowDown");
   await expect(options.nth(0), "and wraps back to /poll").toHaveClass(
     /selected/,
   );
   await B.keyboard.press("ArrowUp");
-  await expect(options.nth(1), "ArrowUp goes the other way").toHaveClass(
+  await expect(options.nth(2), "ArrowUp goes the other way").toHaveClass(
     /selected/,
   );
   await B.keyboard.press("Enter");
@@ -429,7 +433,7 @@ test("set, undo, and a reminder posted for the channel", async ({
         return !!hit && row.contains(hit);
       });
   await composer.pressSequentially("/");
-  await expect(options).toHaveCount(2);
+  await expect(options).toHaveCount(3);
   expect(await lastRowOnTop(".command-list"), "the command list").toBe(true);
   await B.keyboard.press("Backspace");
   await composer.pressSequentially("@");

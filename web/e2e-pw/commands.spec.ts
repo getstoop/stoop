@@ -48,11 +48,13 @@ test("the command list and /poll", async ({ browser }) => {
   await expect(pollButton, "button-opened cancel returns to it").toBeFocused();
 
   // A lone "/" opens the list, the first entry selected and marked by
-  // more than colour. The arrows move between /poll and /remind
+  // more than colour. The arrows move between /poll, /when and /remind
   // (reminders.spec.ts); typing on narrows it to /poll alone.
   await composer.click();
   await composer.pressSequentially("/");
-  await expect(options, "a lone slash lists both").toHaveCount(2);
+  await expect(options, "a lone slash lists all three").toHaveCount(3);
+  await expect(options.nth(1)).toContainText("/when");
+  await expect(options.nth(1)).toContainText("Find a time");
   await expect(options.first()).toContainText("/poll");
   await expect(options.first()).toContainText("[question]");
   await expect(options.first()).toContainText("Create a poll");

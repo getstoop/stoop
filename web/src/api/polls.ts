@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { PollRequest } from "../core/pollForm";
-import { mySelection, nextSelection, pollOf } from "../core/polls";
+import { mySelection, nextSelection, optionLabel, pollOf } from "../core/polls";
+import type { TimePollRequest } from "../core/timePollForm";
 import type { Message } from "../gen/stoop/chat/v1/message_pb";
 import { announce } from "../stores/announcer";
 import { notice } from "../stores/dialogs";
@@ -59,7 +60,8 @@ export async function pressPollOption(
   const poll = pollOf(message);
   if (!poll || pending.has(message.id)) return false;
   const next = nextSelection(poll, mySelection(poll, myUserId), optionId);
-  const text = poll.options.find((option) => option.id === optionId)?.text;
+  const pressed = poll.options.find((option) => option.id === optionId);
+  const text = pressed ? optionLabel(pressed) : "";
   setPending(message.id, optionId);
   try {
     const answer = await chatClient.setPollVote(
@@ -87,13 +89,16 @@ export async function closePoll(poll: Message): Promise<void> {
   if (message) holdRow(poll.channelId, message);
 }
 
-// Posts a new poll (core/pollForm pollRequest). Resolves once the
+// Posts a new poll (core/pollForm pollRequest), or a time poll
+// (core/timePollForm timePollRequest). Resolves once the
 // server has answered, and only a refusal of the poll itself rejects:
 // the poll is saved by then, so what follows cannot fail the post. The
 // answer is held as the reader's own send is; posted from inside
 // history, the view moves to the newest page, and a failure to load it
 // is a notice of its own.
-export async function createPoll(request: PollRequest): Promise<void> {
+export async function createPoll(
+  request: PollRequest | TimePollRequest,
+): Promise<void> {
   const { message } = await chatClient.createPoll(request);
   if (!message) return;
   const view = { channelId: request.channelId };

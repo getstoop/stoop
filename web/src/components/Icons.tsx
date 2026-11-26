@@ -764,12 +764,12 @@ export function ReminderIcon() {
   );
 }
 
-// A calendar page: the date and time field's mark.
-export function CalendarIcon() {
+// A calendar page: the date and time field's mark, and a time poll's.
+export function CalendarIcon({ size = 16 }: { size?: number | string }) {
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -779,6 +779,27 @@ export function CalendarIcon() {
       aria-hidden="true"
     >
       <path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4" />
+    </svg>
+  );
+}
+
+// A globe: a time poll's line naming the reader's time zone, at the size
+// of its text.
+export function GlobeIcon() {
+  return (
+    <svg
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
     </svg>
   );
 }
