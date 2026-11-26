@@ -1,6 +1,6 @@
 # Stoop — vision & the gap we fill
 
-**Stoop is an open-source, self-hostable chat and voice app for small
+**Stoop is a source-available, self-hostable chat and voice app for small
 communities.** You run it on your own hardware — a VPS, an old laptop, a
 Raspberry Pi — and invite your people. Spaces contain channels; text chat is
 realtime; voice rooms are backed by LiveKit. One static binary plus Postgres,
