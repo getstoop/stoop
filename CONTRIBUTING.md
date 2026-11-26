@@ -66,7 +66,7 @@ Not here: see [SECURITY.md](SECURITY.md).
 Stoop is published under the [Functional Source License](LICENSE), and
 `proto/` under the [Apache License 2.0](proto/LICENSE).
 
-By contributing you agree that your contribution is licensed to get stoop
+By contributing you agree that your contribution is licensed to getstoop
 LLC under the [Apache License 2.0](proto/LICENSE), wherever in the
 repository it lands. That is what lets the project publish it under the
 Functional Source License now and under Apache-2.0 when a release reaches
