@@ -27,24 +27,32 @@ const REVEAL_DELAY_MS = 350;
 // (ReminderDateTime, compact) and its remove button (off at two), Add
 // time under them (off at ten, saying why), and the line naming the zone
 // the times are read in. A row's problem (core/timePollForm
-// checkTimePollForm) is said under it. A row shown empty opens nothing by
+// checkTimePollForm) is said under it, and so is a row with a date and
+// no time, or a time and no date (`halves`, the form's to hold, since
+// the shared rules see such a row as empty): "Pick a date and a time.",
+// once its own picker is closed. A row shown empty opens nothing by
 // itself, and on iOS one picker is open across all the rows: opening
 // another closes the one before.
 export default function TimePollSlots({
   form,
   now,
   problems,
+  halves,
   locked,
   onChange,
+  onHalf,
   onReveal,
 }: {
   form: TimePollForm;
   // The clock the rows' bounds and the zone are read at.
   now: Date;
   problems: Record<number, SlotProblem>;
+  // The rows half picked, by key.
+  halves: ReadonlySet<number>;
   // While the request is out: nothing changes.
   locked: boolean;
   onChange: (update: (form: TimePollForm) => TimePollForm) => void;
+  onHalf: (key: number, half: boolean) => void;
   // Asks the form to scroll this stretch of the times into view (points
   // from the top of the times): a row whose iOS picker has opened.
   onReveal: (top: number, bottom: number) => void;
@@ -82,7 +90,8 @@ export default function TimePollSlots({
         <Text style={styles.count}>{slotCount(form)}</Text>
       </View>
       {form.slots.map((slot, index) => {
-        const problem = problems[slot.key];
+        const problem: SlotProblem | undefined =
+          problems[slot.key] ?? (halves.has(slot.key) && open?.key !== slot.key ? "invalid" : undefined);
         return (
           <View
             key={slot.key}
@@ -102,6 +111,7 @@ export default function TimePollSlots({
               invalid={!!problem}
               onCustom={(value) => onChange((current) => withSlot(current, slot.key, value))}
               onPickerShown={() => pickerShown(slot.key)}
+              onHalf={(half) => onHalf(slot.key, half)}
               testID={`time-slot-${index + 1}`}
               name={`Time ${index + 1}`}
               openAtStart={false}

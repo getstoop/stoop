@@ -42,6 +42,7 @@ export default function ReminderDateTime({
   compact = false,
   picker,
   after,
+  onHalf,
 }: {
   // The form's value, "2026-12-02T09:00", or "" for none yet.
   custom: string;
@@ -63,6 +64,9 @@ export default function ReminderDateTime({
   picker?: { open: PickerMode | null; onOpen: (mode: PickerMode | null) => void };
   // Beside the fields, at the row's end.
   after?: ReactNode;
+  // Whether one of the two is picked and not the other: a time poll's
+  // row says so (the value stays "" until both are).
+  onHalf?: (half: boolean) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -87,6 +91,7 @@ export default function ReminderDateTime({
     const next = { ...latest.current, [part]: value };
     latest.current = next;
     setParts(next);
+    onHalf?.(!next.day !== !next.time);
     if (next.day && next.time) {
       onCustom(
         localInputValue(
@@ -137,9 +142,13 @@ export default function ReminderDateTime({
   useEffect(() => {
     if (openAtStart && !parts.day) show("date");
   }, []);
+  // Said once as a picker opens, not again as the form draws while it is
+  // open: the caller's function may be new on every draw.
+  const pickerShown = useRef(onPickerShown);
+  pickerShown.current = onPickerShown;
   useEffect(() => {
-    if (open) onPickerShown();
-  }, [open, onPickerShown]);
+    if (open) pickerShown.current();
+  }, [open]);
   // Android's dialogs are the system's: closed with the form.
   useEffect(
     () => () => {
@@ -304,9 +313,11 @@ function makeStyles(theme: Theme) {
       flexShrink: 1,
       minWidth: 0,
     },
-    // A time poll's: as wide as "12:30 PM", the text centred.
+    // A time poll's: as wide as "12:30 PM", wider with larger text, the
+    // text centred.
     timeCompact: {
-      width: 104,
+      minWidth: 104,
+      flexShrink: 0,
       justifyContent: "center",
     },
     // The fields and what sits beside them (`after`), on one line.

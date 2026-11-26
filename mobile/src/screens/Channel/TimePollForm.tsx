@@ -52,9 +52,11 @@ const FADE = 24;
 // the rules are web's, shared (core/timePollForm): a row this device's
 // clock reads as gone by, over a year away or the same as an earlier one
 // says so under it, judged again every 15 seconds and once more as Post
-// is pressed, and Post is on for a question and two times with nothing
-// wrong. The times go as instants by this device's zone rules; the
-// server judges them by its own clock, and its refusal is said over Post,
+// is pressed. Post is on for a question and two times with nothing wrong
+// and no row half picked (a date and no time, or the other way round),
+// which the rules would take for an empty row. The times go as instants
+// by this device's zone rules; the server judges them by its own clock,
+// and its refusal is said over Post,
 // everything kept. Posting, Cancel while it is out, and a refusal after
 // the sheet has gone are as on the poll's form. The question takes the
 // caret as the sheet shows, unless /when filled it; no picker opens by
@@ -121,6 +123,19 @@ export default function TimePollForm({
     };
   }, []);
   const check = checkTimePollForm(form, now);
+  // Rows with a date and no time, or a time and no date: the shared rules
+  // see them as empty, so they are held here, said under the row, and keep
+  // Post off. A row removed is no longer one.
+  const [halves, setHalves] = useState<ReadonlySet<number>>(new Set());
+  const halfShown = form.slots.some((slot) => halves.has(slot.key));
+  const onHalf = (key: number, half: boolean) =>
+    setHalves((now) => {
+      if (now.has(key) === half) return now;
+      const next = new Set(now);
+      if (half) next.add(key);
+      else next.delete(key);
+      return next;
+    });
 
   const change = (update: (current: typeof form) => typeof form) => {
     if (posting) return;
@@ -134,7 +149,7 @@ export default function TimePollForm({
     // Judged again at this moment: a time may have gone by.
     const sentAt = new Date();
     setNow(sentAt);
-    if (!checkTimePollForm(form, sentAt).canPost) return;
+    if (!checkTimePollForm(form, sentAt).canPost || halfShown) return;
     postingNow.current = true;
     setPosting(true);
     setFailure(null);
@@ -154,7 +169,7 @@ export default function TimePollForm({
 
   const bottom = keyboard > 0 ? 8 : Math.max(insets.bottom, 8) + 8;
   const most = window.height - keyboard - insets.top - ABOVE;
-  const postable = check.canPost && !posting;
+  const postable = check.canPost && !halfShown && !posting;
   const questionProblem = check.question;
 
   return (
@@ -260,8 +275,10 @@ export default function TimePollForm({
                   form={form}
                   now={now}
                   problems={check.slots}
+                  halves={halves}
                   locked={posting}
                   onChange={change}
+                  onHalf={onHalf}
                   onReveal={reveal}
                 />
               </View>
