@@ -14,6 +14,7 @@ export function TimeColumn({
   invalid,
   errorId,
   onText,
+  stepFrom,
   onPick,
   onEnter,
   onBlur,
@@ -24,6 +25,9 @@ export function TimeColumn({
   invalid: boolean;
   errorId: string;
   onText: (text: string) => void;
+  // Where Up and Down step from: the typed time when it reads as one,
+  // else the time taken.
+  stepFrom: string | null;
   onPick: (time: string) => void;
   onEnter: () => void;
   onBlur: () => void;
@@ -49,7 +53,7 @@ export function TimeColumn({
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      onPick(stepTime(time, event.key === "ArrowDown" ? 1 : -1));
+      onPick(stepTime(stepFrom, event.key === "ArrowDown" ? 1 : -1));
     } else if (event.key === "Enter" && !composing(event)) {
       // Never the form's submit.
       event.preventDefault();

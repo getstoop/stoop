@@ -5,7 +5,11 @@ import type { KeyboardEvent } from "react";
 // WebKit sends the Enter that ends a composition with isComposing false
 // and keyCode 229, so both are asked.
 export const composing = (event: KeyboardEvent): boolean =>
-  event.nativeEvent.isComposing || event.keyCode === 229;
+  composingKey(event.nativeEvent);
+
+// The same, for a listener on the window or the document.
+export const composingKey = (event: globalThis.KeyboardEvent): boolean =>
+  event.isComposing || event.keyCode === 229;
 
 // Tab and Shift+Tab go round the form's own controls while it is open,
 // never out to the page behind it. Bound on an element holding the

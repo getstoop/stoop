@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { composingKey } from "../dialogKeys";
 import {
   boundsOf,
   clampDay,
@@ -80,8 +81,13 @@ export function Panel({
     setText(next);
     setError(false);
   };
+  // Set once the panel is on its way out, so that the time field losing
+  // focus as it goes neither takes a typed time after Escape put the old
+  // value back nor sends one a second time after Done.
+  const closing = useRef(false);
   // Takes a typed time that is one; says so when it is not.
   const settle = () => {
+    if (closing.current) return false;
     if (typed) {
       if (typed !== time || text !== timeLabel(typed)) chooseTime(typed);
       return true;
@@ -92,10 +98,14 @@ export function Panel({
   // Enter in the time takes it, and closes the panel when a day is
   // chosen too; it never reaches the form round the field.
   const onTimeEnter = () => {
-    if (settle() && day) onDone();
+    if (settle() && day) close(onDone);
   };
   const done = () => {
-    if (settle()) onDone();
+    if (settle()) close(onDone);
+  };
+  const close = (how: () => void) => {
+    closing.current = true;
+    how();
   };
 
   // Escape and Tab are taken at the window before anything else hears
@@ -105,24 +115,30 @@ export function Panel({
   // it. A press outside settles the typed time before the field closes
   // the panel.
   const panel = useRef<HTMLDivElement>(null);
-  const latest = useRef({ onCancel, settle });
-  latest.current = { onCancel, settle };
+  const latest = useRef({ onCancel, settle, close });
+  latest.current = { onCancel, settle, close };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.isComposing) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        latest.current.onCancel();
-      } else if (event.key === "Tab" && panel.current) {
-        event.preventDefault();
-        event.stopPropagation();
-        cycle(panel.current, event.shiftKey);
-      }
+      const tab =
+        event.key === "Tab" &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey;
+      if (event.key !== "Escape" && !tab) return;
+      // Nothing round the panel hears it either way.
+      event.stopPropagation();
+      // An input method's own Escape or Tab: it is the IME's to handle.
+      if (composingKey(event)) return;
+      event.preventDefault();
+      if (event.key === "Escape") latest.current.close(latest.current.onCancel);
+      else if (panel.current) cycle(panel.current, event.shiftKey);
     };
+    // Any press outside closes the panel (the field toggles it, the rest
+    // of the page is outside it): the typed time is settled first.
     const onPress = (event: PointerEvent) => {
-      if (!panel.current?.contains(event.target as Node))
-        latest.current.settle();
+      if (panel.current?.contains(event.target as Node)) return;
+      latest.current.settle();
+      closing.current = true;
     };
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", onPress, true);
@@ -176,6 +192,7 @@ export function Panel({
           invalid={error}
           errorId={errorId}
           onText={onTyped}
+          stepFrom={typed ?? time}
           onPick={chooseTime}
           onEnter={onTimeEnter}
           onBlur={settle}

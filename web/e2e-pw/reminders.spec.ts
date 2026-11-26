@@ -212,7 +212,7 @@ test("set, undo, and a reminder posted for the channel", async ({
     await expect(earliest as Locator).toBeEnabled({ timeout: 1000 });
     await offLimits({ ms: -DAY_MS, days: -1 });
     await offLimits({ years: 1, ms: DAY_MS, days: 1 });
-  }).toPass();
+  }).toPass({ timeout: 10_000 });
   await B.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
 
@@ -322,15 +322,58 @@ test("set, undo, and a reminder posted for the channel", async ({
   );
   expect(sent).toBe(0);
   expect(await waitingReminders()).toBe(0);
-  // A typed time that isn't one, left by a press outside the panel (here
-  // on the field, which the panel may cover the rest of the form above),
-  // is dropped: the field keeps the last time taken.
+  // A typed time is taken when it is settled, never per keystroke. One
+  // that isn't a time, left by a press outside the panel (here on the
+  // field, since the panel may cover the rest of the form above it), is
+  // dropped: the field keeps the last time taken.
+  const clock = (hour: number, minute: number) =>
+    B.evaluate(
+      ([h, m]) =>
+        new Date(2000, 0, 1, h, m).toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      [hour, minute],
+    );
+  const typeTime = async (typed: string) => {
+    await timeBox.fill("");
+    await timeBox.pressSequentially(typed);
+  };
   const shownBefore = (await picked.textContent()) ?? "";
   await picked.click();
-  await timeBox.fill("7:75");
+  await typeTime("7:75");
   await picked.click();
   await expect(panel).toHaveCount(0);
-  await expect(picked).toHaveText(shownBefore);
+  await expect(picked, "an invalid typed time is dropped").toHaveText(
+    shownBefore,
+  );
+  // A real one, left the same way, is taken.
+  await picked.click();
+  await typeTime("8pm");
+  await picked.click();
+  await expect(panel).toHaveCount(0);
+  await expect(picked, "a typed time is taken on leaving").toContainText(
+    await clock(20, 0),
+  );
+  // Escape puts back the value the panel opened with, even after a real
+  // time was typed, and leaves the form open.
+  const beforeEscape = (await picked.textContent()) ?? "";
+  await picked.click();
+  await typeTime("6:45");
+  await B.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(form).toBeVisible();
+  await expect(picked, "Escape takes nothing typed").toHaveText(beforeEscape);
+  // Up and Down step from the time typed, not the one taken before.
+  await picked.click();
+  await typeTime("3pm");
+  await timeBox.press("ArrowDown");
+  await expect(timeBox).toHaveValue(await clock(15, 30));
+  await B.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(picked, "and Escape puts that back too").toHaveText(
+    beforeEscape,
+  );
   await expect(
     form.getByText("From a minute to a year from now."),
   ).toBeVisible();
