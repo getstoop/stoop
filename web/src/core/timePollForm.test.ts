@@ -1,5 +1,5 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import {
   addSlot,
   canAddSlot,
@@ -14,6 +14,16 @@ import {
   timePollRequest,
   withSlot,
 } from "./timePollForm";
+
+// A zone with daylight saving, so a clock change can be tested: in 2027
+// New York goes forward at 2:00 on 14 March. Set for this file only,
+// before any date is built.
+const zone = process.env.TZ;
+process.env.TZ = "America/New_York";
+afterAll(() => {
+  if (zone === undefined) delete process.env.TZ;
+  else process.env.TZ = zone;
+});
 
 // Local-time constructor throughout: the form reads local readings, so
 // building dates this way keeps the suite honest in any TZ.
@@ -133,6 +143,16 @@ describe("checkTimePollForm", () => {
       NOW,
     );
     expect(check.slots).toEqual({ 3: "duplicate" });
+    expect(check.canPost).toBe(false);
+  });
+
+  it("calls two readings of the same instant across a clock change the same", () => {
+    // 2:30 is skipped and read as 3:30, the time the other row names.
+    const check = checkTimePollForm(
+      filled(["2027-03-14T03:30", "2027-03-14T02:30"]),
+      NOW,
+    );
+    expect(check.slots).toEqual({ 2: "duplicate" });
     expect(check.canPost).toBe(false);
   });
 
