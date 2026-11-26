@@ -246,13 +246,14 @@ function readerFor(locale?: string): Reader {
   const format = new Intl.DateTimeFormat(locale, {
     hour: "numeric",
     hour12: true,
+    timeZone: "UTC",
   });
   for (const [hour, period] of [
     [1, "am"],
     [13, "pm"],
   ] as const) {
     const part = format
-      .formatToParts(new Date(2000, 0, 1, hour))
+      .formatToParts(new Date(Date.UTC(2000, 0, 1, hour)))
       .find((p) => p.type === "dayPeriod");
     if (part) periods.set(squeeze(part.value).replace(/\./g, ""), period);
   }
@@ -271,11 +272,15 @@ function readerFor(locale?: string): Reader {
 // A time of day as the locale writes it: "10:00 AM", "19:30".
 export function timeLabel(time: string, locale?: string): string {
   const [hour, minute] = time.split(":").map(Number);
-  return timeFormat(locale).format(new Date(2000, 0, 1, hour, minute));
+  return timeFormat(locale).format(
+    new Date(Date.UTC(2000, 0, 1, hour, minute)),
+  );
 }
 
 // One formatter per locale: building one per label is what costs, and
-// parseTypedTime labels every minute of the day.
+// parseTypedTime labels every minute of the day. It reads a wall-clock
+// time in UTC, so a device whose zone changes while the page is open
+// (a laptop that travels) still gets the same labels from it.
 const timeFormats = new Map<string, Intl.DateTimeFormat>();
 
 function timeFormat(locale?: string): Intl.DateTimeFormat {
@@ -285,6 +290,7 @@ function timeFormat(locale?: string): Intl.DateTimeFormat {
     format = new Intl.DateTimeFormat(locale, {
       hour: "numeric",
       minute: "2-digit",
+      timeZone: "UTC",
     });
     timeFormats.set(key, format);
   }

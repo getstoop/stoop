@@ -51,8 +51,12 @@ export function TimeColumn({
   }, [time, onList]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    // Keys during an input method's composition are its own.
-    if (composing(event)) return;
+    // Keys during an input method's composition are its own; Enter still
+    // never submits the form round the field.
+    if (composing(event)) {
+      if (event.key === "Enter") event.preventDefault();
+      return;
+    }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       onPick(stepTime(stepFrom, event.key === "ArrowDown" ? 1 : -1));
