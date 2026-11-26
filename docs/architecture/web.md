@@ -826,9 +826,13 @@ window" is what the view's range holds.
   mobile: each time held as the picker's local reading, an empty row
   dropped, a repeated minute, a time not after now and one past a year
   ahead each said under its row by this device's clock (worked out
-  again every 15 seconds and at Post), and the request turning each
+  again every 15 seconds and at Post; shown at once, said to a screen
+reader politely and only once that row's panel has closed), and the
+request turning each
   reading into an instant by the device's zone rules and sending `times`
-  alone. The server's own refusal is said above the actions. On the
+  alone. Cmd or Ctrl with Enter posts, except while a time's panel is
+open, where it only settles the panel. The server's own refusal is said
+above the actions. On the
   card (`styles/time-polls.css` for what it adds) a time poll has a
   calendar for its glyph, draws each option as `slotLabel` in the
   reader's zone and locale ("Thu, Dec 3, 7:00 PM", the year when it is

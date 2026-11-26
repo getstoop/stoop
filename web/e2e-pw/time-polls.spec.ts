@@ -265,3 +265,89 @@ test("find a time: made, read in two zones, voted on and closed", async ({
   await expect(form).toHaveCount(0);
   await expect(card(A).locator(".poll-option")).toHaveCount(3);
 });
+
+test("a key in an open panel never posts a stale time; passed times", async ({
+  browser,
+}) => {
+  const { tokens, channels } = await seed({ channels: ["general"] });
+  const A = await (
+    await browser.newContext({ timezoneId: "America/New_York" })
+  ).newPage();
+  await signIn(A, tokens.ada);
+  await channelLink(A, "general").click();
+  await expect(A.locator(COMPOSER)).toBeVisible();
+
+  const QUESTION = "Late night?";
+  const form = A.getByRole("dialog", { name: "Find a time" });
+  const panel = A.getByRole("dialog", { name: "Pick a date and time" });
+  const time = (n: number) =>
+    form.getByRole("button", { name: `Time ${n}`, exact: true });
+  const thursday = await slotFromNow(A, 3, 19);
+  const friday = await slotFromNow(A, 4, 20);
+  const fridayLate = await slotFromNow(A, 4, 21);
+
+  await A.getByRole("button", { name: "Find a time" }).click();
+  await form.getByRole("textbox", { name: "Question" }).fill(QUESTION);
+  await pick(A, time(1), thursday, "19:00");
+  await pick(A, time(2), friday, "20:00");
+
+  // Cmd or Ctrl with Enter in an open panel settles its time and closes
+  // it; it does not post the time as it was before the keystroke.
+  await time(2).click();
+  await expect(panel).toBeVisible();
+  await panel.getByRole("textbox", { name: "Time" }).fill("21:00");
+  await A.keyboard.press("ControlOrMeta+Enter");
+  await expect(panel).toHaveCount(0);
+  await expect(form, "nothing is posted from the panel").toBeVisible();
+  await expect(time(2)).toHaveText(await labelIn(A, fridayLate.ms));
+  await A.keyboard.press("ControlOrMeta+Enter");
+  await expect(form).toHaveCount(0);
+
+  const card = A.locator(".poll-row", { hasText: QUESTION });
+  await expect(card.locator(".poll-option-text")).toHaveText([
+    await labelIn(A, thursday.ms),
+    await labelIn(A, fridayLate.ms),
+  ]);
+
+  // Thursday's time goes by (the page's clock moved past it). The card
+  // marks it at its next redraw, here a vote, and it still takes votes.
+  const option = async (slot: Slot) =>
+    card.getByRole("checkbox", {
+      name: new RegExp(`^${escaped(await labelIn(A, slot.ms))}`),
+    });
+  await expect(card.locator(".poll-option.passed")).toHaveCount(0);
+  await A.clock.setFixedTime(new Date(thursday.ms + 60 * 60_000));
+  await (await option(fridayLate)).click();
+  await expect(card.locator(".poll-option.passed")).toHaveCount(1);
+  await expect(await option(thursday)).toHaveAccessibleName(
+    /, passed, 0 votes$/,
+  );
+  await (await option(thursday)).click();
+  await expect(await option(thursday)).toHaveAccessibleName(
+    /, passed, 1 vote, your vote$/,
+  );
+
+  // Closed, nothing is marked passed.
+  await card.locator(".poll-close").click();
+  await A.locator(".poll-confirm .primary").click();
+  await expect(card).toContainText("Closed");
+  await expect(card.locator(".poll-option.passed")).toHaveCount(0);
+  await expect(card.getByText("Passed", { exact: true })).toHaveCount(0);
+
+  // A text poll is never marked.
+  const made = await A.request.post("/stoop.chat.v1.ChatService/CreatePoll", {
+    headers: { authorization: `Bearer ${tokens.ada}` },
+    data: {
+      channelId: channels.general,
+      question: "Pizza or tacos?",
+      options: ["Pizza", "Tacos"],
+    },
+  });
+  expect(made.ok()).toBe(true);
+  const text = A.locator(".poll-row", { hasText: "Pizza or tacos?" });
+  await text.getByRole("radio", { name: /^Pizza/ }).click();
+  await expect(
+    text.getByRole("radio", { name: /^Pizza, 1 vote, your vote$/ }),
+  ).toBeVisible();
+  await expect(text.locator(".poll-option.passed")).toHaveCount(0);
+});

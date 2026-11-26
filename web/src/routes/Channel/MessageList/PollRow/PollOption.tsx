@@ -41,12 +41,12 @@ export function PollOption({
     badge && "won",
     pending && "pending",
     // A time gone by while the poll is open: dimmed, and still voted on.
-    open && result.passed && "passed",
+    result.passed && "passed",
   ]
     .filter(Boolean)
     .join(" ");
   const count = votesLabel(result.votes);
-  const passed = open && result.passed;
+  const { passed } = result;
   const end = (
     <span className="poll-option-end">
       {passed && <span className="badge poll-passed">Passed</span>}

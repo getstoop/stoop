@@ -357,4 +357,18 @@ describe("time polls", () => {
       [null, "Tacos", false],
     ]);
   });
+
+  it("marks a passed time only while the poll is open", () => {
+    const closed = create(PollSchema, { ...timed, closedAt: timestampNow() });
+    expect(pollResults(closed, "maya", now).map((r) => r.passed)).toEqual([
+      false,
+      false,
+    ]);
+    // A day later both times have gone by.
+    const later = new Date(2026, 11, 4, 12, 0);
+    expect(pollResults(timed, "maya", later).map((r) => r.passed)).toEqual([
+      true,
+      true,
+    ]);
+  });
 });

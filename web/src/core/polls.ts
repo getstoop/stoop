@@ -94,8 +94,9 @@ export type OptionResult = {
   at: Date | null;
   // What the option is called: its text, or its time (optionLabel).
   label: string;
-  // A time that has gone by, by the clock the results were worked out
-  // at. It still takes votes; the card marks it.
+  // A time gone by while the poll is open, by the clock the results were
+  // worked out at. It still takes votes; the card marks it. Never set on
+  // a closed poll or a text one.
   passed: boolean;
   votes: number;
   // The bar: this option's votes over the people who voted, 0 to 1. With
@@ -116,6 +117,7 @@ export function pollResults(
   myUserId: string | undefined,
   now: Date = new Date(),
 ): OptionResult[] {
+  const open = isPollOpen(poll);
   const top = Math.max(
     0,
     ...poll.options.map((option) => option.voters.length),
@@ -128,7 +130,7 @@ export function pollResults(
       text: option.text,
       at,
       label: at ? slotLabel(at, now) : option.text,
-      passed: !!at && at.getTime() <= now.getTime(),
+      passed: open && !!at && at.getTime() <= now.getTime(),
       votes,
       ratio: poll.voterCount > 0 ? Math.min(1, votes / poll.voterCount) : 0,
       mine: !!myUserId && option.voters.some((voter) => voter.id === myUserId),

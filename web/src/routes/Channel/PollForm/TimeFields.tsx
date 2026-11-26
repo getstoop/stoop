@@ -43,6 +43,10 @@ export function TimeFields({
   const [focusNext, setFocusNext] = useState<number | null>(
     focusFirst ? (form.slots[0]?.key ?? null) : null,
   );
+  // The row whose panel is open: its problem is shown as it changes but
+  // said to a screen reader only once the panel closes, so stepping
+  // through times does not announce each one.
+  const [openKey, setOpenKey] = useState<number | null>(null);
   useEffect(() => {
     if (focusNext === null) return;
     document.getElementById(fieldId(focusNext))?.focus();
@@ -90,6 +94,11 @@ export function TimeFields({
                 aria-invalid={problem ? true : undefined}
                 aria-describedby={problem ? errorId : undefined}
                 onChange={(value) => onChange(withSlot(form, slot.key, value))}
+                onOpenChange={(open) =>
+                  setOpenKey((current) =>
+                    open ? slot.key : current === slot.key ? null : current,
+                  )
+                }
               />
               <button
                 type="button"
@@ -103,10 +112,15 @@ export function TimeFields({
               </button>
             </div>
             {problem && (
-              <p className="error field-error" id={errorId} role="alert">
+              <p className="error field-error" id={errorId}>
                 {slotProblemText(problem)}
               </p>
             )}
+            <span className="visually-hidden" aria-live="polite">
+              {problem && openKey !== slot.key
+                ? `Time ${index + 1}: ${slotProblemText(problem)}`
+                : ""}
+            </span>
           </div>
         );
       })}

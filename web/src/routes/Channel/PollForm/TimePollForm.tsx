@@ -108,10 +108,14 @@ export function TimePollForm({
   };
 
   // Cmd or Ctrl with Enter posts from anywhere in the dialog, its
-  // actions included; Tab goes round the dialog.
+  // actions included; Tab goes round the dialog. Not while a time's panel
+  // is open: that Enter settles the panel's day or time, a change this
+  // render's form does not hold yet, so posting then would send the time
+  // as it was. The keystroke only settles and closes the panel.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     keepFocusIn(event);
     if (event.key !== "Enter" || composing(event)) return;
+    if (event.currentTarget.querySelector(".date-time-panel")) return;
     if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
       void post();

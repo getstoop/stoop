@@ -240,7 +240,12 @@ hours. While the panel is open, wherever focus is, Tab goes round its few
 stops (one day at a time is in the order) and Escape closes it and puts
 the value back as it opened; both are taken at the window before anything
 else hears them, so a `Modal` round it stays open and a form's Tab trap
-never moves focus behind it. Its
+never moves focus behind it. Enter in the panel is not stopped, so a
+form's own Cmd or Ctrl with Enter shortcut must stand down while a panel
+is open (`.date-time-panel` in the form), or it would post the value as it
+was before that keystroke settled. `onOpenChange` tells a form when the
+panel opens and closes, so it can wait to announce a problem with the
+value until it is settled. Its
 rules (the grid, the bounds, reading a typed time, the words) are
 `DateTimeField/calendar.ts`, unit-tested; its sheet is
 `styles/date-time-field.css`.

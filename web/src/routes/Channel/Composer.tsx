@@ -170,11 +170,12 @@ export function Composer({
   const [dragging, setDragging] = useState(false);
   // The command form open (the poll button opens the poll's, the Find a
   // time button the time poll's), the channel it was opened in and the
-  // words it starts with. Not offered in a thread, which takes no poll. The composer outlives a channel
-  // change, and the form does not: it is drawn only in the channel it was
-  // opened in, and closed on leaving it. id tells one opening from the
-  // next, so a late answer closes only the form that sent it; where names
-  // the channel or conversation, for a notice shown away from it.
+  // words it starts with. Not offered in a thread, which takes no poll.
+  // The composer outlives a channel change, and the form does not: it is
+  // drawn only in the channel it was opened in, and closed on leaving it.
+  // id tells one opening from the next, so a late answer closes only the
+  // form that sent it; where names the channel or conversation, for a
+  // notice shown away from it.
   const [formIn, setFormIn] = useState<{
     command: CommandName;
     channelId: string;
