@@ -252,6 +252,24 @@ describe("parseTypedTime", () => {
   });
 });
 
+describe("a device whose zone changes while the page is open", () => {
+  it("keeps the same labels and reads them back the same", () => {
+    const zone = process.env.TZ;
+    try {
+      process.env.TZ = "America/New_York";
+      const label = timeLabel("19:30");
+      expect(parseTypedTime(label)).toBe("19:30");
+      process.env.TZ = "Asia/Tokyo";
+      expect(timeLabel("19:30")).toBe(label);
+      expect(parseTypedTime(label)).toBe("19:30");
+      expect(parseTypedTime(timeLabel("07:05"))).toBe("07:05");
+    } finally {
+      if (zone === undefined) delete process.env.TZ;
+      else process.env.TZ = zone;
+    }
+  });
+});
+
 describe("words", () => {
   it("names the columns Sunday first", () => {
     const names = weekdayNames();
