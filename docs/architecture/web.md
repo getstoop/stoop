@@ -850,11 +850,15 @@ window" is what the view's range holds.
   When is a radio group of the presets, each with the time it lands on
   by this device's clock ("Today at 4:30 PM", worked out again every 15
   seconds while the form is open), a guide only, and "Pick a date and
-  time", which opens the browser's own `<input type="datetime-local">`,
-  with the hint or the problem under it in words and tied to it. Its
-  `min` and `max` are a day wider than a minute to a year ahead, so a
-  device clock a few hours off never stops a time the server would
-  take. Nothing is chosen at first, and Set reminder is on with text and
+  time", which shows the kit's `DateTimeField`
+  ([design-system.md](design-system.md#fields)) in
+  place of the browser's own date-and-time field, which no theme can
+  reach, with the hint or the problem under it in words and tied to it.
+  It holds the same value the native field did. Its `min` and `max`
+  are a day wider than a minute to a year ahead, so a device clock a
+  few hours off never stops a time the server would take; the picker
+  applies them by day, so yesterday can be chosen and the form's own
+  check says that it has passed. Nothing is chosen at first, and Set reminder is on with text and
   a preset or a real picked date and time. A picked time this device's
   clock reads as gone by, under a minute or over a year away is a
   caution in place of the hint and is still sent, since the server's
