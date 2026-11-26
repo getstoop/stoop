@@ -2,8 +2,8 @@ import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { slotLabel } from "@stoop/core/dates";
 import { type Message, MessageSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AccessibilityInfo } from "react-native";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pendingVote, pressPollOption } from "./pendingVotes";
 
 vi.mock("react-native", () => ({ AccessibilityInfo: { announceForAccessibility: vi.fn() } }));
