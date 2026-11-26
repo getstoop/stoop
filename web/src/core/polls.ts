@@ -1,8 +1,10 @@
+import { type Timestamp, timestampDate } from "@bufbuild/protobuf/wkt";
 import type {
   Message,
   MessageAuthor,
   Poll,
 } from "../gen/stoop/chat/v1/message_pb";
+import { slotLabel } from "./dates";
 
 // A poll as both apps read it (docs/architecture/messaging.md → Polls):
 // the row carries the question, the options and who chose each, and
@@ -20,6 +22,25 @@ export function pollOf(message: Message): Poll | undefined {
 export const isPollRow = (message: Message): boolean => !!pollOf(message);
 
 export const isPollOpen = (poll: Poll): boolean => !poll.closedAt;
+
+// A time poll: its options carry an instant (`at`) and no text. A poll is
+// all text or all times.
+export const isTimePoll = (poll: Poll): boolean =>
+  poll.options.some((option) => !!option.at);
+
+// The instant an option or a winner carries, or null on a text one.
+export const instantOf = (item: { at?: Timestamp }): Date | null =>
+  item.at ? timestampDate(item.at) : null;
+
+// What an option is called wherever it is shown: its text, or on a time
+// poll its time in the reader's zone (slotLabel).
+export function optionLabel(
+  option: { text: string; at?: Timestamp },
+  now: Date = new Date(),
+): string {
+  const at = instantOf(option);
+  return at ? slotLabel(at, now) : option.text;
+}
 
 // The one-line preview of a poll or its closing row, as the server words
 // it for the activity feed and a pin's excerpt (previewOf in
@@ -69,6 +90,13 @@ export function nextSelection(
 export type OptionResult = {
   id: number;
   text: string;
+  // A time poll's instant, null on a text poll.
+  at: Date | null;
+  // What the option is called: its text, or its time (optionLabel).
+  label: string;
+  // A time that has gone by, by the clock the results were worked out
+  // at. It still takes votes; the card marks it.
+  passed: boolean;
   votes: number;
   // The bar: this option's votes over the people who voted, 0 to 1. With
   // several choices the bars add up to more than one, as each person may
@@ -80,10 +108,13 @@ export type OptionResult = {
   voters: MessageAuthor[];
 };
 
-// Each option as it stands, in the poll's order.
+// Each option as it stands, in the poll's order (a time poll's is
+// earliest first). now is the clock a time is labelled and judged passed
+// by: worked out as the card draws, with no timer.
 export function pollResults(
   poll: Poll,
   myUserId: string | undefined,
+  now: Date = new Date(),
 ): OptionResult[] {
   const top = Math.max(
     0,
@@ -91,9 +122,13 @@ export function pollResults(
   );
   return poll.options.map((option) => {
     const votes = option.voters.length;
+    const at = instantOf(option);
     return {
       id: option.id,
       text: option.text,
+      at,
+      label: at ? slotLabel(at, now) : option.text,
+      passed: !!at && at.getTime() <= now.getTime(),
       votes,
       ratio: poll.voterCount > 0 ? Math.min(1, votes / poll.voterCount) : 0,
       mine: !!myUserId && option.voters.some((voter) => voter.id === myUserId),

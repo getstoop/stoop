@@ -158,7 +158,8 @@ export function useAttachments(
   };
   const sheetClosed = async (choice: AttachChoice | null) => {
     setAttaching(false);
-    if (choice === "poll" || choice === "remind") {
+    // Anything that is not a source of files is a command's form.
+    if (choice !== null && !isSource(choice)) {
       if (mounted.current) formLatest.current?.(choice);
       return;
     }
@@ -184,3 +185,6 @@ export function useAttachments(
 function capText(bytes: number) {
   return bytes % (1024 * 1024) === 0 ? `${bytes / (1024 * 1024)} MB` : formatBytes(bytes);
 }
+
+const isSource = (choice: AttachChoice): choice is AttachSource =>
+  choice === "library" || choice === "camera" || choice === "files";

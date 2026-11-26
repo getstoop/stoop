@@ -1,4 +1,5 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import { type Timestamp, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
 import { ChannelPostPolicy } from "../gen/stoop/chat/v1/channel_pb";
 import {
@@ -8,6 +9,7 @@ import {
   MessageSchema,
   SystemEventSchema,
 } from "../gen/stoop/chat/v1/message_pb";
+import { slotPhrase } from "./dates";
 import {
   isHiddenSystemRow,
   isSystemRow,
@@ -226,7 +228,7 @@ describe("systemLine", () => {
   });
 
   const closedRow = (
-    winners: { text: string; votes: number }[],
+    winners: { text: string; votes: number; at?: Timestamp }[],
     extra: MessageInitShape<typeof MessageSchema> = {},
   ) =>
     row(
@@ -267,6 +269,38 @@ describe("systemLine", () => {
       text: "",
       label: "View poll",
     });
+  });
+
+  it("words a time poll's winners by their time, with no comma", () => {
+    const now = new Date(2026, 10, 26, 15, 0);
+    const thursday = new Date(2026, 11, 3, 19, 0);
+    const friday = new Date(2026, 11, 4, 20, 0);
+    const timed = (winners: { at: Date; votes: number }[]) => {
+      const line = systemLine(
+        closedRow(
+          winners.map(({ at, votes }) => ({
+            text: "",
+            votes,
+            at: timestampFromDate(at),
+          })),
+        ),
+        false,
+        now,
+      );
+      return line && systemText(line.parts);
+    };
+    expect(timed([{ at: thursday, votes: 4 }])).toBe(
+      `Maya Okafor closed the poll: What are we playing on Friday? Winner: ${slotPhrase(thursday, now)}, 4 votes`,
+    );
+    expect(
+      timed([
+        { at: thursday, votes: 4 },
+        { at: friday, votes: 4 },
+      ]),
+    ).toBe(
+      `Maya Okafor closed the poll: What are we playing on Friday? Tied: ${slotPhrase(thursday, now)} and ${slotPhrase(friday, now)}, 4 votes each`,
+    );
+    expect(slotPhrase(thursday, now)).not.toContain(",");
   });
 
   it("says a tie, naming every tied option", () => {

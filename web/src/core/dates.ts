@@ -103,3 +103,112 @@ export function futureTime(d: Date, now: Date = new Date()): string {
   if (days === 1) return `tomorrow at ${time}`;
   return `${futureDay(d, now)} at ${time}`;
 }
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+// A local date and time as a date-and-time field holds it, to the minute:
+// "2026-12-02T09:00".
+export function localInputValue(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// The instant a date-and-time field's value names in local time, or null
+// for a value that is not one. A time a daylight-saving change skips
+// (2:30 on the morning clocks go forward) is read as the clock would show
+// it after the change; one it repeats is read as the first.
+export function parseLocalInput(value: string): Date | null {
+  const found = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(
+    value,
+  );
+  if (!found) return null;
+  const [year, month, day, hour, minute, second] = found
+    .slice(1)
+    .map((part) => Number(part ?? 0));
+  const d = new Date(year, month - 1, day, hour, minute, second);
+  if (Number.isNaN(d.getTime())) return null;
+  // Out-of-range parts roll over in Date; a field never sends those, and
+  // anything else is not a time.
+  if (d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
+}
+
+// A year ahead on the calendar, as the server's AddDate(1, 0, 0) counts
+// it: the furthest a reminder or a poll's time may be.
+export function yearAhead(now: Date): Date {
+  const latest = new Date(now.getTime());
+  latest.setFullYear(latest.getFullYear() + 1);
+  return latest;
+}
+
+const SLOT_PARTS = (d: Date, now: Date): Intl.DateTimeFormatOptions => ({
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+});
+
+// A time poll's option in the reader's zone and locale: "Thu 26 Nov,
+// 7:00 PM" as the locale writes it, with the year when it is not this
+// year. The same words DateTimeField shows for a picked time.
+export function slotLabel(at: Date, now: Date = new Date()): string {
+  return at.toLocaleString([], {
+    ...SLOT_PARTS(at, now),
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// The same time worded to sit in a sentence that joins several with
+// commas (a closed poll's winners): "Thu 26 Nov at 7:00 PM", with no
+// comma of its own, so "A, B and C" still reads as three.
+export function slotPhrase(at: Date, now: Date = new Date()): string {
+  const day = new Intl.DateTimeFormat([], SLOT_PARTS(at, now))
+    .formatToParts(at)
+    .map((part) =>
+      part.type === "literal"
+        ? part.value.replace(/\s*[,،，]\s*/g, " ")
+        : part.value,
+    )
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  const time = at.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${day} at ${time}`;
+}
+
+// The reader's time zone as a time poll names it: the place in the
+// zone's name and its offset now, "New York (GMT−5)", "UTC (GMT+0)";
+// the offset alone when the runtime names no zone. Its zone and offset
+// are this device's.
+export function zoneLabel(now: Date = new Date()): string {
+  let zone = "";
+  let offset = "";
+  try {
+    zone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+    offset =
+      new Intl.DateTimeFormat("en-US", { timeZoneName: "shortOffset" })
+        .formatToParts(now)
+        .find((part) => part.type === "timeZoneName")?.value ?? "";
+  } catch {
+    // A runtime without zone names: the offset alone, or nothing.
+  }
+  if (!offset) {
+    const minutes = -now.getTimezoneOffset();
+    const sign = minutes < 0 ? "-" : "+";
+    const hours = Math.floor(Math.abs(minutes) / 60);
+    const rest = Math.abs(minutes) % 60;
+    offset =
+      minutes === 0
+        ? "GMT"
+        : `GMT${sign}${hours}${rest ? `:${pad(rest)}` : ""}`;
+  }
+  // A typographic minus, as a printed offset has it.
+  offset = offset.replace("-", "−");
+  const place = zone.includes("/")
+    ? (zone.split("/").pop() ?? "").replace(/_/g, " ")
+    : zone;
+  return place && place !== "GMT" ? `${place} (${offset})` : offset;
+}

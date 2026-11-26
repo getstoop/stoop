@@ -5,6 +5,10 @@ import {
   fullDateTime,
   sameDay,
   shortDateTime,
+  slotLabel,
+  slotPhrase,
+  yearAhead,
+  zoneLabel,
 } from "./dates";
 
 // Local-time constructor throughout: the helpers read local getters, so
@@ -176,5 +180,67 @@ describe("fullDateTime", () => {
     expect(fullDateTime(today)).not.toBe(
       shortDateTime(today, at(2026, 9, 11, 14, 30)),
     );
+  });
+});
+
+describe("slotLabel", () => {
+  const now = at(2026, 11, 26, 15, 0);
+
+  it("is the weekday, date and time as the locale writes them", () => {
+    const d = at(2026, 12, 3, 19, 0);
+    expect(slotLabel(d, now)).toBe(
+      d.toLocaleString([], {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    );
+    expect(slotLabel(d, now)).toContain(timeOf(d));
+    expect(slotLabel(d, now)).not.toContain("2026");
+  });
+
+  it("adds the year when it is not this year", () => {
+    expect(slotLabel(at(2027, 1, 2, 14, 0), now)).toContain("2027");
+  });
+});
+
+describe("slotPhrase", () => {
+  const now = at(2026, 11, 26, 15, 0);
+
+  it("puts the time after the day, with no comma", () => {
+    const d = at(2026, 12, 3, 19, 0);
+    expect(slotPhrase(d, now)).not.toContain(",");
+    expect(slotPhrase(d, now).endsWith(` at ${timeOf(d)}`)).toBe(true);
+    expect(slotPhrase(d, now)).toContain(
+      d.toLocaleDateString([], { day: "numeric" }),
+    );
+  });
+
+  it("adds the year when it is not this year, still with no comma", () => {
+    const d = at(2027, 1, 2, 14, 0);
+    expect(slotPhrase(d, now)).toContain("2027");
+    expect(slotPhrase(d, now)).not.toContain(",");
+  });
+});
+
+describe("yearAhead", () => {
+  it("is a calendar year on, as Go's AddDate counts it", () => {
+    expect(yearAhead(at(2026, 11, 26, 15, 30))).toEqual(
+      at(2027, 11, 26, 15, 30),
+    );
+    expect(yearAhead(at(2028, 2, 29, 12))).toEqual(at(2029, 3, 1, 12));
+  });
+});
+
+describe("zoneLabel", () => {
+  it("names the zone's place and its offset now", () => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const label = zoneLabel(at(2026, 11, 26));
+    expect(label).toMatch(/GMT/);
+    expect(label).not.toContain("-");
+    if (zone.includes("/"))
+      expect(label).toContain((zone.split("/").pop() ?? "").replace(/_/g, " "));
   });
 });

@@ -14,7 +14,12 @@
 // notice shows the time the server answers.
 
 import { ReminderPreset as WirePreset } from "../gen/stoop/chat/v1/chat_pb";
-import { futureTime } from "./dates";
+import {
+  futureTime,
+  localInputValue,
+  parseLocalInput,
+  yearAhead,
+} from "./dates";
 import {
   type PollTextProblem,
   pollTextProblem,
@@ -124,41 +129,13 @@ export const withCustom = (
   custom: string,
 ): ReminderForm => ({ ...form, choice: "custom", custom });
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-// A local date and time as a date-and-time field holds it, to the minute:
-// "2026-12-02T09:00".
-export function localInputValue(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-// The instant a date-and-time field's value names in local time, or null
-// for a value that is not one. A time a daylight-saving change skips
-// (2:30 on the morning clocks go forward) is read as the clock would show
-// it after the change; one it repeats is read as the first.
-export function parseLocalInput(value: string): Date | null {
-  const found = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(
-    value,
-  );
-  if (!found) return null;
-  const [year, month, day, hour, minute, second] = found
-    .slice(1)
-    .map((part) => Number(part ?? 0));
-  const d = new Date(year, month - 1, day, hour, minute, second);
-  if (Number.isNaN(d.getTime())) return null;
-  // Out-of-range parts roll over in Date; a field never sends those, and
-  // anything else is not a time.
-  if (d.getMonth() !== month - 1 || d.getDate() !== day) return null;
-  return d;
-}
+// The date-and-time field's value and the instant it names live in
+// dates.ts now; kept here for the callers that read them from this file.
+export { localInputValue, parseLocalInput } from "./dates";
 
 // The furthest a reminder may be from now: a year ahead on the calendar,
 // as the server's AddDate(1, 0, 0) counts it.
-export function latestReminderTime(now: Date): Date {
-  const latest = new Date(now.getTime());
-  latest.setFullYear(latest.getFullYear() + 1);
-  return latest;
-}
+export const latestReminderTime = (now: Date): Date => yearAhead(now);
 
 // A day either side of the bounds, for a device clock that is off: the
 // picker's bounds are a guide, and the server judges the time.

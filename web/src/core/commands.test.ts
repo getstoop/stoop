@@ -9,10 +9,10 @@ import {
   pickedText,
 } from "./commands";
 
-const BOTH = ["poll", "remind"] as const;
-const channel: CommandPlace = { thread: false, canPost: true, opens: BOTH };
-const thread: CommandPlace = { thread: true, canPost: true, opens: BOTH };
-const closed: CommandPlace = { thread: false, canPost: false, opens: BOTH };
+const ALL = ["poll", "when", "remind"] as const;
+const channel: CommandPlace = { thread: false, canPost: true, opens: ALL };
+const thread: CommandPlace = { thread: true, canPost: true, opens: ALL };
+const closed: CommandPlace = { thread: false, canPost: false, opens: ALL };
 // An app with a form for /poll alone.
 const pollOnly: CommandPlace = {
   thread: false,
@@ -26,12 +26,17 @@ const names = (draft: string, place = channel) => {
 };
 
 describe("commandsOffered", () => {
-  it("offers /poll and /remind where the poll button shows", () => {
+  it("offers /poll, /when and /remind where the poll button shows", () => {
     expect(commandsOffered(channel).map((c) => c.name)).toEqual([
       "poll",
+      "when",
       "remind",
     ]);
     expect(commandsOffered(channel)[1]).toMatchObject({
+      hint: "[question]",
+      description: "Find a time",
+    });
+    expect(commandsOffered(channel)[2]).toMatchObject({
       hint: "[what]",
       description: "Set a reminder here",
     });
@@ -44,6 +49,7 @@ describe("commandsOffered", () => {
       query && matchingCommands(query, pollOnly).map((c) => c.name),
     ).toEqual(["poll"]);
     expect(parseCommand("/remind Call the venue", pollOnly)).toBeNull();
+    expect(parseCommand("/when Game night?", pollOnly)).toBeNull();
     expect(
       commandsOffered({ thread: false, canPost: true, opens: [] }),
     ).toEqual([]);
@@ -102,7 +108,7 @@ describe("commandQueryAt", () => {
 
 describe("matchingCommands", () => {
   it("lists every command for a lone slash", () => {
-    expect(names("/")).toEqual(["poll", "remind"]);
+    expect(names("/")).toEqual(["poll", "when", "remind"]);
   });
 
   it("filters by the letters typed", () => {
@@ -112,18 +118,22 @@ describe("matchingCommands", () => {
     expect(names("/polls")).toEqual([]);
     expect(names("/re")).toEqual(["remind"]);
     expect(names("/reminders")).toEqual([]);
+    expect(names("/w")).toEqual(["when"]);
+    expect(names("/whenever")).toEqual([]);
   });
 
   it("after a space keeps only the command so named", () => {
     expect(names("/poll Pizza?")).toEqual(["poll"]);
     expect(names("/po Pizza?")).toEqual([]);
     expect(names("/remind Order the pizza")).toEqual(["remind"]);
+    expect(names("/when Game night?")).toEqual(["when"]);
   });
 
   it("lists nothing in a thread", () => {
     expect(names("/", thread)).toEqual([]);
     expect(names("/poll Pizza?", thread)).toEqual([]);
     expect(names("/remind Pizza", thread)).toEqual([]);
+    expect(names("/when Pizza", thread)).toEqual([]);
   });
 });
 
@@ -140,6 +150,10 @@ describe("parseCommand", () => {
       text: "Pizza or tacos?",
     });
     expect(parsed("/POLL Pizza?")).toEqual({ name: "poll", text: "Pizza?" });
+    expect(parsed("/when Game night?")).toEqual({
+      name: "when",
+      text: "Game night?",
+    });
   });
 
   it("carries the rest as plain words", () => {
