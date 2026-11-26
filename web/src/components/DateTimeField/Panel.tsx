@@ -133,12 +133,13 @@ export function Panel({
       if (event.key === "Escape") latest.current.close(latest.current.onCancel);
       else if (panel.current) cycle(panel.current, event.shiftKey);
     };
-    // Any press outside closes the panel (the field toggles it, the rest
-    // of the page is outside it): the typed time is settled first.
+    // A press outside settles the typed time first: one that closes the
+    // panel (a click on the field or the page) sends it once, since the
+    // panel draws again before the field's blur finds nothing to change;
+    // one that does not (a right-click on the field) leaves it open.
     const onPress = (event: PointerEvent) => {
       if (panel.current?.contains(event.target as Node)) return;
       latest.current.settle();
-      closing.current = true;
     };
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("pointerdown", onPress, true);

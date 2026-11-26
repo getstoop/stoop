@@ -357,13 +357,25 @@ test("set, undo, and a reminder posted for the channel", async ({
   );
   // Escape puts back the value the panel opened with, even after a real
   // time was typed, and leaves the form open.
-  const beforeEscape = (await picked.textContent()) ?? "";
+  let beforeEscape = (await picked.textContent()) ?? "";
   await picked.click();
   await typeTime("6:45");
   await B.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
   await expect(form).toBeVisible();
   await expect(picked, "Escape takes nothing typed").toHaveText(beforeEscape);
+  // A press on the field that is not a click (a right-click) leaves the
+  // panel open and working: a time typed then and Done are taken.
+  await picked.click();
+  await picked.click({ button: "right" });
+  await expect(panel).toBeVisible();
+  await typeTime("9:45pm");
+  await done.click();
+  await expect(panel).toHaveCount(0);
+  await expect(picked, "Done still works after a right-click").toContainText(
+    await clock(21, 45),
+  );
+  beforeEscape = (await picked.textContent()) ?? "";
   // Up and Down step from the time typed, not the one taken before.
   await picked.click();
   await typeTime("3pm");
