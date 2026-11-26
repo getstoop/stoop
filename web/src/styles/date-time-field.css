@@ -226,8 +226,8 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* The mask's colour is only its alpha. */
-  mask-image: linear-gradient(black 80%, transparent);
+  /* Only the mask's alpha counts; the text colour is opaque. */
+  mask-image: linear-gradient(currentColor 80%, transparent);
 }
 
 .date-time-option {

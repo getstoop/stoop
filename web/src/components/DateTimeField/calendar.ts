@@ -271,10 +271,24 @@ function readerFor(locale?: string): Reader {
 // A time of day as the locale writes it: "10:00 AM", "19:30".
 export function timeLabel(time: string, locale?: string): string {
   const [hour, minute] = time.split(":").map(Number);
-  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(locale, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return timeFormat(locale).format(new Date(2000, 0, 1, hour, minute));
+}
+
+// One formatter per locale: building one per label is what costs, and
+// parseTypedTime labels every minute of the day.
+const timeFormats = new Map<string, Intl.DateTimeFormat>();
+
+function timeFormat(locale?: string): Intl.DateTimeFormat {
+  const key = locale ?? "";
+  let format = timeFormats.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    timeFormats.set(key, format);
+  }
+  return format;
 }
 
 const noon = (d: Day) => new Date(d.year, d.month - 1, d.day, 12);
