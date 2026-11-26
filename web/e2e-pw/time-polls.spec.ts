@@ -169,15 +169,25 @@ test("find a time: made, read in two zones, voted on and closed", async ({
   await expect(time(1)).toHaveText(await labelIn(A, thursday.ms));
   await pick(A, time(2), thursday, "19:00");
   await expect(
-    form.getByText("This time is already in the list."),
+    form.locator(".field-error", {
+      hasText: "This time is already in the list.",
+    }),
     "the same time twice is refused",
   ).toBeVisible();
   await expect(time(2)).toHaveAttribute("aria-invalid", "true");
+  // Said politely once the panel has closed, naming the row.
+  await expect(
+    form.locator('[aria-live="polite"]', {
+      hasText: "Time 2: This time is already in the list.",
+    }),
+  ).toHaveCount(1);
   await expect(post).toBeDisabled();
   await pick(A, time(2), friday, "20:00");
-  await expect(form.getByText("This time is already in the list.")).toHaveCount(
-    0,
-  );
+  await expect(
+    form.locator(".field-error", {
+      hasText: "This time is already in the list.",
+    }),
+  ).toHaveCount(0);
   await expect(post).toBeEnabled();
 
   // Add time adds a row and focuses it; a third time.
