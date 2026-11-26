@@ -1,4 +1,4 @@
-import { pollOf, votesLabel } from "@stoop/core/polls";
+import { optionLabel, pollOf, votesLabel } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -14,7 +14,8 @@ const FACE = 24;
 // Everyone who voted on a poll, from its card's View votes: a sheet
 // (Sheet) with the question, then every option with its count and the
 // people who chose it, in the order they voted, the reader marked
-// "(you)". The names on the card are not a control on mobile; this is
+// "(you)", each option worded as the card words it (a time poll's in the
+// reader's zone). The names on the card are not a control on mobile; this is
 // where the whole list is. It follows the poll as votes arrive; the
 // screen closes it when the poll goes. A list too long for the sheet
 // scrolls in it.
@@ -62,7 +63,7 @@ export default function PollVotes({
             {poll.options.map((option) => (
               <View key={option.id}>
                 <View style={styles.option} accessible accessibilityRole="header">
-                  <Text style={styles.optionText}>{option.text}</Text>
+                  <Text style={styles.optionText}>{optionLabel(option)}</Text>
                   <Text style={styles.count}>{votesLabel(option.voters.length)}</Text>
                 </View>
                 {option.voters.map((voter) => (

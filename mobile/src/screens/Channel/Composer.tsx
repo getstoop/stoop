@@ -80,7 +80,7 @@ import { restoredDraft, useSavedDraft } from "./useSavedDraft";
 // paperclip and how many files are held, before the draft. A refused
 // send puts its files back with the draft, ahead of any picked since.
 // Where the screen opens command forms (`onCommand`, below), the sheet
-// has the ones offered here under its sources (Poll and Reminder in a
+// has the ones offered here under its sources (Poll, Find a time and Reminder in a
 // channel or a conversation, none in a thread), each handing over to
 // the screen once the sheet has gone, with no words.
 //
@@ -948,4 +948,4 @@ function makeStyles(theme: Theme) {
 }
 
 // The commands this composer has a form for (core/commands opens).
-const MOBILE_FORMS: readonly CommandName[] = ["poll", "remind"];
+const MOBILE_FORMS: readonly CommandName[] = ["poll", "when", "remind"];

@@ -4,7 +4,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BellIcon, CameraIcon, FileIcon, PhotoIcon, PollIcon } from "../../components/Icons";
+import { BellIcon, CalendarIcon, CameraIcon, FileIcon, PhotoIcon, PollIcon } from "../../components/Icons";
 import SheetFrame from "../../components/SheetFrame";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -12,7 +12,7 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // Where the composer's Attach (the + in the pill or the card) picks files
 // from: a sheet over a scrim, drawn as the message menu's is (useSheet),
 // with the photo library, the camera and files, and under a rule the
-// forms the composer opens (`forms`: Poll and Reminder in a channel's or
+// forms the composer opens (`forms`: Poll, Find a time and Reminder in a channel's or
 // a conversation's, none in a thread's). A pick closes the sheet and is
 // handed over (onClose) once it has gone: on iOS once the modal itself is
 // dismissed, since a picker, or a form, presented over it would be dismissed with
@@ -34,6 +34,7 @@ const ITEMS = [
 // command list names them.
 const FORMS = [
   { name: "poll", label: "Poll", Icon: PollIcon },
+  { name: "when", label: "Find a time", Icon: CalendarIcon },
   { name: "remind", label: "Reminder", Icon: BellIcon },
 ] as const;
 

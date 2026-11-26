@@ -1,3 +1,4 @@
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { UploadedFile } from "@stoop/core/attachments";
 import { changesMentionNames } from "@stoop/core/channelHeader";
@@ -242,6 +243,22 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
   };
 
   const token = async () => state.token || (await sessionToken(server.id).catch(() => null)) || "";
+
+  // The reader's own poll (api/polls createPoll, createTimePoll): sent,
+  // then its answer merged like a send's. Nothing is shown before the
+  // server answers; a refusal is thrown for the form to show, one that
+  // means the sign-in has ended shows as such too.
+  async function posted(create: () => Promise<Message>) {
+    const mine = life;
+    let message: Message;
+    try {
+      message = await create();
+    } catch (err) {
+      if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
+      throw err;
+    }
+    if (!mine.ended) dispatch({ type: "sent", message });
+  }
 
   const rest = (mine: Lifetime, ms: number) =>
     new Promise<void>((resolve) => {
@@ -945,20 +962,15 @@ function createEngine(key: string, server: SavedServer, spaceId: string, channel
       if (!mine.ended) dispatch({ type: "sent", message });
     },
 
-    // The reader's own poll (api/polls createPoll): sent, then its answer
-    // merged like a send's. Nothing is shown before the server answers; a
-    // refusal is thrown for the form to show, one that means the sign-in
-    // has ended shows as such too.
-    async createPoll(question: string, options: string[], multiple: boolean) {
-      const mine = life;
-      let message: Message;
-      try {
-        message = await polls.createPoll(server.origin, state.token, channelId, question, options, multiple);
-      } catch (err) {
-        if (!mine.ended && ended(err)) dispatch({ type: "failed", outcome: "ended" });
-        throw err;
-      }
-      if (!mine.ended) dispatch({ type: "sent", message });
+    // The reader's own poll (posted, above).
+    createPoll(question: string, options: string[], multiple: boolean) {
+      return posted(() => polls.createPoll(server.origin, state.token, channelId, question, options, multiple));
+    },
+
+    // A time poll ("Find a time"), the same way: its times as instants
+    // (core/timePollForm timePollRequest), never with options.
+    createTimePoll(question: string, times: Timestamp[], multiple: boolean) {
+      return posted(() => polls.createTimePoll(server.origin, state.token, channelId, question, times, multiple));
     },
 
     // The reader's whole selection on a poll (core/polls nextSelection):
