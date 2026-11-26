@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   acceptDialog,
   COMPOSER,
@@ -55,17 +55,73 @@ test("set, undo, and a reminder posted for the channel", async ({
   const set = form.getByRole("button", { name: "Set reminder" });
   const when = (name: string | RegExp) => form.getByRole("radio", { name });
   const picked = form.getByLabel("Date and time", { exact: true });
+  const panel = B.getByRole("dialog", { name: "Pick a date and time" });
+  const grid = panel.locator(".date-time-grid");
+  const timeBox = panel.getByRole("combobox", { name: "Time" });
+  const done = panel.getByRole("button", { name: "Done" });
   const notice = B.locator(".transient-notice");
   const undo = notice.getByRole("button", { name: "Undo" });
   const fired = (page: Page, words: string) =>
     page.locator(".reminder-row", { hasText: words });
-  // A local date and time in the page's own zone, as the field holds it.
-  const localValue = (offsetMs: number) =>
+  // A moment from now in the page's own zone: its day, its month, its
+  // time and its full name as the panel's grid says it.
+  const local = (offsetMs: number) =>
     B.evaluate((offset) => {
       const d = new Date(Date.now() + offset);
       const pad = (value: number) => String(value).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      const month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      return {
+        month,
+        day: `${month}-${pad(d.getDate())}`,
+        time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+        name: d.toLocaleDateString([], {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      };
     }, offsetMs);
+  // The grid's button for a day from now, the panel turned to its month
+  // with the arrows, or null when the arrow toward it is off (the month
+  // is outside the bounds). The date is never typed: it is picked from
+  // the grid.
+  const dayFromNow = async (offsetMs: number) => {
+    const target = await local(offsetMs);
+    if ((await panel.count()) === 0) await picked.click();
+    for (let turns = 0; turns < 14; turns++) {
+      const shown = (await grid.getAttribute("data-month")) ?? "";
+      if (shown === target.month) break;
+      const arrow = panel.getByRole("button", {
+        name: shown < target.month ? "Next month" : "Previous month",
+      });
+      if (await arrow.isDisabled()) return null;
+      await arrow.click();
+    }
+    await expect(grid).toHaveAttribute("data-month", target.month);
+    return grid.getByRole("button", { name: target.name, exact: true });
+  };
+  // A day from now that can't be chosen: off in the grid, or in a month
+  // the arrows don't reach.
+  const offLimits = async (offsetMs: number) => {
+    const day = await dayFromNow(offsetMs);
+    if (day) await expect(day).toBeDisabled();
+  };
+  // Picks a day from now and a time (that moment's own, unless given),
+  // typed as 24-hour, and closes the panel with Done. Returns the value
+  // the form now holds.
+  const pick = async (offsetMs: number, time?: string) => {
+    const target = await local(offsetMs);
+    const day = await dayFromNow(offsetMs);
+    expect(day, "the day's month is in reach").not.toBeNull();
+    await day?.click();
+    const at = time ?? target.time;
+    await timeBox.fill(at);
+    await done.click();
+    await expect(panel).toHaveCount(0);
+    return `${target.day}T${at}`;
+  };
+  const DAY_MS = 24 * 60 * 60_000;
   await expect(composer).toBeVisible();
 
   // ---- The list: both commands, and the arrows move between them.
@@ -118,17 +174,59 @@ test("set, undo, and a reminder posted for the channel", async ({
   await when("In 1 hour").check();
   await expect(set, "a preset and text: on").toBeEnabled();
 
-  // A picked date and time: the browser's own field, bounded, and a time
-  // gone by said in words.
+  // A picked date and time: the kit's own field and panel, bounded by
+  // day, and a time gone by said in words.
   await when("Pick a date and time").check();
   await expect(picked).toBeVisible();
-  await expect(picked).toHaveAttribute("min", /T\d\d:\d\d$/);
-  await expect(picked).toHaveAttribute("max", /T\d\d:\d\d$/);
+  await expect(picked).toHaveText("Pick a date and time");
   await expect(
     form.getByText("From a minute to a year from now."),
   ).toBeVisible();
   await expect(set, "no time picked yet: off").toBeDisabled();
-  await picked.fill(await localValue(-60 * 60_000));
+  await picked.click();
+  await expect(panel).toBeVisible();
+  // The panel is fixed on the layer over the dialog, so the dialog's
+  // clipping does not cut it: the point at its foot is the panel's.
+  expect(
+    await panel.evaluate((box) => {
+      const rect = box.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + 8, rect.bottom - 4);
+      return getComputedStyle(box).position === "fixed" && box.contains(hit);
+    }),
+    "the panel is whole, over the dialog",
+  ).toBe(true);
+  // Bounds by day: yesterday is allowed (the form's own check refuses a
+  // past time), the day before it and a year and two days out are not.
+  const yesterday = await dayFromNow(-DAY_MS);
+  expect(yesterday).not.toBeNull();
+  await expect(yesterday as Locator).toBeEnabled();
+  await offLimits(-2 * DAY_MS);
+  await offLimits(367 * DAY_MS);
+  // Tab goes round the panel's few stops and never out of it, and the
+  // days are one stop, not thirty.
+  const stops = new Set<string>();
+  for (let i = 0; i < 8; i++) {
+    await B.keyboard.press("Tab");
+    stops.add(
+      await B.evaluate(() => {
+        const at = document.activeElement as HTMLElement | null;
+        if (!at?.closest(".date-time-panel")) return "outside";
+        return at.dataset.day ? "day" : at.getAttribute("aria-label") || "";
+      }),
+    );
+  }
+  expect(stops.has("outside"), "Tab stays in the panel").toBe(false);
+  expect(stops.size, "a handful of stops").toBeLessThanOrEqual(4);
+  // Escape closes the panel alone, not the form, and puts focus back.
+  await B.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(form, "Escape in the panel leaves the form").toBeVisible();
+  await expect(picked).toBeFocused();
+  await expect(picked, "and nothing was chosen").toHaveText(
+    "Pick a date and time",
+  );
+
+  await pick(-60 * 60_000);
   // Said as a caution: this device's clock may be ahead of the
   // server's, which decides, so it stops nothing.
   await expect(
@@ -138,11 +236,60 @@ test("set, undo, and a reminder posted for the channel", async ({
   ).toBeVisible();
   await expect(picked).not.toHaveAttribute("aria-invalid", "true");
   await expect(set, "a past time is still sent").toBeEnabled();
-  await picked.fill(await localValue(2 * 24 * 60 * 60_000));
+
+  // By keyboard: the panel opens on the chosen day, Down moves a week,
+  // Enter chooses it and goes to the time, and Enter in the time closes
+  // the panel without sending the form.
+  let sent = 0;
+  B.on("request", (request) => {
+    if (request.url().includes("/CreateReminder")) sent++;
+  });
+  await picked.focus();
+  await B.keyboard.press("Enter");
+  await expect(panel).toBeVisible();
+  const focusedDay = () =>
+    B.evaluate(
+      () => (document.activeElement as HTMLElement | null)?.dataset.day ?? "",
+    );
+  await expect
+    .poll(focusedDay, "focus goes to the chosen day")
+    .toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  const chosenDay = await focusedDay();
+  await B.keyboard.press("ArrowDown");
+  const weekOn = await B.evaluate((day) => {
+    const d = new Date(`${day}T12:00`);
+    d.setDate(d.getDate() + 7);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }, chosenDay);
+  await expect.poll(focusedDay, "Down moves a week").toBe(weekOn);
+  await B.keyboard.press("Enter");
+  await expect(timeBox).toBeFocused();
+  await timeBox.fill("7:75");
+  await B.keyboard.press("Enter");
+  await expect(
+    panel.getByText(/^That isn't a time\. Try /),
+    "a typed time that isn't one is said",
+  ).toBeVisible();
+  await expect(done).toBeDisabled();
+  await timeBox.fill("21:15");
+  await B.keyboard.press("Enter");
+  await expect(panel).toHaveCount(0);
+  await expect(form, "Enter in the time does not send the form").toBeVisible();
+  await expect(picked, "the field shows the time typed").toContainText(
+    await B.evaluate(() =>
+      new Date(2000, 0, 1, 21, 15).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    ),
+  );
+  expect(sent).toBe(0);
+  expect(await waitingReminders()).toBe(0);
   await expect(
     form.getByText("From a minute to a year from now."),
   ).toBeVisible();
-  await expect(set, "two days ahead: on").toBeEnabled();
+  await expect(set, "a week ahead: on").toBeEnabled();
 
   // ---- Set: the request names the preset and the zone and no instant;
   // the notice says the time the server stored, and nothing is posted.
@@ -213,10 +360,10 @@ test("set, undo, and a reminder posted for the channel", async ({
   await composer.pressSequentially("/remind Order the pizza before seven");
   await B.keyboard.press("Escape");
   await B.keyboard.press("Enter");
-  // A picked time goes as the field holds it, with the zone.
+  // A picked time goes as the field holds it, with the zone: a day in
+  // another month, reached with the month arrows.
   await when("Pick a date and time").check();
-  const pickedValue = await localValue(2 * 24 * 60 * 60_000);
-  await picked.fill(pickedValue);
+  const pickedValue = await pick(35 * DAY_MS, "10:30");
   const pickedSent = B.waitForRequest(
     "**/stoop.chat.v1.ChatService/CreateReminder",
   );
