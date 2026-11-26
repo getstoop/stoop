@@ -14,7 +14,8 @@ import { Panel } from "./Panel";
 // The field is a button drawn as a field; it opens the panel under it.
 // The value changes as the panel's day and time are chosen; Escape puts
 // back the value the panel opened with, and Done, a click outside or
-// Enter in the time close it with the value as it stands.
+// Enter in the time close it with the value as it stands (a typed time
+// that is not one is dropped).
 export function DateTimeField({
   value,
   onChange,
@@ -72,15 +73,19 @@ export function DateTimeField({
     if (!open) return;
     const place = () =>
       setAnchor(field.current?.getBoundingClientRect() ?? null);
+    // The panel's own time list scrolling moves nothing.
+    const onScroll = (event: Event) => {
+      if (!wrapper.current?.contains(event.target as Node)) place();
+    };
     place();
     const outside = (event: PointerEvent) => {
       if (!wrapper.current?.contains(event.target as Node)) setOpen(false);
     };
-    window.addEventListener("scroll", place, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", place);
     window.addEventListener("pointerdown", outside);
     return () => {
-      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", place);
       window.removeEventListener("pointerdown", outside);
     };

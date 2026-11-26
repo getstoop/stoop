@@ -1,23 +1,15 @@
-import {
-  type KeyboardEvent,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   boundsOf,
   clampDay,
   type Day,
   dayKey,
   joinValue,
-  localePeriods,
   parseDay,
   parseTypedTime,
   splitValue,
   timeLabel,
   todayOf,
-  uses12Hour,
 } from "./calendar";
 import { MonthGrid } from "./MonthGrid";
 import { panelPosition } from "./position";
@@ -25,9 +17,12 @@ import { TimeColumn } from "./TimeColumn";
 
 // The open panel: the month on the left, the time on the right, Done at
 // the foot. It holds the day and time being chosen and sends the value
-// each time both are set. It is a dialog of its own: Tab goes round its
-// stops (the month arrows, the day under focus, the time, Done) and never
-// out, and Escape closes it without reaching a dialog it sits in.
+// each time both are set; a typed time is taken when it is settled (Enter,
+// leaving the field, Done, a press outside), and one that is not a time
+// is dropped, so the value keeps the last time taken. It is a dialog of
+// its own: while it is open, wherever focus is, Tab goes round its stops
+// (the month arrows, the day under focus, the time, Done) and never out,
+// and Escape closes it without reaching a dialog it sits in.
 export function Panel({
   id,
   value,
@@ -50,7 +45,6 @@ export function Panel({
   onCancel: () => void;
 }) {
   const bounds = useMemo(() => boundsOf(min, max), [min, max]);
-  const periods = useMemo(() => localePeriods(), []);
   const [today] = useState(() => todayOf(new Date()));
   const [start] = useState(() => splitValue(value));
   const [day, setDay] = useState(start.day);
@@ -79,49 +73,68 @@ export function Panel({
     send(day, chosen);
   };
   // The time the field's words name, or null when they name none.
-  const readText = () =>
-    time && text === timeLabel(time) ? time : parseTypedTime(text, periods);
-  const typed = readText();
+  const typed = time && text === timeLabel(time) ? time : parseTypedTime(text);
   const complete = !!day && !!typed;
 
   const onTyped = (next: string) => {
     setText(next);
     setError(false);
-    const read = parseTypedTime(next, periods);
-    if (read) chooseTime(read, false);
+  };
+  // Takes a typed time that is one; says so when it is not.
+  const settle = () => {
+    if (typed) {
+      if (typed !== time || text !== timeLabel(typed)) chooseTime(typed);
+      return true;
+    }
+    if (text.trim() !== "") setError(true);
+    return false;
   };
   // Enter in the time takes it, and closes the panel when a day is
   // chosen too; it never reaches the form round the field.
   const onTimeEnter = () => {
-    if (!typed) {
-      setError(true);
-      return;
-    }
-    chooseTime(typed);
-    if (day) onDone();
+    if (settle() && day) onDone();
   };
-  const onTimeBlur = () => {
-    if (text.trim() === "") return;
-    if (typed) setText(timeLabel(typed));
-    else setError(true);
+  const done = () => {
+    if (settle()) onDone();
   };
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      onCancel();
-    } else if (event.key === "Tab") {
-      event.preventDefault();
-      event.stopPropagation();
-      cycle(event.currentTarget, event.shiftKey);
-    }
-  };
+  // Escape and Tab are taken at the window before anything else hears
+  // them, so they work wherever focus is (a click on the panel's padding,
+  // or a browser that does not focus a clicked button), and a Modal round
+  // the panel never closes, nor a form's own Tab trap moves focus behind
+  // it. A press outside settles the typed time before the field closes
+  // the panel.
+  const panel = useRef<HTMLDivElement>(null);
+  const latest = useRef({ onCancel, settle });
+  latest.current = { onCancel, settle };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.isComposing) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        latest.current.onCancel();
+      } else if (event.key === "Tab" && panel.current) {
+        event.preventDefault();
+        event.stopPropagation();
+        cycle(panel.current, event.shiftKey);
+      }
+    };
+    const onPress = (event: PointerEvent) => {
+      if (!panel.current?.contains(event.target as Node))
+        latest.current.settle();
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("pointerdown", onPress, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("pointerdown", onPress, true);
+    };
+  }, []);
 
   // Placed after each render, before it is painted: the panel's height
   // is known only once it is drawn. It is never hidden meanwhile, since
   // the day under focus takes the page's focus as it mounts.
-  const panel = useRef<HTMLDivElement>(null);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   useLayoutEffect(() => {
     const box = panel.current?.getBoundingClientRect();
@@ -142,9 +155,10 @@ export function Panel({
       role="dialog"
       aria-modal="true"
       aria-label="Pick a date and time"
+      // A click on the panel's own ground keeps focus in it.
+      tabIndex={-1}
       className="date-time-panel popover"
       style={at ?? { top: 0, left: 0 }}
-      onKeyDown={onKeyDown}
     >
       <div className="date-time-panel-body">
         <MonthGrid
@@ -164,13 +178,13 @@ export function Panel({
           onText={onTyped}
           onPick={chooseTime}
           onEnter={onTimeEnter}
-          onBlur={onTimeBlur}
+          onBlur={settle}
         />
       </div>
       {error && (
         <p className="error date-time-panel-error" id={errorId} role="alert">
           That isn't a time. Try {timeLabel("19:30")}
-          {uses12Hour() ? " or 19:30" : ""}.
+          {timeLabel("19:30") === "19:30" ? "" : " or 19:30"}.
         </p>
       )}
       <div className="date-time-panel-foot">
@@ -179,7 +193,7 @@ export function Panel({
           type="button"
           className="primary"
           disabled={!complete}
-          onClick={onDone}
+          onClick={done}
         >
           Done
         </button>

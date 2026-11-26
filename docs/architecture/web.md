@@ -481,13 +481,14 @@ of step with `THEMES`.
 
 ## The kit
 
-`controls.css`, `fields.css` and `surfaces.css` own the parts every feature
-reaches for: `button.primary`, `.chip`, `.icon-button`, `.badge`; text
+`controls.css`, `fields.css`, `surfaces.css` and `date-time-field.css` own
+the parts every feature reaches for: `button.primary`, `.chip`,
+`.icon-button`, `.badge`; text
 inputs, selects and textareas (styled at zero specificity with `:where()`,
 so any feature rule wins without a specificity fight); the words-above-field
 label, `label.toggle-row` and `input.switch` (`<Switch>`, an on/off
 setting); `.card`, `.card-row`, `.modal`, `.dots-menu`,
-`.tooltip`.
+`.tooltip`; and `DateTimeField`'s field and panel.
 
 A feature sheet styles layout and its own parts. It never declares an input
 or a button from scratch, and a control the second feature wants moves to
@@ -858,7 +859,8 @@ window" is what the view's range holds.
   are a day wider than a minute to a year ahead, so a device clock a
   few hours off never stops a time the server would take; the picker
   applies them by day, so yesterday can be chosen and the form's own
-  check says that it has passed. Nothing is chosen at first, and Set reminder is on with text and
+  check says that it has passed. Nothing is chosen at first, and Set
+  reminder is on with text and
   a preset or a real picked date and time. A picked time this device's
   clock reads as gone by, under a minute or over a year away is a
   caution in place of the hint and is still sent, since the server's

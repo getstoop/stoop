@@ -57,17 +57,23 @@ test("set, undo, and a reminder posted for the channel", async ({
   const picked = form.getByLabel("Date and time", { exact: true });
   const panel = B.getByRole("dialog", { name: "Pick a date and time" });
   const grid = panel.locator(".date-time-grid");
-  const timeBox = panel.getByRole("combobox", { name: "Time" });
+  const timeBox = panel.getByRole("textbox", { name: "Time" });
   const done = panel.getByRole("button", { name: "Done" });
   const notice = B.locator(".transient-notice");
   const undo = notice.getByRole("button", { name: "Undo" });
   const fired = (page: Page, words: string) =>
     page.locator(".reminder-row", { hasText: words });
-  // A moment from now in the page's own zone: its day, its month, its
-  // time and its full name as the panel's grid says it.
-  const local = (offsetMs: number) =>
-    B.evaluate((offset) => {
-      const d = new Date(Date.now() + offset);
+  // A moment from now in the page's own zone (years, then ms, then
+  // calendar days added, the order customBounds builds the form's bounds
+  // in): its day, its month, its time and its full name as the panel's
+  // grid says it.
+  type From = { years?: number; ms?: number; days?: number };
+  const local = (from: From) =>
+    B.evaluate(({ years = 0, ms = 0, days = 0 }) => {
+      const d = new Date(Date.now());
+      d.setFullYear(d.getFullYear() + years);
+      d.setTime(d.getTime() + ms);
+      d.setDate(d.getDate() + days);
       const pad = (value: number) => String(value).padStart(2, "0");
       const month = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
       return {
@@ -81,13 +87,13 @@ test("set, undo, and a reminder posted for the channel", async ({
           year: "numeric",
         }),
       };
-    }, offsetMs);
+    }, from);
   // The grid's button for a day from now, the panel turned to its month
   // with the arrows, or null when the arrow toward it is off (the month
   // is outside the bounds). The date is never typed: it is picked from
   // the grid.
-  const dayFromNow = async (offsetMs: number) => {
-    const target = await local(offsetMs);
+  const dayFromNow = async (from: From) => {
+    const target = await local(from);
     if ((await panel.count()) === 0) await picked.click();
     for (let turns = 0; turns < 14; turns++) {
       const shown = (await grid.getAttribute("data-month")) ?? "";
@@ -103,16 +109,16 @@ test("set, undo, and a reminder posted for the channel", async ({
   };
   // A day from now that can't be chosen: off in the grid, or in a month
   // the arrows don't reach.
-  const offLimits = async (offsetMs: number) => {
-    const day = await dayFromNow(offsetMs);
+  const offLimits = async (from: From) => {
+    const day = await dayFromNow(from);
     if (day) await expect(day).toBeDisabled();
   };
   // Picks a day from now and a time (that moment's own, unless given),
   // typed as 24-hour, and closes the panel with Done. Returns the value
   // the form now holds.
-  const pick = async (offsetMs: number, time?: string) => {
-    const target = await local(offsetMs);
-    const day = await dayFromNow(offsetMs);
+  const pick = async (from: From, time?: string) => {
+    const target = await local(from);
+    const day = await dayFromNow(from);
     expect(day, "the day's month is in reach").not.toBeNull();
     await day?.click();
     const at = time ?? target.time;
@@ -195,15 +201,41 @@ test("set, undo, and a reminder posted for the channel", async ({
     }),
     "the panel is whole, over the dialog",
   ).toBe(true);
-  // Bounds by day: yesterday is allowed (the form's own check refuses a
-  // past time), the day before it and a year and two days out are not.
-  const yesterday = await dayFromNow(-DAY_MS);
-  expect(yesterday).not.toBeNull();
-  await expect(yesterday as Locator).toBeEnabled();
-  await offLimits(-2 * DAY_MS);
-  await offLimits(367 * DAY_MS);
-  // Tab goes round the panel's few stops and never out of it, and the
-  // days are one stop, not thirty.
+  // Bounds by day, as customBounds sets them: from a day before now to a
+  // calendar year and a day ahead. The day of the lower bound is allowed
+  // (the form's own check refuses a past time), the day before it and
+  // the day after the upper bound are not. Tried again should a day turn
+  // over in the middle.
+  await expect(async () => {
+    const earliest = await dayFromNow({ ms: -DAY_MS });
+    expect(earliest).not.toBeNull();
+    await expect(earliest as Locator).toBeEnabled({ timeout: 1000 });
+    await offLimits({ ms: -DAY_MS, days: -1 });
+    await offLimits({ years: 1, ms: DAY_MS, days: 1 });
+  }).toPass();
+  await B.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+
+  // Escape and Tab hold wherever focus is while the panel is open: after
+  // a click on a dimmed day or on the panel's own ground, Escape still
+  // closes only the panel, and the form keeps its text.
+  await picked.click();
+  await expect(panel).toBeVisible();
+  const dimmed = grid.locator("button:disabled");
+  if ((await dimmed.count()) > 0) await dimmed.first().click({ force: true });
+  await panel.click({ position: { x: 6, y: 6 } });
+  await B.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(form, "the form stays open").toBeVisible();
+  await expect(text, "with its text").toHaveValue(
+    "Order the pizza before seven",
+  );
+  await expect(picked).toBeFocused();
+  // Tab goes round the panel's few stops and never out of it, from a
+  // click on its ground too, and the days are one stop, not thirty.
+  await picked.click();
+  await expect(panel).toBeVisible();
+  await panel.click({ position: { x: 6, y: 6 } });
   const stops = new Set<string>();
   for (let i = 0; i < 8; i++) {
     await B.keyboard.press("Tab");
@@ -211,11 +243,15 @@ test("set, undo, and a reminder posted for the channel", async ({
       await B.evaluate(() => {
         const at = document.activeElement as HTMLElement | null;
         if (!at?.closest(".date-time-panel")) return "outside";
+        if (at.classList.contains("date-time-panel")) return "panel";
         return at.dataset.day ? "day" : at.getAttribute("aria-label") || "";
       }),
     );
   }
   expect(stops.has("outside"), "Tab stays in the panel").toBe(false);
+  expect(stops.has("day"), "Tab reaches the day").toBe(true);
+  expect(stops.has("Time"), "and the time").toBe(true);
+  expect(stops.has("panel"), "and moves on from the ground").toBe(false);
   expect(stops.size, "a handful of stops").toBeLessThanOrEqual(4);
   // Escape closes the panel alone, not the form, and puts focus back.
   await B.keyboard.press("Escape");
@@ -226,7 +262,7 @@ test("set, undo, and a reminder posted for the channel", async ({
     "Pick a date and time",
   );
 
-  await pick(-60 * 60_000);
+  await pick({ ms: -60 * 60_000 });
   // Said as a caution: this device's clock may be ahead of the
   // server's, which decides, so it stops nothing.
   await expect(
@@ -286,6 +322,15 @@ test("set, undo, and a reminder posted for the channel", async ({
   );
   expect(sent).toBe(0);
   expect(await waitingReminders()).toBe(0);
+  // A typed time that isn't one, left by a press outside the panel (here
+  // on the field, which the panel may cover the rest of the form above),
+  // is dropped: the field keeps the last time taken.
+  const shownBefore = (await picked.textContent()) ?? "";
+  await picked.click();
+  await timeBox.fill("7:75");
+  await picked.click();
+  await expect(panel).toHaveCount(0);
+  await expect(picked).toHaveText(shownBefore);
   await expect(
     form.getByText("From a minute to a year from now."),
   ).toBeVisible();
@@ -363,7 +408,7 @@ test("set, undo, and a reminder posted for the channel", async ({
   // A picked time goes as the field holds it, with the zone: a day in
   // another month, reached with the month arrows.
   await when("Pick a date and time").check();
-  const pickedValue = await pick(35 * DAY_MS, "10:30");
+  const pickedValue = await pick({ days: 35 }, "10:30");
   const pickedSent = B.waitForRequest(
     "**/stoop.chat.v1.ChatService/CreateReminder",
   );

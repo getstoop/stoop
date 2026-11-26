@@ -8,7 +8,8 @@ The web client's look is four things, each in one place:
 - **Non-colour tokens.** `web/src/tokens.css`: radius, type, leading,
   motion, focus, stacking, layout widths, the disabled opacity, and four
   status tints derived from the theme's colours.
-- **The kit.** `styles/controls.css`, `fields.css` and `surfaces.css`, with
+- **The kit.** `styles/controls.css`, `fields.css`, `surfaces.css` and
+  `date-time-field.css`, with
   the utilities in `base.css`. A part is a CSS class first. It becomes a
   React component only where there is behaviour to share: `Modal`,
   `DialogHost`, `DotsMenu`, `Tooltip`, `CopyButton`, `Avatar`, `DataTable`,
@@ -224,14 +225,22 @@ time). The field is a button drawn as a field, showing the choice in the
 reader's format; it opens a panel fixed to the viewport on
 `--z-modal-popover`, so a dialog's clipping does not cut it. The panel is a
 month grid, Sunday first for everyone, beside a time field that reads any
-minute typed ("7pm", "19:30", "7.30") over a list of every half hour; the
+minute typed ("7pm", "19:30", "7.30", or the locale's own way of writing
+it) over a list of every half hour; the
 date is only ever picked from the grid. Month and weekday names and the
 12- or 24-hour clock come from `Intl`. Arrows move the day by a day or a
 week, Page Up and Down by a month, Home and End to the week's ends; Enter
-chooses and goes on to the time, and Enter there closes the panel without
-submitting the form round it. Tab goes round the panel's few stops (one
-day at a time is in the order), and Escape closes it, puts the value back
-as it opened and is stopped there, so a `Modal` round it stays open. Its
+chooses and goes on to the time; Enter there takes the time and, once a day
+is chosen, closes the panel, never submitting the form round it. A typed
+time is taken when it is settled (Enter, leaving the field, Done, a press
+outside); one that is not a time is said under the month and dropped, so
+the value keeps the last time taken. The list is a pointer shortcut,
+hidden from screen readers; Up and Down in the time field step by half
+hours. While the panel is open, wherever focus is, Tab goes round its few
+stops (one day at a time is in the order) and Escape closes it and puts
+the value back as it opened; both are taken at the window before anything
+else hears them, so a `Modal` round it stays open and a form's Tab trap
+never moves focus behind it. Its
 rules (the grid, the bounds, reading a typed time, the words) are
 `DateTimeField/calendar.ts`, unit-tested; its sheet is
 `styles/date-time-field.css`.

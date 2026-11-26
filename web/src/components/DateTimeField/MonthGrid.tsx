@@ -73,7 +73,8 @@ export function MonthGrid({
   return (
     <div className="date-time-month">
       <div className="date-time-month-head">
-        <h3 id={titleId} className="date-time-month-title">
+        {/* Said when the month changes. */}
+        <h3 id={titleId} className="date-time-month-title" aria-live="polite">
           {monthTitle(focus)}
         </h3>
         <button
@@ -121,7 +122,13 @@ export function MonthGrid({
                 const isChosen = key === chosen;
                 const isToday = sameDay(day, today);
                 return (
-                  <td key={key}>
+                  // biome-ignore lint/a11y/useFocusableInteractive: the day's button inside the cell takes focus, as the grid pattern allows
+                  <td
+                    key={key}
+                    // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: a cell of the date-picker grid, selected when it is the chosen day
+                    role="gridcell"
+                    aria-selected={isChosen}
+                  >
                     <button
                       type="button"
                       data-day={key}

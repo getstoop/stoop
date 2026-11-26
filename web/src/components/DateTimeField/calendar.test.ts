@@ -10,7 +10,6 @@ import {
   HALF_HOURS,
   inBounds,
   joinValue,
-  localePeriods,
   monthGrid,
   moveByKey,
   parseDay,
@@ -213,14 +212,43 @@ describe("parseTypedTime", () => {
     expect(parseTypedTime(typed)).toBeNull();
   });
 
-  it("reads the locale's own words for morning and afternoon", () => {
-    expect(parseTypedTime("7:30 nm", { vm: "am", nm: "pm" })).toBe("19:30");
+  it("refuses a word that is not a period", () => {
+    expect(parseTypedTime("7constructor")).toBeNull();
+    expect(parseTypedTime("7tostring")).toBeNull();
+    expect(parseTypedTime("pm7pm")).toBeNull();
   });
 
-  it("reads back what the list says", () => {
-    const periods = localePeriods();
-    for (const time of HALF_HOURS)
-      expect(parseTypedTime(timeLabel(time), periods)).toBe(time);
+  it.each(["en-US", "en-GB", "de", "ko", "ar-EG", "ja"])(
+    "reads back every minute %s writes",
+    (locale) => {
+      for (let minute = 0; minute < 24 * 60; minute += 5) {
+        const time = `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+        expect(parseTypedTime(timeLabel(time, locale), locale)).toBe(time);
+      }
+    },
+  );
+
+  it("reads the locale's period before the number, and its digits", () => {
+    // The runtime's own words: ICU data differs between runtimes.
+    const period = (locale: string, hour: number) =>
+      new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true })
+        .formatToParts(new Date(2000, 0, 1, hour))
+        .find((part) => part.type === "dayPeriod")?.value ?? "";
+    expect(parseTypedTime(`${period("ko", 13)} 7:30`, "ko")).toBe("19:30");
+    expect(parseTypedTime(`${period("ko", 1)}7`, "ko")).toBe("07:00");
+    expect(parseTypedTime(`7:30 ${period("ar-EG", 13)}`, "ar-EG")).toBe(
+      "19:30",
+    );
+    const arabic = new Intl.NumberFormat("ar-EG").format(7);
+    expect(parseTypedTime(`${arabic} ${period("ar-EG", 1)}`, "ar-EG")).toBe(
+      "07:00",
+    );
+    expect(parseTypedTime("19:30", "ar-EG")).toBe("19:30");
+  });
+
+  it("reads ASCII 24-hour time in every locale, as the error suggests", () => {
+    for (const locale of ["en-US", "en-GB", "de", "ko", "ar-EG", "ja"])
+      expect(parseTypedTime("19:30", locale)).toBe("19:30");
   });
 });
 

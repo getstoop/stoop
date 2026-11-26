@@ -1,17 +1,12 @@
-import {
-  type KeyboardEvent,
-  type RefObject,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
+import { type KeyboardEvent, type RefObject, useEffect, useRef } from "react";
 import { composing } from "../dialogKeys";
 import { CheckIcon } from "../Icons";
 import { HALF_HOURS, stepTime, timeLabel } from "./calendar";
 
 // The time: a field to type any minute into, over a list of every half
-// hour. The field is a combobox for the list: Up and Down step it by half
-// hours, and the list is for the pointer, out of the Tab order.
+// hour. Up and Down in the field step it by half hours, so the list is a
+// shortcut for the pointer alone: hidden from screen readers and out of
+// the Tab order, since everything it offers the field offers too.
 export function TimeColumn({
   inputRef,
   time,
@@ -33,9 +28,7 @@ export function TimeColumn({
   onEnter: () => void;
   onBlur: () => void;
 }) {
-  const listId = useId();
   const list = useRef<HTMLDivElement>(null);
-  const optionId = (value: string) => `${listId}-${value.replace(":", "")}`;
   const onList = time !== null && HALF_HOURS.includes(time);
 
   // The chosen row, or 9:00 when there is none, a few rows down from the
@@ -72,12 +65,8 @@ export function TimeColumn({
       <input
         ref={inputRef}
         name="time"
-        role="combobox"
         aria-label="Time"
-        aria-expanded="true"
-        aria-controls={listId}
-        aria-autocomplete="none"
-        aria-activedescendant={onList && time ? optionId(time) : undefined}
+        aria-keyshortcuts="ArrowUp ArrowDown"
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? errorId : undefined}
         autoComplete="off"
@@ -87,20 +76,11 @@ export function TimeColumn({
         onKeyDown={onKeyDown}
         onBlur={onBlur}
       />
-      <div
-        ref={list}
-        id={listId}
-        role="listbox"
-        aria-label="Times"
-        className="date-time-times"
-      >
+      <div ref={list} className="date-time-times" aria-hidden="true">
         {HALF_HOURS.map((value) => (
+          // biome-ignore lint/a11y/noStaticElementInteractions: a pointer shortcut; the field takes the same times by keyboard
           <div
             key={value}
-            id={optionId(value)}
-            role="option"
-            tabIndex={-1}
-            aria-selected={value === time}
             data-time={value}
             className={`option date-time-option${value === time ? " chosen" : ""}`}
             onMouseDown={(event) => {

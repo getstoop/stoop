@@ -189,22 +189,24 @@ export function stepTime(time: string | null, step: -1 | 1): string {
 }
 
 // A time typed into the field, as "HH:MM", or null when it is not one.
-// Read: "19:30", "7.30", "730", "1930", "7", "7pm", "7:30 p.m.", and the
-// locale's own words for morning and afternoon when it has them
-// (periods: lower case, each to "am" or "pm"). Without a period an hour
-// is on the 24-hour clock.
-export function parseTypedTime(
-  text: string,
-  periods: Readonly<Record<string, "am" | "pm">> = {},
-): string | null {
-  const squeezed = text.toLowerCase().replace(/\s/g, "");
-  const found = /^(\d{1,2})(?:[:.h]?(\d{2}))?([^\d]*)$/.exec(squeezed);
+// Read: whatever timeLabel writes for the locale, and "19:30", "7.30",
+// "730", "1930", "7", "7pm", "7:30 p.m.", with the period before or after
+// the number, in the locale's own words for it or a/am/p/pm, and in the
+// locale's digits or ASCII ones. Without a period an hour is on the
+// 24-hour clock.
+export function parseTypedTime(text: string, locale?: string): string | null {
+  const reader = readerFor(locale);
+  const squeezed = reader.squeeze(text);
+  const label = reader.labels.get(squeezed);
+  if (label) return label;
+  const found = /^([^\d]*)(\d{1,2})(?:[:.h]?(\d{2}))?([^\d]*)$/.exec(squeezed);
   if (!found) return null;
-  let hour = Number(found[1]);
-  const minute = Number(found[2] ?? 0);
-  const word = found[3].replace(/\./g, "");
-  const period: "am" | "pm" | null | undefined =
-    word === "" ? null : (PERIODS[word] ?? periods[word]);
+  const [, before, hourText, minuteText, after] = found;
+  if (before && after) return null;
+  let hour = Number(hourText);
+  const minute = Number(minuteText ?? 0);
+  const word = (before || after).replace(/\./g, "");
+  const period = word === "" ? null : reader.periods.get(word);
   if (period === undefined || minute > 59) return null;
   if (period) {
     if (hour < 1 || hour > 12) return null;
@@ -213,28 +215,34 @@ export function parseTypedTime(
   return `${pad(hour)}:${pad(minute)}`;
 }
 
-const PERIODS: Record<string, "am" | "pm"> = {
-  a: "am",
-  am: "am",
-  p: "pm",
-  pm: "pm",
+// What parseTypedTime knows of a locale, worked out once: its words for
+// morning and afternoon, its digits, and every minute's label.
+type Reader = {
+  squeeze: (text: string) => string;
+  periods: Map<string, "am" | "pm">;
+  labels: Map<string, string>;
 };
 
-// ---- Words, from Intl in the reader's locale.
+const readers = new Map<string, Reader>();
 
-// A time of day as the locale writes it: "10:00 AM", "19:30".
-export function timeLabel(time: string, locale?: string): string {
-  const [hour, minute] = time.split(":").map(Number);
-  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(locale, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-// The locale's own words for morning and afternoon, for parseTypedTime:
-// none on a 24-hour clock.
-export function localePeriods(locale?: string): Record<string, "am" | "pm"> {
-  const words: Record<string, "am" | "pm"> = {};
+function readerFor(locale?: string): Reader {
+  const key = locale ?? "";
+  const known = readers.get(key);
+  if (known) return known;
+  const digits = new Map<string, string>();
+  const numbers = new Intl.NumberFormat(locale, { useGrouping: false });
+  for (let i = 0; i < 10; i++) digits.set(numbers.format(i), String(i));
+  // Lower case, ASCII digits, no spaces and no direction marks.
+  const squeeze = (text: string) =>
+    Array.from(text.toLowerCase().replace(/[\s\u200e\u200f\u061c]/g, ""))
+      .map((char) => digits.get(char) ?? char)
+      .join("");
+  const periods = new Map<string, "am" | "pm">([
+    ["a", "am"],
+    ["am", "am"],
+    ["p", "pm"],
+    ["pm", "pm"],
+  ]);
   const format = new Intl.DateTimeFormat(locale, {
     hour: "numeric",
     hour12: true,
@@ -246,17 +254,27 @@ export function localePeriods(locale?: string): Record<string, "am" | "pm"> {
     const part = format
       .formatToParts(new Date(2000, 0, 1, hour))
       .find((p) => p.type === "dayPeriod");
-    if (part) words[part.value.toLowerCase().replace(/[\s.]/g, "")] = period;
+    if (part) periods.set(squeeze(part.value).replace(/\./g, ""), period);
   }
-  return words;
+  const labels = new Map<string, string>();
+  for (let minute = 0; minute < 24 * 60; minute++) {
+    const time = `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`;
+    labels.set(squeeze(timeLabel(time, locale)), time);
+  }
+  const reader = { squeeze, periods, labels };
+  readers.set(key, reader);
+  return reader;
 }
 
-// Whether the locale's clock runs to 12.
-export function uses12Hour(locale?: string): boolean {
-  const cycle = new Intl.DateTimeFormat(locale, {
+// ---- Words, from Intl in the reader's locale.
+
+// A time of day as the locale writes it: "10:00 AM", "19:30".
+export function timeLabel(time: string, locale?: string): string {
+  const [hour, minute] = time.split(":").map(Number);
+  return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(locale, {
     hour: "numeric",
-  }).resolvedOptions().hourCycle;
-  return cycle === "h11" || cycle === "h12";
+    minute: "2-digit",
+  });
 }
 
 const noon = (d: Day) => new Date(d.year, d.month - 1, d.day, 12);
