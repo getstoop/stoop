@@ -336,10 +336,10 @@ type ChatServiceClient interface {
 	// first, in channels they can still read.
 	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
-	// CreatePoll posts a poll: a question with 2 to 10 options that the
-	// channel votes on. Whoever may send a message here may; it marks the
-	// channel unread as a message does. See docs/architecture/messaging.md
-	// → Polls.
+	// CreatePoll posts a poll: a question with 2 to 10 options, text or
+	// times, that the channel votes on. Whoever may send a message here
+	// may; it marks the channel unread as a message does. See
+	// docs/architecture/messaging.md → Polls.
 	CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error)
 	// SetPollVote sets the caller's whole selection on an open poll; an
 	// empty one takes the vote back. Whoever may react here may vote, a
@@ -1380,10 +1380,10 @@ type ChatServiceHandler interface {
 	// first, in channels they can still read.
 	ListThreadMutes(context.Context, *connect.Request[v1.ListThreadMutesRequest]) (*connect.Response[v1.ListThreadMutesResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
-	// CreatePoll posts a poll: a question with 2 to 10 options that the
-	// channel votes on. Whoever may send a message here may; it marks the
-	// channel unread as a message does. See docs/architecture/messaging.md
-	// → Polls.
+	// CreatePoll posts a poll: a question with 2 to 10 options, text or
+	// times, that the channel votes on. Whoever may send a message here
+	// may; it marks the channel unread as a message does. See
+	// docs/architecture/messaging.md → Polls.
 	CreatePoll(context.Context, *connect.Request[v1.CreatePollRequest]) (*connect.Response[v1.CreatePollResponse], error)
 	// SetPollVote sets the caller's whole selection on an open poll; an
 	// empty one takes the vote back. Whoever may react here may vote, a

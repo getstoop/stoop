@@ -60,7 +60,7 @@ func reminderTime(req *chatv1.CreateReminderRequest, now time.Time) (time.Time, 
 		return time.Time{}, err
 	}
 	if relative {
-		return now.Add(lead).UTC().Truncate(time.Minute), nil
+		return wholeMinute(now.Add(lead)), nil
 	}
 	if zone == nil {
 		return time.Time{}, errReminderTime("a reminder's time needs a time zone")
@@ -83,10 +83,22 @@ func reminderTime(req *chatv1.CreateReminderRequest, now time.Time) (time.Time, 
 	if remindAt.Before(now.Add(minReminderLead)) {
 		return time.Time{}, errReminderTime("a reminder's time must be at least a minute from now")
 	}
-	if remindAt.After(now.AddDate(1, 0, 0)) {
+	if remindAt.After(yearAhead(now)) {
 		return time.Time{}, errReminderTime("a reminder's time can be at most a year from now")
 	}
 	return remindAt.UTC(), nil
+}
+
+// wholeMinute is an instant as a reminder and a time poll store it: in
+// UTC, rounded down to the whole minute.
+func wholeMinute(instant time.Time) time.Time {
+	return instant.UTC().Truncate(time.Minute)
+}
+
+// yearAhead is the latest instant a reminder or a time poll may name:
+// one calendar year after now.
+func yearAhead(now time.Time) time.Time {
+	return now.AddDate(1, 0, 0)
 }
 
 // reminderZone is the zone a request names: nil for none. "Local" is

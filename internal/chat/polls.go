@@ -35,10 +35,12 @@ const (
 )
 
 // pollOption is one choice. Its id is what a vote names: 1 upwards in
-// the order given, never reused.
+// the options' order, never reused. A time poll's option (poll_times.go)
+// has At and no text; on a text option At is left out of the row.
 type pollOption struct {
-	ID   int16  `json:"id"`
-	Text string `json:"text"`
+	ID   int16      `json:"id"`
+	Text string     `json:"text"`
+	At   *time.Time `json:"at,omitempty"`
 }
 
 // pollCreated is a poll's row. Its data is the definition, which never
@@ -83,7 +85,7 @@ func (event pollCreated) proto(authors map[string]*chatv1.MessageAuthor) *chatv1
 	}
 	voters := map[string]bool{}
 	for _, option := range event.Options {
-		out := &chatv1.PollOption{Id: int32(option.ID), Text: option.Text}
+		out := &chatv1.PollOption{Id: int32(option.ID), Text: option.Text, At: pbtime.OrNil(option.At)}
 		for _, vote := range event.votes {
 			if vote.OptionID == option.ID {
 				out.Voters = append(out.Voters, authorOrUnknown(authors, vote.UserID))
@@ -96,10 +98,12 @@ func (event pollCreated) proto(authors map[string]*chatv1.MessageAuthor) *chatv1
 	return &chatv1.SystemEvent{Kind: &chatv1.SystemEvent_Poll{Poll: poll}}
 }
 
-// pollWinner is an option that had the most votes when the poll closed.
+// pollWinner is an option that had the most votes when the poll closed,
+// with its time when it is a time option.
 type pollWinner struct {
-	Text  string `json:"text"`
-	Votes int32  `json:"votes"`
+	Text  string     `json:"text"`
+	Votes int32      `json:"votes"`
+	At    *time.Time `json:"at,omitempty"`
 }
 
 // pollClosed is the closing row, by whoever closed the poll: a snapshot
@@ -138,7 +142,9 @@ func (event pollClosed) content() string     { return event.Question }
 func (event pollClosed) proto(map[string]*chatv1.MessageAuthor) *chatv1.SystemEvent {
 	closed := &chatv1.PollClosed{Question: event.Question, VoterCount: event.Voters}
 	for _, winner := range event.Winners {
-		closed.Winners = append(closed.Winners, &chatv1.PollWinner{Text: winner.Text, Votes: winner.Votes})
+		closed.Winners = append(closed.Winners, &chatv1.PollWinner{
+			Text: winner.Text, Votes: winner.Votes, At: pbtime.OrNil(winner.At),
+		})
 	}
 	return &chatv1.SystemEvent{Kind: &chatv1.SystemEvent_PollClosed{PollClosed: closed}}
 }
@@ -223,18 +229,27 @@ func optionKey(option string) string {
 	}, option))
 }
 
+// pollQuestion is a poll's question as it is stored, or why it is refused.
+func pollQuestion(question string) (string, error) {
+	question, err := pollLine(question, "a poll's question", maxPollQuestionLen)
+	if err != nil {
+		return "", err
+	}
+	if question == "" {
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("a poll needs a question"))
+	}
+	return question, nil
+}
+
 // newPoll is the poll a request asks for, or why it is refused: a
 // question, and 2 to 10 options once the empty ones are dropped, no two
 // the same ignoring case. It runs before the caller's access is known,
 // so it stops at the first option past the limit: the work is bounded
 // by the limit, not by what was sent.
 func newPoll(question string, options []string, multiple bool) (pollCreated, error) {
-	question, err := pollLine(question, "a poll's question", maxPollQuestionLen)
+	question, err := pollQuestion(question)
 	if err != nil {
 		return pollCreated{}, err
-	}
-	if question == "" {
-		return pollCreated{}, connect.NewError(connect.CodeInvalidArgument, errors.New("a poll needs a question"))
 	}
 	errCount := connect.NewError(connect.CodeInvalidArgument,
 		fmt.Errorf("a poll needs %d to %d options", minPollOptions, maxPollOptions))
@@ -269,13 +284,27 @@ func newPoll(question string, options []string, multiple bool) (pollCreated, err
 	return poll, nil
 }
 
-// CreatePoll posts a poll where the caller may send a message. Like a
-// message it becomes the channel's last message, counts as unread for
-// everyone but its author, reopens a closed conversation and, in a
-// direct message or group conversation, tells the other participants.
+// requestedPoll is the poll a request asks for at now: of its options or
+// of its times, and refused when it gives both.
+func requestedPoll(req *chatv1.CreatePollRequest, now time.Time) (pollCreated, error) {
+	switch {
+	case len(req.Times) == 0:
+		return newPoll(req.Question, req.Options, req.Multiple)
+	case len(req.Options) > 0:
+		return pollCreated{}, connect.NewError(connect.CodeInvalidArgument,
+			errors.New("a poll has options or times, not both"))
+	}
+	return newTimePoll(req.Question, req.Times, req.Multiple, now)
+}
+
+// CreatePoll posts a poll, of text options or of times, where the caller
+// may send a message. Like a message it becomes the channel's last
+// message, counts as unread for everyone but its author, reopens a closed
+// conversation and, in a direct message or group conversation, tells the
+// other participants.
 func (s *Service) CreatePoll(ctx context.Context, req *connect.Request[chatv1.CreatePollRequest]) (*connect.Response[chatv1.CreatePollResponse], error) {
 	userID := authctx.UserID(ctx)
-	poll, err := newPoll(req.Msg.Question, req.Msg.Options, req.Msg.Multiple)
+	poll, err := requestedPoll(req.Msg, time.Now())
 	if err != nil {
 		return nil, err
 	}

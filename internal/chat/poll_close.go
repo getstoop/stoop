@@ -21,8 +21,8 @@ import (
 // Closing a poll (docs/architecture/messaging.md → Polls).
 
 // outcome is a poll's result over its votes: every option with the most
-// votes when that is at least one, in the poll's order, and how many
-// people voted.
+// votes when that is at least one, in the poll's order and with its time
+// when it has one, and how many people voted.
 func (event pollCreated) outcome(votes []dbgen.PollVote) ([]pollWinner, int32) {
 	counts := map[int16]int32{}
 	voters := map[string]bool{}
@@ -36,7 +36,7 @@ func (event pollCreated) outcome(votes []dbgen.PollVote) ([]pollWinner, int32) {
 	winners := []pollWinner{}
 	for _, option := range event.Options {
 		if most > 0 && counts[option.ID] == most {
-			winners = append(winners, pollWinner{Text: option.Text, Votes: most})
+			winners = append(winners, pollWinner{Text: option.Text, Votes: most, At: option.At})
 		}
 	}
 	return winners, int32(len(voters))

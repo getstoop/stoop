@@ -143,10 +143,10 @@ service ChatService {
   // first, in channels they can still read.
   rpc ListThreadMutes(ListThreadMutesRequest) returns (ListThreadMutesResponse) {}
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
-  // CreatePoll posts a poll: a question with 2 to 10 options that the
-  // channel votes on. Whoever may send a message here may; it marks the
-  // channel unread as a message does. See docs/architecture/messaging.md
-  // → Polls.
+  // CreatePoll posts a poll: a question with 2 to 10 options, text or
+  // times, that the channel votes on. Whoever may send a message here
+  // may; it marks the channel unread as a message does. See
+  // docs/architecture/messaging.md → Polls.
   rpc CreatePoll(CreatePollRequest) returns (CreatePollResponse) {}
   // SetPollVote sets the caller's whole selection on an open poll; an
   // empty one takes the vote back. Whoever may react here may vote, a
@@ -718,10 +718,16 @@ message CreatePollRequest {
   // one of them visible; no control characters or direction overrides.
   string question = 2;
   // 2 to 10 once empty ones are dropped, each 1 to 80 characters under
-  // the question's rules, no two the same ignoring case.
+  // the question's rules, no two the same ignoring case. Kept in the
+  // order given.
   repeated string options = 3;
   // A person may choose several options; otherwise one.
   bool multiple = 4;
+  // A time poll's options, in place of options: sending both is refused.
+  // 2 to 10 instants, each rounded down to the whole minute, after now by
+  // the server's clock and at most a year ahead, no two the same minute.
+  // Stored earliest first whatever order they arrive in.
+  repeated google.protobuf.Timestamp times = 5;
 }
 
 message CreatePollResponse {

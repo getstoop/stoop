@@ -1361,6 +1361,8 @@ what is not drawing: `core/polls.ts` (reading a poll, the selection a
 press sends, the results and who may do what), `core/pollForm.ts` (the
 form's rules) and the closing row's wording (`systemLine`). The mobile
 app needs a server of 0.23.0 or newer, the release that carries polls.
+Time polls are built on the server alone so far: neither app creates
+one or words an option's time yet.
 
 - **The poll row.** `data` is the definition, which never changes, and
   the closed state: `{question, options: [{id, text}], multiple,
@@ -1369,10 +1371,21 @@ app needs a server of 0.23.0 or newer, the release that carries polls.
   it is what a vote names. `content` holds the question as well, as
   plain text: the search column is generated from `content`, and a
   preview needs no `data`.
+- **A time poll** is a poll whose options are instants, and not a kind
+  of its own: the same two kinds, votes, close and delete. Its options
+  are `{id, text: "", at}`, where `at` is an instant in UTC on a whole
+  minute, as RFC 3339; nothing about a zone is stored, and each app
+  shows the instant in its reader's zone. A poll is all text or all
+  times. A text option has no `at` key at all, so a text poll's row is
+  what it was before time polls. On the wire `at` is `PollOption.at`,
+  and a client tells a time poll by it being set. A server older than
+  time polls reads such a row as options with no text, and closing the
+  poll there writes its `data` back without the times.
 - **The closing row.** `data` is a snapshot of the outcome,
   `{question, winners: [{text, votes}], voters}`, so the row draws with
-  no read of the poll and cannot drift. `reference_message_id` is the
-  poll and `content` the question.
+  no read of the poll and cannot drift. A time poll's winner carries its
+  option's `at` as well (`PollWinner.at`); a text winner has no such
+  key. `reference_message_id` is the poll and `content` the question.
 - **Votes** are `poll_votes (message_id, user_id, option_id)`, one row
   per person and option, and not in the row's `data`: they change often
   and are per person, as reactions are. `hydrateMessages` reads them
@@ -1396,7 +1409,16 @@ app needs a server of 0.23.0 or newer, the release that carries polls.
   same ignoring case, normalisation form and invisible format
   characters. Validation runs before access is known, so it stops at
   the first option past ten and its work does not grow with the
-  request. One
+  request. A time poll sends `times` in place of `options`, and a
+  request with both is refused. The times are checked in this order
+  (`newTimePoll`, `poll_times.go`): 2 to 10 of them, counted before any
+  is read; each a valid timestamp; each rounded down to the whole
+  minute, then after now by the server's clock, with no lead asked, and
+  at most one calendar year ahead, the reminder's bound; no two on the
+  same minute. They are stored earliest first, whatever order they came
+  in, with ids in that order. Every refusal is `InvalidArgument`. The
+  app turns a local time into the instant; the server judges only that
+  it is ahead. One
   transaction locks the channel row, records the row (`recordEvent`,
   which makes it the channel's last message) and moves the author's
   read marker to it (`markChannelRead`). After the commit a closed
@@ -1451,9 +1473,11 @@ app needs a server of 0.23.0 or newer, the release that carries polls.
   the closer's read marker to it. Under the lock no vote lands between
   the count and the close, so a racing vote is either in the outcome or
   refused. The outcome is every option with the most votes when that is
-  at least one, in the poll's order, each with that count, and the
-  number of distinct people who voted; with no votes `winners` is an
-  empty list. After the commit a closed conversation is put back on its
+  at least one, in the poll's order, each with that count and, on a
+  time poll, its time, and the number of distinct people who voted; with
+  no votes `winners` is an empty list. Tied times are each named, and
+  nothing picks one. A time that has passed stays an option and takes
+  votes: the server watches for none. After the commit a closed conversation is put back on its
   lists, the poll goes out as `message_updated` and then the closing row
   as `message_created`, each at the seq the transaction gave it, and in a direct message or group conversation
   the other participants get a `dm` activity item for the closing row,
@@ -1484,8 +1508,10 @@ app needs a server of 0.23.0 or newer, the release that carries polls.
   typed: it is not Markdown, so it skips `plainText`, and a token-like
   run in it is not renamed (`typedAsIs`).
 - **Search** matches a poll by its question and returns it with its
-  votes. Options are not searched, nor the closing row, which only
-  repeats the question.
+  votes. Options are not searched, a time poll's times included, nor
+  the closing row, which only repeats the question. A preview carries
+  no time either: the server words it and does not know the reader's
+  zone.
 - **What the rows take.** Both refuse what every system row refuses
   (edit, reaction, thread, quote, link preview). The registry's two
   flags set them apart:

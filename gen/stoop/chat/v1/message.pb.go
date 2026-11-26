@@ -1036,7 +1036,8 @@ func (x *PostPolicyChanged) GetPostPolicy() ChannelPostPolicy {
 type Poll struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Question string                 `protobuf:"bytes,1,opt,name=question,proto3" json:"question,omitempty"`
-	// 2 to 10, in the order the author gave them.
+	// 2 to 10: text options in the order the author gave them, times
+	// earliest first. A poll is all text or all times.
 	Options []*PollOption `protobuf:"bytes,2,rep,name=options,proto3" json:"options,omitempty"`
 	// A person may choose several options; otherwise one.
 	Multiple bool `protobuf:"varint,3,opt,name=multiple,proto3" json:"multiple,omitempty"`
@@ -1124,13 +1125,17 @@ func (x *Poll) GetVoterCount() int32 {
 
 type PollOption struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 1 to 10, given in order when the poll was made and never reused: what
-	// a vote names.
-	Id   int32  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// 1 to 10, given in the options' order when the poll was made and never
+	// reused: what a vote names.
+	Id int32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Empty on a time option.
 	Text string `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
 	// Who chose it, in the order they voted, each as they are now. Someone
 	// who has left the channel since is still named.
-	Voters        []*MessageAuthor `protobuf:"bytes,3,rep,name=voters,proto3" json:"voters,omitempty"`
+	Voters []*MessageAuthor `protobuf:"bytes,3,rep,name=voters,proto3" json:"voters,omitempty"`
+	// Set on a time option: the instant it offers, a whole minute. A client
+	// shows it in the reader's zone, and tells a time poll by it being set.
+	At            *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=at,proto3" json:"at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1182,6 +1187,13 @@ func (x *PollOption) GetText() string {
 func (x *PollOption) GetVoters() []*MessageAuthor {
 	if x != nil {
 		return x.Voters
+	}
+	return nil
+}
+
+func (x *PollOption) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
 	}
 	return nil
 }
@@ -1252,9 +1264,12 @@ func (x *PollClosed) GetVoterCount() int32 {
 }
 
 type PollWinner struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Votes         int32                  `protobuf:"varint,2,opt,name=votes,proto3" json:"votes,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Empty on a time option.
+	Text  string `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Votes int32  `protobuf:"varint,2,opt,name=votes,proto3" json:"votes,omitempty"`
+	// Set when the winner is a time option: PollOption.at.
+	At            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=at,proto3" json:"at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1301,6 +1316,13 @@ func (x *PollWinner) GetVotes() int32 {
 		return x.Votes
 	}
 	return 0
+}
+
+func (x *PollWinner) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
 }
 
 // Reminder: the author set a reminder for this channel and its time has
@@ -1621,22 +1643,24 @@ const file_stoop_chat_v1_message_proto_rawDesc = "" +
 	"\tclosed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\x129\n" +
 	"\tclosed_by\x18\x05 \x01(\v2\x1c.stoop.chat.v1.MessageAuthorR\bclosedBy\x12\x1f\n" +
 	"\vvoter_count\x18\x06 \x01(\x05R\n" +
-	"voterCount\"f\n" +
+	"voterCount\"\x92\x01\n" +
 	"\n" +
 	"PollOption\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x124\n" +
-	"\x06voters\x18\x03 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\x06voters\"~\n" +
+	"\x06voters\x18\x03 \x03(\v2\x1c.stoop.chat.v1.MessageAuthorR\x06voters\x12*\n" +
+	"\x02at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"~\n" +
 	"\n" +
 	"PollClosed\x12\x1a\n" +
 	"\bquestion\x18\x01 \x01(\tR\bquestion\x123\n" +
 	"\awinners\x18\x02 \x03(\v2\x19.stoop.chat.v1.PollWinnerR\awinners\x12\x1f\n" +
 	"\vvoter_count\x18\x03 \x01(\x05R\n" +
-	"voterCount\"6\n" +
+	"voterCount\"b\n" +
 	"\n" +
 	"PollWinner\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x12\x14\n" +
-	"\x05votes\x18\x02 \x01(\x05R\x05votes\"\n" +
+	"\x05votes\x18\x02 \x01(\x05R\x05votes\x12*\n" +
+	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\n" +
 	"\n" +
 	"\bReminder\"\x94\x02\n" +
 	"\rThreadSummary\x12\x1f\n" +
@@ -1724,14 +1748,16 @@ var file_stoop_chat_v1_message_proto_depIdxs = []int32{
 	19, // 25: stoop.chat.v1.Poll.closed_at:type_name -> google.protobuf.Timestamp
 	0,  // 26: stoop.chat.v1.Poll.closed_by:type_name -> stoop.chat.v1.MessageAuthor
 	0,  // 27: stoop.chat.v1.PollOption.voters:type_name -> stoop.chat.v1.MessageAuthor
-	14, // 28: stoop.chat.v1.PollClosed.winners:type_name -> stoop.chat.v1.PollWinner
-	19, // 29: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
-	0,  // 30: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	19, // 28: stoop.chat.v1.PollOption.at:type_name -> google.protobuf.Timestamp
+	14, // 29: stoop.chat.v1.PollClosed.winners:type_name -> stoop.chat.v1.PollWinner
+	19, // 30: stoop.chat.v1.PollWinner.at:type_name -> google.protobuf.Timestamp
+	19, // 31: stoop.chat.v1.ThreadSummary.last_reply_at:type_name -> google.protobuf.Timestamp
+	0,  // 32: stoop.chat.v1.ThreadSummary.recent_authors:type_name -> stoop.chat.v1.MessageAuthor
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_stoop_chat_v1_message_proto_init() }

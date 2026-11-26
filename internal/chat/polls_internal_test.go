@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	realtimev1 "github.com/getstoop/stoop/gen/stoop/realtime/v1"
@@ -805,6 +806,216 @@ func TestCreatePollRefusesAFloodOfOptions(t *testing.T) {
 	blanks := append(make([]string, 50_000), yesNo...)
 	if poll, err := newPoll("Friday?", blanks, false); err != nil || len(poll.Options) != 2 {
 		t.Errorf("a poll among blanks = %v, %v; want its two options", poll.Options, err)
+	}
+}
+
+// stamps are instants as a request carries them.
+func stamps(instants ...time.Time) []*timestamppb.Timestamp {
+	out := make([]*timestamppb.Timestamp, len(instants))
+	for index, instant := range instants {
+		out[index] = timestamppb.New(instant)
+	}
+	return out
+}
+
+// A time poll's options are its times: each rounded down to the whole
+// minute in UTC, earliest first whatever order they came in, with ids in
+// that order and no text. The bounds are judged after rounding, against
+// the clock given.
+func TestNewTimePoll(t *testing.T) {
+	now := utc(2026, 11, 26, 12, 0, 30)
+	zone := time.FixedZone("east", 5*60*60)
+	poll, err := newTimePoll(" Game night? ", []*timestamppb.Timestamp{
+		timestamppb.New(utc(2026, 12, 5, 19, 0, 59).Add(999 * time.Millisecond)),
+		timestamppb.New(time.Date(2026, 12, 4, 0, 30, 0, 0, zone)), // 3 Dec 19:30 UTC
+		timestamppb.New(utc(2027, 11, 26, 12, 0, 59)),              // the last minute allowed
+		timestamppb.New(utc(2026, 11, 26, 12, 1, 0)),               // the first
+	}, true, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []time.Time{utc(2026, 11, 26, 12, 1, 0), utc(2026, 12, 3, 19, 30, 0), utc(2026, 12, 5, 19, 0, 0), utc(2027, 11, 26, 12, 0, 0)}
+	if poll.Question != "Game night?" || !poll.Multiple || len(poll.Options) != len(want) || poll.check() != nil {
+		t.Fatalf("poll = %+v, want the question, several choices and %d options", poll, len(want))
+	}
+	for index, option := range poll.Options {
+		if option.ID != int16(index+1) || option.Text != "" || option.At == nil || !option.At.Equal(want[index]) || option.At.Location() != time.UTC {
+			t.Errorf("option %d = %+v, want id %d at %s in UTC with no text", index, option, index+1, want[index])
+		}
+	}
+
+	soon, later := utc(2026, 12, 3, 19, 0, 0), utc(2026, 12, 4, 19, 0, 0)
+	eleven := make([]time.Time, maxPollOptions+1)
+	for index := range eleven {
+		eleven[index] = soon.Add(time.Duration(index) * time.Hour)
+	}
+	refused := map[string]struct {
+		question string
+		times    []*timestamppb.Timestamp
+		words    string
+	}{
+		"no question":              {"", stamps(soon, later), "needs a question"},
+		"a line break in it":       {"Game\nnight?", stamps(soon, later), "line break"},
+		"one time":                 {"Game night?", stamps(soon), "2 to 10 times"},
+		"eleven times":             {"Game night?", stamps(eleven...), "2 to 10 times"},
+		"a missing time":           {"Game night?", []*timestamppb.Timestamp{timestamppb.New(soon), nil}, "not a real date and time"},
+		"nanoseconds out of range": {"Game night?", []*timestamppb.Timestamp{timestamppb.New(soon), {Seconds: later.Unix(), Nanos: -1}}, "not a real date and time"},
+		"a year past 9999":         {"Game night?", []*timestamppb.Timestamp{timestamppb.New(soon), {Seconds: 253402300800}}, "not a real date and time"},
+		"a time in the past":       {"Game night?", stamps(soon, utc(2026, 11, 25, 19, 0, 0)), "in the future"},
+		"now":                      {"Game night?", stamps(soon, now), "in the future"},
+		"later this minute":        {"Game night?", stamps(soon, utc(2026, 11, 26, 12, 0, 59)), "in the future"},
+		"more than a year ahead":   {"Game night?", stamps(soon, utc(2027, 11, 26, 12, 1, 0)), "at most a year"},
+		"the same time twice":      {"Game night?", stamps(soon, later, soon), "same time twice"},
+		"the same minute twice":    {"Game night?", stamps(soon.Add(10*time.Second), later, soon.Add(50*time.Second)), "same time twice"},
+		"the same instant, zoned":  {"Game night?", stamps(soon, later, soon.In(zone)), "same time twice"},
+	}
+	for name, tc := range refused {
+		if got, err := newTimePoll(tc.question, tc.times, false, now); connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), tc.words) {
+			t.Errorf("%s: %+v, %v; want InvalidArgument saying %q", name, got.Options, err, tc.words)
+		}
+	}
+
+	// The count is judged before any time is read: a flood of them is
+	// refused for its size, not for what is in it.
+	flood := make([]*timestamppb.Timestamp, 200_000)
+	started := time.Now()
+	if _, err := newTimePoll("Game night?", flood, false, now); connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "2 to 10 times") {
+		t.Errorf("a flood of times: err = %v, want the count refusal", err)
+	}
+	if took := time.Since(started); took > 100*time.Millisecond {
+		t.Errorf("refusing %d times took %v", len(flood), took)
+	}
+}
+
+// A request is a poll of its options or of its times, and never both.
+func TestPollTakesOptionsOrTimes(t *testing.T) {
+	now := utc(2026, 11, 26, 12, 0, 30)
+	times := stamps(utc(2026, 12, 3, 19, 0, 0), utc(2026, 12, 4, 19, 0, 0))
+	text, err := requestedPoll(&chatv1.CreatePollRequest{Question: "Friday?", Options: yesNo}, now)
+	if err != nil || len(text.Options) != 2 || text.Options[0].Text != "Yes" || text.Options[0].At != nil {
+		t.Errorf("a text poll = %+v, %v; want its two options with no time", text.Options, err)
+	}
+	timed, err := requestedPoll(&chatv1.CreatePollRequest{Question: "Friday?", Times: times}, now)
+	if err != nil || len(timed.Options) != 2 || timed.Options[0].At == nil {
+		t.Errorf("a time poll = %+v, %v; want its two times", timed.Options, err)
+	}
+	for name, options := range map[string][]string{"options": yesNo, "one option": {"Yes"}, "blank options": {"", " "}} {
+		_, err := requestedPoll(&chatv1.CreatePollRequest{Question: "Friday?", Options: options, Times: times}, now)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "not both") {
+			t.Errorf("times and %s: err = %v, want InvalidArgument, not both", name, err)
+		}
+	}
+	if _, err := requestedPoll(&chatv1.CreatePollRequest{Question: "Friday?"}, now); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("neither: err = %v, want InvalidArgument", err)
+	}
+}
+
+// A time poll is a poll: one loud row of kind 7 whose options carry at,
+// stored earliest first as whole minutes in UTC with empty text. It is
+// answered, published and listed alike, previewed and searched by its
+// question, and votes like any poll. A refused one stores nothing.
+func TestCreateTimePollInAChannel(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	space := fixture.svc.bus.(*events.InProcBus).Subscribe(events.SpaceTopic(fixture.spaceID))
+	defer space.Close()
+	base := time.Now().UTC().Truncate(time.Minute)
+	first, second, third := base.Add(24*time.Hour), base.Add(48*time.Hour), base.Add(72*time.Hour)
+
+	const question = "Game zanzibar night?"
+	poll := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{
+		Question: question, Multiple: true,
+		Times: stamps(third.Add(40*time.Second), first, second.Add(time.Second)),
+	})
+	wantEvent := &chatv1.SystemEvent{Kind: &chatv1.SystemEvent_Poll{Poll: &chatv1.Poll{
+		Question: question, Multiple: true,
+		Options: []*chatv1.PollOption{
+			{Id: 1, At: timestamppb.New(first)}, {Id: 2, At: timestamppb.New(second)}, {Id: 3, At: timestamppb.New(third)},
+		},
+	}}}
+	if !proto.Equal(poll.Event, wantEvent) {
+		t.Errorf("event = %v, want %v", poll.Event, wantEvent)
+	}
+	if poll.Content != question || poll.Quiet || poll.Author.GetId() != authctx.UserID(fixture.ada) {
+		t.Errorf("poll row = %v, want ada's loud row holding the question", poll)
+	}
+
+	var (
+		kind int16
+		data []byte
+	)
+	if err := fixture.pool.QueryRow(ctx, `SELECT kind, data FROM messages WHERE id = $1`, poll.Id).Scan(&kind, &data); err != nil {
+		t.Fatal(err)
+	}
+	var stored map[string]any
+	if err := json.Unmarshal(data, &stored); err != nil {
+		t.Fatal(err)
+	}
+	wantData := map[string]any{
+		"question": question,
+		"options": []any{
+			map[string]any{"id": float64(1), "text": "", "at": first.Format(time.RFC3339)},
+			map[string]any{"id": float64(2), "text": "", "at": second.Format(time.RFC3339)},
+			map[string]any{"id": float64(3), "text": "", "at": third.Format(time.RFC3339)},
+		},
+		"multiple": true, "closed_at": nil, "closed_by": nil,
+	}
+	if kind != kindPoll || !reflect.DeepEqual(stored, wantData) {
+		t.Errorf("stored kind %d data %s, want kind 7 and %v", kind, data, wantData)
+	}
+
+	var created []*chatv1.Message
+	for _, event := range everyEvent(space) {
+		if message := event.GetMessageCreated(); message != nil {
+			created = append(created, message)
+		}
+	}
+	if len(created) != 1 || !proto.Equal(created[0], poll) {
+		t.Errorf("published %v, want the poll once, as answered", created)
+	}
+	if listed := fixture.listed(fixture.cat); len(listed) != 1 || !proto.Equal(listed[0], poll) {
+		t.Errorf("listed %v, want the poll as answered", listed)
+	}
+	found, err := fixture.svc.SearchMessages(fixture.bea, connect.NewRequest(&chatv1.SearchMessagesRequest{
+		Scope: &chatv1.SearchMessagesRequest_SpaceId{SpaceId: fixture.spaceID}, Query: "zanzibar",
+	}))
+	if err != nil || len(found.Msg.Messages) != 1 || !proto.Equal(found.Msg.Messages[0].GetEvent(), wantEvent) {
+		t.Errorf("search = %v, %v; want the poll with its times", found, err)
+	}
+
+	// Votes name option ids, as on any poll, and the times stay on it.
+	fixture.voted(fixture.bea, poll.Id, 1, 3)
+	voted := fixture.voted(fixture.cat, poll.Id, 3)
+	if got := tally(voted); got != "1:bea 2: 3:bea,cat of 2" {
+		t.Errorf("votes = %q, want bea on the first and both on the third", got)
+	}
+	for index, option := range voted.Event.GetPoll().GetOptions() {
+		if want := wantEvent.GetPoll().Options[index].At; !proto.Equal(option.At, want) || option.Text != "" {
+			t.Errorf("option %d after voting = %v, want it at %v", index+1, option, want)
+		}
+	}
+	if _, err := fixture.setVote(fixture.ada, poll.Id, 4); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Errorf("a vote for a time the poll does not have: err = %v, want InvalidArgument", err)
+	}
+
+	refused := map[string]*chatv1.CreatePollRequest{
+		"one time":            {Question: "When?", Times: stamps(first)},
+		"a time in the past":  {Question: "When?", Times: stamps(first, base.Add(-time.Hour))},
+		"this minute":         {Question: "When?", Times: stamps(first, time.Now())},
+		"a time too far off":  {Question: "When?", Times: stamps(first, base.AddDate(1, 0, 1))},
+		"the same minute":     {Question: "When?", Times: stamps(first, first.Add(30*time.Second))},
+		"a time that is none": {Question: "When?", Times: []*timestamppb.Timestamp{timestamppb.New(first), {Nanos: -1}}},
+		"options and times":   {Question: "When?", Options: yesNo, Times: stamps(first, second)},
+		"times, no question":  {Times: stamps(first, second)},
+	}
+	for name, req := range refused {
+		req.ChannelId = fixture.channel.ID
+		if _, err := fixture.svc.CreatePoll(fixture.ada, connect.NewRequest(req)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Errorf("%s: err = %v, want InvalidArgument", name, err)
+		}
+	}
+	if listed := fixture.listed(fixture.ada); len(listed) != 1 {
+		t.Errorf("refused time polls were stored: %v", listed)
 	}
 }
 
