@@ -118,10 +118,17 @@
 }
 
 .composer-input .rich-editor .rich-editor-content {
-  padding: 12px 16px 6px;
+  padding: 12px 16px 8px;
   border: none;
   border-radius: 0;
   background: none;
+  transition: padding-top var(--dur) var(--ease);
+}
+
+/* Under the formatting row the words sit midway between it and the
+   buttons below: the row's own padding makes up the rest of the gap. */
+.composer-input .composer-format.open + .rich-editor .rich-editor-content {
+  padding-top: 4px;
 }
 
 /* The ring goes round the whole box, buttons included. */
