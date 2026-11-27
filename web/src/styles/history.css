@@ -113,6 +113,22 @@
   flex: 1;
 }
 
+/* The rows fade out at the list's foot rather than being cut off above
+   the composer: a wash of the page's own colour over the last lines,
+   which takes no press. At the end of the list it lies over the last
+   row's padding, so the newest message is clear of it. The jump pill
+   sits over it. */
+.message-list-wrap::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  /* off-scale: a little taller than the last row's padding */
+  height: 20px;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
+  z-index: 1;
+}
+
 .jump-latest {
   position: absolute;
   left: 50%;
