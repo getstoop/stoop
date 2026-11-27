@@ -29,9 +29,9 @@ import { startRealtime } from "../api/ws";
 import { Announcer } from "../components/Announcer";
 import { Avatar } from "../components/Avatar";
 import {
-  GearIcon,
   MessagesIcon,
   PulseIcon,
+  ServerAdminIcon,
   WifiIcon,
 } from "../components/Icons";
 import { LiveIndicator } from "../components/LiveIndicator";
@@ -196,23 +196,26 @@ function SpaceRail() {
       },
     });
 
+  const profileLabel = me ? `${me.displayName} — profile` : "Profile";
+
   return (
     <nav className="space-rail">
       <div className="space-rail-top">
         <LiveIndicator placement="rail" />
         {/* Not a space, so not in the spaces list: DMs sit above it. */}
-        <Link
-          to="/dm"
-          className="space-pill add dms"
-          activeProps={{ className: "space-pill add dms active" }}
-          title="Direct messages"
-          aria-label="Direct messages"
-        >
-          <MessagesIcon />
-          {dmAlerts > 0 && (
-            <span className="pill-badge">{badgeCount(dmAlerts)}</span>
-          )}
-        </Link>
+        <Tooltip text="Direct messages" side="right" describes={false}>
+          <Link
+            to="/dm"
+            className="space-pill add dms"
+            activeProps={{ className: "space-pill add dms active" }}
+            aria-label="Direct messages"
+          >
+            <MessagesIcon />
+            {dmAlerts > 0 && (
+              <span className="pill-badge">{badgeCount(dmAlerts)}</span>
+            )}
+          </Link>
+        </Tooltip>
         <span className="rail-divider" aria-hidden="true" />
         <div className="space-rail-list">
           {spaces?.map((space) => (
@@ -247,81 +250,95 @@ function SpaceRail() {
             </Tooltip>
           ))}
           {canCreateSpace && (
+            <Tooltip text="Create a space" side="right" describes={false}>
+              <button
+                type="button"
+                className="space-pill add"
+                onClick={createSpace}
+                aria-label="Create a space"
+              >
+                +
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip
+            text="Join a space with an invite code"
+            side="right"
+            describes={false}
+          >
             <button
               type="button"
               className="space-pill add"
-              onClick={createSpace}
-              title="Create a space"
+              onClick={joinSpace}
+              aria-label="Join a space with an invite code"
             >
-              +
+              →
             </button>
-          )}
-          <button
-            type="button"
-            className="space-pill add"
-            onClick={joinSpace}
-            title="Join a space with an invite code"
-          >
-            →
-          </button>
+          </Tooltip>
         </div>
       </div>
       <div className="space-rail-footer" onClickCapture={closeDrawerOnLink}>
-        <span
-          className={`status-icon ${status}`}
-          title={`Realtime: ${status}`}
-          role="img"
-          aria-label={`Realtime connection: ${status}`}
-        >
-          <WifiIcon />
-        </span>
-        <Link
-          to="/activity"
-          className="space-pill add activity"
-          activeProps={{ className: "space-pill add activity active" }}
-          title="Activity"
-          aria-label="Activity"
-        >
-          <PulseIcon />
-          {(activity?.unreadCount ?? 0) > 0 && (
-            <span className="pill-dot corner" title="Unread activity" />
-          )}
-        </Link>
-        {permissions?.includes(Permission.INSTANCE_READ) && (
-          <Link
-            to="/admin"
-            className="space-pill add"
-            activeProps={{ className: "space-pill add active" }}
-            title="Server admin"
+        <Tooltip text={`Realtime: ${status}`} side="right" describes={false}>
+          <span
+            className={`status-icon ${status}`}
+            role="img"
+            aria-label={`Realtime connection: ${status}`}
           >
-            <GearIcon />
-            {update?.outdated && (
-              <span
-                className="pill-dot corner warn"
-                role="img"
-                aria-label="This server is no longer supported"
-              />
+            <WifiIcon />
+          </span>
+        </Tooltip>
+        <Tooltip text="Activity" side="right" describes={false}>
+          <Link
+            to="/activity"
+            className="space-pill add activity"
+            activeProps={{ className: "space-pill add activity active" }}
+            aria-label="Activity"
+          >
+            <PulseIcon />
+            {(activity?.unreadCount ?? 0) > 0 && (
+              <span className="pill-dot corner" title="Unread activity" />
             )}
           </Link>
+        </Tooltip>
+        {permissions?.includes(Permission.INSTANCE_READ) && (
+          <Tooltip text="Server admin" side="right" describes={false}>
+            <Link
+              to="/admin"
+              className="space-pill add"
+              activeProps={{ className: "space-pill add active" }}
+              aria-label={
+                update?.outdated
+                  ? "Server admin — this server is no longer supported"
+                  : "Server admin"
+              }
+            >
+              <ServerAdminIcon />
+              {update?.outdated && (
+                <span className="pill-dot corner warn" aria-hidden="true" />
+              )}
+            </Link>
+          </Tooltip>
         )}
-        <Link
-          to="/profile"
-          className="space-pill avatar"
-          activeProps={{ className: "space-pill avatar active" }}
-          title={me ? `${me.displayName} — profile` : "Profile"}
-        >
-          {me ? (
-            <Avatar name={me.displayName} fileId={me.avatarFileId}>
-              <span
-                className={`online-dot ${presenceClass(connected, onDnd)}`}
-                role="img"
-                aria-label={`You're ${presenceLabel(connected, onDnd)}`}
-              />
-            </Avatar>
-          ) : (
-            "…"
-          )}
-        </Link>
+        <Tooltip text={profileLabel} side="right" describes={false}>
+          <Link
+            to="/profile"
+            className="space-pill avatar"
+            activeProps={{ className: "space-pill avatar active" }}
+            aria-label={profileLabel}
+          >
+            {me ? (
+              <Avatar name={me.displayName} fileId={me.avatarFileId}>
+                <span
+                  className={`online-dot ${presenceClass(connected, onDnd)}`}
+                  role="img"
+                  aria-label={`You're ${presenceLabel(connected, onDnd)}`}
+                />
+              </Avatar>
+            ) : (
+              "…"
+            )}
+          </Link>
+        </Tooltip>
       </div>
     </nav>
   );

@@ -19,6 +19,39 @@ export function GearIcon() {
   );
 }
 
+// Server admin in the rail: a server rack of three units with a gear at
+// its lower right, so it does not read as the settings of whatever is on
+// screen. One frame with dividers, not three boxes, and a gear of six
+// teeth, not eight: at the rail's 22px finer gaps close up.
+export function ServerAdminIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9.5 22H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4.67H2" />
+      <path d="M2 15.33h7.5" />
+      <path d="M6 5.33h.01" />
+      <path d="M6 12h.01" />
+      <path d="M6 18.67h.01" />
+      <circle cx="17" cy="17" r="3" />
+      <path d="M19.6 18.5L20.64 19.1" />
+      <path d="M17 20L17 21.2" />
+      <path d="M14.4 18.5L13.36 19.1" />
+      <path d="M14.4 15.5L13.36 14.9" />
+      <path d="M17 14L17 12.8" />
+      <path d="M19.6 15.5L20.64 14.9" />
+    </svg>
+  );
+}
+
 export function WifiIcon() {
   return (
     <svg

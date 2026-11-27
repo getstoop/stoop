@@ -23,7 +23,7 @@ test("an outdated server tells its admin", async ({ browser }) => {
   const page = await context.newPage();
 
   await signIn(page, tokens.ada);
-  const admin = page.locator('a[title="Server admin"]');
+  const admin = page.locator('a[aria-label^="Server admin"]');
   await expect(
     admin.locator(".pill-dot.warn"),
     "the rail's Server admin entry carries the dot",

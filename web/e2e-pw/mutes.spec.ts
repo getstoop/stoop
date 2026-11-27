@@ -458,7 +458,7 @@ test("mutes silence every badge but the feed", async ({ browser }) => {
 
   // A second space, so there is a channel mute that isn't under the muted
   // space; A lands in it, and its #general is the one muted.
-  await A.locator('button[title="Create a space"]').click();
+  await A.locator('button[aria-label="Create a space"]').click();
   await acceptDialog(A, "Book club");
   await expect(A.locator(".sidebar-header .space-name")).toHaveText(
     "Book club",

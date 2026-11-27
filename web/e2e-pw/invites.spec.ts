@@ -64,7 +64,7 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   );
   const base = new URL(A.url()).origin;
 
-  await A.locator('button[title="Create a space"]').click();
+  await A.locator('button[aria-label="Create a space"]').click();
   await acceptDialog(A, spaceName);
   // A channel-URL pattern matches the space A is already in, so it passes
   // before the navigation and captures the wrong id. Wait for the new
@@ -302,7 +302,9 @@ test("creating, sharing and revoking an invite", async ({ browser }) => {
   ).toContainText(`webB${suffix}`);
   await A.getByRole("link", { name: "Back to space" }).click();
 
-  await B.locator('button[title="Join a space with an invite code"]').click();
+  await B.locator(
+    'button[aria-label="Join a space with an invite code"]',
+  ).click();
   await acceptDialog(B, "nope12345X");
   // The prompt stays open with the answer in it and says why.
   const joinPrompt = B.locator('.modal[data-dialog="prompt"]');
