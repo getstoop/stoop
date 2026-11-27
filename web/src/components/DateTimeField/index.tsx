@@ -15,8 +15,9 @@ import { Panel } from "./Panel";
 // The value changes as the panel's day and time are chosen; Escape puts
 // back the value the panel opened with, and Done, a click outside or
 // Enter in the time close it with the value as it stands (a typed time
-// that is not one is dropped). In a dialog, a click on the page behind
-// the dialog closes the panel only; the next one closes the dialog.
+// that is not one is dropped). In a Modal, a click on its scrim closes
+// the panel only and leaves focus on the field; the next one closes the
+// Modal.
 export function DateTimeField({
   value,
   onChange,
@@ -87,10 +88,11 @@ export function DateTimeField({
       const target = event.target as Node;
       if (wrapper.current?.contains(target)) return;
       setOpen(false);
-      // In a dialog, a press on the page behind it closes the panel and
-      // nothing more.
-      const host = wrapper.current?.closest('[role="dialog"]');
-      if (host && !host.contains(target)) keepClickFrom(host);
+      // A press on the scrim of the Modal the field sits in closes the
+      // panel and nothing more. Any other press outside (a button of the
+      // form, a confirm raised over it) keeps its click.
+      const scrim = wrapper.current?.closest(".modal-backdrop");
+      if (scrim && target === scrim) keepClickFrom(scrim, field.current);
     };
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", place);
@@ -159,15 +161,21 @@ export function DateTimeField({
   );
 }
 
-// The press that closed a panel from outside the dialog round its field
-// was the panel's alone: the click it ends in is stopped at the window,
-// so the dialog's scrim never hears it and the dialog stays open with
-// what it holds. Armed until that click or the next press, whichever
-// comes first, so a press that ends in no click (a right-click, a touch
-// that turns into a scroll) leaves nothing behind to stop a later one.
-function keepClickFrom(host: Element) {
+// The press that closed a panel on the scrim of the Modal round its
+// field was the panel's alone: the click it ends in is stopped at the
+// window, so the scrim never hears it and the Modal stays open with what
+// it holds. Focus, left on the page when the panel went, goes back to
+// the field then (during the press the browser would move it again), so
+// the form's own keys still work. Armed until that click or the next
+// press, whichever comes first, so a press that ends in no click (a
+// right-click, a touch that turns into a scroll) leaves nothing behind
+// to stop a later one.
+function keepClickFrom(scrim: Element, field: HTMLElement | null) {
   const stop = (event: MouseEvent) => {
-    if (!host.contains(event.target as Node)) event.stopPropagation();
+    if (event.target === scrim) {
+      event.stopPropagation();
+      field?.focus();
+    }
     disarm();
   };
   const disarm = () => {

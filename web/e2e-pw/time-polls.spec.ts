@@ -401,6 +401,14 @@ test("a click outside the form closes an open panel first, then the form", async
   await expect(first, "and the typed time taken").toHaveText(
     await labelIn(A, thursdayLate.ms),
   );
+  // Focus is back on the field, not left on the page, so the form's own
+  // keys still work: Tab stays in the form.
+  await expect(first, "focus goes back to the field").toBeFocused();
+  await A.keyboard.press("Shift+Tab");
+  expect(
+    await form.evaluate((box) => box.contains(document.activeElement)),
+    "Shift+Tab stays in the form",
+  ).toBe(true);
 
   // A right-click outside closes the panel and ends in no click; the
   // form's own buttons still answer the click after it.
@@ -411,6 +419,24 @@ test("a click outside the form closes an open panel first, then the form", async
   await expect(form).toBeVisible();
   await form.getByRole("button", { name: "Add time" }).click();
   await expect(form.getByText("3 of 10")).toBeVisible();
+
+  // Only a press on the form's own scrim is held back. Something drawn
+  // over the form (a confirm or a notice raised while a panel is open)
+  // hears its first click: a stand-in button over the page here.
+  await first.click();
+  await expect(panel).toBeVisible();
+  await A.evaluate(() => {
+    const over = document.createElement("button");
+    over.id = "over-the-form";
+    over.textContent = "OK";
+    over.style.cssText = "position:fixed;top:0;left:0;z-index:99999";
+    over.addEventListener("click", () => over.setAttribute("data-clicked", ""));
+    document.body.append(over);
+  });
+  await A.mouse.click(5, 5);
+  await expect(panel).toHaveCount(0);
+  await expect(A.locator("#over-the-form")).toHaveAttribute("data-clicked", "");
+  await A.evaluate(() => document.getElementById("over-the-form")?.remove());
 
   // With no panel open, a click outside closes the form as before.
   await outside();
