@@ -38,7 +38,12 @@ import { CommandList } from "../../components/CommandList";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
-import { PaperclipIcon, PollIcon, SendIcon } from "../../components/Icons";
+import {
+  CalendarIcon,
+  PaperclipIcon,
+  PollIcon,
+  SendIcon,
+} from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { Tooltip } from "../../components/Tooltip";
@@ -73,6 +78,7 @@ import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 import { notice } from "../../stores/dialogs";
 import { PollForm } from "./PollForm";
+import { TimePollForm } from "./PollForm/TimePollForm";
 import { ReminderForm } from "./ReminderForm";
 import {
   ReminderNotice,
@@ -162,13 +168,14 @@ export function Composer({
     ? Number(instanceStatus.maxUploadBytes)
     : MAX_ATTACHMENT_BYTES;
   const [dragging, setDragging] = useState(false);
-  // The command form open (the poll button opens the poll's), the
-  // channel it was opened in and the words it starts with. Not offered in
-  // a thread, which takes no poll. The composer outlives a channel
-  // change, and the form does not: it is drawn only in the channel it was
-  // opened in, and closed on leaving it. id tells one opening from the
-  // next, so a late answer closes only the form that sent it; where names
-  // the channel or conversation, for a notice shown away from it.
+  // The command form open (the poll button opens the poll's, the Find a
+  // time button the time poll's), the channel it was opened in and the
+  // words it starts with. Not offered in a thread, which takes no poll.
+  // The composer outlives a channel change, and the form does not: it is
+  // drawn only in the channel it was opened in, and closed on leaving it.
+  // id tells one opening from the next, so a late answer closes only the
+  // form that sent it; where names the channel or conversation, for a
+  // notice shown away from it.
   const [formIn, setFormIn] = useState<{
     command: CommandName;
     channelId: string;
@@ -179,6 +186,10 @@ export function Composer({
   const formCount = useRef(0);
   const pollIn =
     formIn?.command === "poll" && formIn.channelId === channelId
+      ? formIn
+      : null;
+  const whenIn =
+    formIn?.command === "when" && formIn.channelId === channelId
       ? formIn
       : null;
   const remindIn =
@@ -674,6 +685,19 @@ export function Composer({
               </button>
             </Tooltip>
           )}
+          {!threadRootId && (
+            <Tooltip text="Find a time">
+              <button
+                type="button"
+                className="format-button poll-button"
+                onClick={() => openForm("when", "", false)}
+                aria-label="Find a time"
+                aria-haspopup="dialog"
+              >
+                <CalendarIcon size="1em" />
+              </button>
+            </Tooltip>
+          )}
         </div>
         <AttachmentStrip
           items={pending}
@@ -767,6 +791,18 @@ export function Composer({
           }}
         />
       )}
+      {whenIn && (
+        <TimePollForm
+          key={whenIn.channelId}
+          channelId={whenIn.channelId}
+          question={whenIn.text}
+          onClose={() => setFormIn(null)}
+          onPosted={() => {
+            focusAfterForm.current = true;
+            setFormIn(null);
+          }}
+        />
+      )}
       {remindIn && (
         <ReminderForm
           key={remindIn.channelId}
@@ -808,4 +844,4 @@ function reminderSetElsewhere(set: SetReminder, where: string) {
 }
 
 // The commands this composer has a form for: all of them.
-const WEB_FORMS: readonly CommandName[] = ["poll", "remind"];
+const WEB_FORMS: readonly CommandName[] = ["poll", "when", "remind"];

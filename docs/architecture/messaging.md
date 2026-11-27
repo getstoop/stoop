@@ -413,12 +413,17 @@ from a send, so its `/name` goes as an ordinary message.
 - **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
   poll button (on mobile, Poll in the attach sheet) shows, with the
   question filled and cut to its limit.
+- **`/when [question]`** ("Find a time") opens the time poll form
+  ([Polls](#polls)) in the same places, with the question filled and
+  cut to its limit; on web the Find a time button beside the poll button
+  opens it too. Web only so far: mobile's composer does not list it
+  (`MOBILE_FORMS`), so there it is sent as typed.
 - **`/remind [what]`** ("Set a reminder here") opens the reminder form
   ([Reminders](#reminders)) in the same places, with the text filled and
   cut to its limit. On web it is the only way in; on mobile Reminder in
   the attach sheet, under Poll, opens it too.
 
-Built: web and mobile.
+Built: web and mobile; `/when` on web only.
 
 ## Mentions
 
@@ -1361,8 +1366,16 @@ what is not drawing: `core/polls.ts` (reading a poll, the selection a
 press sends, the results and who may do what), `core/pollForm.ts` (the
 form's rules) and the closing row's wording (`systemLine`). The mobile
 app needs a server of 0.23.0 or newer, the release that carries polls.
-Time polls are built on the server alone so far: neither app creates
-one or words an option's time yet.
+Time polls are built on the server and web: web creates one from its
+Find a time button or `/when`, and its card words each time in the
+reader's zone. Both apps share the time poll form's rules
+(`core/timePollForm.ts`), the wording of a time (`slotLabel` and
+`slotPhrase` in `core/dates.ts`), `isTimePoll` and the results' `at`,
+`label` and `passed` (`core/polls.ts`), and the closing line, which
+names a winning time with `slotPhrase` ("Thu 26 Nov at 7:00 PM", no
+comma of its own, so "A, B and C" still reads), so mobile's closing
+line words it already. Mobile does not create one yet, and its card
+shows a time option's empty text.
 
 - **The poll row.** `data` is the definition, which never changes, and
   the closed state: `{question, options: [{id, text}], multiple,

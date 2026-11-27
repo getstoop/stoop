@@ -36,15 +36,16 @@ export function newPollForm(question = ""): PollForm {
   };
 }
 
-export const withQuestion = (form: PollForm, question: string): PollForm => ({
-  ...form,
-  question,
-});
+// For a poll form and a time poll form (timePollForm.ts) alike.
+export const withQuestion = <Form extends { question: string }>(
+  form: Form,
+  question: string,
+): Form => ({ ...form, question });
 
-export const withMultiple = (form: PollForm, multiple: boolean): PollForm => ({
-  ...form,
-  multiple,
-});
+export const withMultiple = <Form extends { multiple: boolean }>(
+  form: Form,
+  multiple: boolean,
+): Form => ({ ...form, multiple });
 
 export const withOptionText = (
   form: PollForm,

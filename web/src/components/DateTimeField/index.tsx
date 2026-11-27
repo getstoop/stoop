@@ -25,6 +25,7 @@ export function DateTimeField({
   readOnly,
   placeholder = "Pick a date and time",
   note,
+  onOpenChange,
   "aria-label": ariaLabel,
   "aria-describedby": describedBy,
   "aria-invalid": invalid,
@@ -39,6 +40,9 @@ export function DateTimeField({
   placeholder?: string;
   // A line at the foot of the panel: the range, in words.
   note?: string;
+  // Told when the panel opens and closes: a form that says a problem
+  // with the value waits until it is settled.
+  onOpenChange?: (open: boolean) => void;
   "aria-label"?: string;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean;
@@ -89,6 +93,12 @@ export function DateTimeField({
       window.removeEventListener("resize", place);
       window.removeEventListener("pointerdown", outside);
     };
+  }, [open]);
+
+  const openChanged = useRef(onOpenChange);
+  openChanged.current = onOpenChange;
+  useEffect(() => {
+    openChanged.current?.(open);
   }, [open]);
 
   // A form that starts sending while the panel is open takes it away.

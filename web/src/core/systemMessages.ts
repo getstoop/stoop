@@ -1,9 +1,11 @@
+import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { ChannelPostPolicy } from "../gen/stoop/chat/v1/channel_pb";
 import type {
   Message,
   MessageAuthor,
   PollWinner,
 } from "../gen/stoop/chat/v1/message_pb";
+import { slotPhrase } from "./dates";
 
 // The wording of a system message (docs/architecture/messaging.md →
 // System messages): a row that records something that happened in its
@@ -99,10 +101,13 @@ export function withoutHiddenSystemRows(messages: Message[]): Message[] {
 
 // What a system message says; null for a hidden row, and for a row that
 // is not a system message. A long list of people is folded to "A, B and
-// N others" unless unfolded, which names them all.
+// N others" unless unfolded, which names them all. now is the clock a
+// closed time poll's winning time is worded by (the year shown when it is
+// not now's).
 export function systemLine(
   message: Message,
   unfolded = false,
+  now: Date = new Date(),
 ): SystemLine | null {
   const event = message.event;
   if (!event) return null;
@@ -182,7 +187,7 @@ export function systemLine(
         parts: [
           actor,
           text(` closed the poll: ${sentence(kind.value.question)} `),
-          ...outcome(kind.value.winners),
+          ...outcome(kind.value.winners, now),
           // Its wording is the row's own snapshot; the reference is only
           // the way back to the poll, while there is one.
           ...(message.reference && referenceLive(message)
@@ -290,8 +295,10 @@ function sentence(question: string): string {
 }
 
 // A closed poll's outcome: "Winner: A, 3 votes", "Tied: A and B, 3 votes
-// each", or "Nobody voted".
-function outcome(winners: PollWinner[]): SystemPart[] {
+// each", or "Nobody voted". A time poll's winner is its time in the
+// reader's zone, worded with no comma of its own ("Thu 26 Nov at 7:00
+// PM") so the joining still reads.
+function outcome(winners: PollWinner[], now: Date): SystemPart[] {
   if (winners.length === 0) return [text("Nobody voted")];
   const votes = winners[0].votes === 1 ? "1 vote" : `${winners[0].votes} votes`;
   const parts: SystemPart[] = [
@@ -300,7 +307,11 @@ function outcome(winners: PollWinner[]): SystemPart[] {
   winners.forEach((winner, index) => {
     if (index > 0)
       parts.push(text(index === winners.length - 1 ? " and " : ", "));
-    parts.push({ kind: "emphasis", text: winner.text });
+    const at = winner.at ? timestampDate(winner.at) : null;
+    parts.push({
+      kind: "emphasis",
+      text: at ? slotPhrase(at, now) : winner.text,
+    });
   });
   parts.push(text(winners.length === 1 ? `, ${votes}` : `, ${votes} each`));
   return parts;

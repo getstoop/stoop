@@ -20,7 +20,7 @@ export type CommandPlace = {
 
 // Every command's name, typed after "/" in lower case. A new command is a
 // name here and an entry in COMMANDS.
-export type CommandName = "poll" | "remind";
+export type CommandName = "poll" | "when" | "remind";
 
 export type Command = {
   name: CommandName;
@@ -41,6 +41,13 @@ export const COMMANDS: readonly Command[] = [
     name: "poll",
     hint: "[question]",
     description: "Create a poll",
+    offered: pollPlace,
+  },
+  // A poll whose options are times.
+  {
+    name: "when",
+    hint: "[question]",
+    description: "Find a time",
     offered: pollPlace,
   },
   {

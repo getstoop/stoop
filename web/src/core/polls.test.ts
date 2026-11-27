@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { timestampNow } from "@bufbuild/protobuf/wkt";
+import { timestampFromDate, timestampNow } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
 import {
   type Message,
@@ -9,11 +9,14 @@ import {
   PollSchema,
   SystemEventSchema,
 } from "../gen/stoop/chat/v1/message_pb";
+import { slotLabel } from "./dates";
 import {
   isPollOpen,
   isPollRow,
+  isTimePoll,
   mySelection,
   nextSelection,
+  optionLabel,
   outcomeOf,
   pollOf,
   pollPermissions,
@@ -304,5 +307,68 @@ describe("who may act on a poll", () => {
     expect(
       may(create(MessageSchema, { content: "hi" }), { myUserId: "jun" }),
     ).toEqual({ close: false, delete: false, pin: false });
+  });
+});
+
+describe("time polls", () => {
+  const now = new Date(2026, 10, 26, 15, 30);
+  const thursday = new Date(2026, 11, 3, 19, 0);
+  const earlier = new Date(2026, 10, 26, 9, 0);
+  const timed = create(PollSchema, {
+    question: "Game night?",
+    multiple: true,
+    options: [
+      { id: 1, text: "", at: timestampFromDate(earlier), voters: [maya] },
+      { id: 2, text: "", at: timestampFromDate(thursday), voters: [] },
+    ],
+    voterCount: 1,
+  });
+  const plain = makePoll([
+    { id: 1, text: "Pizza", voters: [] },
+    { id: 2, text: "Tacos", voters: [] },
+  ]);
+
+  it("tells a time poll by its options carrying an instant", () => {
+    expect(isTimePoll(timed)).toBe(true);
+    expect(isTimePoll(plain)).toBe(false);
+  });
+
+  it("labels an option by its time, or its text", () => {
+    expect(optionLabel(timed.options[1], now)).toBe(slotLabel(thursday, now));
+    expect(optionLabel(plain.options[0], now)).toBe("Pizza");
+  });
+
+  it("carries each time, its label and whether it has passed", () => {
+    expect(
+      pollResults(timed, "maya", now).map((r) => [
+        r.at,
+        r.label,
+        r.passed,
+        r.mine,
+      ]),
+    ).toEqual([
+      [earlier, slotLabel(earlier, now), true, true],
+      [thursday, slotLabel(thursday, now), false, false],
+    ]);
+    expect(
+      pollResults(plain, "maya", now).map((r) => [r.at, r.label, r.passed]),
+    ).toEqual([
+      [null, "Pizza", false],
+      [null, "Tacos", false],
+    ]);
+  });
+
+  it("marks a passed time only while the poll is open", () => {
+    const closed = create(PollSchema, { ...timed, closedAt: timestampNow() });
+    expect(pollResults(closed, "maya", now).map((r) => r.passed)).toEqual([
+      false,
+      false,
+    ]);
+    // A day later both times have gone by.
+    const later = new Date(2026, 11, 4, 12, 0);
+    expect(pollResults(timed, "maya", later).map((r) => r.passed)).toEqual([
+      true,
+      true,
+    ]);
   });
 });

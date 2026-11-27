@@ -1,4 +1,3 @@
-import { Code, ConnectError } from "@connectrpc/connect";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -23,6 +22,7 @@ import {
 import { notice } from "../../../stores/dialogs";
 import { ChoiceControl } from "./ChoiceControl";
 import { OptionFields } from "./OptionFields";
+import { refusal } from "./refusal";
 
 // Create a poll (docs/architecture/web.md → Polls): the question, one
 // choice or several, two to ten options. Post is on only once the form
@@ -151,6 +151,7 @@ export function PollForm({
             />
           </Field>
           <ChoiceControl
+            noun="option"
             multiple={form.multiple}
             disabled={posting}
             onChange={(multiple) =>
@@ -174,24 +175,3 @@ export function PollForm({
     </div>
   );
 }
-
-// What a refusal says: the server's own words for a rule it holds (an
-// announcement channel, a blocked conversation, a line it would not
-// take), and "try again" for anything that may pass on a second try.
-function refusal(err: unknown): string {
-  const lead = "Couldn't post the poll.";
-  if (!(err instanceof ConnectError) || !SAID_BY_SERVER.has(err.code)) {
-    return `${lead} Try again.`;
-  }
-  const said = err.rawMessage.trim();
-  if (!said) return `${lead} Try again.`;
-  const sentence = said[0].toUpperCase() + said.slice(1);
-  return `${lead} ${sentence}${/[.!?]$/.test(sentence) ? "" : "."}`;
-}
-
-const SAID_BY_SERVER = new Set([
-  Code.InvalidArgument,
-  Code.PermissionDenied,
-  Code.FailedPrecondition,
-  Code.NotFound,
-]);

@@ -40,12 +40,16 @@ export function PollOption({
     result.mine && "mine",
     badge && "won",
     pending && "pending",
+    // A time gone by while the poll is open: dimmed, and still voted on.
+    result.passed && "passed",
   ]
     .filter(Boolean)
     .join(" ");
   const count = votesLabel(result.votes);
+  const { passed } = result;
   const end = (
     <span className="poll-option-end">
+      {passed && <span className="badge poll-passed">Passed</span>}
       {badge && (
         <span className="badge poll-badge">
           {badge === "winner" ? "Winner" : "Tied"}
@@ -78,7 +82,7 @@ export function PollOption({
         <div className="poll-option-top">
           <span className="poll-mark">{result.mine && <CheckIcon />}</span>
           <span className="poll-option-text">
-            {result.text}
+            {result.label}
             {result.mine && (
               <span className="visually-hidden">, your vote</span>
             )}
@@ -95,7 +99,7 @@ export function PollOption({
   // would choose (and so send) one at every step. Each is a tab stop.
   const pick = {
     type: "button" as const,
-    "aria-label": `${result.text}, ${count}${result.mine ? ", your vote" : ""}`,
+    "aria-label": `${result.label}${passed ? ", passed" : ""}, ${count}${result.mine ? ", your vote" : ""}`,
     "aria-disabled": busy || undefined,
     className: "poll-option-top poll-pick",
     onClick: () => {
@@ -107,7 +111,7 @@ export function PollOption({
       <span className={`poll-box${multiple ? "" : " radio"}`}>
         {result.mine && <CheckIcon />}
       </span>
-      <span className="poll-option-text">{result.text}</span>
+      <span className="poll-option-text">{result.label}</span>
       {end}
     </>
   );

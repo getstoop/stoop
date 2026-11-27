@@ -5,12 +5,19 @@ import { pressPollOption, usePendingVote } from "../../../../api/polls";
 import { Avatar } from "../../../../components/Avatar";
 import { BotMark } from "../../../../components/BotMark";
 import { DeletedMark } from "../../../../components/DeletedMark";
-import { LockIcon, PinIcon, PollIcon } from "../../../../components/Icons";
+import {
+  CalendarIcon,
+  GlobeIcon,
+  LockIcon,
+  PinIcon,
+  PollIcon,
+} from "../../../../components/Icons";
 import { authorShown } from "../../../../core/author";
-import { dayAndTime, fullDateTime } from "../../../../core/dates";
+import { dayAndTime, fullDateTime, zoneLabel } from "../../../../core/dates";
 import type { MentionMembers } from "../../../../core/mentions";
 import {
   isPollOpen,
+  isTimePoll,
   mySelection,
   outcomeOf,
   pollOf,
@@ -31,6 +38,10 @@ import { PollOption } from "./PollOption";
 // on its way meanwhile. Results show before voting. Who chose an option
 // is named under it, with the rest behind "N others". Closed, the card
 // shows the final results with the winner, or every tied option, marked.
+// A time poll draws each option as its time in the reader's zone, says
+// which zone that is, and marks a time that has gone by while it is open;
+// that is worked out as the card draws, with no timer, so the mark comes
+// with the next redraw.
 // The toolbar has Copy link, Pin and Delete for those who may; Close is
 // in the card's foot. Memoised as MessageRow is.
 export const PollRow = memo(function PollRow({
@@ -74,7 +85,9 @@ export const PollRow = memo(function PollRow({
   const poll = pollOf(message);
   if (!poll) return null;
   const open = isPollOpen(poll);
-  const results = pollResults(poll, myUserId);
+  const now = new Date();
+  const timed = isTimePoll(poll);
+  const results = pollResults(poll, myUserId, now);
   const outcome = outcomeOf(poll, results);
   const voted = mySelection(poll, myUserId).length > 0;
   const authorName = author?.displayName || author?.username || "?";
@@ -101,6 +114,18 @@ export const PollRow = memo(function PollRow({
       onVote={vote}
     />
   ));
+  const kind = open ? (
+    <p className="poll-kind">
+      <span className={`poll-box${multiple ? "" : " radio"}`} />
+      {multiple ? "Choose any number" : "Choose one"}
+    </p>
+  ) : (
+    <p className="poll-kind">
+      <LockIcon />
+      Final results ·{" "}
+      {multiple ? "any number of choices each" : "one choice each"}
+    </p>
+  );
   const closer = authorShown(poll.closedBy, members);
   const closedAt = poll.closedAt ? timestampDate(poll.closedAt) : undefined;
 
@@ -173,25 +198,23 @@ export const PollRow = memo(function PollRow({
       <section className="poll" aria-labelledby={questionId}>
         <div className="poll-head">
           <span className="poll-glyph">
-            <PollIcon />
+            {timed ? <CalendarIcon size="1em" /> : <PollIcon />}
           </span>
           <h3 className="poll-question" id={questionId}>
             {poll.question}
           </h3>
           <span className="badge poll-state">{open ? "Poll" : "Closed"}</span>
         </div>
-        {open ? (
-          <p className="poll-kind">
-            <span className={`poll-box${multiple ? "" : " radio"}`} />
-            {multiple ? "Choose any number" : "Choose one"}
-          </p>
+        {timed && open ? (
+          // A time poll's zone sits at the end of the open poll's line.
+          <div className="poll-kind-line">
+            {kind}
+            <ZoneLine now={now} />
+          </div>
         ) : (
-          <p className="poll-kind">
-            <LockIcon />
-            Final results ·{" "}
-            {multiple ? "any number of choices each" : "one choice each"}
-          </p>
+          kind
         )}
+        {timed && !open && <ZoneLine now={now} />}
         {open ? (
           // One choice reads as a radio group, several as a group of
           // checkboxes; each option is a button that says which.
@@ -233,4 +256,15 @@ function footOpen(voters: number, voted: boolean, multiple: boolean): string {
   const count = votersLabel(voters);
   if (!voted) return count;
   return `${count} · You can change your vote${multiple ? "s" : ""}`;
+}
+
+// Which zone a time poll's times are in: the reader's own, so two readers
+// see different times on the same option.
+function ZoneLine({ now }: { now: Date }) {
+  return (
+    <p className="poll-kind poll-zone">
+      <GlobeIcon />
+      Your time zone: {zoneLabel(now)}
+    </p>
+  );
 }
