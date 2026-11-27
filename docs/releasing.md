@@ -10,6 +10,9 @@ A release is four steps on GitHub. Nobody tags by hand.
    contract migrations by name, known issues.
 3. **Wait for Build release.** The merge starts it. It leaves a draft
    release and the image `ghcr.io/getstoop/stoop:0.4.0`.
+   If its build job was skipped, GitHub did not link the merge to the
+   pull request: start it by hand, Actions → **Build release** → Run
+   workflow, on `main`, with the version.
 4. **Publish the draft** from the Releases page. That makes the tag and
    moves `latest`.
 
