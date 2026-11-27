@@ -112,7 +112,7 @@ test("unread markers, dividers and the space dot", async ({ browser }) => {
   ).not.toHaveClass(/unread/);
 
   // Space dot: A makes a second space and sits there; B posts in Stoop HQ.
-  await A.locator('button[title="Create a space"]').click();
+  await A.locator('button[aria-label="Create a space"]').click();
   const dialog = A.locator(".modal[data-dialog]");
   await expect(dialog).toBeVisible();
   await dialog.locator(":where(input, textarea)").fill("Second");

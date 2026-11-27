@@ -44,8 +44,8 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   const link = await A.locator(".link-box code").innerText();
   await A.getByRole("button", { name: "Go to Stoop HQ" }).click();
   await expect(
-    A.locator('a[title="Server admin"]'),
-    "admin sees the gear pill",
+    A.locator('a[aria-label="Server admin"]'),
+    "admin sees the Server admin pill",
   ).toBeVisible();
 
   // Default policy is invite: an anonymous visitor must supply a code.
@@ -85,8 +85,8 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await expect(B, "on the space's own address").toHaveURL(/\/s\//);
 
   // Admin page: the account list holds real accounts only.
-  await A.locator('a[title="Server admin"]').click();
-  await atPath(A, "/admin", "gear opens /admin");
+  await A.locator('a[aria-label="Server admin"]').click();
+  await atPath(A, "/admin", "the pill opens /admin");
   await A.locator('.settings-tab[data-tab="accounts"]').click();
   const users = A.locator(".accounts-section .dt");
   await expect(users, "the admin is listed").toContainText(`@ada${suffix}`);
@@ -126,7 +126,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await atPath(C, "/", "open signup works and lands home");
   await C.locator(".space-pill.avatar").waitFor();
   await expect(
-    C.locator('button[title="Create a space"]'),
+    C.locator('button[aria-label="Create a space"]'),
     "member can't create spaces by default (no + pill)",
   ).toHaveCount(0);
 
@@ -134,7 +134,7 @@ test("registration policy, invites and accounts", async ({ browser }) => {
   await saveServer(A);
   await reload(C);
   await expect(
-    C.locator('button[title="Create a space"]'),
+    C.locator('button[aria-label="Create a space"]'),
     "after admin opens space creation, member sees the + pill",
   ).toBeVisible();
   await A.locator('select[name="space-creation"]').selectOption("1");
