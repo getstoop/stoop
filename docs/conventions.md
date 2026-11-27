@@ -48,7 +48,7 @@ in their head. Add to this when a new rule earns its place.
   admin page goes in `admin.css`. A new feature gets a new file, added to
   `index.css` before `mobile.css`.
 - **Shared controls go in the kit** — `controls.css`, `fields.css`,
-  `surfaces.css` (next section); page furniture and utilities (`.muted`,
+  `surfaces.css`, `date-time-field.css` (next section); page furniture and utilities (`.muted`,
   `.small`, `.hint`, `.eyebrow`, `.error`, `.empty-state`, `.skeleton-bar`) in `base.css`. A class the
   second feature wants to reuse moves there.
 - **Order is the cascade.** `index.css` runs general → specific: `tokens`,
@@ -98,8 +98,9 @@ for, and why — is in
   (an avatar gutter, an indent that lines up under a checkbox) carries a
   comment on the line before it containing `off-scale:` and the reason;
   the same marker excuses the one colour literal (the video letterbox).
-- **The kit — `controls.css`, `fields.css`, `surfaces.css` — owns the
-  parts every feature reaches for:** `button.primary`, `.chip`,
+- **The kit — `controls.css`, `fields.css`, `surfaces.css`, and
+  `date-time-field.css` for `<DateTimeField>` — owns the parts every
+  feature reaches for:** `button.primary`, `.chip`,
   `button.link`, `.option`, `.icon-button`, `.badge`, `.avatar`,
   `.eyebrow` (the small uppercase heading, in `base.css`); text inputs,
   selects and textareas (styled at zero specificity with `:where()`, so any

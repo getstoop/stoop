@@ -165,9 +165,10 @@ export function latestReminderTime(now: Date): Date {
 const DAY_MS = 24 * HOUR_MS;
 
 // The bounds for the date-and-time field: from a day before now to a day
-// past a year ahead, by this device's clock. A browser's picker will not
-// offer what lies outside them, so they are kept wide enough that a
-// device clock a few hours off never stops a time the server would take.
+// past a year ahead, by this device's clock. A picker will not offer what
+// lies outside them (web's DateTimeField reads them by day), so they are
+// kept wide enough that a device clock a few hours off never stops a time
+// the server would take.
 export function customBounds(now: Date): { min: string; max: string } {
   return {
     min: localInputValue(new Date(now.getTime() - DAY_MS)),

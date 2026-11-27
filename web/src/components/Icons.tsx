@@ -763,3 +763,22 @@ export function ReminderIcon() {
     </svg>
   );
 }
+
+// A calendar page: the date and time field's mark.
+export function CalendarIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4" />
+    </svg>
+  );
+}

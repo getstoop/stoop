@@ -78,10 +78,6 @@
   white-space: nowrap;
 }
 
-.reminder-when-custom {
-  width: 100%;
-}
-
 .reminder-when > .hint,
 .reminder-when > .error {
   margin: 0;

@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { DateTimeField } from "../../../components/DateTimeField";
 import { futureDay, futureTime } from "../../../core/dates";
 import {
   customBounds,
@@ -12,8 +13,9 @@ import {
 } from "../../../core/reminderForm";
 
 // When: a radio group of the four presets, each with the time it lands on
-// by this device's clock (a guide: the server's clock decides), and "Pick a date and time", which opens the browser's own
-// date-and-time field under it, bounded to a minute to a year ahead.
+// by this device's clock (a guide: the server's clock decides), and "Pick
+// a date and time", which shows the kit's DateTimeField under it, bounded
+// by day to a little wider than a minute to a year ahead.
 // Nothing is chosen at first. problem (a time the server would refuse,
 // or did) is said under the group, tied to the date-and-time field.
 export function WhenField({
@@ -72,18 +74,17 @@ export function WhenField({
         <span className="reminder-when-label">Pick a date and time</span>
       </label>
       {custom && (
-        <input
+        <DateTimeField
           id={`${name}-custom`}
-          className="reminder-when-custom"
-          type="datetime-local"
           aria-label="Date and time"
           value={form.custom}
           min={bounds.min}
           max={bounds.max}
           readOnly={locked}
+          note={REMINDER_CUSTOM_HINT}
           aria-invalid={problem ? true : undefined}
           aria-describedby={messageId}
-          onChange={(event) => onCustom(event.target.value)}
+          onChange={onCustom}
         />
       )}
       {problem ? (
