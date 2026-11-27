@@ -1,6 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { zoneLabel } from "@stoop/core/dates";
-import { isPollOpen, isTimePoll, mySelection, outcomeOf, pollOf, pollResults, votersLabel } from "@stoop/core/polls";
+import { isPollOpen, isTimePoll, mySelection, outcomeOf, pollOf, pollResults, pollTimes, votersLabel } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -174,7 +174,7 @@ export default memo(function PollRow({
         {timed && (
           <View style={styles.kind}>
             <GlobeIcon color={theme.textMuted} size={14} />
-            <Text style={styles.kindText}>Your time zone: {zoneLabel(now)}</Text>
+            <Text style={styles.kindText}>Your time zone: {zoneLabel(pollTimes(poll), now)}</Text>
           </View>
         )}
         <View

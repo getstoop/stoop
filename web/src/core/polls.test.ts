@@ -22,6 +22,7 @@ import {
   pollPermissions,
   pollPreview,
   pollResults,
+  pollTimes,
   votersLabel,
   votersShown,
   votesLabel,
@@ -331,6 +332,11 @@ describe("time polls", () => {
   it("tells a time poll by its options carrying an instant", () => {
     expect(isTimePoll(timed)).toBe(true);
     expect(isTimePoll(plain)).toBe(false);
+  });
+
+  it("gives a time poll's instants, and none for a text poll", () => {
+    expect(pollTimes(timed)).toEqual([earlier, thursday]);
+    expect(pollTimes(plain)).toEqual([]);
   });
 
   it("labels an option by its time, or its text", () => {

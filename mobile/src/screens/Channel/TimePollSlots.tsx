@@ -8,6 +8,7 @@ import {
   slotBounds,
   slotCount,
   slotProblemText,
+  slotTimes,
   TIME_SLOTS_FULL,
   type TimePollForm,
   withSlot,
@@ -167,7 +168,7 @@ export default function TimePollSlots({
           <GlobeIcon color={theme.textMuted} />
         </View>
         <Text style={styles.zoneText}>
-          Times are in your time zone: {zoneLabel(now)}. Everyone sees them in their own.
+          Times are in your time zone: {zoneLabel(slotTimes(form), now)}. Everyone sees them in their own.
         </Text>
       </View>
     </View>

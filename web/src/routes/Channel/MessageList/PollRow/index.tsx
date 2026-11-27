@@ -22,9 +22,10 @@ import {
   outcomeOf,
   pollOf,
   pollResults,
+  pollTimes,
   votersLabel,
 } from "../../../../core/polls";
-import type { Message } from "../../../../gen/stoop/chat/v1/message_pb";
+import type { Message, Poll } from "../../../../gen/stoop/chat/v1/message_pb";
 import { ClosePoll } from "./ClosePoll";
 import { PollActions } from "./PollActions";
 import { PollOption } from "./PollOption";
@@ -209,12 +210,12 @@ export const PollRow = memo(function PollRow({
           // A time poll's zone sits at the end of the open poll's line.
           <div className="poll-kind-line">
             {kind}
-            <ZoneLine now={now} />
+            <ZoneLine poll={poll} now={now} />
           </div>
         ) : (
           kind
         )}
-        {timed && !open && <ZoneLine now={now} />}
+        {timed && !open && <ZoneLine poll={poll} now={now} />}
         {open ? (
           // One choice reads as a radio group, several as a group of
           // checkboxes; each option is a button that says which.
@@ -259,12 +260,12 @@ function footOpen(voters: number, voted: boolean, multiple: boolean): string {
 }
 
 // Which zone a time poll's times are in: the reader's own, so two readers
-// see different times on the same option.
-function ZoneLine({ now }: { now: Date }) {
+// see different times on the same option. The offset is the times' own.
+function ZoneLine({ poll, now }: { poll: Poll; now: Date }) {
   return (
     <p className="poll-kind poll-zone">
       <GlobeIcon />
-      Your time zone: {zoneLabel(now)}
+      Your time zone: {zoneLabel(pollTimes(poll), now)}
     </p>
   );
 }

@@ -32,6 +32,11 @@ export const isTimePoll = (poll: Poll): boolean =>
 export const instantOf = (item: { at?: Timestamp }): Date | null =>
   item.at ? timestampDate(item.at) : null;
 
+// The instants a time poll's options carry, for the zone line
+// (zoneLabel); none on a text poll.
+export const pollTimes = (poll: Poll): Date[] =>
+  poll.options.map(instantOf).filter((at): at is Date => at !== null);
+
 // What an option is called wherever it is shown: its text, or on a time
 // poll its time in the reader's zone (slotLabel).
 export function optionLabel(

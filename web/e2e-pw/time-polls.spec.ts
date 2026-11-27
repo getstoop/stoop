@@ -46,6 +46,19 @@ const slotFromNow = (page: Page, days: number, hour: number, minute = 0) =>
     { days, hour, minute },
   );
 
+// The offset the page's zone line names for these instants (zoneLabel),
+// " (GMT−5)": the one they share in the page's own zone, or nothing when
+// a clock change falls between them. Whole hours, as the zones here are.
+const offsetIn = (page: Page, instants: number[]) =>
+  page.evaluate((instants) => {
+    const offsets = new Set(
+      instants.map((ms) => -new Date(ms).getTimezoneOffset()),
+    );
+    const [minutes] = offsets;
+    if (offsets.size !== 1) return "";
+    return ` (GMT${minutes < 0 ? "\u2212" : "+"}${Math.abs(minutes) / 60})`;
+  }, instants);
+
 // An instant as the page's card words an option (slotLabel), and as its
 // closing line words a winner (slotPhrase), in the page's own zone.
 const labelIn = (page: Page, ms: number) =>
@@ -152,11 +165,11 @@ test("find a time: made, read in two zones, voted on and closed", async ({
   ).toHaveAttribute("aria-pressed", "true");
   await expect(form.getByText("2 of 10")).toBeVisible();
   await expect(time(1)).toHaveText("Pick a date and time");
-  await expect(
-    form.getByText(
-      /^Times are in your time zone: New York \(GMT−[45]\)\. Everyone sees them in their own\.$/,
-    ),
-  ).toBeVisible();
+  // No time picked yet: the offset is today's.
+  const zoneLine = form.locator(".time-poll-zone");
+  await expect(zoneLine).toHaveText(
+    `Times are in your time zone: New York${await offsetIn(A, [Date.now()])}. Everyone sees them in their own.`,
+  );
   await expect(post, "Post is off on an empty form").toBeDisabled();
 
   // ---- Refusals: the same time twice is said under the second, and
@@ -195,6 +208,11 @@ test("find a time: made, read in two zones, voted on and closed", async ({
   await expect(form.getByText("3 of 10")).toBeVisible();
   await expect(time(3), "the new row has focus").toBeFocused();
   await pick(A, time(3), saturday, "14:00");
+  // The zone line's offset is now the picked times' own.
+  const picked = [thursday.ms, friday.ms, saturday.ms];
+  await expect(zoneLine).toHaveText(
+    `Times are in your time zone: New York${await offsetIn(A, picked)}. Everyone sees them in their own.`,
+  );
   await post.click();
   await expect(form, "the form closes once it is posted").toHaveCount(0);
   await expect(
@@ -206,12 +224,14 @@ test("find a time: made, read in two zones, voted on and closed", async ({
   // and the zone said.
   const card = (page: Page) => page.locator(".poll-row", { hasText: QUESTION });
   const slots = [thursday, friday, saturday];
-  for (const [page, zone] of [
-    [A, /Your time zone: New York \(GMT−[45]\)/],
-    [B, /Your time zone: Tokyo \(GMT\+9\)/],
+  for (const [page, place] of [
+    [A, "New York"],
+    [B, "Tokyo"],
   ] as const) {
     await expect(card(page)).toBeVisible();
-    await expect(card(page).locator(".poll-zone")).toHaveText(zone);
+    await expect(card(page).locator(".poll-zone")).toHaveText(
+      `Your time zone: ${place}${await offsetIn(page, picked)}`,
+    );
     const labels = await Promise.all(
       slots.map((slot) => labelIn(page, slot.ms)),
     );

@@ -160,6 +160,13 @@ export function slotProblemText(problem: SlotProblem): string {
   }
 }
 
+// The times picked so far, each as an instant by this device's zone
+// rules: the rows that hold a whole time, in the rows' order.
+export const slotTimes = (form: TimePollForm): Date[] =>
+  form.slots
+    .map((slot) => parseLocalInput(slot.value))
+    .filter((at): at is Date => at !== null);
+
 // What CreatePoll is sent for a time poll: the question trimmed, and
 // each picked time as an instant by this device's zone rules, empty rows
 // dropped. Never options alongside: the server refuses both at once.
@@ -177,10 +184,7 @@ export function timePollRequest(
   return {
     channelId,
     question: trimPollText(form.question),
-    times: form.slots
-      .map((slot) => parseLocalInput(slot.value))
-      .filter((at): at is Date => at !== null)
-      .map((at) => timestampFromDate(at)),
+    times: slotTimes(form).map((at) => timestampFromDate(at)),
     multiple: form.multiple,
   };
 }

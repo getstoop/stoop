@@ -904,7 +904,8 @@ several to start), then "Times" with "N of 10", a row per time with its
 date and time fields and a remove button (off at two), Add time (off at
 ten), and the line naming the reader's zone ("Times are in your time
 zone: New York (GMT−5). Everyone sees them in their own.",
-`zoneLabel`), all in `TimePollSlots.tsx`; then Post poll on the strip
+`zoneLabel`: the offset the picked times are at, none when they sit
+either side of a clock change, today's while none is picked), all in `TimePollSlots.tsx`; then Post poll on the strip
 the poll's form has. Each row's fields are the reminder's
 (`ReminderDateTime.tsx`, `compact`): the system's pickers, bounded by
 day from today to a year ahead (`slotBounds`); a row shown empty opens
