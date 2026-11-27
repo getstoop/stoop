@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { DateTimeField } from "../../../components/DateTimeField";
 import { CloseIcon, GlobeIcon, PlusIcon } from "../../../components/Icons";
-import { zoneLabel } from "../../../core/dates";
+import { parseLocalInput, zoneLabel } from "../../../core/dates";
 import {
   addSlot,
   canAddSlot,
@@ -11,6 +11,7 @@ import {
   slotBounds,
   slotCount,
   slotProblemText,
+  slotTimes,
   TIME_SLOTS_FULL,
   type TimePollForm,
   withSlot,
@@ -55,7 +56,7 @@ export function TimeFields({
 
   const { slots } = form;
   const bounds = slotBounds(now);
-  const zone = zoneLabel(now);
+  const zone = zoneLabel(slotTimes(form), now);
   const add = () => {
     if (!canAddSlot(form)) return;
     setFocusNext(form.nextKey);
@@ -80,6 +81,9 @@ export function TimeFields({
       {slots.map((slot, index) => {
         const problem = problems[slot.key];
         const errorId = `${fieldId(slot.key)}-error`;
+        // The panel's note names the offset at this row's own time.
+        const at = parseLocalInput(slot.value);
+        const rowZone = zoneLabel(at ? [at] : [], now);
         return (
           <div key={slot.key} className="poll-option-field">
             <div className="poll-option-line">
@@ -90,7 +94,7 @@ export function TimeFields({
                 min={bounds.min}
                 max={bounds.max}
                 readOnly={locked}
-                note={`In your time zone: ${zone}`}
+                note={`In your time zone: ${rowZone}`}
                 aria-invalid={problem ? true : undefined}
                 aria-describedby={problem ? errorId : undefined}
                 onChange={(value) => onChange(withSlot(form, slot.key, value))}

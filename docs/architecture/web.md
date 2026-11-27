@@ -821,7 +821,10 @@ window" is what the view's range holds.
   times, then two to ten times (`TimeFields.tsx`), each a
   `DateTimeField` bounded by day from today to a year ahead, with a
   remove button, Add time (which focuses the new row), and a line naming
-  the reader's zone (`zoneLabel`). Rows stay in the order added; the
+  the reader's zone (`zoneLabel`: the place and the offset the picked
+  times are at, the place alone when they sit either side of a clock
+  change, today's offset while none is picked; a row's panel says the
+  offset at that row's own time). Rows stay in the order added; the
   server sorts them. The rules are `core/timePollForm.ts`, shared with
   mobile: each time held as the picker's local reading, an empty row
   dropped, a repeated minute, a time not after now and one past a year
@@ -839,7 +842,8 @@ above the actions. On the
   not this year) wherever the text would be (the option, its name for a
   screen reader, the voters list, the announcement after a vote), and
   says "Your time zone: New York (GMT−5)" on the line under the
-  question. A time that has gone by while the poll is open is dimmed and
+  question, the offset being the one the poll's times are at in the
+  reader's zone, and left out when they are not all at the same one. A time that has gone by while the poll is open is dimmed and
   badged Passed and still takes votes; that is worked out as the card
   draws, with no timer, so it shows at the next redraw.
 - **Reminders** ([messaging.md](messaging.md#reminders)). A delivered

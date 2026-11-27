@@ -10,6 +10,7 @@ import {
   slotBounds,
   slotCount,
   slotProblemText,
+  slotTimes,
   type TimePollForm,
   timePollRequest,
   withSlot,
@@ -186,6 +187,17 @@ describe("checkTimePollForm", () => {
     expect(slotProblemText("duplicate")).toBe(
       "This time is already in the list.",
     );
+  });
+});
+
+describe("slotTimes", () => {
+  it("gives the rows that hold a whole time, in their order", () => {
+    expect(
+      slotTimes(
+        filled(["2026-12-04T20:00", "", "2026-12-04", "2027-06-10T19:00"]),
+      ),
+    ).toEqual([at(2026, 12, 4, 20, 0), at(2027, 6, 10, 19, 0)]);
+    expect(slotTimes(filled(["", ""]))).toEqual([]);
   });
 });
 

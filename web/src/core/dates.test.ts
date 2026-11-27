@@ -244,36 +244,143 @@ describe("zoneLabel", () => {
   const summer = new Date(Date.UTC(2026, 6, 1, 12));
 
   it("names the place and the offset now", () => {
-    expect(zoneLabel(winter, "America/New_York")).toBe("New York (GMT\u22125)");
-    expect(zoneLabel(summer, "America/New_York")).toBe("New York (GMT\u22124)");
-    expect(zoneLabel(winter, "America/Argentina/Buenos_Aires")).toBe(
+    expect(zoneLabel([], winter, "America/New_York")).toBe(
+      "New York (GMT\u22125)",
+    );
+    expect(zoneLabel([], summer, "America/New_York")).toBe(
+      "New York (GMT\u22124)",
+    );
+    expect(zoneLabel([], winter, "America/Argentina/Buenos_Aires")).toBe(
       "Buenos Aires (GMT\u22123)",
     );
   });
 
   it("writes a half-hour offset", () => {
-    expect(zoneLabel(winter, "Asia/Kolkata")).toBe("Kolkata (GMT+5:30)");
+    expect(zoneLabel([], winter, "Asia/Kolkata")).toBe("Kolkata (GMT+5:30)");
   });
 
   it("names a zone with no place by its offset alone", () => {
     // POSIX signs: Etc/GMT+5 is five hours behind.
-    expect(zoneLabel(winter, "Etc/GMT+5")).toBe("GMT\u22125");
-    expect(zoneLabel(winter, "Etc/GMT-3")).toBe("GMT+3");
-    expect(zoneLabel(winter, "UTC")).toBe("UTC");
-    expect(zoneLabel(winter, "Etc/UTC")).toBe("UTC");
+    expect(zoneLabel([], winter, "Etc/GMT+5")).toBe("GMT\u22125");
+    expect(zoneLabel([], winter, "Etc/GMT-3")).toBe("GMT+3");
+    expect(zoneLabel([], winter, "UTC")).toBe("UTC");
+    expect(zoneLabel([], winter, "Etc/UTC")).toBe("UTC");
   });
 
   it("writes a behind half-hour offset and the furthest ahead", () => {
-    expect(zoneLabel(winter, "America/St_Johns")).toBe(
+    expect(zoneLabel([], winter, "America/St_Johns")).toBe(
       "St Johns (GMT\u22123:30)",
     );
-    expect(zoneLabel(summer, "America/St_Johns")).toBe(
+    expect(zoneLabel([], summer, "America/St_Johns")).toBe(
       "St Johns (GMT\u22122:30)",
     );
     // Southern summer in November: thirteen hours ahead.
-    expect(zoneLabel(winter, "Pacific/Auckland")).toBe("Auckland (GMT+13)");
-    expect(zoneLabel(winter, "Pacific/Kiritimati")).toBe("Kiritimati (GMT+14)");
-    expect(zoneLabel(winter, "Europe/London")).toBe("London (GMT+0)");
+    expect(zoneLabel([], winter, "Pacific/Auckland")).toBe("Auckland (GMT+13)");
+    expect(zoneLabel([], winter, "Pacific/Kiritimati")).toBe(
+      "Kiritimati (GMT+14)",
+    );
+    expect(zoneLabel([], winter, "Europe/London")).toBe("London (GMT+0)");
+  });
+
+  describe("with a poll's times", () => {
+    // Today is in winter; the times say which offset is named.
+    const january = new Date(Date.UTC(2027, 0, 14, 17));
+    const june = new Date(Date.UTC(2027, 5, 10, 17));
+    const july = new Date(Date.UTC(2027, 6, 8, 17));
+
+    it("names the offset the times share, not today's", () => {
+      expect(zoneLabel([june, july], winter, "America/New_York")).toBe(
+        "New York (GMT\u22124)",
+      );
+      expect(zoneLabel([january], summer, "America/New_York")).toBe(
+        "New York (GMT\u22125)",
+      );
+    });
+
+    it("names the place alone when the times straddle a clock change", () => {
+      expect(zoneLabel([january, june], winter, "America/New_York")).toBe(
+        "New York",
+      );
+      expect(zoneLabel([june, january], summer, "Europe/London")).toBe(
+        "London",
+      );
+    });
+
+    it("names today's offset while there are no times", () => {
+      expect(zoneLabel([], winter, "America/New_York")).toBe(
+        "New York (GMT\u22125)",
+      );
+      expect(zoneLabel([], summer, "America/New_York")).toBe(
+        "New York (GMT\u22124)",
+      );
+    });
+
+    it("names the one offset of a zone with no clock changes", () => {
+      expect(zoneLabel([january, june], winter, "Asia/Tokyo")).toBe(
+        "Tokyo (GMT+9)",
+      );
+      expect(zoneLabel([january, june], winter, "Etc/GMT+5")).toBe(
+        "GMT\u22125",
+      );
+      expect(zoneLabel([january, june], winter, "UTC")).toBe("UTC");
+    });
+
+    it("writes a half-hour offset", () => {
+      expect(zoneLabel([january, june], winter, "Asia/Kolkata")).toBe(
+        "Kolkata (GMT+5:30)",
+      );
+    });
+
+    it("writes a zero offset", () => {
+      expect(zoneLabel([january], summer, "Europe/London")).toBe(
+        "London (GMT+0)",
+      );
+      expect(zoneLabel([june], winter, "Europe/London")).toBe("London (GMT+1)");
+    });
+
+    it("is never blank on a runtime with no zone name", () => {
+      vi.spyOn(
+        Intl.DateTimeFormat.prototype,
+        "resolvedOptions",
+      ).mockReturnValue({
+        ...new Intl.DateTimeFormat().resolvedOptions(),
+        timeZone: undefined as unknown as string,
+      });
+      vi.spyOn(Date.prototype, "getTimezoneOffset").mockImplementation(
+        function (this: Date) {
+          return this.getTime() === june.getTime() ? 240 : 300;
+        },
+      );
+      try {
+        // Times either side of a clock change: the offset at now.
+        expect(zoneLabel([january, june], winter)).toBe("GMT\u22125");
+        expect(zoneLabel([june], winter)).toBe("GMT\u22124");
+        expect(zoneLabel([], winter)).toBe("GMT\u22125");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("reads the device's own zone when none is given", () => {
+      vi.spyOn(
+        Intl.DateTimeFormat.prototype,
+        "resolvedOptions",
+      ).mockReturnValue({
+        ...new Intl.DateTimeFormat().resolvedOptions(),
+        timeZone: "America/New_York",
+      });
+      vi.spyOn(Date.prototype, "getTimezoneOffset").mockImplementation(
+        function (this: Date) {
+          return this.getTime() === june.getTime() ? 240 : 300;
+        },
+      );
+      try {
+        expect(zoneLabel([june], winter)).toBe("New York (GMT\u22124)");
+        expect(zoneLabel([january, june], winter)).toBe("New York");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
   });
 
   describe("on an engine that splits a zone name's offset off", () => {
@@ -303,10 +410,10 @@ describe("zoneLabel", () => {
     afterEach(() => vi.restoreAllMocks());
 
     it("still names the offset of a given zone", () => {
-      expect(zoneLabel(winter, "America/New_York")).toBe(
+      expect(zoneLabel([], winter, "America/New_York")).toBe(
         "New York (GMT\u22125)",
       );
-      expect(zoneLabel(winter, "Asia/Tokyo")).toBe("Tokyo (GMT+9)");
+      expect(zoneLabel([], winter, "Asia/Tokyo")).toBe("Tokyo (GMT+9)");
     });
 
     it("still names the device's own offset", () => {
@@ -318,7 +425,7 @@ describe("zoneLabel", () => {
         timeZone: "America/New_York",
       });
       vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(300);
-      expect(zoneLabel(winter)).toBe("New York (GMT\u22125)");
+      expect(zoneLabel([], winter)).toBe("New York (GMT\u22125)");
     });
   });
 });

@@ -212,24 +212,37 @@ export function slotPhrase(
 }
 
 // The reader's time zone as a time poll names it: the place in the
-// zone's name and its offset now, "New York (GMT−5)", "Kolkata
-// (GMT+5:30)", "London (GMT+0)"; a zone with no place (UTC, Etc/GMT+5)
-// by its offset alone, "UTC", "GMT−5". timeZone is the device's unless
-// given. The offset is worked out, never read from a formatted zone name:
+// zone's name and the offset its times are at, "New York (GMT−4)",
+// "Kolkata (GMT+5:30)", "London (GMT+0)"; the place alone, "New York",
+// when the times sit either side of a clock change; the offset at now
+// while there are no times. A zone with no place (UTC, Etc/GMT+5) goes by
+// its offset alone, "UTC", "GMT−5"; a runtime with no zone name at all
+// by its offset at the times, or at now when they differ, never by
+// nothing. timeZone is the device's unless given. The offset is worked
+// out, never read from a formatted zone name:
 // engines split "GMT-5" into parts differently (iOS's gives "GMT" as the
 // zone name and the "-5" as plain text).
-export function zoneLabel(now: Date = new Date(), timeZone?: string): string {
+export function zoneLabel(
+  times: readonly Date[],
+  now: Date = new Date(),
+  timeZone?: string,
+): string {
   let zone = timeZone ?? "";
   try {
     zone ||= Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
   } catch {
     // A runtime without zone names: the offset alone, from the clock.
   }
-  const offset = offsetText(offsetMinutes(now, timeZone));
   if (/^(Etc\/)?(UTC|GMT|UCT|Universal|Zulu)$/.test(zone)) return "UTC";
-  if (!zone.includes("/") || zone.startsWith("Etc/")) return offset;
+  const offsets = new Set(
+    (times.length > 0 ? times : [now]).map((at) => offsetMinutes(at, timeZone)),
+  );
+  const [first] = offsets;
+  const offset = offsets.size === 1 ? offsetText(first) : "";
+  if (!zone.includes("/") || zone.startsWith("Etc/"))
+    return offset || zone || offsetText(offsetMinutes(now, timeZone));
   const place = (zone.split("/").pop() ?? "").replace(/_/g, " ");
-  return `${place} (${offset})`;
+  return offset ? `${place} (${offset})` : place;
 }
 
 // How far ahead of UTC a zone's clock is at now, in minutes: the device's
