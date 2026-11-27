@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	chatv1 "github.com/getstoop/stoop/gen/stoop/chat/v1"
 	"github.com/getstoop/stoop/internal/authctx"
@@ -208,6 +210,95 @@ func TestPollOutcomes(t *testing.T) {
 		if len(outcome.winners) == 0 && winners != "[]" {
 			t.Errorf("%s: stored winners = %s, want []", outcome.name, winners)
 		}
+	}
+}
+
+// A time poll closes as any poll does, and each winner carries its time:
+// the one with the most votes, or every one tied, earliest first. The
+// closed poll keeps its times, and the closing row stores them. A text
+// poll's winner stores none.
+func TestCloseTimePoll(t *testing.T) {
+	fixture := newSystemRows(t)
+	ctx := context.Background()
+	base := time.Now().UTC().Truncate(time.Minute)
+	first, second, third := base.Add(24*time.Hour), base.Add(48*time.Hour), base.Add(72*time.Hour)
+	ask := func(question string) *chatv1.Message {
+		return fixture.poll(fixture.ada, &chatv1.CreatePollRequest{
+			Question: question, Multiple: true, Times: stamps(third, first, second),
+		})
+	}
+	storedWinners := func(pollID string) string {
+		t.Helper()
+		var winners string
+		if err := fixture.pool.QueryRow(ctx, `SELECT data->>'winners' FROM messages WHERE id = $1`, fixture.closingRowOf(pollID).ID).Scan(&winners); err != nil {
+			t.Fatal(err)
+		}
+		return winners
+	}
+
+	clear := ask("One winner?")
+	fixture.voted(fixture.ada, clear.Id, 2)
+	fixture.voted(fixture.bea, clear.Id, 2, 3)
+	fixture.voted(fixture.cat, clear.Id, 1)
+	answered, err := fixture.closePoll(fixture.ada, clear.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The poll's data was decoded and written back: its times are intact.
+	closed := answered.Event.GetPoll()
+	if closed.GetClosedAt() == nil || len(closed.GetOptions()) != 3 {
+		t.Fatalf("the closed poll = %v, want it closed with its three options", closed)
+	}
+	for index, want := range []time.Time{first, second, third} {
+		if option := closed.Options[index]; option.Id != int32(index+1) || option.Text != "" || !proto.Equal(option.At, timestamppb.New(want)) {
+			t.Errorf("closed option %d = %v, want id %d at %s", index, option, index+1, want)
+		}
+	}
+	var options string
+	if err := fixture.pool.QueryRow(ctx, `SELECT data->>'options' FROM messages WHERE id = $1`, clear.Id).Scan(&options); err != nil {
+		t.Fatal(err)
+	}
+	var storedOptions []map[string]any
+	if err := json.Unmarshal([]byte(options), &storedOptions); err != nil {
+		t.Fatal(err)
+	}
+	if len(storedOptions) != 3 || storedOptions[0]["at"] != first.Format(time.RFC3339) || storedOptions[2]["at"] != third.Format(time.RFC3339) {
+		t.Errorf("stored options after the close = %s, want each still with its time", options)
+	}
+	want := &chatv1.PollClosed{
+		Question: "One winner?", VoterCount: 3,
+		Winners: []*chatv1.PollWinner{{Votes: 2, At: timestamppb.New(second)}},
+	}
+	if got := fixture.load(fixture.closingRowOf(clear.Id).ID).Event.GetPollClosed(); !proto.Equal(got, want) {
+		t.Errorf("outcome = %v, want %v", got, want)
+	}
+	var winners []map[string]any
+	if err := json.Unmarshal([]byte(storedWinners(clear.Id)), &winners); err != nil {
+		t.Fatal(err)
+	}
+	wantStored := []map[string]any{{"text": "", "votes": float64(2), "at": second.Format(time.RFC3339)}}
+	if !reflect.DeepEqual(winners, wantStored) {
+		t.Errorf("stored winners = %v, want %v", winners, wantStored)
+	}
+
+	tied := ask("A tie?")
+	fixture.voted(fixture.ada, tied.Id, 3, 1)
+	fixture.voted(fixture.bea, tied.Id, 1, 3)
+	fixture.voted(fixture.cat, tied.Id, 2)
+	fixture.closing(fixture.ada, tied)
+	want = &chatv1.PollClosed{
+		Question: "A tie?", VoterCount: 3,
+		Winners: []*chatv1.PollWinner{{Votes: 2, At: timestamppb.New(first)}, {Votes: 2, At: timestamppb.New(third)}},
+	}
+	if got := fixture.load(fixture.closingRowOf(tied.Id).ID).Event.GetPollClosed(); !proto.Equal(got, want) {
+		t.Errorf("a tie's outcome = %v, want %v", got, want)
+	}
+
+	text := fixture.poll(fixture.ada, &chatv1.CreatePollRequest{Question: "Friday?", Options: yesNo})
+	fixture.voted(fixture.bea, text.Id, 1)
+	fixture.closing(fixture.ada, text)
+	if got := storedWinners(text.Id); got != `[{"text": "Yes", "votes": 1}]` {
+		t.Errorf("a text poll's stored winners = %s, want them with no time", got)
 	}
 }
 

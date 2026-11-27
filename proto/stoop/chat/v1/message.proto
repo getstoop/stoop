@@ -185,7 +185,8 @@ message PostPolicyChanged {
 // docs/architecture/messaging.md → Polls.
 message Poll {
   string question = 1;
-  // 2 to 10, in the order the author gave them.
+  // 2 to 10: text options in the order the author gave them, times
+  // earliest first. A poll is all text or all times.
   repeated PollOption options = 2;
   // A person may choose several options; otherwise one.
   bool multiple = 3;
@@ -198,13 +199,17 @@ message Poll {
 }
 
 message PollOption {
-  // 1 to 10, given in order when the poll was made and never reused: what
-  // a vote names.
+  // 1 to 10, given in the options' order when the poll was made and never
+  // reused: what a vote names.
   int32 id = 1;
+  // Empty on a time option.
   string text = 2;
   // Who chose it, in the order they voted, each as they are now. Someone
   // who has left the channel since is still named.
   repeated MessageAuthor voters = 3;
+  // Set on a time option: the instant it offers, a whole minute. A client
+  // shows it in the reader's zone, and tells a time poll by it being set.
+  google.protobuf.Timestamp at = 4;
 }
 
 // PollClosed: the author closed the poll in Message.reference. The
@@ -219,8 +224,11 @@ message PollClosed {
 }
 
 message PollWinner {
+  // Empty on a time option.
   string text = 1;
   int32 votes = 2;
+  // Set when the winner is a time option: PollOption.at.
+  google.protobuf.Timestamp at = 3;
 }
 
 // Reminder: the author set a reminder for this channel and its time has
