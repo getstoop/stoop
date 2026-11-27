@@ -121,8 +121,16 @@
    rests where it always did, and the pill keeps its place. A thread's
    list has no typing line and ends above its composer as before. */
 .message-list-wrap:has(+ .typing-indicator) {
-  /* off-scale: the typing line's 22px and 12px of the composer's box */
+  /* off-scale: the typing line (about 22px with words in it) and 12px
+     of the composer's box */
   margin-bottom: -34px;
+}
+
+/* A row scrolled to, or tabbed into, stops clear of what covers the
+   list's last 34px (MessageList keeps the same number for its own
+   scrolls: UNDER_COMPOSER). */
+.message-list-wrap:has(+ .typing-indicator) > .message-list {
+  scroll-padding-bottom: 34px;
 }
 
 .message-list-wrap:has(+ .typing-indicator) .message-list-foot {
@@ -147,10 +155,6 @@
   padding: 0 4px;
   border-radius: var(--radius-sm);
   background: var(--surface);
-}
-
-.jump-latest {
-  bottom: 24px;
 }
 
 .jump-latest {

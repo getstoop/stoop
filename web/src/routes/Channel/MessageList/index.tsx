@@ -75,6 +75,9 @@ import { useRowHandlers } from "./useRowHandlers";
 // Rows rendered beyond the visible ones at each end, so a scroll has
 // something to show before the next render.
 const OVERSCAN = 8;
+// How far a channel's list runs on behind the typing line and the
+// composer's box (styles/history.css keeps the same number).
+const UNDER_COMPOSER = 34;
 // Within this many rows of the view's end, the next page is asked for.
 const EDGE_LEAD = 4;
 // Within this of the bottom counts as at it: arrivals follow, the pill
@@ -344,6 +347,9 @@ export function MessageList({
     ),
     getItemKey: useCallback((index: number) => items[index].key, [items]),
     overscan: OVERSCAN,
+    // A channel's list runs on behind its composer, so a row scrolled to
+    // stops short of that. A thread's ends above its composer.
+    scrollPaddingEnd: threadRootId ? 0 : UNDER_COMPOSER,
     // The edited row stays mounted wherever the view is: the editor holds
     // the draft, which unmounting beyond the overscan would lose.
     rangeExtractor: useCallback(

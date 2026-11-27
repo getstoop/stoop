@@ -638,7 +638,10 @@ window" is what the view's range holds.
   Dividers are rows beside the messages, never wrappers round them
   (`.new-divider + *` is still the message it introduces). The head and
   foot carry the list's top and bottom padding, so the body's height is
-  the rows' alone, and a divider's spacing is padding in this list
+  the rows' alone (in a channel the list runs on 34px behind the typing
+  line and the composer's box, so rows scroll away behind the composer;
+  the foot's padding grows by the same 34px and a scrolled-to row stops
+  short of it: `styles/history.css`, `UNDER_COMPOSER`), and a divider's spacing is padding in this list
   (`styles/virtual-list.css`), since a row's measured height is its border
   box. Rows are keyed by message id, so a page prepended keeps every
   measured height; a row that grows later (an image arriving, a link
