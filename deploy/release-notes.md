@@ -11,12 +11,11 @@ under the Functional Source License (FSL-1.1-ALv2), with getstoop LLC as
 licensor, where 0.23.0 and earlier were Apache-2.0. You can run it,
 change it and share it for any purpose except offering it to others in a
 commercial product or service that competes with Stoop, or with a
-service the project runs on it. Running it for your own community or
-organisation is what it is for and is unaffected. The reason is to keep
-Stoop from being repackaged and sold. Each release becomes Apache-2.0
-two years after it is published. The protocol definitions in `proto/`
-stay Apache-2.0, so anyone can build a client. Stoop 0.23.0 and earlier
-stay Apache-2.0. Contributions are licensed to getstoop LLC under
+service the project runs on it. The reason is to keep Stoop from being
+repackaged and sold. Each release becomes Apache-2.0 two years after it
+is published. The protocol definitions in `proto/` are Apache-2.0
+today, so anyone can build a client. Stoop 0.23.0 and earlier stay
+Apache-2.0. Contributions are licensed to getstoop LLC under
 Apache-2.0; `CONTRIBUTING.md` says how.
 
 **What's in it.**
@@ -31,8 +30,9 @@ Apache-2.0; `CONTRIBUTING.md` says how.
   changing a vote, closing, pinning, deleting, and who it tells.
 - **Times in each reader's zone.** A time is stored as an instant and
   nothing about a zone is kept. Each person sees every time in their
-  own device's zone, with its full date, earliest first, and a line on
-  the card names that zone. The line gives the offset when all the
+  own device's zone, with its weekday and date (and the year when it is
+  not this year), earliest first, and a line on the card names that
+  zone. The line gives the offset when all the
   poll's times share one ("New York (GMT−5)") and the name alone when
   they fall on both sides of a clock change.
 - **A time that has passed** stays on the card, marked "Passed", and
@@ -55,7 +55,8 @@ Apache-2.0; `CONTRIBUTING.md` says how.
   know a time option. It shows a time poll's options with no words, and
   if a time poll is closed while 0.23.0 runs, the poll is written back
   without its times: they are gone for good, and returning to 0.24.0
-  does not bring them back. Votes are kept. Time polls that are not
+  does not bring them back. The closing line it posts names no winner,
+  then or later. Votes are kept. Time polls that are not
   closed while 0.23.0 runs come back whole with 0.24.0. If you roll
   back, close no time poll until you are on 0.24.0 again.
 - **The server's clock decides whether a time is ahead.** The app turns
@@ -74,7 +75,9 @@ Apache-2.0; `CONTRIBUTING.md` says how.
   question and no times: the server words it and does not know the
   reader's zone. Search finds a time poll by its question only.
 - **The mobile app** built from this release needs a server of 0.24.0
-  or newer and refuses to add an older one.
+  or newer and refuses to add an older one. An app already on a server
+  that is then rolled back keeps working, but Find a time is refused
+  there.
 - **No dependency moves** in the server, the web app or the mobile app.
   The web picker is Stoop's own code.
 - **The desktop app** is not told to update by this release. The bridge
