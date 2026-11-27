@@ -236,9 +236,10 @@ import a screen; the screens themselves live in `src/screens`, so
 - Attach (the + in the pill or the card) puts the keyboard away and
   opens the app's own sheet (`src/screens/Channel/AttachSheet.tsx`),
   drawn as the message menu's is, with Photo library, Camera and Files,
-  and under a rule Poll, in a channel's or a conversation's composer
-  (never a thread's; nor where the reader can't post, which has no
-  composer). Poll opens the poll's form once the sheet has gone (below).
+  and under a rule Poll, Find a time and Reminder, in a channel's or a
+  conversation's composer (never a thread's; nor where the reader can't
+  post, which has no composer). Each opens its form once the sheet has
+  gone (below).
   Each opens its system picker (`src/screens/Channel/pickers.ts`;
   `expo-image-picker` and `expo-document-picker`, native modules, so a
   build on the phone needs `make mobile-ios` again) once the sheet's
@@ -288,11 +289,12 @@ import a screen; the screens themselves live in `src/screens`, so
   as the mention list is (`useCommandQuery`, `CommandList.tsx`;
   [messaging.md](../docs/architecture/messaging.md#slash-commands)):
   touch only, no row chosen ahead, and shut while a @handle or #name is
-  typed. A tap on `/poll` or `/remind`, or Send on one and its words,
-  sends nothing: the card goes down at once and, once the keyboard has
-  gone (`afterKeyboard.ts`), its form opens as from Poll or Reminder in
-  the attach sheet, the poll's question filled and the first option
-  taking the caret, or the reminder's text filled (dropped instead if
+  typed. A tap on `/poll`, `/when` or `/remind`, or Send on one and its
+  words, sends nothing: the card goes down at once and, once the
+  keyboard has gone (`afterKeyboard.ts`), its form opens as from Poll,
+  Find a time or Reminder in the attach sheet, the poll's question
+  filled and the first option taking the caret, the time poll's question
+  filled, or the reminder's text filled (dropped instead if
   the reader has moved on meanwhile: Attach tapped, a menu, a sheet,
   the viewer or another screen opened). The words leave the field for
   good, and a send's old refusal with them, while files and a quote
@@ -892,8 +894,40 @@ channels or alerts lists stale (`touchesConversations`,
 `eventSpaceId`, `touchesAlerts`), and a search result shows a poll as
 its preview line, "Poll: " and the question as typed.
 
+A time poll ("Find a time") is a poll whose options are times
+(messaging.md → Polls). Find a time in the attach sheet, between Poll
+and Reminder, or `/when` in the composer opens `TimePollForm.tsx`, a
+sheet drawn as the poll's form: "Find a time" and Cancel, the question
+(taking the caret unless `/when` filled it), one time or several
+directly under it (`PollChoice.tsx`, shared with the poll's form;
+several to start), then "Times" with "N of 10", a row per time with its
+date and time fields and a remove button (off at two), Add time (off at
+ten), and the line naming the reader's zone ("Times are in your time
+zone: New York (GMT−5). Everyone sees them in their own.",
+`zoneLabel`), all in `TimePollSlots.tsx`; then Post poll on the strip
+the poll's form has. Each row's fields are the reminder's
+(`ReminderDateTime.tsx`, `compact`): the system's pickers, bounded by
+day from today to a year ahead (`slotBounds`); a row shown empty opens
+nothing by itself, and on iOS only one picker is open across the rows,
+opening another closing the one before; on Android each is the
+system's dialog. The state and the rules are `core/timePollForm`,
+shared with web: a row this device's clock reads as gone by, more than
+a year away or the same minute as an earlier one says so under it,
+judged again every 15 seconds and once more as Post is pressed. The
+request sends each picked time as an instant by the device's zone rules
+(`CreatePoll` `times`, never with `options`: `createTimePoll` in
+`api/polls.ts` and the channel engine); posting, Cancel and refusals are
+as on the poll's form. The card takes a calendar for its mark, says
+"Your time zone: …" under its kind line, and words each option as its
+time in the reader's zone and locale (`pollResults` `label`), in its
+screen reader label, the votes sheet (`optionLabel`) and the "Voted
+for …" announcement too. A time gone by while the poll is open is
+dimmed and badged Passed (", passed" to a screen reader), and still
+takes votes; that is worked out as the card draws, with no timer. The
+closing row names a winning time with `slotPhrase`, shared with web.
+
 A reminder ([messaging.md](../docs/architecture/messaging.md#reminders))
-is set from Reminder in the attach sheet, under Poll, or `/remind` in
+is set from Reminder in the attach sheet, under Find a time, or `/remind` in
 the composer (above), which opens `ReminderForm.tsx`, a sheet drawn as
 the poll's: "Set a reminder" and Cancel, where it posts, the text (the
 words after `/remind`, or empty and taking the caret), and When
@@ -1799,8 +1833,9 @@ phone is the phone.
 
 The check follows the desktop app's (`docs/architecture/desktop.md` →
 `GET /version`): the server must answer as Stoop and be at least
-`MIN_SERVER_VERSION` (`src/api/probe.ts`), now 0.23.0, the release that
-carries polls. A dev build reports `dev`, which always passes.
+`MIN_SERVER_VERSION` (`src/api/probe.ts`), now 0.24.0, the release that
+carries time polls (Find a time). A dev build reports `dev`, which always
+passes.
 
 ## Signing for iOS
 

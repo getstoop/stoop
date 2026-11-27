@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   dayAndTime,
   dayLabel,
@@ -261,5 +261,64 @@ describe("zoneLabel", () => {
     expect(zoneLabel(winter, "Etc/GMT-3")).toBe("GMT+3");
     expect(zoneLabel(winter, "UTC")).toBe("UTC");
     expect(zoneLabel(winter, "Etc/UTC")).toBe("UTC");
+  });
+
+  it("writes a behind half-hour offset and the furthest ahead", () => {
+    expect(zoneLabel(winter, "America/St_Johns")).toBe(
+      "St Johns (GMT\u22123:30)",
+    );
+    expect(zoneLabel(summer, "America/St_Johns")).toBe(
+      "St Johns (GMT\u22122:30)",
+    );
+    // Southern summer in November: thirteen hours ahead.
+    expect(zoneLabel(winter, "Pacific/Auckland")).toBe("Auckland (GMT+13)");
+    expect(zoneLabel(winter, "Pacific/Kiritimati")).toBe("Kiritimati (GMT+14)");
+    expect(zoneLabel(winter, "Europe/London")).toBe("London (GMT+0)");
+  });
+
+  describe("on an engine that splits a zone name's offset off", () => {
+    // iOS's engine words shortOffset as "GMT" with the "-5" as plain
+    // text; the label must not lean on how a zone name is split.
+    const original = Intl.DateTimeFormat.prototype.formatToParts;
+    beforeEach(() => {
+      vi.spyOn(
+        Intl.DateTimeFormat.prototype,
+        "formatToParts",
+      ).mockImplementation(function (
+        this: Intl.DateTimeFormat,
+        date?: Date | number,
+      ) {
+        const parts = original.call(this, date);
+        if (!this.resolvedOptions().timeZoneName) return parts;
+        return parts.flatMap((part) =>
+          part.type === "timeZoneName"
+            ? [
+                { type: "timeZoneName", value: "GMT" },
+                { type: "literal", value: part.value.replace("GMT", "") },
+              ]
+            : [part],
+        );
+      });
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it("still names the offset of a given zone", () => {
+      expect(zoneLabel(winter, "America/New_York")).toBe(
+        "New York (GMT\u22125)",
+      );
+      expect(zoneLabel(winter, "Asia/Tokyo")).toBe("Tokyo (GMT+9)");
+    });
+
+    it("still names the device's own offset", () => {
+      vi.spyOn(
+        Intl.DateTimeFormat.prototype,
+        "resolvedOptions",
+      ).mockReturnValue({
+        ...new Intl.DateTimeFormat().resolvedOptions(),
+        timeZone: "America/New_York",
+      });
+      vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(300);
+      expect(zoneLabel(winter)).toBe("New York (GMT\u22125)");
+    });
   });
 });

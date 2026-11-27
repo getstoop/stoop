@@ -1,4 +1,4 @@
-import { mySelection, nextSelection, pollOf } from "@stoop/core/polls";
+import { mySelection, nextSelection, optionLabel, pollOf } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useSyncExternalStore } from "react";
 import { AccessibilityInfo } from "react-native";
@@ -48,7 +48,8 @@ export async function pressPollOption(
   const poll = pollOf(message);
   if (!poll || pending.has(message.id)) return;
   const next = nextSelection(poll, mySelection(poll, myUserId), optionId);
-  const text = poll.options.find((option) => option.id === optionId)?.text ?? "";
+  const pressed = poll.options.find((option) => option.id === optionId);
+  const text = pressed ? optionLabel(pressed) : "";
   setPending(message.id, optionId);
   try {
     await vote(message, next);

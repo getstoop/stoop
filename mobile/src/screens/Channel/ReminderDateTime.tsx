@@ -3,7 +3,7 @@ import DateTimePicker, {
   type DateTimePickerChangeEvent,
 } from "@react-native-community/datetimepicker";
 import { localInputValue, parseLocalInput } from "@stoop/core/reminderForm";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Keyboard, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { type Theme, tokens, useTheme } from "../../theme";
@@ -22,6 +22,13 @@ import { type Theme, tokens, useTheme } from "../../theme";
 // date's picker is bounded by `bounds` (customBounds, a day wider than
 // the server's own limits); the time's has no bounds, which would
 // otherwise be read against a date it does not show.
+//
+// A time poll's form (TimePollSlots) has one pair per time, `compact`:
+// the date without its year (unless it is another year's), the time
+// with no mark and a fixed width, the row's remove button (`after`)
+// beside them. There, a pair shown empty opens nothing by itself
+// (`openAtStart`), and which picker is open is the form's (`picker`), so
+// that on iOS only one is open across all its times.
 export default function ReminderDateTime({
   custom,
   bounds,
@@ -29,6 +36,13 @@ export default function ReminderDateTime({
   invalid,
   onCustom,
   onPickerShown,
+  testID = "reminder",
+  name,
+  openAtStart = true,
+  compact = false,
+  picker,
+  after,
+  onHalf,
 }: {
   // The form's value, "2026-12-02T09:00", or "" for none yet.
   custom: string;
@@ -39,6 +53,20 @@ export default function ReminderDateTime({
   onCustom: (value: string) => void;
   // iOS's picker has opened in the sheet, for the sheet to bring it into view.
   onPickerShown: () => void;
+  // The fields' test ids are this with "-date" and "-time".
+  testID?: string;
+  // What a screen reader hears before each field's own name ("Time 2").
+  name?: string;
+  // Shown with nothing picked, the date's picker opens at once.
+  openAtStart?: boolean;
+  compact?: boolean;
+  // iOS's open picker held by the form, for one across several pairs.
+  picker?: { open: PickerMode | null; onOpen: (mode: PickerMode | null) => void };
+  // Beside the fields, at the row's end.
+  after?: ReactNode;
+  // Whether one of the two is picked and not the other: a time poll's
+  // row says so (the value stays "" until both are).
+  onHalf?: (half: boolean) => void;
 }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
@@ -49,7 +77,9 @@ export default function ReminderDateTime({
   // The parts as last taken, for a dialog's answer, which comes to the
   // closure of the render that opened it (Android's date, then its time).
   const latest = useRef(parts);
-  const [open, setOpen] = useState<"date" | "time" | null>(null);
+  const [ownOpen, setOwnOpen] = useState<PickerMode | null>(null);
+  const open = picker ? picker.open : ownOpen;
+  const setOpen = picker ? picker.onOpen : setOwnOpen;
   const ios = Platform.OS === "ios";
   // With large text the fields go one above the other, and iOS's date
   // picker is the wheels, since its calendar no longer fits the sheet's
@@ -61,6 +91,7 @@ export default function ReminderDateTime({
     const next = { ...latest.current, [part]: value };
     latest.current = next;
     setParts(next);
+    onHalf?.(!next.day !== !next.time);
     if (next.day && next.time) {
       onCustom(
         localInputValue(
@@ -109,11 +140,15 @@ export default function ReminderDateTime({
   // Shown with nothing picked: the date's picker at once.
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, as it is first shown.
   useEffect(() => {
-    if (!parts.day) show("date");
+    if (openAtStart && !parts.day) show("date");
   }, []);
+  // Said once as a picker opens, not again as the form draws while it is
+  // open: the caller's function may be new on every draw.
+  const pickerShown = useRef(onPickerShown);
+  pickerShown.current = onPickerShown;
   useEffect(() => {
-    if (open) onPickerShown();
-  }, [open, onPickerShown]);
+    if (open) pickerShown.current();
+  }, [open]);
   // Android's dialogs are the system's: closed with the form.
   useEffect(
     () => () => {
@@ -128,45 +163,67 @@ export default function ReminderDateTime({
     weekday: "short",
     day: "numeric",
     month: "short",
-    year: "numeric",
+    ...(!compact || parts.day.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
   });
+  const named = name ? `${name}, ` : "";
   const timeText = parts.time?.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const shownValue = open === "date" ? (parts.day ?? defaultFor("date")) : (parts.time ?? defaultFor("time"));
 
+  const fields = (
+    <View style={[styles.fields, large && styles.stacked, !!after && styles.beside]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${named}Date, ${dateText ?? "not picked"}`}
+        accessibilityHint={ios ? undefined : "Opens the date picker"}
+        accessibilityState={{ disabled: locked, ...(ios ? { expanded: open === "date" } : {}) }}
+        disabled={locked}
+        testID={`${testID}-date`}
+        onPress={() => show("date")}
+        style={[
+          styles.field,
+          !large && (compact ? styles.dateCompact : styles.date),
+          open === "date" && styles.fieldOpen,
+          invalid && styles.fieldBad,
+        ]}
+      >
+        <CalendarGlyph color={theme.textMuted} />
+        <Text style={[styles.value, !dateText && styles.placeholder]} numberOfLines={1}>
+          {dateText ?? "Date"}
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${named}Time, ${timeText ?? "not picked"}`}
+        accessibilityHint={ios ? undefined : "Opens the time picker"}
+        accessibilityState={{ disabled: locked, ...(ios ? { expanded: open === "time" } : {}) }}
+        disabled={locked}
+        testID={`${testID}-time`}
+        onPress={() => show("time")}
+        style={[
+          styles.field,
+          !large && (compact ? styles.timeCompact : styles.time),
+          open === "time" && styles.fieldOpen,
+          invalid && styles.fieldBad,
+        ]}
+      >
+        {!compact && <ClockGlyph color={theme.textMuted} />}
+        <Text style={[styles.value, !timeText && styles.placeholder]} numberOfLines={1}>
+          {timeText ?? "Time"}
+        </Text>
+      </Pressable>
+    </View>
+  );
+
   return (
     <View style={styles.wrap}>
-      <View style={[styles.fields, large && styles.stacked]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Date, ${dateText ?? "not picked"}`}
-          accessibilityHint={ios ? undefined : "Opens the date picker"}
-          accessibilityState={{ disabled: locked, ...(ios ? { expanded: open === "date" } : {}) }}
-          disabled={locked}
-          testID="reminder-date"
-          onPress={() => show("date")}
-          style={[styles.field, !large && styles.date, open === "date" && styles.fieldOpen, invalid && styles.fieldBad]}
-        >
-          <CalendarGlyph color={theme.textMuted} />
-          <Text style={[styles.value, !dateText && styles.placeholder]} numberOfLines={1}>
-            {dateText ?? "Date"}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Time, ${timeText ?? "not picked"}`}
-          accessibilityHint={ios ? undefined : "Opens the time picker"}
-          accessibilityState={{ disabled: locked, ...(ios ? { expanded: open === "time" } : {}) }}
-          disabled={locked}
-          testID="reminder-time"
-          onPress={() => show("time")}
-          style={[styles.field, !large && styles.time, open === "time" && styles.fieldOpen, invalid && styles.fieldBad]}
-        >
-          <ClockGlyph color={theme.textMuted} />
-          <Text style={[styles.value, !timeText && styles.placeholder]} numberOfLines={1}>
-            {timeText ?? "Time"}
-          </Text>
-        </Pressable>
-      </View>
+      {after ? (
+        <View style={styles.line}>
+          {fields}
+          {after}
+        </View>
+      ) : (
+        fields
+      )}
       {ios && open && !locked && (
         <DateTimePicker
           // One picker at a time, each made afresh for its mode.
@@ -185,6 +242,8 @@ export default function ReminderDateTime({
     </View>
   );
 }
+
+export type PickerMode = "date" | "time";
 
 // The text size from which the fields stack (LARGE_TEXT, above).
 const LARGE_TEXT = 1.35;
@@ -247,6 +306,30 @@ function makeStyles(theme: Theme) {
     time: {
       flexGrow: 1,
       flexBasis: 120,
+    },
+    // A time poll's: the date takes what the time and remove leave.
+    dateCompact: {
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 0,
+    },
+    // A time poll's: as wide as "12:30 PM", wider with larger text, the
+    // text centred.
+    timeCompact: {
+      minWidth: 104,
+      flexShrink: 0,
+      justifyContent: "center",
+    },
+    // The fields and what sits beside them (`after`), on one line.
+    line: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    beside: {
+      flex: 1,
+      minWidth: 0,
+      flexWrap: "nowrap",
     },
     fieldOpen: {
       borderColor: theme.accent,

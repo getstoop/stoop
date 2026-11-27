@@ -212,34 +212,64 @@ export function slotPhrase(
 }
 
 // The reader's time zone as a time poll names it: the place in the
-// zone's name and its offset now, "New York (GMT−5)"; a zone with no
-// place (UTC, Etc/GMT+5) by its offset alone, "UTC", "GMT−5". timeZone
-// is the device's unless given.
+// zone's name and its offset now, "New York (GMT−5)", "Kolkata
+// (GMT+5:30)", "London (GMT+0)"; a zone with no place (UTC, Etc/GMT+5)
+// by its offset alone, "UTC", "GMT−5". timeZone is the device's unless
+// given. The offset is worked out, never read from a formatted zone name:
+// engines split "GMT-5" into parts differently (iOS's gives "GMT" as the
+// zone name and the "-5" as plain text).
 export function zoneLabel(now: Date = new Date(), timeZone?: string): string {
   let zone = timeZone ?? "";
-  let offset = "";
   try {
     zone ||= Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-    offset =
-      new Intl.DateTimeFormat("en-US", {
-        timeZoneName: "shortOffset",
-        timeZone: zone || undefined,
-      })
-        .formatToParts(now)
-        .find((part) => part.type === "timeZoneName")?.value ?? "";
   } catch {
     // A runtime without zone names: the offset alone, from the clock.
   }
-  if (!offset) {
-    const minutes = -now.getTimezoneOffset();
-    const hours = Math.floor(Math.abs(minutes) / 60);
-    const rest = Math.abs(minutes) % 60;
-    offset = `GMT${minutes < 0 ? "-" : "+"}${hours}${rest ? `:${pad(rest)}` : ""}`;
-  }
-  // A typographic minus, as a printed offset has it.
-  offset = offset.replace("-", "\u2212");
+  const offset = offsetText(offsetMinutes(now, timeZone));
   if (/^(Etc\/)?(UTC|GMT|UCT|Universal|Zulu)$/.test(zone)) return "UTC";
   if (!zone.includes("/") || zone.startsWith("Etc/")) return offset;
   const place = (zone.split("/").pop() ?? "").replace(/_/g, " ");
   return `${place} (${offset})`;
+}
+
+// How far ahead of UTC a zone's clock is at now, in minutes: the device's
+// from its own clock, or a named zone's from the wall-clock time it reads
+// at now (plain numeric parts, which every engine gives alike) less now.
+function offsetMinutes(now: Date, timeZone?: string): number {
+  if (!timeZone) return -now.getTimezoneOffset();
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    }).formatToParts(now);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((each) => each.type === type)?.value);
+    const wall = Date.UTC(
+      part("year"),
+      part("month") - 1,
+      part("day"),
+      part("hour") % 24,
+      part("minute"),
+      part("second"),
+    );
+    const whole = Math.floor(now.getTime() / 1000) * 1000;
+    const minutes = Math.round((wall - whole) / 60_000);
+    if (Number.isFinite(minutes)) return minutes;
+  } catch {
+    // A zone the runtime does not know: the device's clock.
+  }
+  return -now.getTimezoneOffset();
+}
+
+// "GMT−5", "GMT+5:30", "GMT+0", with a typographic minus.
+function offsetText(minutes: number): string {
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const rest = Math.abs(minutes) % 60;
+  return `GMT${minutes < 0 ? "\u2212" : "+"}${hours}${rest ? `:${pad(rest)}` : ""}`;
 }

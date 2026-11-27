@@ -1,5 +1,8 @@
 import { create } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { slotLabel } from "@stoop/core/dates";
 import { type Message, MessageSchema } from "@stoop/gen/stoop/chat/v1/message_pb";
+import { AccessibilityInfo } from "react-native";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pendingVote, pressPollOption } from "./pendingVotes";
 
@@ -80,5 +83,28 @@ describe("pressPollOption", () => {
     expect(again.vote).toHaveBeenCalledTimes(1);
     again.settle();
     await next;
+  });
+
+  it("says a time option as its time in the reader's zone", async () => {
+    const at = new Date("2030-01-04T19:00:00Z");
+    const timed = create(MessageSchema, {
+      id: "t1",
+      channelId: "c1",
+      event: {
+        kind: {
+          case: "poll",
+          value: {
+            question: "Game night?",
+            multiple: true,
+            options: [
+              { id: 1, text: "", at: timestampFromDate(at) },
+              { id: 2, text: "", at: timestampFromDate(new Date("2030-01-05T19:00:00Z")) },
+            ],
+          },
+        },
+      },
+    });
+    await pressPollOption(vi.fn(async () => {}), timed, 1, "me");
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith(`Voted for ${slotLabel(at)}`);
   });
 });

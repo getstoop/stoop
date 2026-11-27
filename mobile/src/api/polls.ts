@@ -1,3 +1,4 @@
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { SEND_STALL_MS } from "@stoop/core/drafts";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { chatClient } from "./clients";
@@ -23,6 +24,22 @@ export async function createPoll(
   multiple: boolean,
 ): Promise<Message> {
   const { message } = await chatClient(origin, token).createPoll({ channelId, question, options, multiple });
+  if (!message) throw new Error("The server answered with nothing.");
+  return message;
+}
+
+// A new time poll ("Find a time"): its options are instants
+// (core/timePollForm timePollRequest), sent as times and never alongside
+// options, which the server refuses. Waits as createPoll does (above).
+export async function createTimePoll(
+  origin: string,
+  token: string,
+  channelId: string,
+  question: string,
+  times: Timestamp[],
+  multiple: boolean,
+): Promise<Message> {
+  const { message } = await chatClient(origin, token).createPoll({ channelId, question, times, multiple });
   if (!message) throw new Error("The server answered with nothing.");
   return message;
 }

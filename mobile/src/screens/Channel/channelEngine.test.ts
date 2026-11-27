@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { ChannelHeader } from "@stoop/core/channelHeader";
 import { channelItems } from "@stoop/core/channelLog";
@@ -18,14 +19,19 @@ import {
   loadRoot,
   sendMessage,
 } from "../../api/messages";
-import { closePoll, createPoll, setPollVote } from "../../api/polls";
+import { closePoll, createPoll, createTimePoll, setPollVote } from "../../api/polls";
 import type { SavedServer } from "../../servers";
 import { channelEngine, holdEngine } from "./channelEngine";
 
 vi.mock("react-native", () => ({ AppState: { currentState: "active" } }));
 vi.mock("../../api/files", () => ({ uploadAttachment: vi.fn() }));
 vi.mock("../../api/servers", () => ({ sessionToken: async () => "t1" }));
-vi.mock("../../api/polls", () => ({ createPoll: vi.fn(), setPollVote: vi.fn(), closePoll: vi.fn() }));
+vi.mock("../../api/polls", () => ({
+  createPoll: vi.fn(),
+  createTimePoll: vi.fn(),
+  setPollVote: vi.fn(),
+  closePoll: vi.fn(),
+}));
 vi.mock("../../api/messages", () => ({
   ChannelGone: class extends Error {},
   PAGE: 50,
@@ -478,6 +484,25 @@ describe("creating a poll", () => {
     await engine.createPoll("Saturday?", ["A", "B"], false);
     expect(createPoll).toHaveBeenCalledWith(SERVER.origin, "t1", CHANNEL, "Saturday?", ["A", "B"], false);
     expect(engine.current().log.rows.get(id(30))?.seq).toBe(12n);
+  });
+
+  it("sends a time poll's times, never options, and merges the answer", async () => {
+    const { engine } = await openPollEngine();
+    const made = message(id(31), { seq: 12n, content: "Game night?" });
+    vi.mocked(createTimePoll).mockResolvedValue(made);
+    const times = [timestampFromDate(new Date("2030-01-04T19:00:00Z")), timestampFromDate(new Date("2030-01-05T19:00:00Z"))];
+    await engine.createTimePoll("Game night?", times, true);
+    expect(createTimePoll).toHaveBeenCalledWith(SERVER.origin, "t1", CHANNEL, "Game night?", times, true);
+    expect(createPoll).not.toHaveBeenCalled();
+    expect(engine.current().log.rows.get(id(31))?.seq).toBe(12n);
+  });
+
+  it("passes a time poll's refusal on and adds nothing", async () => {
+    const { engine } = await openPollEngine();
+    const before = engine.current().log;
+    vi.mocked(createTimePoll).mockRejectedValue(new ConnectError("that time has passed", Code.InvalidArgument));
+    await expect(engine.createTimePoll("Game night?", [], true)).rejects.toThrow("that time has passed");
+    expect(engine.current().log.rows).toBe(before.rows);
   });
 
   it("passes a refusal on and adds nothing", async () => {

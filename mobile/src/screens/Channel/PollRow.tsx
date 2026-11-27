@@ -1,11 +1,12 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { isPollOpen, mySelection, outcomeOf, pollOf, pollResults, votersLabel } from "@stoop/core/polls";
+import { zoneLabel } from "@stoop/core/dates";
+import { isPollOpen, isTimePoll, mySelection, outcomeOf, pollOf, pollResults, votersLabel } from "@stoop/core/polls";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { authorName } from "../../api/authors";
 import Avatar from "../../components/Avatar";
-import { LockIcon, PinIcon, PollIcon } from "../../components/Icons";
+import { CalendarIcon, GlobeIcon, LockIcon, PinIcon, PollIcon } from "../../components/Icons";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { messageTime } from "./messageTime";
 import PollOption, { voterName } from "./PollOption";
@@ -39,7 +40,12 @@ const LARGE_TEXT = 1.3;
 // with a Poll actions action. On
 // the menu's card (`card`) it takes no vote, has no View votes, and its
 // time carries its day. A row a jump landed on (`flashed`, a closing
-// row's View) is ringed for a moment, as a message is.
+// row's View) is ringed for a moment, as a message is. A time poll ("Find
+// a time") takes a calendar for its mark, says under the kind line which
+// zone its times are in (the reader's own), and words each option as its
+// time in that zone (core/polls pollResults label); a time gone by while
+// it is open is marked Passed (PollOption), worked out as the card draws,
+// with no timer, so the mark comes with the next redraw.
 export default memo(function PollRow({
   message,
   myUserId,
@@ -68,7 +74,9 @@ export default memo(function PollRow({
   const poll = pollOf(message);
   if (!poll) return null;
   const open = isPollOpen(poll);
-  const results = pollResults(poll, myUserId);
+  const now = new Date();
+  const timed = isTimePoll(poll);
+  const results = pollResults(poll, myUserId, now);
   const outcome = outcomeOf(poll, results);
   const voted = mySelection(poll, myUserId).length > 0;
   const author = message.author;
@@ -141,7 +149,11 @@ export default memo(function PollRow({
             }
           >
             <View style={[styles.glyph, { height: LINE * fontScale }]}>
-              <PollIcon color={theme.textMuted} size={18} />
+              {timed ? (
+                <CalendarIcon color={theme.textMuted} size={18} />
+              ) : (
+                <PollIcon color={theme.textMuted} size={18} />
+              )}
             </View>
             <Text style={styles.question}>{poll.question}</Text>
             <View style={styles.state}>
@@ -159,6 +171,12 @@ export default memo(function PollRow({
           )}
           <Text style={styles.kindText}>{kind}</Text>
         </View>
+        {timed && (
+          <View style={styles.kind}>
+            <GlobeIcon color={theme.textMuted} size={14} />
+            <Text style={styles.kindText}>Your time zone: {zoneLabel(now)}</Text>
+          </View>
+        )}
         <View
           style={styles.options}
           accessibilityRole={open && !poll.multiple ? "radiogroup" : undefined}

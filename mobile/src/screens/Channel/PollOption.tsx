@@ -27,7 +27,10 @@ const FACE = 20;
 // Who chose it is plain text: on mobile the votes sheet lists everyone.
 // The bar moves to a new share as votes change while the card is up (a
 // transition of its scale, so nothing is laid out again); not as it first
-// draws, and not at all under Reduce Motion.
+// draws, and not at all under Reduce Motion. An option is worded by its
+// label (core/polls pollResults): its text, or on a time poll its time in
+// the reader's zone; one whose time has gone by while the poll is open is
+// dimmed and marked Passed, and still takes votes.
 export default function PollOption({
   result,
   open,
@@ -64,6 +67,7 @@ export default function PollOption({
   const line = { height: LINE * fontScale };
   const large = fontScale > LARGE_TEXT;
   const reduced = useReducedMotion();
+  const passed = open && result.passed;
 
   const top = (
     <>
@@ -84,8 +88,13 @@ export default function PollOption({
         <View style={[styles.markLine, line]}>{result.mine && <CheckIcon color={theme.accent} size={16} />}</View>
       )}
       <View style={[styles.words, large && styles.wordsStacked]}>
-        <Text style={[styles.label, large && styles.labelStacked]}>{result.text}</Text>
+        <Text style={[styles.label, large && styles.labelStacked, passed && styles.labelPassed]}>{result.label}</Text>
         <View style={styles.end}>
+          {passed && (
+            <View style={[styles.badge, styles.passed]}>
+              <Text style={[styles.badgeText, styles.passedText]}>Passed</Text>
+            </View>
+          )}
           {badge && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{badge === "winner" ? "Winner" : "Tied"}</Text>
@@ -110,7 +119,7 @@ export default function PollOption({
       {open && onVote ? (
         <Pressable
           accessibilityRole={multiple ? "checkbox" : "radio"}
-          accessibilityLabel={`${result.text}, ${count}${result.mine ? ", your vote" : ""}`}
+          accessibilityLabel={`${result.label}${passed ? ", passed" : ""}, ${count}${result.mine ? ", your vote" : ""}`}
           accessibilityState={{ checked: result.mine, disabled: busy, busy: pending }}
           onPress={() => {
             if (!busy) onVote(result.id);
@@ -125,7 +134,8 @@ export default function PollOption({
           style={styles.top}
           accessible
           accessibilityLabel={[
-            result.text,
+            result.label,
+            passed && "passed",
             count,
             result.mine && "your vote",
             badge === "winner" ? "winner" : badge === "tied" ? "tied" : "",
@@ -310,6 +320,9 @@ function makeStyles(theme: Theme) {
     labelStacked: {
       flex: 0,
     },
+    labelPassed: {
+      color: theme.textMuted,
+    },
     end: {
       flexDirection: "row",
       alignItems: "center",
@@ -321,6 +334,15 @@ function makeStyles(theme: Theme) {
       paddingVertical: 2,
       borderRadius: tokens.radiusPill,
       backgroundColor: theme.accentSoft,
+    },
+    // A time gone by: quieter than the outcome's badge.
+    passed: {
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    passedText: {
+      color: theme.textMuted,
     },
     badgeText: {
       color: theme.text,

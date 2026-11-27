@@ -24,14 +24,14 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { errorText } from "../../api/errors";
-import { CheckIcon } from "../../components/Icons";
 import SheetFrame from "../../components/SheetFrame";
 import { useKeyboardHeight } from "../../hooks/useKeyboardHeight";
 import { useSheet } from "../../hooks/useSheet";
 import { type Theme, tokens, useTheme } from "../../theme";
 import EdgeFade from "./EdgeFade";
+import PollChoice from "./PollChoice";
 import PollFormOptions from "./PollFormOptions";
+import { pollRefusal } from "./pollRefusal";
 
 // What the sheet leaves above itself, over the keyboard, of the channel.
 const ABOVE = 48;
@@ -136,7 +136,7 @@ export default function PollForm({
       dismiss();
     } catch (err) {
       if (!mounted.current || closing()) onLateFailure(err);
-      else setFailure(refusal(err));
+      else setFailure(pollRefusal(err));
     } finally {
       if (mounted.current) setPosting(false);
     }
@@ -235,27 +235,12 @@ export default function PollForm({
                   </Text>
                 )}
               </View>
-              <View style={styles.field}>
-                <Text style={styles.label}>People can choose</Text>
-                <View style={styles.choice} accessibilityRole="radiogroup" accessibilityLabel="People can choose">
-                  <Half
-                    label="One option"
-                    on={!form.multiple}
-                    onPress={() => change((now) => withMultiple(now, false))}
-                    disabled={posting}
-                    styles={styles}
-                    theme={theme}
-                  />
-                  <Half
-                    label="Several options"
-                    on={form.multiple}
-                    onPress={() => change((now) => withMultiple(now, true))}
-                    disabled={posting}
-                    styles={styles}
-                    theme={theme}
-                  />
-                </View>
-              </View>
+              <PollChoice
+                noun="option"
+                multiple={form.multiple}
+                disabled={posting}
+                onChange={(multiple) => change((now) => withMultiple(now, multiple))}
+              />
               <View
                 onLayout={(event) => {
                   optionsAt.current = event.nativeEvent.layout.y;
@@ -302,48 +287,6 @@ export default function PollForm({
         </View>
       </GestureHandlerRootView>
     </Modal>
-  );
-}
-
-// What a refusal says, as web's form words it: "Couldn't post the poll."
-// and the server's words as a sentence, or "Try again." when it gave none.
-function refusal(err: unknown): string {
-  const said = errorText(err).trim();
-  if (!said) return "Couldn't post the poll. Try again.";
-  const sentence = said[0].toUpperCase() + said.slice(1);
-  return `Couldn't post the poll. ${sentence}${/[.!?]$/.test(sentence) ? "" : "."}`;
-}
-
-type Styles = ReturnType<typeof makeStyles>;
-
-// One half of "People can choose", the chosen one raised and ticked.
-function Half({
-  label,
-  on,
-  onPress,
-  disabled,
-  styles,
-  theme,
-}: {
-  label: string;
-  on: boolean;
-  onPress: () => void;
-  disabled: boolean;
-  styles: Styles;
-  theme: Theme;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityLabel={label}
-      accessibilityState={{ checked: on, disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.half, on && styles.halfOn]}
-    >
-      {on && <CheckIcon color={theme.text} size={14} />}
-      <Text style={[styles.halfText, on && styles.halfTextOn]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -449,35 +392,6 @@ function makeStyles(theme: Theme) {
       marginHorizontal: 8,
       marginBottom: 8,
       fontSize: tokens.textUi,
-    },
-    choice: {
-      flexDirection: "row",
-      padding: 2,
-      borderRadius: tokens.radiusMd,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
-    },
-    half: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      minHeight: 44,
-      paddingHorizontal: 12,
-      borderRadius: tokens.radius,
-    },
-    halfOn: {
-      backgroundColor: theme.raised,
-    },
-    halfText: {
-      color: theme.textMuted,
-      fontSize: tokens.textBody,
-      fontWeight: "600",
-    },
-    halfTextOn: {
-      color: theme.text,
     },
     post: {
       minHeight: 48,

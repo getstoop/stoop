@@ -8,6 +8,7 @@ import type { PollRequest } from "@stoop/core/pollForm";
 import { isPollRow, pollPermissions } from "@stoop/core/polls";
 import { type ReminderRequest, reminderPlace, reminderSetText } from "@stoop/core/reminderForm";
 import { isReminderRow, mayDeleteReminder } from "@stoop/core/reminders";
+import type { TimePollRequest } from "@stoop/core/timePollForm";
 import type { Message } from "@stoop/gen/stoop/chat/v1/message_pb";
 import { useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -51,6 +52,7 @@ import ReminderRow from "./ReminderRow";
 import ScreenHeader, { useHeaderClearance, useHeaderReach } from "./ScreenHeader";
 import SystemMenu from "./SystemMenu";
 import SystemRow from "./SystemRow";
+import TimePollForm from "./TimePollForm";
 import type { ChannelEngine } from "./channelEngine";
 import { channelMute } from "./headerActions";
 import { newestToRead, readShown } from "./readPass";
@@ -345,16 +347,22 @@ export default function Channel({
     pushThread(rootId);
   }, [menuFor, pushThread]);
   // The poll's form, from Poll in the attach sheet or /poll in the
-  // composer (with the words after it as its question), held with the
+  // composer (with the words after it as its question), or a time poll's
+  // (`times`), from Find a time or /when, held with the
   // channel and the log it was opened on: it posts there whatever the
   // screen shows by then, and goes when the screen shows another channel,
   // as the menus and the votes sheet do. The reader's own poll is
   // followed as their message is, while the form that posted it is still
   // up; one refused after the form has gone is said over the composer.
-  const [pollFor, setPollFor] = useState<{ channelId: string; engine: ChannelEngine; question: string } | null>(null);
+  const [pollFor, setPollFor] = useState<{
+    channelId: string;
+    engine: ChannelEngine;
+    question: string;
+    times: boolean;
+  } | null>(null);
   if (pollFor && pollFor.channelId !== channelId) setPollFor(null);
   const openPollForm = useCallback(
-    (question = "") => setPollFor({ channelId, engine, question }),
+    (question = "", times = false) => setPollFor({ channelId, engine, question, times }),
     [channelId, engine],
   );
   // The reminder's form, the same way, from Reminder in the attach sheet
@@ -392,6 +400,9 @@ export default function Channel({
         case "poll":
           openPollForm(text);
           break;
+        case "when":
+          openPollForm(text, true);
+          break;
         case "remind":
           openReminderForm(text);
           break;
@@ -404,6 +415,13 @@ export default function Channel({
     ({ question, options, multiple }: PollRequest) => {
       if (!pollFor) return Promise.reject(new Error("The form has gone."));
       return pollFor.engine.createPoll(question, options, multiple);
+    },
+    [pollFor],
+  );
+  const postTimePoll = useCallback(
+    ({ question, times, multiple }: TimePollRequest) => {
+      if (!pollFor) return Promise.reject(new Error("The form has gone."));
+      return pollFor.engine.createTimePoll(question, times, multiple);
     },
     [pollFor],
   );
@@ -796,7 +814,18 @@ export default function Channel({
       </MessageContexts>
       {/* Kept open should posting close meanwhile: the server's refusal
           is then said in it, with what was typed. */}
-      {pollFor && (
+      {pollFor?.times && (
+        <TimePollForm
+          key={pollFor.channelId}
+          channelId={pollFor.channelId}
+          question={pollFor.question}
+          onPost={postTimePoll}
+          onPosted={pollPosted}
+          onLateFailure={pollRefusedLate}
+          onClose={closePollForm}
+        />
+      )}
+      {pollFor && !pollFor.times && (
         <PollForm
           key={pollFor.channelId}
           channelId={pollFor.channelId}

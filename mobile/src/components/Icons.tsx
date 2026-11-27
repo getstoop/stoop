@@ -480,6 +480,36 @@ export function PollIcon({ color, size = 18 }: IconProps) {
   );
 }
 
+// A calendar: a time poll ("Find a time"), as web's CalendarIcon.
+export function CalendarIcon({ color, size = 18 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Path d="M5 6h14v14H5zM5 10h14M9 3v4M15 3v4" />
+    </Stroke>
+  );
+}
+
+// A globe: a time poll's line naming the reader's time zone, as web's
+// GlobeIcon.
+export function GlobeIcon({ color, size = 14 }: IconProps) {
+  return (
+    <Stroke color={color} size={size}>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+    </Stroke>
+  );
+}
+
+// A circle with "!" in it: a field's problem said under it, as web's
+// error line draws it.
+export function AlertIcon({ color, size = 14 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18" />
+    </Svg>
+  );
+}
+
 export function TrashIcon({ color, size = 22 }: IconProps) {
   return (
     <Stroke color={color} size={size}>
