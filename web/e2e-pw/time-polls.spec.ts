@@ -361,3 +361,58 @@ test("a key in an open panel never posts a stale time; passed times", async ({
   ).toBeVisible();
   await expect(text.locator(".poll-option.passed")).toHaveCount(0);
 });
+
+// STOOP-561: a click on the page behind the form, with a panel open,
+// used to close the form too and lose what was typed.
+test("a click outside the form closes an open panel first, then the form", async ({
+  browser,
+}) => {
+  const { tokens } = await seed({ channels: ["general"] });
+  const A = await (
+    await browser.newContext({ timezoneId: "America/New_York" })
+  ).newPage();
+  await signIn(A, tokens.ada);
+  await channelLink(A, "general").click();
+  await expect(A.locator(COMPOSER)).toBeVisible();
+
+  const QUESTION = "Board game night?";
+  const form = A.getByRole("dialog", { name: "Find a time" });
+  const question = form.getByRole("textbox", { name: "Question" });
+  const panel = A.getByRole("dialog", { name: "Pick a date and time" });
+  const first = form.getByRole("button", { name: "Time 1", exact: true });
+  const thursday = await slotFromNow(A, 3, 19);
+  const thursdayLate = await slotFromNow(A, 3, 21);
+  // A point on the dimmed page, clear of the form and the panel.
+  const outside = () => A.mouse.click(5, 5);
+
+  await A.getByRole("button", { name: "Find a time" }).click();
+  await question.fill(QUESTION);
+  await pick(A, first, thursday, "19:00");
+
+  // The panel open and a time typed: the click settles the time and
+  // closes the panel, as a click inside the form does, and no more.
+  await first.click();
+  await expect(panel).toBeVisible();
+  await panel.getByRole("textbox", { name: "Time" }).fill("21:00");
+  await outside();
+  await expect(panel).toHaveCount(0);
+  await expect(form, "the form stays open").toBeVisible();
+  await expect(question, "with what was typed").toHaveValue(QUESTION);
+  await expect(first, "and the typed time taken").toHaveText(
+    await labelIn(A, thursdayLate.ms),
+  );
+
+  // A right-click outside closes the panel and ends in no click; the
+  // form's own buttons still answer the click after it.
+  await first.click();
+  await expect(panel).toBeVisible();
+  await A.mouse.click(5, 5, { button: "right" });
+  await expect(panel).toHaveCount(0);
+  await expect(form).toBeVisible();
+  await form.getByRole("button", { name: "Add time" }).click();
+  await expect(form.getByText("3 of 10")).toBeVisible();
+
+  // With no panel open, a click outside closes the form as before.
+  await outside();
+  await expect(form).toHaveCount(0);
+});
