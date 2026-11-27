@@ -9,9 +9,21 @@ name: Build release
 #
 # A failed build is run again from its run page. Nothing starts on a
 # pushed tag.
+#
+# It can also be started by hand, on main, with the version: for a merge
+# GitHub never linked to its pull request, which the first job then takes
+# for an ordinary merge and skips (0.24.0's did, and running it again
+# asked the same question and got the same answer). The build checks the
+# version against the tree either way.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The merged release candidate's version, like 0.4.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -31,10 +43,19 @@ jobs:
       - id: find
         env:
           GH_TOKEN: ${{ github.token }}
+          BY_HAND: ${{ inputs.version }}
         # GitHub links a merge commit to its pull request a moment after
         # the push, so an empty answer is asked again for up to a minute;
         # 0.8.1's first run asked too soon and skipped the build.
         run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            if [ "$GITHUB_REF" != refs/heads/main ]; then
+              echo "::error::A release is built from main, not from $GITHUB_REF_NAME."
+              exit 1
+            fi
+            echo "version=$BY_HAND" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           head=""
           for try in $(seq 12); do
             head=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
