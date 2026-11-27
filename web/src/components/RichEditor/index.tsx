@@ -4,6 +4,7 @@ import { EditorView } from "prosemirror-view";
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 import type { Format } from "../../api/formatting";
 import { fromMarkdown, toMarkdown } from "../../core/editor/markdown";
+import { atReplace } from "../../core/mentionPicks";
 import type { MentionRef } from "../../core/mentions";
 import { activeFormats, formatCommands } from "./commands";
 import { LinkDialog } from "./LinkDialog";
@@ -33,6 +34,9 @@ export interface RichField {
   format(format: Format): void;
   // Replace the `count` characters before the caret (a picker's query).
   replaceBeforeCaret(count: number, text: string): void;
+  // Type an "@" at the caret (a selection's start), after a space where
+  // it would run into the character before, so the mention list opens.
+  typeAt(): void;
   // The same, with a mention and a space after it.
   mentionBeforeCaret(count: number, mention: MentionRef): void;
   // Whether what is typed at the caret can't be a mention.
@@ -209,6 +213,17 @@ export function RichEditor({
         const { from: pos, $from } = view.state.selection;
         if (count > $from.parentOffset) return;
         view.dispatch(view.state.tr.insertText(text, pos - count, pos));
+        view.focus();
+      },
+      typeAt: () => {
+        const { from: pos, $from } = view.state.selection;
+        const before = $from.parent.textBetween(
+          0,
+          $from.parentOffset,
+          undefined,
+          "\ufffc",
+        );
+        view.dispatch(view.state.tr.insertText(atReplace(before).text, pos));
         view.focus();
       },
       mentionBeforeCaret: (count, mention) => {

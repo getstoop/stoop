@@ -3,6 +3,7 @@ import {
   type DragEvent,
   type FormEvent,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 import { useLinkableChannels } from "../../api/channelLinks";
 import { holdRow, isLive, jumpToLatest } from "../../api/channelLog";
 import { chatClient } from "../../api/clients";
+import { useComposerFormattingStore } from "../../api/composerFormatting";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import {
@@ -154,6 +156,11 @@ export function Composer({
   const commandDismissed = useRef(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<RichField>(null);
+  // The formatting row inside the box: shown or not is the device's
+  // choice, the same for every composer.
+  const formatting = useComposerFormattingStore((s) => s.shown);
+  const setFormatting = useComposerFormattingStore((s) => s.setShown);
+  const formatId = useId();
   const touchKeyboard = useTouchKeyboard();
   // Files picked, dropped, or pasted, uploading as they arrive; sent by id.
   const [pending, setPending] = useState<PendingAttachment[]>([]);
@@ -641,27 +648,38 @@ export function Composer({
             </button>
           </div>
         )}
-        <FormatToolbar
-          active={formats}
-          onFormat={(f) => inputRef.current?.format(f)}
-        />
         <AttachmentStrip
           items={pending}
           error={attachError}
           onRemove={dropPending}
         />
         <div className="composer-row">
-          {/* A press on the field's own ground, beside or above the
-            buttons, goes to the words. */}
+          {/* A press on the box's own ground, between or beside its
+            buttons, goes to the words and keeps the caret. */}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: the editor inside is the control; this only widens its target for a mouse */}
           <div
             className="composer-input"
             onMouseDown={(e) => {
-              if (e.target !== e.currentTarget) return;
+              const on = e.target as HTMLElement;
+              if (on.closest("button, input, .rich-editor")) return;
               e.preventDefault();
               inputRef.current?.focus();
             }}
           >
+            {/* The formatting row, opened and shut by the Aa below. Shut,
+              it is out of the Tab order and a screen reader's way. */}
+            <div
+              id={formatId}
+              className={`composer-format ${formatting ? "open" : ""}`}
+              inert={!formatting}
+            >
+              <div className="composer-format-clip">
+                <FormatToolbar
+                  active={formats}
+                  onFormat={(f) => inputRef.current?.format(f)}
+                />
+              </div>
+            </div>
             <RichEditor
               fieldRef={inputRef}
               onFormats={setFormats}
@@ -703,6 +721,10 @@ export function Composer({
               commands={commandsOffered(place)}
               onCommand={(name) => openForm(name, "", false)}
               onFiles={addFiles}
+              formatting={formatting}
+              formattingId={formatId}
+              onFormatting={setFormatting}
+              onMention={() => inputRef.current?.typeAt()}
             />
           </div>
           {touchKeyboard && (

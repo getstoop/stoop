@@ -17,22 +17,37 @@ const ICONS: Record<CommandName, ReactNode> = {
   remind: <BellIcon size={16} />,
 };
 
-// What can be added to a message, inside the composer's field at its end:
-// the paperclip, and a plus that opens a menu of the commands offered
-// here, each also reachable by typing its name. Where no command is
-// offered (a thread) the plus is not drawn.
+// The row along the bottom of the composer's box: a plus that opens a
+// menu of the commands offered here (each also reachable by typing its
+// name), the paperclip, then what helps with the words: the switch for
+// the formatting row and an @ that opens the mention list. Where no
+// command is offered (a thread) the plus is not drawn. The two that act
+// on the words keep the editor focused (mousedown is cancelled), so the
+// caret stays where it was.
 export function ComposerActions({
   commands,
   onCommand,
   onFiles,
+  formatting,
+  formattingId,
+  onFormatting,
+  onMention,
 }: {
   commands: Command[];
   onCommand: (name: CommandName) => void;
   onFiles: (files: FileList) => void;
+  // Whether the formatting row is shown, and the row's id.
+  formatting: boolean;
+  formattingId: string;
+  onFormatting: (shown: boolean) => void;
+  onMention: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   return (
     <div className="composer-actions">
+      {commands.length > 0 && (
+        <MoreMenu commands={commands} onCommand={onCommand} />
+      )}
       <Tooltip text="Attach files">
         <button
           type="button"
@@ -54,9 +69,31 @@ export function ComposerActions({
         }}
         aria-label="Attach files"
       />
-      {commands.length > 0 && (
-        <MoreMenu commands={commands} onCommand={onCommand} />
-      )}
+      <span className="composer-actions-divider" aria-hidden="true" />
+      <Tooltip text={formatting ? "Hide formatting" : "Show formatting"}>
+        <button
+          type="button"
+          className="icon-button composer-format-toggle"
+          aria-label="Formatting"
+          aria-pressed={formatting}
+          aria-controls={formattingId}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onFormatting(!formatting)}
+        >
+          Aa
+        </button>
+      </Tooltip>
+      <Tooltip text="Mention someone" describes={false}>
+        <button
+          type="button"
+          className="icon-button composer-mention"
+          aria-label="Mention someone"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onMention}
+        >
+          @
+        </button>
+      </Tooltip>
     </div>
   );
 }
@@ -100,7 +137,7 @@ function MoreMenu({
         <button
           type="button"
           ref={buttonRef}
-          className="icon-button"
+          className="icon-button composer-more"
           aria-label="More actions"
           aria-haspopup="menu"
           aria-expanded={open}

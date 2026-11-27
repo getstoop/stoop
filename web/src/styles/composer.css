@@ -105,39 +105,26 @@
   gap: 8px;
 }
 
-/* The formatting row above the field. On a narrow screen its buttons
-   scroll sideways. */
-.composer .format-toolbar {
-  margin-bottom: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-/* The field's box is drawn here rather than on the editor, so the
-   paperclip and the plus (ComposerActions.tsx) sit inside it, at the end
-   of the last line however tall the draft grows. */
+/* The composer's box: the formatting row when it is shown, the words,
+   and along the bottom the row of buttons (ComposerActions.tsx). The box
+   is drawn here rather than on the editor, so all three sit inside it. */
 .composer-input {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--panel);
   cursor: text;
 }
 
-.composer-input .rich-editor {
-  flex: 1;
-  min-width: 0;
-}
-
 .composer-input .rich-editor .rich-editor-content {
-  padding-right: 8px;
+  padding: 12px 16px 6px;
   border: none;
   border-radius: 0;
   background: none;
 }
 
-/* The ring goes round the whole field, buttons included. */
+/* The ring goes round the whole box, buttons included. */
 .composer-input .rich-editor .rich-editor-content:focus-visible {
   outline: none;
 }
@@ -152,12 +139,43 @@
   min-width: 0;
 }
 
-/* The bottom padding centres a button on a one-line draft. */
+/* The formatting row slides open over the words and shut again: a grid
+   row animates between nothing and the row's own height, which a height
+   cannot do without knowing it. */
+.composer-format {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  cursor: default;
+  transition:
+    grid-template-rows var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+.composer-format.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.composer-format-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* On a narrow screen its buttons scroll sideways. The padding leaves
+   room for a button's focus ring inside the clip. */
+.composer-format .format-toolbar {
+  margin-bottom: 0;
+  padding: 6px 8px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
 .composer-actions {
   display: flex;
-  flex: none;
+  align-items: center;
   gap: 2px;
-  padding: 0 8px 8px 0;
+  padding: 0 8px 6px;
   cursor: default;
 }
 
@@ -166,9 +184,42 @@
   height: 28px;
 }
 
-.composer-actions .icon-button[aria-expanded="true"] {
+/* The plus is the one that opens something over the box, so it is drawn
+   as a filled button, set a little apart. */
+.composer-actions .composer-more {
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
   background: var(--raised);
   color: var(--text);
+}
+
+.composer-actions .composer-more:hover,
+.composer-actions .composer-more[aria-expanded="true"] {
+  background: var(--border);
+}
+
+.composer-actions-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+.composer-actions .composer-format-toggle {
+  font-size: var(--text-ui);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: underline;
+}
+
+.composer-actions .composer-format-toggle[aria-pressed="true"] {
+  background: var(--raised);
+  color: var(--accent);
+}
+
+.composer-actions .composer-mention {
+  font-size: var(--text-body);
+  line-height: 1;
 }
 
 .composer-menu-anchor {
@@ -176,10 +227,10 @@
   display: flex;
 }
 
-/* The plus's menu, opening above it and growing to the left. */
+/* The plus's menu, opening above it and growing to the right. */
 .composer-menu {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: calc(100% + 8px);
   z-index: 2;
   display: flex;

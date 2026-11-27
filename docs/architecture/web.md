@@ -767,13 +767,19 @@ window" is what the view's range holds.
   card) a poll is its preview line (`components/PollPreview.tsx`), not
   Markdown.
 
-  The composer's field holds two buttons at its end, on the last line
-  however tall the draft grows (`routes/Channel/ComposerActions.tsx`):
-  the paperclip, and a plus whose menu lists the commands offered here
-  (`commandsOffered` in `core/commands.ts`), each with its icon, its
-  words and what to type for it. The formatting row above the field
-  holds formatting only. A thread's composer is offered no command, so
-  it has the paperclip and no plus.
+  The composer is one box (`.composer-input`): the formatting row when
+  it is shown, the words, and along the bottom a row of buttons
+  (`routes/Channel/ComposerActions.tsx`). That row holds a plus whose
+  menu lists the commands offered here (`commandsOffered` in
+  `core/commands.ts`), each with its icon, its words and what to type
+  for it; the paperclip; then Aa, which opens and shuts the formatting
+  row, and an @ that types an "@" at the caret (`atReplace`, shared with
+  mobile) so the mention list opens. The formatting row starts shut and
+  slides open over the words; whether it is shown is a choice about the
+  device (`api/composerFormatting.ts`, in localStorage), the same for
+  every composer, and shut it is `inert`. The formatting keys work
+  either way. A thread's composer is offered no command, so it has no
+  plus.
 
   A poll is made from Create a poll in the plus's menu, shown wherever
   the composer is (so not where posting is closed, and a blocked
