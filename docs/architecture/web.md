@@ -767,10 +767,18 @@ window" is what the view's range holds.
   card) a poll is its preview line (`components/PollPreview.tsx`), not
   Markdown.
 
-  A poll is made from the composer's poll button, after the paperclip,
-  shown wherever the composer is (so not where posting is closed, and a
-  blocked conversation hears the server's refusal) and never in a
-  thread's composer, since a thread takes no poll, or by typing
+  The composer's field holds two buttons at its end, on the last line
+  however tall the draft grows (`routes/Channel/ComposerActions.tsx`):
+  the paperclip, and a plus whose menu lists the commands offered here
+  (`commandsOffered` in `core/commands.ts`), each with its icon, its
+  words and what to type for it. The formatting row above the field
+  holds formatting only. A thread's composer is offered no command, so
+  it has the paperclip and no plus.
+
+  A poll is made from Create a poll in the plus's menu, shown wherever
+  the composer is (so not where posting is closed, and a blocked
+  conversation hears the server's refusal) and never in a thread's
+  composer, since a thread takes no poll, or by typing
   `/poll` with the question after it, which opens the form with the
   question filled and the first option focused
   ([messaging.md](messaging.md#slash-commands)). It opens
@@ -804,16 +812,16 @@ window" is what the view's range holds.
   second try) and leaves everything as typed; one that arrives after
   the form was closed is a notice. There is no discard confirmation:
   Cancel, Escape and the scrim close it. Closed without posting, a form
-  opened from the poll button returns focus to the button, and one
+  opened from the plus's menu returns focus to the plus, and one
   opened by `/poll` (picked from the command list or sent) returns it to
   the composer's words. A posted poll returns focus to the composer's
-  words however the form was opened. The button and posting leave the
+  words however the form was opened. The menu and posting leave the
   words as they were; `/poll` takes its own words out. Nothing takes
   focus when the form closes because the composer moved to another
   channel.
 
-  A time poll ("Find a time") is made from the Find a time button, a
-  calendar after the poll button and shown where it is, or by typing
+  A time poll ("Find a time") is made from Find a time in the plus's
+  menu, under Create a poll and shown where it is, or by typing
   `/when` with the question after it. It opens
   `routes/Channel/PollForm/TimePollForm.tsx`, the poll form's sibling
   with the same frame, keys, pending and refusal handling (`refusal.ts`
@@ -866,8 +874,9 @@ above the actions. On the
   (`components/ReminderPreview.tsx`); it can't be pinned, so a pin
   never shows one.
 
-  One is set by typing `/remind` with the text after it, the one way in
-  on web ([messaging.md](messaging.md#slash-commands)), which opens
+  One is set from Set a reminder here in the composer's plus menu or by
+  typing `/remind` with the text after it
+  ([messaging.md](messaging.md#slash-commands)), which opens
   `routes/Channel/ReminderForm/` in the `Modal`, beside the composer's
   form as the poll's is, bound to the channel it was opened in and
   closed when the composer moves. Its rules are

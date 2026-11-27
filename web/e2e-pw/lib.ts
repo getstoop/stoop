@@ -257,6 +257,18 @@ export const channelLink = (page: Page, name: string) =>
 // The message box: a rich-text editor, not a textarea.
 export const COMPOSER = ".composer .rich-editor-content";
 
+// The plus inside the channel composer's field, which opens the menu of
+// what can be added (a poll, a time poll, a reminder). A thread's
+// composer has none.
+export const moreActions = (page: Page) =>
+  page.getByRole("button", { name: "More actions", exact: true });
+
+// Picks an entry of that menu by its words ("Create a poll").
+export async function moreAction(page: Page, name: string) {
+  await moreActions(page).click();
+  await page.getByRole("menuitem", { name }).click();
+}
+
 // Pastes text into an editor as a person would. The editor reads pasted
 // text as Markdown, so this is how a spec writes formatting; fill() puts
 // the characters in literally.

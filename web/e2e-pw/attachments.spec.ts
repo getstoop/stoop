@@ -92,7 +92,7 @@ test("attachments: sending, serving, capping and deleting", async ({
 
   // --- image, attachment-only message
   await expect(
-    A.locator(".attach-button"),
+    A.locator(".composer").getByRole("button", { name: "Attach files" }),
     "composer has an attach button",
   ).toHaveCount(1);
   await attach(A, files.pic);

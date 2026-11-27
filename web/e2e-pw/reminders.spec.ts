@@ -3,6 +3,7 @@ import {
   acceptDialog,
   COMPOSER,
   expect,
+  moreAction,
   reminderTimeComes,
   rowByText,
   say,
@@ -168,6 +169,13 @@ test("set, undo, and a reminder posted for the channel", async ({
   await form.getByRole("button", { name: "Cancel" }).click();
   await expect(form).toHaveCount(0);
   await expect(composer, "the command's words are gone").toHaveText("");
+
+  // ---- The plus's menu opens the same form, empty.
+  await moreAction(B, "Set a reminder here");
+  await expect(form, "the menu opens the form").toBeVisible();
+  await expect(text).toHaveValue("");
+  await form.getByRole("button", { name: "Cancel" }).click();
+  await expect(form).toHaveCount(0);
 
   // ---- /remind and words: the form opens with them as the text.
   await composer.click();

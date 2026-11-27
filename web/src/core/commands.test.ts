@@ -26,7 +26,7 @@ const names = (draft: string, place = channel) => {
 };
 
 describe("commandsOffered", () => {
-  it("offers /poll, /when and /remind where the poll button shows", () => {
+  it("offers /poll, /when and /remind in a channel", () => {
     expect(commandsOffered(channel).map((c) => c.name)).toEqual([
       "poll",
       "when",

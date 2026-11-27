@@ -410,18 +410,18 @@ from a send, so its `/name` goes as an ordinary message.
   unknown `/word` is an ordinary message, so a path still sends, and so
   is anything formatted as code. A thread's composer offers no command
   and sends one as typed; editing a message never runs one.
-- **`/poll [question]`** opens the poll form ([Polls](#polls)) where the
-  poll button (on mobile, Poll in the attach sheet) shows, with the
-  question filled and cut to its limit.
+- **`/poll [question]`** opens the poll form ([Polls](#polls)) where
+  Create a poll shows in the menu of the plus inside the composer's
+  field (on mobile, Poll in the attach sheet), with the question filled
+  and cut to its limit.
 - **`/when [question]`** ("Find a time") opens the time poll form
   ([Polls](#polls)) in the same places, with the question filled and
-  cut to its limit; on web the Find a time button beside the poll button
-  opens it too, on mobile Find a time in the attach sheet, between Poll
-  and Reminder.
+  cut to its limit; on web Find a time in the plus's menu opens it too,
+  on mobile Find a time in the attach sheet, between Poll and Reminder.
 - **`/remind [what]`** ("Set a reminder here") opens the reminder form
   ([Reminders](#reminders)) in the same places, with the text filled and
-  cut to its limit. On web it is the only way in; on mobile Reminder in
-  the attach sheet, under Find a time, opens it too.
+  cut to its limit. On web Set a reminder here in the plus's menu opens
+  it too; on mobile Reminder in the attach sheet, under Find a time.
 
 Built: web and mobile.
 
@@ -1356,7 +1356,7 @@ treat both as a message, with no code of their own. The code is
 
 Built: the server side, web and mobile. A poll is created, read with
 its votes, voted on, closed, pinned and deleted over the API. Web
-creates one from the composer's poll button, draws it as a card that
+creates one from the composer's plus menu, draws it as a card that
 votes, closes and deletes, and draws the closing row as a system line
 ([web.md](web.md) → The message list). Mobile creates one from Poll in
 the composer's attach sheet, draws it as a card that votes, with a
@@ -1367,7 +1367,7 @@ press sends, the results and who may do what), `core/pollForm.ts` (the
 form's rules) and the closing row's wording (`systemLine`). The mobile
 app needs a server of 0.24.0 or newer, the release that carries time
 polls. Time polls are built on the server, web and mobile: web creates
-one from its Find a time button or `/when`, mobile from Find a time in
+one from Find a time in the plus's menu or `/when`, mobile from Find a time in
 the attach sheet or `/when`, each picking times on its own pickers (web's
 DateTimeField, mobile's system pickers), and both cards word each time
 in the reader's zone. Both apps share the time poll form's rules

@@ -105,9 +105,107 @@
   gap: 8px;
 }
 
+/* The formatting row above the field. On a narrow screen its buttons
+   scroll sideways. */
+.composer .format-toolbar {
+  margin-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* The field's box is drawn here rather than on the editor, so the
+   paperclip and the plus (ComposerActions.tsx) sit inside it, at the end
+   of the last line however tall the draft grows. */
+.composer-input {
+  display: flex;
+  align-items: flex-end;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  cursor: text;
+}
+
+.composer-input .rich-editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.composer-input .rich-editor .rich-editor-content {
+  padding-right: 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+/* The ring goes round the whole field, buttons included. */
+.composer-input .rich-editor .rich-editor-content:focus-visible {
+  outline: none;
+}
+
+.composer-input:has(.rich-editor-content:focus-visible) {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: var(--focus-offset);
+}
+
 .composer-row .composer-input {
   flex: 1;
   min-width: 0;
+}
+
+/* The bottom padding centres a button on a one-line draft. */
+.composer-actions {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 0 8px 8px 0;
+  cursor: default;
+}
+
+.composer-actions .icon-button {
+  width: 28px;
+  height: 28px;
+}
+
+.composer-actions .icon-button[aria-expanded="true"] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.composer-menu-anchor {
+  position: relative;
+  display: flex;
+}
+
+/* The plus's menu, opening above it and growing to the left. */
+.composer-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  font-size: var(--text-ui);
+  white-space: nowrap;
+}
+
+.composer-menu svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+.composer-menu-label {
+  flex: 1;
+}
+
+/* What to type for the same thing. */
+.composer-menu-command {
+  margin-left: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
 }
 
 button.composer-send {

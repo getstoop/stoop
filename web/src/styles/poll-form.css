@@ -1,23 +1,4 @@
-/* ---- Creating a poll: the composer's poll button and the form
-   (routes/Channel/PollForm). The card a poll is drawn as is polls.css. */
-
-/* Beside the paperclip, and like it kept in reach at the end of the
-   tools when the format buttons scroll on a narrow screen. */
-.composer-tools .poll-button {
-  flex-shrink: 0;
-}
-
-.poll-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-}
-
-.poll-button svg {
-  width: 16px;
-  height: 16px;
-}
+/* ---- Creating a poll: the form (routes/Channel/PollForm). The card a poll is drawn as is polls.css. */
 
 /* A form of a few short lines: narrower than the default panel. */
 .modal:has(> .poll-form) {
