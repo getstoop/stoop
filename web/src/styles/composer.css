@@ -1,12 +1,13 @@
 /* ---- Composer: the editor itself is in rich-editor.css. ---- */
 
 /* Drawn over the message list, which in a channel runs on behind it
-   (history.css): the page's colour from 12px down, so rows show only
-   past the rounded corners of whatever is first in it. */
+   (history.css): the page's colour fades in over the first 12px, so a
+   row passing behind, and the sides of a highlighted one beside the
+   box, fade out instead of ending at an edge. */
 .composer {
   z-index: 2;
   padding: 0 16px 16px;
-  background: linear-gradient(to bottom, transparent 12px, var(--surface) 12px);
+  background: linear-gradient(to bottom, transparent, var(--surface) 12px);
 }
 
 /* ---- Announcement channels ---- */
