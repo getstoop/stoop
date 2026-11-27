@@ -46,6 +46,40 @@ const slotFromNow = (page: Page, days: number, hour: number, minute = 0) =>
     { days, hour, minute },
   );
 
+// A day on the far side of the page's next clock change from `from`, at
+// the same time of day: the first day whose offset differs, and a week
+// on to be well clear of the change. Null in a zone with no change
+// within the year a poll's time may be ahead.
+const slotAcrossChange = (page: Page, from: number) =>
+  page.evaluate((from) => {
+    const near = new Date(from);
+    const dayAfter = (days: number) =>
+      new Date(
+        near.getFullYear(),
+        near.getMonth(),
+        near.getDate() + days,
+        near.getHours(),
+        near.getMinutes(),
+      );
+    for (let days = 1; days <= 330; days++) {
+      if (dayAfter(days).getTimezoneOffset() === near.getTimezoneOffset())
+        continue;
+      const d = dayAfter(days + 7);
+      const pad = (value: number) => String(value).padStart(2, "0");
+      return {
+        month: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`,
+        name: d.toLocaleDateString([], {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+        ms: d.getTime(),
+      };
+    }
+    return null;
+  }, from);
+
 // The offset the page's zone line names for these instants (zoneLabel),
 // " (GMT−5)": the one they share in the page's own zone, or nothing when
 // a clock change falls between them. Whole hours, as the zones here are.
@@ -461,4 +495,58 @@ test("a click outside the form closes an open panel first, then the form", async
   // With no panel open, a click outside closes the form as before.
   await outside();
   await expect(form).toHaveCount(0);
+});
+
+test("the zone line drops its offset when the times straddle a clock change", async ({
+  browser,
+}) => {
+  const { tokens } = await seed({ channels: ["general"] });
+  const A = await (
+    await browser.newContext({ timezoneId: "America/New_York" })
+  ).newPage();
+  const B = await (
+    await browser.newContext({ timezoneId: "Asia/Tokyo" })
+  ).newPage();
+  for (const [page, token] of [
+    [A, tokens.ada],
+    [B, tokens.bea],
+  ] as const) {
+    await signIn(page, token);
+    await channelLink(page, "general").click();
+    await expect(page.locator(COMPOSER)).toBeVisible();
+  }
+
+  const QUESTION = "Now or after the clocks change?";
+  const form = A.getByRole("dialog", { name: "Find a time" });
+  const zoneLine = form.locator(".time-poll-zone");
+  const time = (n: number) =>
+    form.getByRole("button", { name: `Time ${n}`, exact: true });
+  // A few days out, and the same hour past New York's next clock change:
+  // never at the same offset, whatever day this runs.
+  const near = await slotFromNow(A, 3, 19);
+  const far = await slotAcrossChange(A, near.ms);
+  if (!far) throw new Error("New York has a clock change within a year");
+  expect(await offsetIn(A, [near.ms, far.ms])).toBe("");
+  expect(await offsetIn(B, [near.ms, far.ms])).toBe(" (GMT+9)");
+
+  await A.getByRole("button", { name: "Find a time" }).click();
+  await form.getByRole("textbox", { name: "Question" }).fill(QUESTION);
+  await pick(A, time(1), near, "19:00");
+  await expect(zoneLine, "one time: its own offset").toHaveText(
+    `Times are in your time zone: New York${await offsetIn(A, [near.ms])}. Everyone sees them in their own.`,
+  );
+  await pick(A, time(2), far, "19:00");
+  await expect(time(2)).toHaveText(await labelIn(A, far.ms));
+  await expect(zoneLine, "either side of a change: no offset").toHaveText(
+    "Times are in your time zone: New York. Everyone sees them in their own.",
+  );
+  await form.getByRole("button", { name: "Post poll" }).click();
+  await expect(form).toHaveCount(0);
+
+  // The card: no offset where the times straddle a change, the one
+  // offset where the reader's zone has none.
+  const zone = (page: Page) =>
+    page.locator(".poll-row", { hasText: QUESTION }).locator(".poll-zone");
+  await expect(zone(A)).toHaveText("Your time zone: New York");
+  await expect(zone(B)).toHaveText("Your time zone: Tokyo (GMT+9)");
 });

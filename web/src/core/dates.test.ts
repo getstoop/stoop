@@ -338,6 +338,29 @@ describe("zoneLabel", () => {
       expect(zoneLabel([june], winter, "Europe/London")).toBe("London (GMT+1)");
     });
 
+    it("is never blank on a runtime with no zone name", () => {
+      vi.spyOn(
+        Intl.DateTimeFormat.prototype,
+        "resolvedOptions",
+      ).mockReturnValue({
+        ...new Intl.DateTimeFormat().resolvedOptions(),
+        timeZone: undefined as unknown as string,
+      });
+      vi.spyOn(Date.prototype, "getTimezoneOffset").mockImplementation(
+        function (this: Date) {
+          return this.getTime() === june.getTime() ? 240 : 300;
+        },
+      );
+      try {
+        // Times either side of a clock change: the offset at now.
+        expect(zoneLabel([january, june], winter)).toBe("GMT\u22125");
+        expect(zoneLabel([june], winter)).toBe("GMT\u22124");
+        expect(zoneLabel([], winter)).toBe("GMT\u22125");
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
     it("reads the device's own zone when none is given", () => {
       vi.spyOn(
         Intl.DateTimeFormat.prototype,
