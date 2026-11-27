@@ -59,6 +59,17 @@
   object-fit: contain;
 }
 
+/* An image of a known size (--w and --h, its pixels) holds its box before
+   it loads: its own width, or the width it has at the most height, and
+   the height that follows from its shape. */
+.attachment-image img[width][height] {
+  width: min(
+    calc(var(--w) * 1px),
+    calc(var(--md-attachment-image-max-height) * var(--w) / var(--h))
+  );
+  height: auto;
+}
+
 /* Filename, size and a download button over the bottom of an image or a
    video's still: an image's on hover or keyboard focus, a video's always. */
 .attachment-bar {
