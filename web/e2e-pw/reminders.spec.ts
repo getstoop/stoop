@@ -265,6 +265,13 @@ test("set, undo, and a reminder posted for the channel", async ({
   await expect(picked, "and nothing was chosen").toHaveText(
     "Pick a date and time",
   );
+  // A click on the page behind the form closes the panel alone too
+  // (STOOP-561); only the next one would close the form.
+  await picked.click();
+  await expect(panel).toBeVisible();
+  await B.mouse.click(5, 5);
+  await expect(panel).toHaveCount(0);
+  await expect(form, "a click outside leaves the form").toBeVisible();
 
   await pick({ ms: -60 * 60_000 });
   // Said as a caution: this device's clock may be ahead of the

@@ -245,7 +245,12 @@ form's own Cmd or Ctrl with Enter shortcut must stand down while a panel
 is open (`.date-time-panel` in the form), or it would post the value as it
 was before that keystroke settled. `onOpenChange` tells a form when the
 panel opens and closes, so it can wait to announce a problem with the
-value until it is settled. Its
+value until it is settled. A press outside closes the panel; when that
+press is on the scrim of the `Modal` the field sits in, the click it ends
+in is stopped at the window, so the scrim never hears it, and focus goes
+back to the field: the first click on the scrim closes the panel, the
+next the `Modal`. A press anywhere else (a button of the form, a confirm
+raised over it) keeps its click. Its
 rules (the grid, the bounds, reading a typed time, the words) are
 `DateTimeField/calendar.ts`, unit-tested; its sheet is
 `styles/date-time-field.css`.
