@@ -31,7 +31,7 @@ export type Command = {
   offered: (place: CommandPlace) => boolean;
 };
 
-// Where a poll can be made: as for the poll button, a channel's or a
+// Where a poll can be made: as for web's plus menu, a channel's or a
 // conversation's composer, never a thread's. A reminder is offered in the
 // same places: it is always posted at the top level.
 const pollPlace = (place: CommandPlace) => place.canPost && !place.thread;

@@ -257,7 +257,7 @@ function TypingIndicator({
           : "Several people are typing…";
   return (
     <div className="typing-indicator" aria-live="polite">
-      {label}
+      {label && <span>{label}</span>}
     </div>
   );
 }

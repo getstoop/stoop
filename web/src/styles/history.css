@@ -113,6 +113,50 @@
   flex: 1;
 }
 
+/* In a channel the rows scroll away behind the composer rather than
+   being cut off above it: the list runs on under the typing line and
+   12px under the composer's box, whose rounded corners show the rows
+   passing behind (the composer draws itself over them, composer.css).
+   The last row's padding grows by the same 34px, so the newest message
+   rests where it always did, and the pill keeps its place. A thread's
+   list has no typing line and ends above its composer as before. */
+.message-list-wrap:has(+ .typing-indicator) {
+  /* off-scale: the typing line (about 22px with words in it) and 12px
+     of the composer's box */
+  margin-bottom: -34px;
+}
+
+/* A row scrolled to, or tabbed into, stops clear of what covers the
+   list's last 34px (MessageList keeps the same number for its own
+   scrolls: UNDER_COMPOSER). */
+.message-list-wrap:has(+ .typing-indicator) > .message-list {
+  scroll-padding-bottom: 34px;
+}
+
+.message-list-wrap:has(+ .typing-indicator) .message-list-foot {
+  /* off-scale: the foot's 16px and the 34px the list runs on */
+  padding-bottom: 50px;
+}
+
+.message-list-wrap:has(+ .typing-indicator) .jump-latest {
+  bottom: 46px;
+}
+
+/* The typing line is drawn over the rows behind it, its words on a
+   patch of the page's colour so they stay readable. */
+.message-list-wrap + .typing-indicator {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.message-list-wrap + .typing-indicator > span {
+  margin-left: -4px;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
 .jump-latest {
   position: absolute;
   left: 50%;

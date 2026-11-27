@@ -638,7 +638,10 @@ window" is what the view's range holds.
   Dividers are rows beside the messages, never wrappers round them
   (`.new-divider + *` is still the message it introduces). The head and
   foot carry the list's top and bottom padding, so the body's height is
-  the rows' alone, and a divider's spacing is padding in this list
+  the rows' alone (in a channel the list runs on 34px behind the typing
+  line and the composer's box, so rows scroll away behind the composer;
+  the foot's padding grows by the same 34px and a scrolled-to row stops
+  short of it: `styles/history.css`, `UNDER_COMPOSER`), and a divider's spacing is padding in this list
   (`styles/virtual-list.css`), since a row's measured height is its border
   box. Rows are keyed by message id, so a page prepended keeps every
   measured height; a row that grows later (an image arriving, a link
@@ -767,10 +770,24 @@ window" is what the view's range holds.
   card) a poll is its preview line (`components/PollPreview.tsx`), not
   Markdown.
 
-  A poll is made from the composer's poll button, after the paperclip,
-  shown wherever the composer is (so not where posting is closed, and a
-  blocked conversation hears the server's refusal) and never in a
-  thread's composer, since a thread takes no poll, or by typing
+  The composer is one box (`.composer-input`): the formatting row when
+  it is shown, the words, and along the bottom a row of buttons
+  (`routes/Channel/ComposerActions.tsx`). That row holds a plus whose
+  menu lists the commands offered here (`commandsOffered` in
+  `core/commands.ts`), each with its icon, its words and what to type
+  for it; the paperclip; then Aa, which opens and shuts the formatting
+  row, and an @ that types an "@" at the caret (`atReplace`, shared with
+  mobile) so the mention list opens. The formatting row starts shut and
+  slides open over the words; whether it is shown is a choice about the
+  device (`api/composerFormatting.ts`, in localStorage), the same for
+  every composer, and shut it is `inert`. The formatting keys work
+  either way. A thread's composer is offered no command, so it has no
+  plus.
+
+  A poll is made from Create a poll in the plus's menu, shown wherever
+  the composer is (so not where posting is closed, and a blocked
+  conversation hears the server's refusal) and never in a thread's
+  composer, since a thread takes no poll, or by typing
   `/poll` with the question after it, which opens the form with the
   question filled and the first option focused
   ([messaging.md](messaging.md#slash-commands)). It opens
@@ -804,16 +821,16 @@ window" is what the view's range holds.
   second try) and leaves everything as typed; one that arrives after
   the form was closed is a notice. There is no discard confirmation:
   Cancel, Escape and the scrim close it. Closed without posting, a form
-  opened from the poll button returns focus to the button, and one
+  opened from the plus's menu returns focus to the plus, and one
   opened by `/poll` (picked from the command list or sent) returns it to
   the composer's words. A posted poll returns focus to the composer's
-  words however the form was opened. The button and posting leave the
+  words however the form was opened. The menu and posting leave the
   words as they were; `/poll` takes its own words out. Nothing takes
   focus when the form closes because the composer moved to another
   channel.
 
-  A time poll ("Find a time") is made from the Find a time button, a
-  calendar after the poll button and shown where it is, or by typing
+  A time poll ("Find a time") is made from Find a time in the plus's
+  menu, under Create a poll and shown where it is, or by typing
   `/when` with the question after it. It opens
   `routes/Channel/PollForm/TimePollForm.tsx`, the poll form's sibling
   with the same frame, keys, pending and refusal handling (`refusal.ts`
@@ -866,8 +883,9 @@ above the actions. On the
   (`components/ReminderPreview.tsx`); it can't be pinned, so a pin
   never shows one.
 
-  One is set by typing `/remind` with the text after it, the one way in
-  on web ([messaging.md](messaging.md#slash-commands)), which opens
+  One is set from Set a reminder here in the composer's plus menu or by
+  typing `/remind` with the text after it
+  ([messaging.md](messaging.md#slash-commands)), which opens
   `routes/Channel/ReminderForm/` in the `Modal`, beside the composer's
   form as the poll's is, bound to the channel it was opened in and
   closed when the composer moves. Its rules are

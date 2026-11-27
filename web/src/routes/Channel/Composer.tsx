@@ -3,6 +3,7 @@ import {
   type DragEvent,
   type FormEvent,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 import { useLinkableChannels } from "../../api/channelLinks";
 import { holdRow, isLive, jumpToLatest } from "../../api/channelLog";
 import { chatClient } from "../../api/clients";
+import { useComposerFormattingStore } from "../../api/composerFormatting";
 import { usePeople } from "../../api/dms";
 import { errorText } from "../../api/errors";
 import {
@@ -38,15 +40,9 @@ import { CommandList } from "../../components/CommandList";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
-import {
-  CalendarIcon,
-  PaperclipIcon,
-  PollIcon,
-  SendIcon,
-} from "../../components/Icons";
+import { SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
-import { Tooltip } from "../../components/Tooltip";
 import { restoreFiles } from "../../core/attachments";
 import {
   type Command,
@@ -54,6 +50,7 @@ import {
   type CommandPlace,
   type CommandQuery,
   commandQueryAt,
+  commandsOffered,
   matchingCommands,
   type ParsedCommand,
   parseCommand,
@@ -77,6 +74,7 @@ import { restoreDraft } from "../../core/unsent";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import { useTouchKeyboard } from "../../hooks/useTouchKeyboard";
 import { notice } from "../../stores/dialogs";
+import { ComposerActions } from "./ComposerActions";
 import { PollForm } from "./PollForm";
 import { TimePollForm } from "./PollForm/TimePollForm";
 import { ReminderForm } from "./ReminderForm";
@@ -158,6 +156,11 @@ export function Composer({
   const commandDismissed = useRef(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<RichField>(null);
+  // The formatting row inside the box: shown or not is the device's
+  // choice, the same for every composer.
+  const formatting = useComposerFormattingStore((s) => s.shown);
+  const setFormatting = useComposerFormattingStore((s) => s.setShown);
+  const formatId = useId();
   const touchKeyboard = useTouchKeyboard();
   // Files picked, dropped, or pasted, uploading as they arrive; sent by id.
   const [pending, setPending] = useState<PendingAttachment[]>([]);
@@ -168,9 +171,9 @@ export function Composer({
     ? Number(instanceStatus.maxUploadBytes)
     : MAX_ATTACHMENT_BYTES;
   const [dragging, setDragging] = useState(false);
-  // The command form open (the poll button opens the poll's, the Find a
-  // time button the time poll's), the channel it was opened in and the
-  // words it starts with. Not offered in a thread, which takes no poll.
+  // The command form open (from the plus's menu or the typed command),
+  // the channel it was opened in and the words it starts with. Not
+  // offered in a thread, which takes no poll.
   // The composer outlives a channel change, and the form does not: it is
   // drawn only in the channel it was opened in, and closed on leaving it.
   // id tells one opening from the next, so a late answer closes only the
@@ -213,9 +216,9 @@ export function Composer({
     };
   }, []);
   // Where focus goes when the form closes. Opened by a command (a pick
-  // from the list, a send), it goes back to the words; opened by the poll
-  // button, a cancel leaves it to the dialog, which returns it to the
-  // button. A posted poll sends it to the words either way. Not when the
+  // from the list, a send), it goes back to the words; opened from the
+  // plus's menu, a cancel leaves it to the dialog, which returns it to
+  // the plus. A posted poll sends it to the words either way. Not when the
   // form closes because the composer moved to another channel.
   const formOpen = formIn !== null;
   const focusAfterForm = useRef(false);
@@ -235,7 +238,6 @@ export function Composer({
     focusAfterForm.current = false;
     inputRef.current?.focus();
   }, [formOpen]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
   // Object URLs for thumbnails are released when the item goes away.
@@ -646,66 +648,38 @@ export function Composer({
             </button>
           </div>
         )}
-        <div className="composer-tools">
-          <FormatToolbar
-            active={formats}
-            onFormat={(f) => inputRef.current?.format(f)}
-          />
-          <Tooltip text="Attach files">
-            <button
-              type="button"
-              className="format-button attach-button"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Attach files"
-            >
-              <PaperclipIcon />
-            </button>
-          </Tooltip>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            hidden
-            onChange={(e) => {
-              if (e.target.files) addFiles(e.target.files);
-              e.target.value = "";
-            }}
-            aria-label="Attach files"
-          />
-          {!threadRootId && (
-            <Tooltip text="Create a poll">
-              <button
-                type="button"
-                className="format-button poll-button"
-                onClick={() => openForm("poll", "", false)}
-                aria-label="Create a poll"
-                aria-haspopup="dialog"
-              >
-                <PollIcon />
-              </button>
-            </Tooltip>
-          )}
-          {!threadRootId && (
-            <Tooltip text="Find a time">
-              <button
-                type="button"
-                className="format-button poll-button"
-                onClick={() => openForm("when", "", false)}
-                aria-label="Find a time"
-                aria-haspopup="dialog"
-              >
-                <CalendarIcon size="1em" />
-              </button>
-            </Tooltip>
-          )}
-        </div>
         <AttachmentStrip
           items={pending}
           error={attachError}
           onRemove={dropPending}
         />
         <div className="composer-row">
-          <div className="composer-input">
+          {/* A press on the box's own ground, between or beside its
+            buttons, goes to the words and keeps the caret. */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: the editor inside is the control; this only widens its target for a mouse */}
+          <div
+            className="composer-input"
+            onMouseDown={(e) => {
+              const on = e.target as HTMLElement;
+              if (on.closest("button, input, .rich-editor")) return;
+              e.preventDefault();
+              inputRef.current?.focus();
+            }}
+          >
+            {/* The formatting row, opened and shut by the Aa below. Shut,
+              it is out of the Tab order and a screen reader's way. */}
+            <div
+              id={formatId}
+              className={`composer-format ${formatting ? "open" : ""}`}
+              inert={!formatting}
+            >
+              <div className="composer-format-clip">
+                <FormatToolbar
+                  active={formats}
+                  onFormat={(f) => inputRef.current?.format(f)}
+                />
+              </div>
+            </div>
             <RichEditor
               fieldRef={inputRef}
               onFormats={setFormats}
@@ -739,6 +713,18 @@ export function Composer({
                         : `Message ${channelName}`
                     : "Message"
               }
+            />
+            {/* Keyed by the channel, so an open menu does not follow the
+              composer to another one. */}
+            <ComposerActions
+              key={channelId}
+              commands={commandsOffered(place)}
+              onCommand={(name) => openForm(name, "", false)}
+              onFiles={addFiles}
+              formatting={formatting}
+              formattingId={formatId}
+              onFormatting={setFormatting}
+              onMention={() => inputRef.current?.typeAt()}
             />
           </div>
           {touchKeyboard && (

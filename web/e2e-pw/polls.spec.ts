@@ -5,6 +5,7 @@ import {
   channelLink,
   expect,
   focus,
+  moreAction,
   rowByText,
   seed,
   sendMessage,
@@ -12,7 +13,7 @@ import {
   test,
 } from "./lib";
 
-// Polls (STOOP-547): one is made from the composer's poll button, a vote
+// Polls (STOOP-547): one is made from the composer's plus menu, a vote
 // from someone else reaches its author live, and closing records a row
 // that goes to the poll. Posting and closing mark the channel unread for
 // the others; deleting the poll takes both rows away for everyone.
@@ -39,7 +40,7 @@ test("a poll from the composer, voted on, closed and deleted", async ({
   // Ada has words in the composer; making a poll leaves them alone.
   await A.locator(COMPOSER).click();
   await A.locator(COMPOSER).pressSequentially("half a thought");
-  await A.getByRole("button", { name: "Create a poll" }).click();
+  await moreAction(A, "Create a poll");
   const form = A.getByRole("dialog", { name: "Create a poll" });
   await expect(form).toBeVisible();
   await expect(
@@ -149,7 +150,7 @@ test("several choices, a form left behind, and no poll in a thread", async ({
   await channelLink(A, "general").click();
   await channelLink(A, "random").click();
   await expect(A.locator(".channel-title")).toHaveText("random");
-  await A.getByRole("button", { name: "Create a poll" }).click();
+  await moreAction(A, "Create a poll");
   const form = A.getByRole("dialog", { name: "Create a poll" });
   await form.getByRole("textbox", { name: "Question" }).fill("Left behind?");
   await A.goBack();
@@ -158,7 +159,7 @@ test("several choices, a form left behind, and no poll in a thread", async ({
 
   // A poll of several choices in #general.
   const QUESTION = "Which nights work?";
-  await A.getByRole("button", { name: "Create a poll" }).click();
+  await moreAction(A, "Create a poll");
   await form.getByRole("textbox", { name: "Question" }).fill(QUESTION);
   await form.getByRole("button", { name: "Several options" }).click();
   await form.getByRole("textbox", { name: "Option 1" }).fill("Friday");
@@ -187,7 +188,8 @@ test("several choices, a form left behind, and no poll in a thread", async ({
   await expect(box(B, /^Saturday, 0 votes$/)).toBeVisible();
   await expect(box(A, /^Friday, 2 votes, your vote/)).toBeVisible();
 
-  // A thread: its composer has no poll button, the channel's still has.
+  // A thread: its composer has no plus, so no poll; the channel's still
+  // has.
   await sendMessage(tokens.ada, channels.general, "thread root");
   const root = rowByText(A, "thread root");
   await root.hover();
@@ -195,10 +197,17 @@ test("several choices, a form left behind, and no poll in a thread", async ({
   const panel = A.locator(".side-panel");
   await expect(panel.locator(COMPOSER)).toBeVisible();
   await expect(
-    panel.getByRole("button", { name: "Create a poll" }),
+    panel.getByRole("button", { name: "More actions", exact: true }),
     "no poll in a thread",
   ).toHaveCount(0);
   await expect(
-    A.locator(".channel-view").getByRole("button", { name: "Create a poll" }),
+    panel.getByRole("button", { name: "Attach files" }),
+    "the paperclip stays",
+  ).toBeVisible();
+  await expect(
+    A.locator(".channel-view").getByRole("button", {
+      name: "More actions",
+      exact: true,
+    }),
   ).toBeVisible();
 });

@@ -70,6 +70,14 @@ test("mentions notify, badge and read", async ({ browser }) => {
     "A starts with no unread badge",
   ).toHaveCount(0);
 
+  // The @ in the composer's bottom row types an "@", which opens the
+  // list as typing one does.
+  await B.getByRole("button", { name: "Mention someone" }).click();
+  await expect(composer(B), "the @ button types one").toHaveText("@");
+  await expect(picker(B), "…and the list opens").toBeVisible();
+  await B.keyboard.press("Backspace");
+  await expect(picker(B)).toHaveCount(0);
+
   await type(B, "morning @ad");
   await expect(picker(B), "picker suggests the matching member").toContainText(
     `@ada${suffix}`,

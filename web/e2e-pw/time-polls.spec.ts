@@ -4,13 +4,14 @@ import {
   channelLink,
   expect,
   focus,
+  moreAction,
   seed,
   signIn,
   test,
 } from "./lib";
 
 // Find a time (STOOP-559): a poll whose options are times. Made from the
-// composer's Find a time button and from /when, each time picked through
+// composer's plus menu (Find a time) and from /when, each time picked through
 // DateTimeField's grid; the card words each time in the reader's own
 // zone, so two people in different zones see different labels on the
 // same option; a vote, the close, and the closing line naming the
@@ -187,10 +188,9 @@ test("find a time: made, read in two zones, voted on and closed", async ({
   const time = (n: number) =>
     form.getByRole("button", { name: `Time ${n}`, exact: true });
 
-  // ---- The button beside Poll opens the form: two empty times,
-  // several to choose, the zone named.
-  const button = A.getByRole("button", { name: "Find a time" });
-  await button.click();
+  // ---- Find a time in the plus's menu opens the form: two empty
+  // times, several to choose, the zone named.
+  await moreAction(A, "Find a time");
   await expect(form).toBeVisible();
   await expect(question, "the question has focus").toBeFocused();
   await expect(
@@ -350,7 +350,7 @@ test("a key in an open panel never posts a stale time; passed times", async ({
   const friday = await slotFromNow(A, 4, 20);
   const fridayLate = await slotFromNow(A, 4, 21);
 
-  await A.getByRole("button", { name: "Find a time" }).click();
+  await moreAction(A, "Find a time");
   await form.getByRole("textbox", { name: "Question" }).fill(QUESTION);
   await pick(A, time(1), thursday, "19:00");
   await pick(A, time(2), friday, "20:00");
@@ -439,7 +439,7 @@ test("a click outside the form closes an open panel first, then the form", async
   // A point on the dimmed page, clear of the form and the panel.
   const outside = () => A.mouse.click(5, 5);
 
-  await A.getByRole("button", { name: "Find a time" }).click();
+  await moreAction(A, "Find a time");
   await question.fill(QUESTION);
   await pick(A, first, thursday, "19:00");
 
@@ -529,7 +529,7 @@ test("the zone line drops its offset when the times straddle a clock change", as
   expect(await offsetIn(A, [near.ms, far.ms])).toBe("");
   expect(await offsetIn(B, [near.ms, far.ms])).toBe(" (GMT+9)");
 
-  await A.getByRole("button", { name: "Find a time" }).click();
+  await moreAction(A, "Find a time");
   await form.getByRole("textbox", { name: "Question" }).fill(QUESTION);
   await pick(A, time(1), near, "19:00");
   await expect(zoneLine, "one time: its own offset").toHaveText(

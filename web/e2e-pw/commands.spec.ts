@@ -1,5 +1,15 @@
 import type { Locator } from "@playwright/test";
-import { COMPOSER, expect, rowByText, say, seed, signIn, test } from "./lib";
+import {
+  COMPOSER,
+  expect,
+  moreAction,
+  moreActions,
+  rowByText,
+  say,
+  seed,
+  signIn,
+  test,
+} from "./lib";
 
 // Slash commands (STOOP-551): "/" and letters as the whole draft opens the
 // command list, which filters, picks by keyboard and closes on Escape;
@@ -38,14 +48,28 @@ test("the command list and /poll", async ({ browser }) => {
   const root = rowByText(A, "Friday is on");
   await expect(root).toHaveCount(1);
 
-  // Opened from the poll button and cancelled, focus goes back to the
-  // button, as for any dialog.
-  const pollButton = A.getByRole("button", { name: "Create a poll" });
-  await pollButton.click();
+  // The plus inside the field opens a menu of the commands, each with
+  // what to type for it; Escape shuts it and returns to the plus.
+  const plus = moreActions(A);
+  const menu = A.getByRole("menu", { name: "More actions" });
+  await plus.click();
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    /Create a poll.*\/poll/,
+    /Find a time.*\/when/,
+    /Set a reminder here.*\/remind/,
+  ]);
+  await A.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(plus, "Escape returns to the plus").toBeFocused();
+
+  // Opened from the menu and cancelled, focus goes back to the plus, as
+  // a dialog returns it to whatever opened it.
+  await moreAction(A, "Create a poll");
+  await expect(menu, "a pick shuts the menu").toHaveCount(0);
   await expect(form).toBeVisible();
   await form.getByRole("button", { name: "Cancel" }).click();
   await expect(form).toHaveCount(0);
-  await expect(pollButton, "button-opened cancel returns to it").toBeFocused();
+  await expect(plus, "menu-opened cancel returns to the plus").toBeFocused();
 
   // A lone "/" opens the list, the first entry selected and marked by
   // more than colour. The arrows move between /poll, /when and /remind

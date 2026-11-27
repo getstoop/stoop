@@ -190,6 +190,13 @@
     padding-bottom: 12px;
   }
 
+  /* In a channel the foot also holds the 34px the list runs on behind
+     the composer (history.css). */
+  .message-list-wrap:has(+ .typing-indicator) .message-list-foot {
+    /* off-scale: the foot's 12px and those 34px */
+    padding-bottom: 46px;
+  }
+
   .message {
     /* off-scale: the avatar column, 8 + 36 + 10 */
     padding-left: 54px;

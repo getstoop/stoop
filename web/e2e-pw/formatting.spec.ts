@@ -36,6 +36,19 @@ test("formatting in the composer and the timeline", async ({ browser }) => {
 
   await signIn(A, tokens.ada);
   await expect(composer(A)).toBeVisible();
+
+  // The formatting row starts shut and out of reach; Aa in the composer's
+  // bottom row opens it. The keys work either way (below).
+  const aa = A.getByRole("button", { name: "Formatting", exact: true });
+  const row = A.locator(".composer .composer-format");
+  await expect(aa, "formatting starts hidden").toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(row, "…and inert").toHaveAttribute("inert", "");
+  await aa.click();
+  await expect(aa, "Aa shows it").toHaveAttribute("aria-pressed", "true");
+  await expect(row).not.toHaveAttribute("inert");
   await signIn(B, tokens.bea);
   await expect(composer(B)).toBeVisible();
 

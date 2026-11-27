@@ -1,7 +1,13 @@
 /* ---- Composer: the editor itself is in rich-editor.css. ---- */
 
+/* Drawn over the message list, which in a channel runs on behind it
+   (history.css): the page's colour fades in over the first 12px, so a
+   row passing behind, and the sides of a highlighted one beside the
+   box, fade out instead of ending at an edge. */
 .composer {
+  z-index: 2;
   padding: 0 16px 16px;
+  background: linear-gradient(to bottom, transparent, var(--surface) 12px);
 }
 
 /* ---- Announcement channels ---- */
@@ -73,6 +79,9 @@
 
 /* In place of the composer for someone who can't post. */
 .posting-closed {
+  position: relative;
+  z-index: 2;
+  background: var(--surface);
   margin: 0 16px 16px;
   padding: 12px 16px;
   display: flex;
@@ -105,9 +114,165 @@
   gap: 8px;
 }
 
+/* The composer's box: the formatting row when it is shown, the words,
+   and along the bottom the row of buttons (ComposerActions.tsx). The box
+   is drawn here rather than on the editor, so all three sit inside it. */
+.composer-input {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  cursor: text;
+}
+
+.composer-input .rich-editor .rich-editor-content {
+  padding: 12px 16px 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  transition: padding-top var(--dur) var(--ease);
+}
+
+/* Under the formatting row the words sit midway between it and the
+   buttons below: the row's own padding makes up the rest of the gap. */
+.composer-input .composer-format.open + .rich-editor .rich-editor-content {
+  padding-top: 4px;
+}
+
+/* The ring goes round the whole box, buttons included. */
+.composer-input .rich-editor .rich-editor-content:focus-visible {
+  outline: none;
+}
+
+.composer-input:has(.rich-editor-content:focus-visible) {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: var(--focus-offset);
+}
+
 .composer-row .composer-input {
   flex: 1;
   min-width: 0;
+}
+
+/* The formatting row slides open over the words and shut again: a grid
+   row animates between nothing and the row's own height, which a height
+   cannot do without knowing it. */
+.composer-format {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  cursor: default;
+  transition:
+    grid-template-rows var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
+}
+
+.composer-format.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.composer-format-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* On a narrow screen its buttons scroll sideways. The padding leaves
+   room for a button's focus ring inside the clip. */
+.composer-format .format-toolbar {
+  margin-bottom: 0;
+  padding: 6px 8px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 6px;
+  cursor: default;
+}
+
+.composer-actions .icon-button {
+  width: 28px;
+  height: 28px;
+}
+
+/* The plus is the one that opens something over the box, so it is drawn
+   as a filled button, set a little apart. */
+.composer-actions .composer-more {
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.composer-actions .composer-more:hover,
+.composer-actions .composer-more[aria-expanded="true"] {
+  background: var(--border);
+}
+
+.composer-actions-divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+.composer-actions .composer-format-toggle {
+  font-size: var(--text-ui);
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: underline;
+}
+
+.composer-actions .composer-format-toggle[aria-pressed="true"] {
+  background: var(--raised);
+  color: var(--accent);
+}
+
+.composer-actions .composer-mention {
+  font-size: var(--text-body);
+  line-height: 1;
+}
+
+.composer-menu-anchor {
+  position: relative;
+  display: flex;
+}
+
+/* The plus's menu, opening above it and growing to the right. */
+.composer-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  font-size: var(--text-ui);
+  white-space: nowrap;
+}
+
+.composer-menu svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+.composer-menu-label {
+  flex: 1;
+}
+
+/* What to type for the same thing. */
+.composer-menu-command {
+  margin-left: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
 }
 
 button.composer-send {
