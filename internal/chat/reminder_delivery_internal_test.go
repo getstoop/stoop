@@ -82,13 +82,13 @@ func TestReminderIsDeliveredInAChannel(t *testing.T) {
 	}
 }
 
-// In a direct message and in a group conversation a delivered reminder
-// behaves as a message does: it puts a closed conversation back on the
-// others' lists, is their unread last message and alerts each of them
-// once, previewed "Reminder: " and its text exactly as typed. The person
-// who set it is told nothing.
+// In someone's own notes, a direct message and a group conversation a
+// delivered reminder puts a closed conversation back on the others'
+// lists, is everyone's unread last message and alerts each person in it
+// once, the one who set it included, previewed "Reminder: " and its
+// text exactly as typed.
 func TestReminderIsDeliveredInAConversation(t *testing.T) {
-	for name, size := range map[string]int{"direct message": 1, "group conversation": 2} {
+	for name, size := range map[string]int{"own notes": 0, "direct message": 1, "group conversation": 2} {
 		t.Run(name, func(t *testing.T) {
 			fixture := newSystemRows(t)
 			others := []context.Context{fixture.bea, fixture.cat}[:size]
@@ -133,11 +133,18 @@ func TestReminderIsDeliveredInAConversation(t *testing.T) {
 					t.Errorf("pending activity = %v, %v; want it previewed %q", pending, err, want)
 				}
 			}
-			if items := fixture.activity(fixture.ada); len(items) != 0 {
-				t.Errorf("the person who set it has activity for their own reminder: %v", items)
+			// The person who set it is alerted as everyone is, and in their
+			// own notes is the only one.
+			mine := fixture.activity(fixture.ada)
+			if len(mine) != 1 || mine[0].Kind != chatv1.ActivityKind_ACTIVITY_KIND_DM || mine[0].MessageId != rows[0].id ||
+				mine[0].ChannelId != conversation.ID || mine[0].Preview != want || mine[0].ReadAt != nil {
+				t.Fatalf("activity for the person who set it = %v, want one unread dm item previewed %q", mine, want)
 			}
-			if mine := fixture.listedConversation(fixture.ada, conversation.ID); mine.LastMessage.GetMessageId() != rows[0].id {
-				t.Errorf("the conversation for the person who set it = %v, want the reminder last", mine)
+			if pending, err := fixture.svc.PendingActivity(context.Background(), authctx.UserID(fixture.ada), mine[0].Id); err != nil || pending.GetPreview() != want {
+				t.Errorf("their pending activity = %v, %v; want it previewed %q", pending, err, want)
+			}
+			if listed := fixture.listedConversation(fixture.ada, conversation.ID); listed.Channel.UnreadCount != 1 || listed.LastMessage.GetMessageId() != rows[0].id {
+				t.Errorf("the conversation for the person who set it = %v, want one unread and the reminder last", listed)
 			}
 
 			var reopened, created, alerted int
@@ -151,13 +158,20 @@ func TestReminderIsDeliveredInAConversation(t *testing.T) {
 					alerted++
 				}
 			}
-			if reopened != 1 || created != 1 || alerted != 1 {
+			if size > 0 && (reopened != 1 || created != 1 || alerted != 1) {
 				t.Errorf("bea heard %d reopen, %d reminder, %d alert previewed %q; want one of each", reopened, created, alerted, want)
 			}
+			if size == 0 && reopened+created+alerted != 0 {
+				t.Errorf("bea heard of a reminder in ada's own notes")
+			}
+			var own int
 			for _, event := range everyEvent(ada) {
-				if event.GetActivityItemCreated() != nil {
-					t.Errorf("the person who set it was alerted: %v", event)
+				if event.GetActivityItemCreated().GetItem().GetPreview() == want {
+					own++
 				}
+			}
+			if own != 1 {
+				t.Errorf("the person who set it heard %d alerts, want one", own)
 			}
 		})
 	}

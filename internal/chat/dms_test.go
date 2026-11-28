@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,10 +61,6 @@ func TestDirectMessages(t *testing.T) {
 	}
 
 	// ---- opening ----
-	_, err = svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{aliceID}}))
-	if code(err) != connect.CodeInvalidArgument {
-		t.Errorf("DM with self: want invalid_argument, got %v", err)
-	}
 	_, err = svc.OpenDirectMessage(stranger, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{aliceID}}))
 	if code(err) != connect.CodePermissionDenied {
 		t.Errorf("DM without a shared space: want permission_denied, got %v", err)
@@ -102,6 +99,18 @@ func TestDirectMessages(t *testing.T) {
 	}
 	if again.Msg.DirectMessage.Channel.Id != dm.Channel.Id {
 		t.Errorf("reopening from the other side made a new channel")
+	}
+	noEvent(t, aliceSub)
+	// The caller is in it already, so naming them adds nobody, and an id
+	// in capitals is the same person.
+	for _, ids := range [][]string{{bobID, aliceID}, {strings.ToUpper(bobID)}} {
+		same, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: ids}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if same.Msg.DirectMessage.Channel.Id != dm.Channel.Id || len(same.Msg.DirectMessage.Participants) != 2 {
+			t.Errorf("opening with %v made another conversation", ids)
+		}
 	}
 	noEvent(t, aliceSub)
 	// An instance admin may open one without a shared space.
@@ -429,5 +438,109 @@ func TestDirectMessageLastMessage(t *testing.T) {
 	}
 	if got := reopened.Msg.DirectMessage.LastMessage.GetMessageId(); got != sent.Msg.Message.Id {
 		t.Errorf("SetDirectMessageClosed with dms.read: last message %q", got)
+	}
+}
+
+// A conversation with nobody else in it is the caller's own notes: one
+// per person, however it is asked for, told to nobody else, and it
+// alerts nobody, its owner included.
+func TestNotesToSelf(t *testing.T) {
+	pool, bus, svc := newTestService(t)
+	alice := newUser(t, pool, "alice", authctx.RoleMember)
+	bob := newUser(t, pool, "bob", authctx.RoleMember)
+	aliceID, bobID := authctx.UserID(alice), authctx.UserID(bob)
+	aliceSub := bus.Subscribe("user:" + aliceID)
+	defer aliceSub.Close()
+	bobSub := bus.Subscribe("user:" + bobID)
+	defer bobSub.Close()
+
+	// No space is needed: there is nobody to reach.
+	opened, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{}))
+	if err != nil {
+		t.Fatalf("alice opens her notes: %v", err)
+	}
+	notes := opened.Msg.DirectMessage
+	if notes.Channel.Kind != chatv1.ChannelKind_CHANNEL_KIND_DM || notes.Channel.SpaceId != "" {
+		t.Errorf("notes channel: got kind %v space %q", notes.Channel.Kind, notes.Channel.SpaceId)
+	}
+	if len(notes.Participants) != 1 || notes.Participants[0].Id != aliceID {
+		t.Errorf("participants: want only alice, got %v", notes.Participants)
+	}
+	if created := nextEvent(t, aliceSub).GetChannelCreated(); created == nil || created.Id != notes.Channel.Id {
+		t.Errorf("want ChannelCreated for the notes on alice's topic")
+	}
+
+	// Her own id names the same conversation, once, twice or spelled in
+	// capitals.
+	for _, ids := range [][]string{{aliceID}, {aliceID, aliceID}, {strings.ToUpper(aliceID)}} {
+		again, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: ids}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if again.Msg.DirectMessage.Channel.Id != notes.Channel.Id {
+			t.Errorf("opening with %d own ids made a second notes conversation", len(ids))
+		}
+	}
+	noEvent(t, aliceSub)
+
+	// Something that is no id is nobody.
+	if _, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{"alice"}})); code(err) != connect.CodeNotFound {
+		t.Errorf("a name for an id: want not_found, got %v", err)
+	}
+
+	// Bob's notes are his own.
+	bobs, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bobs.Msg.DirectMessage.Channel.Id == notes.Channel.Id {
+		t.Fatal("bob was handed alice's notes")
+	}
+	nextEvent(t, bobSub) // his ChannelCreated
+
+	sent, err := svc.SendMessage(alice, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: notes.Channel.Id, Content: "buy milk"}))
+	if err != nil {
+		t.Fatalf("alice writes a note: %v", err)
+	}
+	if message := nextEvent(t, aliceSub).GetMessageCreated(); message == nil || message.Id != sent.Msg.Message.Id {
+		t.Errorf("alice: want her own MessageCreated")
+	}
+	// No activity item for her, and nothing at all for bob.
+	noEvent(t, aliceSub)
+	noEvent(t, bobSub)
+	feed, err := svc.ListActivity(alice, connect.NewRequest(&chatv1.ListActivityRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(feed.Msg.Items) != 0 {
+		t.Errorf("a note raised %d activity items", len(feed.Msg.Items))
+	}
+
+	if _, err := svc.ListMessages(bob, connect.NewRequest(&chatv1.ListMessagesRequest{ChannelId: notes.Channel.Id})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("bob reads alice's notes: want permission_denied, got %v", err)
+	}
+	if _, err := svc.SendMessage(bob, connect.NewRequest(&chatv1.SendMessageRequest{ChannelId: notes.Channel.Id, Content: "hi"})); code(err) != connect.CodePermissionDenied {
+		t.Errorf("bob writes in alice's notes: want permission_denied, got %v", err)
+	}
+
+	list, err := svc.ListDirectMessages(alice, connect.NewRequest(&chatv1.ListDirectMessagesRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows := list.Msg.DirectMessages; len(rows) != 1 || rows[0].Channel.Id != notes.Channel.Id ||
+		rows[0].LastMessage.GetPreview() != "buy milk" {
+		t.Errorf("alice's list: want her notes with the note as its last message, got %v", rows)
+	}
+
+	// Closed, and back by asking for it again.
+	if _, err := svc.SetDirectMessageClosed(alice, connect.NewRequest(&chatv1.SetDirectMessageClosedRequest{ChannelId: notes.Channel.Id, Closed: true})); err != nil {
+		t.Fatal(err)
+	}
+	back, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Msg.DirectMessage.Closed || back.Msg.DirectMessage.Channel.Id != notes.Channel.Id {
+		t.Errorf("reopening the notes: closed %v", back.Msg.DirectMessage.Closed)
 	}
 }

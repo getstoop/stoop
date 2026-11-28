@@ -123,10 +123,11 @@ func (s *Service) recordReply(ctx context.Context, about alert, parentAuthorID s
 	return s.notify(ctx, []string{parentAuthorID}, about)
 }
 
-// recordDM tells a direct message's other participants about a new
-// message — unless an earlier step already told them about the same
-// message (one alert is enough). See messaging.md → The DM feed
-// collapses.
+// recordDM tells a direct message's participants about a new message,
+// less the ones in told: recordActivity puts the author there, and
+// anyone an earlier step told about the same message (one alert is
+// enough). A delivered reminder passes nobody, so the person who set it
+// is told with the rest. See messaging.md → The DM feed collapses.
 func (s *Service) recordDM(ctx context.Context, about alert, participants []string, told map[string]bool) error {
 	var recipients []string
 	for _, id := range participants {

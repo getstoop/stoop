@@ -2723,8 +2723,9 @@ export const ListPinnedMessagesResponseSchema: GenMessage<ListPinnedMessagesResp
 /**
  * DirectMessage is a DM channel with the people in it. More than two
  * participants is a group conversation; it has no name of its own, so
- * clients render one from the participants. The list never changes, so
- * counting it is a reliable test.
+ * clients render one from the participants. One participant, the caller,
+ * is their own notes. The list never changes, so counting it is a
+ * reliable test.
  *
  * @generated from message stoop.chat.v1.DirectMessage
  */
@@ -2934,7 +2935,9 @@ export const DirectMessageLastSchema: GenMessage<DirectMessageLast> = /*@__PURE_
  */
 export type OpenDirectMessageRequest = Message<"stoop.chat.v1.OpenDirectMessageRequest"> & {
   /**
-   * Everyone else in the conversation, without the caller: 1 to 9 of them.
+   * Everyone else in the conversation: up to 9 of them. The caller is
+   * always in it, so their own id here adds nobody. Empty is the
+   * caller's conversation with only themselves, their notes.
    *
    * @generated from field: repeated string user_ids = 2;
    */
@@ -3770,7 +3773,9 @@ export const ChatService: GenService<{
    * OpenDirectMessage returns the caller's conversation with one or more
    * other people, creating it if it does not exist. A conversation *is*
    * its participants, so this is idempotent for any number of them and
-   * there is only ever one conversation with a given set. The caller must
+   * there is only ever one conversation with a given set. Naming nobody
+   * opens the conversation with only the caller in it: their own notes,
+   * which nobody else can read. The caller must
    * share a space with each of them, unless they are an instance admin,
    * and a block in either direction between any two refuses the call.
    * Membership never changes afterwards: nobody can be added, and nobody

@@ -292,9 +292,14 @@ func (s *Service) deliverReminder(ctx context.Context, due dbgen.ListDueReminder
 			Payload: &realtimev1.ServerEvent_MessageCreated{MessageCreated: message},
 		}))
 	}
-	// In a channel a reminder only marks unread, as a poll does.
+	// In a channel a reminder only marks unread, as a poll does. In a
+	// conversation it alerts everyone in it, the person who set it
+	// included: it is the one message of theirs they were not there to
+	// send, and in their own notes they are the only one to tell.
 	if isDM(channel) {
-		s.recordActivity(ctx, row, channel, participants, nil, nil, author, nil)
+		if err := s.recordDM(ctx, alert{msg: row, author: author}, participants, nil); err != nil {
+			slog.Default().Warn("reminder: could not alert the conversation", "message_id", row.ID, "err", err)
+		}
 	}
 	return reminderDelivered, nil
 }

@@ -404,7 +404,9 @@ type ChatServiceClient interface {
 	// OpenDirectMessage returns the caller's conversation with one or more
 	// other people, creating it if it does not exist. A conversation *is*
 	// its participants, so this is idempotent for any number of them and
-	// there is only ever one conversation with a given set. The caller must
+	// there is only ever one conversation with a given set. Naming nobody
+	// opens the conversation with only the caller in it: their own notes,
+	// which nobody else can read. The caller must
 	// share a space with each of them, unless they are an instance admin,
 	// and a block in either direction between any two refuses the call.
 	// Membership never changes afterwards: nobody can be added, and nobody
@@ -1448,7 +1450,9 @@ type ChatServiceHandler interface {
 	// OpenDirectMessage returns the caller's conversation with one or more
 	// other people, creating it if it does not exist. A conversation *is*
 	// its participants, so this is idempotent for any number of them and
-	// there is only ever one conversation with a given set. The caller must
+	// there is only ever one conversation with a given set. Naming nobody
+	// opens the conversation with only the caller in it: their own notes,
+	// which nobody else can read. The caller must
 	// share a space with each of them, unless they are an instance admin,
 	// and a block in either direction between any two refuses the call.
 	// Membership never changes afterwards: nobody can be added, and nobody

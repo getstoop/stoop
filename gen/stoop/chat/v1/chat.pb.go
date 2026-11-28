@@ -6255,8 +6255,9 @@ func (x *ListPinnedMessagesResponse) GetPins() []*PinnedMessage {
 
 // DirectMessage is a DM channel with the people in it. More than two
 // participants is a group conversation; it has no name of its own, so
-// clients render one from the participants. The list never changes, so
-// counting it is a reliable test.
+// clients render one from the participants. One participant, the caller,
+// is their own notes. The list never changes, so counting it is a
+// reliable test.
 type DirectMessage struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Channel *Channel               `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
@@ -6645,7 +6646,9 @@ func (x *DirectMessageLast) GetCreatedAt() *timestamppb.Timestamp {
 
 type OpenDirectMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Everyone else in the conversation, without the caller: 1 to 9 of them.
+	// Everyone else in the conversation: up to 9 of them. The caller is
+	// always in it, so their own id here adds nobody. Empty is the
+	// caller's conversation with only themselves, their notes.
 	UserIds       []string `protobuf:"bytes,2,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
