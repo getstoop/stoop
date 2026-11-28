@@ -5,6 +5,7 @@ import {
   PaperclipIcon,
   PlusIcon,
   PollIcon,
+  SendIcon,
 } from "../../components/Icons";
 import { Tooltip } from "../../components/Tooltip";
 import type { Command, CommandName } from "../../core/commands";
@@ -23,7 +24,9 @@ const ICONS: Record<CommandName, ReactNode> = {
 // the formatting row and an @ that opens the mention list. Where no
 // command is offered (a thread) the plus is not drawn. The two that act
 // on the words keep the editor focused (mousedown is cancelled), so the
-// caret stays where it was.
+// caret stays where it was. At the far end is Send, the form's submit:
+// dimmed while there is nothing to send, but never disabled, so a press
+// on it then still leaves the caret (and a phone's keyboard) alone.
 export function ComposerActions({
   commands,
   onCommand,
@@ -32,6 +35,7 @@ export function ComposerActions({
   formattingId,
   onFormatting,
   onMention,
+  canSend,
 }: {
   commands: Command[];
   onCommand: (name: CommandName) => void;
@@ -41,6 +45,8 @@ export function ComposerActions({
   formattingId: string;
   onFormatting: (shown: boolean) => void;
   onMention: () => void;
+  // Whether a send would post anything now.
+  canSend: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   return (
@@ -92,6 +98,17 @@ export function ComposerActions({
           onClick={onMention}
         >
           @
+        </button>
+      </Tooltip>
+      <Tooltip text="Send" describes={false}>
+        <button
+          type="submit"
+          className="primary composer-send"
+          aria-label="Send"
+          aria-disabled={!canSend}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <SendIcon />
         </button>
       </Tooltip>
     </div>

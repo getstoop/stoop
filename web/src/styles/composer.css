@@ -275,15 +275,42 @@
   font-size: var(--text-sm);
 }
 
+/* Send, at the far end of the box's row of buttons. */
 button.composer-send {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
   padding: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
+}
+
+button.composer-send svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Nothing to send: dimmed, and a press does nothing. */
+button.composer-send[aria-disabled="true"] {
+  opacity: var(--disabled);
+  cursor: default;
+}
+
+button.composer-send[aria-disabled="true"]:hover {
+  background: var(--accent);
+}
+
+/* Under a finger the target is 44px, though it is drawn no bigger. */
+@media (hover: none) and (pointer: coarse) {
+  button.composer-send::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
 }
 
 .message-editor-actions {

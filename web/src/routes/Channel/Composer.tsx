@@ -40,7 +40,6 @@ import { CommandList } from "../../components/CommandList";
 import { DeletedMark } from "../../components/DeletedMark";
 import { EmojiSuggest } from "../../components/EmojiSuggest";
 import { FormatToolbar } from "../../components/FormatToolbar";
-import { SendIcon } from "../../components/Icons";
 import { MentionPicker } from "../../components/MentionPicker";
 import { RichEditor, type RichField } from "../../components/RichEditor";
 import { restoreFiles } from "../../core/attachments";
@@ -431,6 +430,13 @@ export function Composer({
     return { typed, content: isBlankMessage(written) ? "" : written.trim() };
   };
 
+  // Whether a send would post anything: words or a finished file, and
+  // no upload still on its way (send waits for those).
+  const canSend =
+    !pending.some((p) => !p.fileId && !p.error) &&
+    (!isBlankMessage(replaceShortcodes(draft)) ||
+      pending.some((p) => p.fileId));
+
   const pickCommand = (command: Command) =>
     openCommand({ command, text: pickedText(outgoing().content, command) });
 
@@ -725,18 +731,9 @@ export function Composer({
               formattingId={formatId}
               onFormatting={setFormatting}
               onMention={() => inputRef.current?.typeAt()}
+              canSend={canSend}
             />
           </div>
-          {touchKeyboard && (
-            <button
-              type="submit"
-              className="primary composer-send"
-              aria-label="Send"
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <SendIcon />
-            </button>
-          )}
         </div>
         {threadRootId && (
           <label className="toggle-row composer-also-send">
