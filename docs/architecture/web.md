@@ -645,7 +645,9 @@ window" is what the view's range holds.
   (`styles/virtual-list.css`), since a row's measured height is its border
   box. Rows are keyed by message id, so a page prepended keeps every
   measured height; a row that grows later (an image arriving, a link
-  preview) is re-measured by the virtualiser's `ResizeObserver`. The row
+  preview) is re-measured by the virtualiser's `ResizeObserver`. An image
+  attachment whose size the server measured holds its box before it
+  loads, so only one of unknown size grows its row. The row
   being edited stays mounted wherever the view is — a `rangeExtractor`
   adds its index (the head's, when a thread's root is edited there) to the
   virtualiser's range, since the editor holds the draft — and starting an
