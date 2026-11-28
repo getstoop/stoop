@@ -430,12 +430,15 @@ export function Composer({
     return { typed, content: isBlankMessage(written) ? "" : written.trim() };
   };
 
-  // Whether a send would post anything: words or a finished file, and
-  // no upload still on its way (send waits for those).
+  // Whether a send would do anything: open a command's form, or post
+  // words or a finished file once no upload is still on its way (send
+  // waits for those).
+  const words = replaceShortcodes(draft);
+  const blank = isBlankMessage(words);
   const canSend =
-    !pending.some((p) => !p.fileId && !p.error) &&
-    (!isBlankMessage(replaceShortcodes(draft)) ||
-      pending.some((p) => p.fileId));
+    (!blank && parseCommand(words.trim(), place) !== null) ||
+    (!pending.some((p) => !p.fileId && !p.error) &&
+      (!blank || pending.some((p) => p.fileId)));
 
   const pickCommand = (command: Command) =>
     openCommand({ command, text: pickedText(outgoing().content, command) });

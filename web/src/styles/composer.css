@@ -107,7 +107,7 @@
   font-weight: 600;
 }
 
-/* The field, and beside it the send button an on-screen keyboard needs. */
+/* The row the composer's box sits in. */
 .composer-row {
   display: flex;
   align-items: flex-end;
@@ -304,12 +304,14 @@ button.composer-send[aria-disabled="true"]:hover {
   background: var(--accent);
 }
 
-/* Under a finger the target is 44px, though it is drawn no bigger. */
+/* Under a finger the target is wider and deeper, though it is drawn no
+   bigger. It does not reach up over the words, where a tap places the
+   caret. */
 @media (hover: none) and (pointer: coarse) {
   button.composer-send::before {
     content: "";
     position: absolute;
-    inset: -8px;
+    inset: 0 -8px -8px;
   }
 }
 

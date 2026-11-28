@@ -105,7 +105,7 @@ export function ComposerActions({
           type="submit"
           className="primary composer-send"
           aria-label="Send"
-          aria-disabled={!canSend}
+          aria-disabled={!canSend || undefined}
           onMouseDown={(e) => e.preventDefault()}
         >
           <SendIcon />
