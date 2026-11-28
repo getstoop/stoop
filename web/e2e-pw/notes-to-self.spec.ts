@@ -35,6 +35,10 @@ test("notes to self", async ({ browser }) => {
   await A.locator(".dm-empty").waitFor();
   await A.getByRole("button", { name: "New conversation" }).click();
   await expect(
+    A.getByRole("searchbox", { name: "Search people" }),
+    "the search box, not Your notes, has the focus",
+  ).toBeFocused();
+  await expect(
     A.locator(".candidate-row"),
     "the people list holds only other people",
   ).toHaveCount(1);

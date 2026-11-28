@@ -96,6 +96,11 @@
   text-align: left;
 }
 
+.notes-entry:disabled {
+  cursor: default;
+  opacity: var(--disabled);
+}
+
 .notes-entry:hover:not(:disabled) {
   border-color: var(--accent);
 }
@@ -120,10 +125,11 @@
   min-width: 0;
 }
 
-/* The line between Your notes and the people: the column's gap is all
-   the room it gets above, and less below, where it labels the search. */
+/* The line between Your notes and the people, in the kit's eyebrow:
+   more room above it than below, so it reads as heading the search and
+   the list, not as a caption under the button. */
 .notes-entry-or {
-  margin: 0 0 -4px;
+  margin: 8px 0 0;
 }
 
 .picked-chips {

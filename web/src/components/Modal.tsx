@@ -45,14 +45,18 @@ export function Modal({
   }, []);
 
   // Focus moves inside on open — to whatever the content marked
-  // autoFocus, else the first field or button — and back to the opener
-  // on close, so a keyboard user is not stranded.
+  // autoFocus or data-first-focus, else the first field or button — and
+  // back to the opener on close, so a keyboard user is not stranded.
+  // data-first-focus is the one to reach for: autoFocus takes the focus
+  // before this runs, so the opener is no longer known to go back to.
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     if (!panel.current?.contains(document.activeElement)) {
-      const first = panel.current?.querySelector<HTMLElement>(
-        "input, select, textarea, button:not([aria-label='Close'])",
-      );
+      const first =
+        panel.current?.querySelector<HTMLElement>("[data-first-focus]") ??
+        panel.current?.querySelector<HTMLElement>(
+          "input, select, textarea, button:not([aria-label='Close'])",
+        );
       (first ?? panel.current)?.focus();
     }
     return () => opener?.focus();
