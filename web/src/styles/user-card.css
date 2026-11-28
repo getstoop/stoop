@@ -73,8 +73,8 @@
   margin: 0;
 }
 
-/* Message (Edit profile, on your own card) fills the row; the ⋮ beside
-   it holds the rest. */
+/* Message fills the row (on your own card it shares it with Edit
+   profile); the ⋮ beside it holds the rest. */
 .user-card-actions {
   display: flex;
   align-items: stretch;

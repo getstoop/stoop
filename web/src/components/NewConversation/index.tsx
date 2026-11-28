@@ -104,7 +104,7 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
                 key={p.id}
                 type="button"
                 className="chip"
-                aria-label={`Remove ${p.displayName || p.username}`}
+                aria-label={`Remove ${p.displayName || p.username}${p.id === myId ? " (you)" : ""}`}
                 onClick={() => toggle(p)}
               >
                 {p.displayName || p.username}
@@ -140,7 +140,7 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
               />
             );
           })}
-          {!isLoading && candidates?.length === 0 && (
+          {!isLoading && candidates?.length === 0 && shown.length > 0 && (
             <p className="muted small">
               Nobody else to message yet. People you share a space with show up
               here.

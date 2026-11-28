@@ -251,6 +251,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
             channelLabel={channelLabel}
             dm={isDM}
             group={!!dm && (dmIsGroup(dm) || dmIsNotes(dm))}
+            notes={!!dm && dmIsNotes(dm)}
             spaceId={spaceId}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}

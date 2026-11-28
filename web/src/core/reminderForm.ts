@@ -332,11 +332,13 @@ export function reminderRefusal(said: string | null): ReminderRefusal {
 
 // Where a reminder posts, as a notice names it when it is shown away
 // from there: a channel by its name as given ("#game-night"), a
-// conversation by who is in it.
+// conversation by who is in it, the reader's own notes as that.
 export function reminderPlace(place: {
   conversation: boolean;
+  notes?: boolean;
   name: string;
 }): string {
+  if (place.notes) return "your notes";
   return place.conversation
     ? `your conversation with ${place.name}`
     : place.name;

@@ -220,6 +220,7 @@ export function ChannelView() {
               channelLabel={label}
               dm={isDM}
               group={isGroup}
+              notes={isNotes}
               announcement={isAnnouncement(channel)}
               spaceId={spaceId}
               replyTo={replyTo}

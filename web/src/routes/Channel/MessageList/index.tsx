@@ -114,7 +114,8 @@ export function MessageList({
   // The same for where an icon fits; channelName when absent.
   channelLabel?: ReactNode;
   dm?: boolean;
-  // A group conversation: named after its people, who change.
+  // A conversation named by a title, not one person's handle: a group,
+  // and the reader's own notes.
   group?: boolean;
   // The reader's own notes: a conversation with nobody else in it.
   notes?: boolean;
