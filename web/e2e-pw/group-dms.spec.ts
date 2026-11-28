@@ -33,8 +33,8 @@ test("group direct messages", async ({ browser }) => {
   await A.getByRole("button", { name: "New conversation" }).click();
   await expect(
     A.locator(".candidate-row"),
-    "the picker offers ada herself and the people she shares a space with",
-  ).toHaveCount(3);
+    "the picker offers the people ada shares a space with",
+  ).toHaveCount(2);
   await candidate(A, bName).click();
   await candidate(A, cName).click();
   await expect(

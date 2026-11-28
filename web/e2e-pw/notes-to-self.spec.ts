@@ -10,8 +10,8 @@ import {
 } from "./lib";
 
 // A conversation with only yourself in it, for notes and lists: opened
-// from the New conversation picker or from your own profile card, named
-// after you, alerting nobody, and not in anyone else's list.
+// with Your notes in the New conversation picker or from your own profile
+// card, named after you, alerting nobody, and not in anyone else's list.
 test("notes to self", async ({ browser }) => {
   const { suffix, tokens } = await seed({
     users: ["ada", "bea"],
@@ -29,20 +29,19 @@ test("notes to self", async ({ browser }) => {
   const B = await open(tokens.bea);
   const dmsPill = A.locator(".space-pill.dms");
 
-  // From the picker: ada heads the list, marked as herself.
+  // From the picker: Your notes is a button of its own above the people,
+  // and ada is not among them to be picked.
   await dmsPill.click();
   await A.locator(".dm-empty").waitFor();
   await A.getByRole("button", { name: "New conversation" }).click();
-  const own = A.locator(".candidate-row").first();
-  await expect(own, "ada heads her own picker").toContainText(`${aName} (you)`);
-  // Picking herself after someone else means only her.
-  await A.locator(".candidate-row", { hasText: `bea${suffix}` }).click();
-  await own.click();
   await expect(
-    A.locator(".picked-chips .chip"),
-    "picking yourself clears the others",
+    A.locator(".candidate-row"),
+    "the people list holds only other people",
   ).toHaveCount(1);
-  await A.getByRole("button", { name: "Message", exact: true }).click();
+  await expect(A.locator(".candidate-row")).toContainText(`bea${suffix}`);
+  // Opening it needs nobody picked, and ignores anyone who is.
+  await A.locator(".candidate-row").click();
+  await A.getByRole("button", { name: /Your notes/ }).click();
   await expect(A, "it opens as a conversation").toHaveURL(/\/dm\//);
   const notesPath = new URL(A.url()).pathname;
   await expect(A.locator(".dm-title"), "named after ada").toContainText(
