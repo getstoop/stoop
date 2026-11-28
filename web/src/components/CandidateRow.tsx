@@ -5,11 +5,14 @@ import { Avatar } from "./Avatar";
 
 export function CandidateRow({
   person,
+  you = false,
   picked,
   disabled,
   onToggle,
 }: {
   person: MessageAuthor;
+  // The reader's own row: picking it is their notes.
+  you?: boolean;
   picked: boolean;
   disabled: boolean;
   onToggle: () => void;
@@ -33,7 +36,7 @@ export function CandidateRow({
           aria-label={presenceLabel(online, dnd, mobile)}
         />
       </Avatar>
-      <span className="candidate-name">{name}</span>
+      <span className="candidate-name">{you ? `${name} (you)` : name}</span>
       {person.displayName && (
         <span className="muted small">@{person.username}</span>
       )}

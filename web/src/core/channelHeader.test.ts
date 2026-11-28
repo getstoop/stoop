@@ -431,6 +431,11 @@ describe("a direct message's header", () => {
     expect(headerBeginning(header())).toBe(
       "This is the beginning of #general.",
     );
+    // Nobody else: the reader's own notes.
+    expect(headerPlace(conversation())).toBe("Me (you)");
+    expect(headerBeginning(conversation())).toBe(
+      "This is the beginning of your notes. Nobody else is in this conversation.",
+    );
   });
 
   it("names a voice room's chat by the room's bare name", () => {

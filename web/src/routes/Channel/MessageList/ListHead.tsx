@@ -23,6 +23,7 @@ export function ListHead({
   channelLabel,
   dm,
   group,
+  notes,
   retentionNote,
 }: {
   index: number;
@@ -41,6 +42,8 @@ export function ListHead({
   channelLabel?: ReactNode;
   dm: boolean;
   group: boolean;
+  // The reader's own notes: a conversation with nobody else in it.
+  notes: boolean;
   retentionNote: string;
 }) {
   return (
@@ -54,7 +57,9 @@ export function ListHead({
       {atStart && !threadRoot && (
         <div className="history-head history-start">
           <span>
-            {group ? (
+            {notes ? (
+              "Beginning of your notes. Nobody else is in this conversation."
+            ) : group ? (
               "Beginning of this conversation"
             ) : dm ? (
               `Beginning of your conversation with ${channelName}`

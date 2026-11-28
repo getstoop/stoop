@@ -96,6 +96,7 @@ export function MessageList({
   channelLabel,
   dm = false,
   group = false,
+  notes = false,
   newAfterId,
   jumpTarget,
   jumpVisit = 0,
@@ -115,6 +116,8 @@ export function MessageList({
   dm?: boolean;
   // A group conversation: named after its people, who change.
   group?: boolean;
+  // The reader's own notes: a conversation with nobody else in it.
+  notes?: boolean;
   // Messages with an ID above this were unread when the channel opened;
   // "" means every message was (never opened before), null means the
   // snapshot isn't taken yet.
@@ -753,6 +756,7 @@ export function MessageList({
                       channelLabel={channelLabel}
                       dm={dm}
                       group={group}
+                      notes={notes}
                       retentionNote={retentionNote}
                     />
                   );

@@ -1,10 +1,15 @@
+import { create } from "@bufbuild/protobuf";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { openDirectMessage, useDMCandidates } from "../../api/dms";
 import { errorText } from "../../api/errors";
+import { useMe } from "../../api/queries";
 import { filterCandidates } from "../../core/candidates";
-import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
+import {
+  type MessageAuthor,
+  MessageAuthorSchema,
+} from "../../gen/stoop/chat/v1/message_pb";
 import { notice } from "../../stores/dialogs";
 import { CandidateRow } from "../CandidateRow";
 import { Modal } from "../Modal";
@@ -15,31 +20,52 @@ const MAX_PARTICIPANTS = 10;
 
 // Picking who to talk to. One person or nine: a conversation is its
 // people, so picking a set that already has a conversation opens that one
-// rather than starting a second.
+// rather than starting a second. The reader heads the list: picked, alone,
+// they are the conversation with nobody else in it, their own notes.
 export function NewConversation({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data: candidates, isLoading } = useDMCandidates();
+  const { data: me } = useMe();
+  const myId = me?.id;
+  const self = useMemo(
+    () =>
+      me &&
+      create(MessageAuthorSchema, {
+        id: me.id,
+        username: me.username,
+        displayName: me.displayName,
+        avatarFileId: me.avatarFileId,
+      }),
+    [me],
+  );
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<MessageAuthor[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const shown = filterCandidates(candidates ?? [], query);
-  const full = picked.length >= MAX_PARTICIPANTS - 1;
+  const shown = filterCandidates(
+    self ? [self, ...(candidates ?? [])] : (candidates ?? []),
+    query,
+  );
+  const notes = picked.length === 1 && picked[0].id === myId;
+  const full = !notes && picked.length >= MAX_PARTICIPANTS - 1;
 
+  // The reader is in every conversation already, so picking them means
+  // only them: it clears the others, and picking anyone else clears it.
   const toggle = (person: MessageAuthor) =>
-    setPicked((old) =>
-      old.some((p) => p.id === person.id)
-        ? old.filter((p) => p.id !== person.id)
-        : [...old, person],
-    );
+    setPicked((old) => {
+      if (old.some((p) => p.id === person.id))
+        return old.filter((p) => p.id !== person.id);
+      if (person.id === myId) return [person];
+      return [...old.filter((p) => p.id !== myId), person];
+    });
 
   const submit = async () => {
     setBusy(true);
     try {
       const id = await openDirectMessage(
         queryClient,
-        picked.map((p) => p.id),
+        picked.filter((p) => p.id !== myId).map((p) => p.id),
       );
       onClose();
       navigate({ to: "/dm/$channelId", params: { channelId: id } });
@@ -82,6 +108,7 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
                 onClick={() => toggle(p)}
               >
                 {p.displayName || p.username}
+                {p.id === myId && " (you)"}
                 <span aria-hidden="true">✕</span>
               </button>
             ))}
@@ -97,11 +124,7 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
         <div className="candidate-list">
           {isLoading && <p className="muted small">Loading…</p>}
           {!isLoading && shown.length === 0 && (
-            <p className="muted small">
-              {candidates?.length === 0
-                ? "Nobody to message yet. People you share a space with show up here."
-                : "No one matches that."}
-            </p>
+            <p className="muted small">No one matches that.</p>
           )}
           {shown.map((person) => {
             const isPicked = picked.some((p) => p.id === person.id);
@@ -109,12 +132,19 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
               <CandidateRow
                 key={person.id}
                 person={person}
+                you={person.id === myId}
                 picked={isPicked}
                 disabled={!isPicked && full}
                 onToggle={() => toggle(person)}
               />
             );
           })}
+          {!isLoading && candidates?.length === 0 && (
+            <p className="muted small">
+              Nobody else to message yet. People you share a space with show up
+              here.
+            </p>
+          )}
         </div>
         {full && (
           <p className="muted small">

@@ -4,7 +4,7 @@ import type { Group } from "../gen/stoop/chat/v1/group_pb";
 import type { Member } from "../gen/stoop/chat/v1/member_pb";
 import type { Space } from "../gen/stoop/chat/v1/space_pb";
 import type { ServerEvent } from "../gen/stoop/realtime/v1/realtime_pb";
-import { dmIsGroup, dmTitle } from "./dms";
+import { dmIsGroup, dmIsNotes, dmTitle } from "./dms";
 import {
   type MentionChannels,
   type MentionNames,
@@ -68,6 +68,8 @@ export function headerPlace(header: ChannelHeader): string {
 export function headerBeginning(header: ChannelHeader): string {
   const { dm } = header;
   if (!dm) return `This is the beginning of ${headerPlace(header)}.`;
+  if (dmIsNotes(dm))
+    return "This is the beginning of your notes. Nobody else is in this conversation.";
   return dmIsGroup(dm)
     ? "This is the beginning of this conversation."
     : `This is the beginning of your conversation with ${dmTitle(dm, header.myUserId)}.`;

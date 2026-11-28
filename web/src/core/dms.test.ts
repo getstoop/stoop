@@ -5,6 +5,7 @@ import type { MessageAuthor } from "../gen/stoop/chat/v1/message_pb";
 import {
   dmFaces,
   dmIsGroup,
+  dmIsNotes,
   dmOther,
   dmPreview,
   dmTime,
@@ -78,6 +79,32 @@ describe("dmTitle", () => {
 
 const dee = author("u4", "dee", "Dee");
 const eli = author("u5", "eli", "Eli");
+
+describe("my own notes", () => {
+  const notes = dm(channel("n1"), [casey]);
+
+  it("is the conversation with only me in it", () => {
+    expect(dmIsNotes(notes)).toBe(true);
+    expect(dmIsNotes(dm(channel("d1"), [casey, ada]))).toBe(false);
+    expect(dmIsNotes(dm(channel("d1")))).toBe(false);
+  });
+
+  it("is titled with my name, marked as me", () => {
+    expect(dmTitle(notes, "u1")).toBe("Casey (you)");
+    expect(dmTitle(dm(channel("n1"), [bea]), "u3")).toBe("bea (you)");
+  });
+
+  it("shows my face", () => {
+    expect(dmFaces(notes, "u1")).toEqual([casey]);
+  });
+
+  it("previews a note without saying it is mine", () => {
+    const last = { preview: "buy milk", deleted: false, author: casey };
+    expect(
+      dmPreview({ ...notes, lastMessage: last } as DirectMessage, "u1"),
+    ).toBe("buy milk");
+  });
+});
 
 describe("dmTitle for a group", () => {
   const group = (...people: MessageAuthor[]) =>

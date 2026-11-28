@@ -1966,7 +1966,10 @@ list and `usePeople`, which hands the timeline, composer and reaction
 tooltips a DM's participants *in the shape of members*, so those components
 never learn there are two kinds of channel either. A group has no name, so
 `dmTitle` makes one from the people in it ("ada, bea and 2 others") and
-`AvatarStack` makes a face from the first two.
+`AvatarStack` makes a face from the first two. A person's own notes
+(`dmIsNotes`: one participant) are titled with their name and "(you)",
+show no presence dot, and are opened by picking yourself, who heads the
+New conversation list, or with Message on your own profile card.
 
 ## Link previews
 
