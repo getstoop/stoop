@@ -1688,7 +1688,9 @@ are shared by the two apps.
   than 500 due leaves the rest for the next.
 - **Who is told.** In a channel it is the channel's last message and is
   unread for everyone, and alerts nobody. In a conversation it reopens
-  it and alerts the others. Nobody's read marker moves, the person's
+  it and alerts everyone in it, the person who set it included, each
+  with the `dm` item, live event and push a message there brings
+  (`recordDM`); in their own notes that is only them. Nobody's read marker moves, the person's
   own included: they are not at the keyboard, and marking the channel
   read for them would pass over messages they have not seen. So the row
   is unread for the person who set it as it is for anyone, and both apps
@@ -1698,10 +1700,11 @@ are shared by the two apps.
   marker alone unless they are looking at the channel, in which case it
   is read as it lands and the server is told, as for anyone's row; the
   "New messages" line can sit above it; and it reads none of their
-  activity. That unread mark is all the notice they get: no activity
-  item is written for them, it is never an alert (`addressesMe`), and
-  nothing is pushed. In a conversation the unread conversation counts
-  once on their badge total, as any unread conversation does. The list
+  activity. In a channel that unread mark is all the notice they get:
+  no activity item is written for them, it is never an alert
+  (`addressesMe`), and nothing is pushed. In a conversation the unread
+  conversation counts once on their badge total, as any unread
+  conversation does, beside the alert. The list
   does not follow it to the bottom as it follows their send
   (`isOwnPost`).
 - **The row.** `content` is the text and `data` is `{}`: the event type
@@ -1898,8 +1901,9 @@ carrying a `UNIQUE` constraint. That key is the whole model:
   whether a conversation is one. The rules below just come out empty: no
   space needs sharing because there is nobody to reach, no pair can be
   blocked, and a message alerts nobody because `recordDM` never tells
-  the author. A reminder set there marks it unread, as in any
-  conversation. Clients tell it by counting `participants`.
+  the author. A reminder set there alerts its owner, as one
+  set in any conversation alerts everyone in it. Clients tell it by
+  counting `participants`.
 
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
