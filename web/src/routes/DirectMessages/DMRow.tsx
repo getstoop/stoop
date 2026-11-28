@@ -6,13 +6,7 @@ import { isAlerting } from "../../api/unreads";
 import { AvatarStack } from "../../components/AvatarStack";
 import { ChannelMenu } from "../../components/ChannelMenu";
 import { DeletedMark } from "../../components/DeletedMark";
-import {
-  dmFaces,
-  dmIsGroup,
-  dmIsNotes,
-  dmOther,
-  dmTitle,
-} from "../../core/dms";
+import { dmFaces, dmIsGroup, dmOther, dmTitle } from "../../core/dms";
 import { presenceClass, presenceLabel } from "../../core/presence";
 import { badgeCount } from "../../core/unreads";
 import type { DirectMessage } from "../../gen/stoop/chat/v1/chat_pb";
@@ -20,8 +14,8 @@ import { useConnectionStore } from "../../stores/connection";
 
 // One conversation in the DM list. A presence dot belongs to a 1:1: in a
 // group, "who of the four is online" is a question for the header, not a
-// dot on one of two faces. My own notes have none either: I know where I
-// am.
+// dot on one of two faces. My own notes carry my own dot: a row without
+// one looks like something is missing, and it shows how I appear.
 export function DMRow({ dm }: { dm: DirectMessage }) {
   const queryClient = useQueryClient();
   const { data: me } = useMe();
@@ -30,8 +24,7 @@ export function DMRow({ dm }: { dm: DirectMessage }) {
   const mobile = useConnectionStore((s) => s.mobile);
   const channel = dm.channel;
   if (!channel) return null;
-  const other =
-    dmIsGroup(dm) || dmIsNotes(dm) ? undefined : dmOther(dm, me?.id);
+  const other = dmIsGroup(dm) ? undefined : dmOther(dm, me?.id);
   const title = dmTitle(dm, me?.id);
   const unread = isAlerting(queryClient, "", channel) ? "unread" : "";
   const muted = isMuted(queryClient, "", channel.id) ? "muted" : "";

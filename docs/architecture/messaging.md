@@ -1968,7 +1968,7 @@ never learn there are two kinds of channel either. A group has no name, so
 `dmTitle` makes one from the people in it ("ada, bea and 2 others") and
 `AvatarStack` makes a face from the first two. A person's own notes
 (`dmIsNotes`: one participant) are titled with their name and "(you)"
-and show no presence dot. They are opened with Your notes, a button of
+and carry their own presence dot, without the handle beside the title. They are opened with Your notes, a button of
 its own above the people in New conversation, or with Message on your
 own profile card. You are never a row among the people to pick: you are
 in every conversation already, and a row for you would read as someone

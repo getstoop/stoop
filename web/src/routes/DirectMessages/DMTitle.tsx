@@ -16,14 +16,14 @@ import { useConnectionStore } from "../../stores/connection";
 // The channel header for a DM: the other person with their presence, or a
 // group's faces and how many people are in it. A group has no name of its
 // own, so the title is made from who is in it (api/dms.ts → dmTitle).
-// The reader's own notes are their face and name, with nothing beside.
+// The reader's own notes are their face, their own presence and their
+// name, without the handle: "(you)" has said who it is.
 export function DMTitle({ channelId }: { channelId: string }) {
   const { data: dms } = useDirectMessages();
   const { data: me } = useMe();
   const dm = dms?.find((d) => d.channel?.id === channelId);
   const group = !!dm && dmIsGroup(dm);
-  const other =
-    dm && !group && !dmIsNotes(dm) ? dmOther(dm, me?.id) : undefined;
+  const other = dm && !group ? dmOther(dm, me?.id) : undefined;
   const otherId = other?.id ?? "";
   const isOnline = useConnectionStore(
     (s) => otherId !== "" && s.online.has(otherId),
@@ -53,7 +53,10 @@ export function DMTitle({ channelId }: { channelId: string }) {
           {dm.participants.length} people
         </span>
       ) : (
-        other && <span className="muted dm-handle">@{other.username}</span>
+        other &&
+        !dmIsNotes(dm) && (
+          <span className="muted dm-handle">@{other.username}</span>
+        )
       )}
     </span>
   );
