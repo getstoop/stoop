@@ -134,7 +134,8 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
                 person={person}
                 you={person.id === myId}
                 picked={isPicked}
-                disabled={!isPicked && full}
+                // Picking yourself clears the others, so it is never too many.
+                disabled={!isPicked && full && person.id !== myId}
                 onToggle={() => toggle(person)}
               />
             );

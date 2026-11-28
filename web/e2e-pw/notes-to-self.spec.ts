@@ -81,7 +81,7 @@ test("notes to self", async ({ browser }) => {
   await expect(A.locator(".dm-link"), "one row in the list").toHaveCount(1);
 
   // From her own card in a space: the same conversation.
-  await A.locator(".space-rail-list a.space-pill").click();
+  await A.locator(".space-rail-list a.space-pill").first().click();
   await A.locator(".member-row", { hasText: aName }).click();
   await A.locator(".user-card .notes-button").click();
   await expect(A, "the card's Message opens the same notes").toHaveURL(
