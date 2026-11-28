@@ -120,6 +120,12 @@
   min-width: 0;
 }
 
+/* The line between Your notes and the people: the column's gap is all
+   the room it gets above, and less below, where it labels the search. */
+.notes-entry-or {
+  margin: 0 0 -4px;
+}
+
 .picked-chips {
   display: flex;
   flex-wrap: wrap;

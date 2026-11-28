@@ -70,7 +70,7 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
     >
       <div className="new-conversation">
         <NotesEntry disabled={busy} onOpen={() => open([])} />
-        <p className="muted small">Or talk to people</p>
+        <p className="muted small notes-entry-or">Or talk to people</p>
         {picked.length > 1 && (
           <p className="muted small">
             Everyone picked is in it for good: nobody can be added later, and
@@ -98,6 +98,8 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
           value={query}
           placeholder="Search people"
           aria-label="Search people"
+          // biome-ignore lint/a11y/noAutofocus: typing a name is what the dialog is for, and Your notes above would take the focus
+          autoFocus
           onChange={(e) => setQuery(e.target.value)}
         />
         <div className="candidate-list">
