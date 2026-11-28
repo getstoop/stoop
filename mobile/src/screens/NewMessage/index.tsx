@@ -15,6 +15,7 @@ import type { SavedServer } from "../../servers";
 import { type Theme, tokens, useTheme } from "../../theme";
 import { channelRoute } from "../Channel/routes";
 import CandidateRow from "./CandidateRow";
+import NotesEntry from "./NotesEntry";
 import PickedChip from "./PickedChip";
 
 // New message, a sheet over the Messages tab: who to talk to, picked from
@@ -23,7 +24,9 @@ import PickedChip from "./PickedChip";
 // up to nine: a conversation is its people, so Start opens the one that
 // already exists with them, or a new one, in place of this sheet. Two or
 // more make a group, which is for good, and the line under the list says
-// so. Once nine are picked the rest are dimmed.
+// so. Once nine are picked the rest are dimmed. Above the people, Your
+// notes opens the conversation with nobody else in it at once, with
+// nobody picked: the reader is never a row to pick.
 //
 // iOS draws the sheet as a card, below the status bar, and its list
 // makes room for the keyboard itself. Android's is the whole window: it
@@ -92,8 +95,10 @@ export default function NewMessage({ server }: { server: SavedServer }) {
   );
 
   const ready = view.state === "ready" ? view : null;
-  const start = async () => {
-    if (!ready || picked.length === 0 || startingNow.current) return;
+  // The conversation with these people opens in place of the sheet; with
+  // nobody else, the reader's own notes (Your notes, above the list).
+  const openWith = async (people: MessageAuthor[]) => {
+    if (!ready || startingNow.current) return;
     startingNow.current = true;
     setStarting(true);
     setRefused(false);
@@ -101,7 +106,7 @@ export default function NewMessage({ server }: { server: SavedServer }) {
       const channelId = await openConversation(
         server.origin,
         ready.token,
-        picked.map((p) => p.id),
+        people.map((p) => p.id),
       );
       if (!open.current) return;
       router.dismiss();
@@ -112,6 +117,9 @@ export default function NewMessage({ server }: { server: SavedServer }) {
       setStarting(false);
       setRefused(true);
     }
+  };
+  const start = () => {
+    if (picked.length > 0) void openWith(picked);
   };
 
   const full = picked.length >= MAX_PARTICIPANTS - 1;
@@ -210,7 +218,10 @@ export default function NewMessage({ server }: { server: SavedServer }) {
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           contentContainerStyle={styles.list}
           ListHeaderComponent={
-            shown.length > 0 ? <Text style={styles.eyebrow}>People on {server.name}</Text> : undefined
+            <>
+              <NotesEntry disabled={starting} onOpen={() => void openWith([])} />
+              {shown.length > 0 && <Text style={styles.eyebrow}>People on {server.name}</Text>}
+            </>
           }
           renderItem={({ item }) => (
             <CandidateRow

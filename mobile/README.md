@@ -32,8 +32,9 @@ messages), new above read, with the server's count of what is addressed
 to you in the spaces past your read markers on its tab, each opening its
 channel or thread at the message;
 Messages, this account's direct messages and groups, newest first, each
-opening its conversation, with New message picking who to talk to and
-the count of unread messages on its tab; and
+opening its conversation, with New message picking who to talk to (Your
+notes, a button above the people, opens the conversation with nobody
+else in it) and the count of unread messages on its tab; and
 You, which says who you are, opens Edit
 profile (your names, pronouns, bio and avatar; leaving with unsaved edits
 asks first), picks the theme, turns on do not disturb, lists the phone's
