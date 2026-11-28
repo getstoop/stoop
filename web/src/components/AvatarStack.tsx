@@ -11,14 +11,20 @@ export function AvatarStack({
   children,
 }: {
   people: MessageAuthor[];
-  // What the one-person case labels its avatar with.
+  // What the avatar is labelled with when nobody is given. One person
+  // is labelled with their own name: a title may say more than a name
+  // ("Ada (you)"), and initials are drawn from the label.
   name: string;
   size?: "" | "small" | "medium" | "large";
   children?: React.ReactNode;
 }) {
   if (people.length < 2) {
     return (
-      <Avatar name={name} fileId={people[0]?.avatarFileId} size={size}>
+      <Avatar
+        name={people[0]?.displayName || people[0]?.username || name}
+        fileId={people[0]?.avatarFileId}
+        size={size}
+      >
         {children}
       </Avatar>
     );

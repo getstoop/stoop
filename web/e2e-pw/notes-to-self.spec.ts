@@ -49,6 +49,10 @@ test("notes to self", async ({ browser }) => {
     `${aName} (you)`,
   );
   await expect(
+    A.locator(".dm-title .avatar"),
+    "her face is her initial, not the title's",
+  ).toHaveText("A");
+  await expect(
     A.locator(".dm-title .online-dot"),
     "no presence dot on your own notes",
   ).toHaveCount(0);
