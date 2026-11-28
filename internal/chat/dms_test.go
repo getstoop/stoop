@@ -2,6 +2,7 @@ package chat_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -98,6 +99,18 @@ func TestDirectMessages(t *testing.T) {
 	}
 	if again.Msg.DirectMessage.Channel.Id != dm.Channel.Id {
 		t.Errorf("reopening from the other side made a new channel")
+	}
+	noEvent(t, aliceSub)
+	// The caller is in it already, so naming them adds nobody, and an id
+	// in capitals is the same person.
+	for _, ids := range [][]string{{bobID, aliceID}, {strings.ToUpper(bobID)}} {
+		same, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: ids}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if same.Msg.DirectMessage.Channel.Id != dm.Channel.Id || len(same.Msg.DirectMessage.Participants) != 2 {
+			t.Errorf("opening with %v made another conversation", ids)
+		}
 	}
 	noEvent(t, aliceSub)
 	// An instance admin may open one without a shared space.
@@ -457,8 +470,9 @@ func TestNotesToSelf(t *testing.T) {
 		t.Errorf("want ChannelCreated for the notes on alice's topic")
 	}
 
-	// Her own id names the same conversation, once or twice.
-	for _, ids := range [][]string{{aliceID}, {aliceID, aliceID}} {
+	// Her own id names the same conversation, once, twice or spelled in
+	// capitals.
+	for _, ids := range [][]string{{aliceID}, {aliceID, aliceID}, {strings.ToUpper(aliceID)}} {
 		again, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: ids}))
 		if err != nil {
 			t.Fatal(err)
@@ -468,6 +482,11 @@ func TestNotesToSelf(t *testing.T) {
 		}
 	}
 	noEvent(t, aliceSub)
+
+	// Something that is no id is nobody.
+	if _, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: []string{"alice"}})); code(err) != connect.CodeNotFound {
+		t.Errorf("a name for an id: want not_found, got %v", err)
+	}
 
 	// Bob's notes are his own.
 	bobs, err := svc.OpenDirectMessage(bob, connect.NewRequest(&chatv1.OpenDirectMessageRequest{}))

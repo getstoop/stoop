@@ -1900,8 +1900,8 @@ carrying a `UNIQUE` constraint. That key is the whole model:
   It is not a special kind of channel and nothing in the server asks
   whether a conversation is one. The rules below just come out empty: no
   space needs sharing because there is nobody to reach, no pair can be
-  blocked, and a message alerts nobody because `recordDM` never tells
-  the author. A reminder set there alerts its owner, as one
+  blocked, and a message alerts nobody because `recordActivity` never
+  tells the author. A reminder set there alerts its owner, as one
   set in any conversation alerts everyone in it. Clients tell it by
   counting `participants`.
 

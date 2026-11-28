@@ -82,11 +82,11 @@ func TestReminderIsDeliveredInAChannel(t *testing.T) {
 	}
 }
 
-// In a direct message and in a group conversation a delivered reminder
-// behaves as a message does: it puts a closed conversation back on the
-// others' lists, is their unread last message and alerts each of them
-// once, previewed "Reminder: " and its text exactly as typed. The person
-// who set it is told nothing.
+// In someone's own notes, a direct message and a group conversation a
+// delivered reminder puts a closed conversation back on the others'
+// lists, is everyone's unread last message and alerts each person in it
+// once, the one who set it included, previewed "Reminder: " and its
+// text exactly as typed.
 func TestReminderIsDeliveredInAConversation(t *testing.T) {
 	for name, size := range map[string]int{"own notes": 0, "direct message": 1, "group conversation": 2} {
 		t.Run(name, func(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -178,7 +179,9 @@ func (s *Service) reopenDM(ctx context.Context, channel dbgen.Channel) {
 // and each one the caller could message. Deduplicated, so the same person
 // twice is the same conversation. The caller is always in it, so their
 // own id adds nobody, and nobody else at all is the conversation with
-// only them in it: their notes.
+// only them in it: their notes. Each id is read as the UUID it spells,
+// so the same person in another letter case is still the same person,
+// and the key made from these names one conversation.
 func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]string, error) {
 	seen := map[string]bool{me: true}
 	out := make([]string, 0, len(ids))
@@ -186,6 +189,11 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 		if id == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_ids holds an empty id"))
 		}
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, errors.New("user not found"))
+		}
+		id = parsed.String()
 		if seen[id] {
 			continue
 		}
