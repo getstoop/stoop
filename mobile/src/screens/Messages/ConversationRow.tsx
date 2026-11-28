@@ -47,6 +47,8 @@ export default memo(function ConversationRow({
   const when = sent ? dmTime(timestampDate(sent)) : "";
   const muted = channel?.muted ?? false;
   const unread = !muted && (channel?.unreadCount ?? 0) > 0;
+  // No presence on a group. The reader's own notes carry their own (core
+  // dmOther falls back to them), so the row is not the one without a dot.
   const other = dmIsGroup(dm) ? undefined : dmOther(dm, meId);
   const presence = usePresence(serverId, other?.id);
   const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);

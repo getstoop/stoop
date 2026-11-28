@@ -1,4 +1,4 @@
-import { dmFaces, dmIsGroup, dmOther, dmTitle } from "@stoop/core/dms";
+import { dmFaces, dmIsGroup, dmIsNotes, dmOther, dmTitle } from "@stoop/core/dms";
 import { presenceLabel } from "@stoop/core/presence";
 import type { DirectMessage } from "@stoop/gen/stoop/chat/v1/chat_pb";
 import { StyleSheet, Text, View } from "react-native";
@@ -27,10 +27,12 @@ export default function ConversationTitle({
   const theme = useTheme();
   const styles = makeStyles(theme);
   const group = dmIsGroup(dm);
+  // The reader's own notes are their face with their own presence, and
+  // their name without the handle under it: "(you)" has said who it is.
   const other = group ? undefined : dmOther(dm, myUserId);
   const presence = usePresence(serverId, other?.id);
   const title = dmTitle(dm, myUserId);
-  const under = group ? `${dm.participants.length} people` : other ? `@${other.username}` : "";
+  const under = group ? `${dm.participants.length} people` : other && !dmIsNotes(dm) ? `@${other.username}` : "";
   const status = presence && presenceLabel(presence.online, presence.dnd, presence.mobile);
   const label = [title, under, status].filter(Boolean).join(", ");
   return (

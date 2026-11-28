@@ -1,4 +1,5 @@
 import { headerBeginning, headerPlace } from "@stoop/core/channelHeader";
+import { dmIsNotes } from "@stoop/core/dms";
 import { channelItems } from "@stoop/core/channelLog";
 import type { CommandName } from "@stoop/core/commands";
 import { type GroupedRow, groupedRows } from "@stoop/core/grouping";
@@ -578,7 +579,11 @@ export default function Channel({
   const { space, channel, myUserId } = header;
   placeRef.current = {
     where: header.dm ? null : headerPlace(header),
-    place: reminderPlace({ conversation: !!header.dm, name: headerPlace(header) }),
+    place: reminderPlace({
+      conversation: !!header.dm,
+      notes: !!header.dm && dmIsNotes(header.dm),
+      name: headerPlace(header),
+    }),
   };
   const { hasOlder } = log.channel;
   // A system message's menu is a moderator's alone (SystemMenu); for
