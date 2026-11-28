@@ -25,9 +25,10 @@ import { ChatBubbleIcon, PencilIcon } from "./Icons";
 // a direct message and always fresh — a renamed user shows their current
 // name even on an old message. What they are *here* (role, badges, join
 // date) comes from the membership, which a DM (spaceId "") has none of.
-// Message is the one most people came for, so it is the button (on your
-// own card, Edit profile); the rest (copy a mention, manage, block) wait
-// in a ⋮ menu beside it.
+// Message is the one most people came for, so it is the button; on your
+// own card it opens your notes, the conversation with only you in it, and
+// sits quietly beside Edit profile. The rest (copy a mention, manage,
+// block) wait in a ⋮ menu beside them.
 export function UserCard({
   spaceId,
   userId,
@@ -66,7 +67,8 @@ export function UserCard({
 
   const message = async () => {
     try {
-      const id = await openDirectMessage(queryClient, [userId]);
+      // Nobody else named is the reader's own notes.
+      const id = await openDirectMessage(queryClient, isSelf ? [] : [userId]);
       onClose();
       navigate({ to: "/dm/$channelId", params: { channelId: id } });
     } catch (err) {
@@ -209,6 +211,16 @@ export function UserCard({
               <button
                 type="button"
                 className="primary message-button"
+                onClick={message}
+              >
+                <ChatBubbleIcon />
+                Message
+              </button>
+            )}
+            {isSelf && spaceId && (
+              <button
+                type="button"
+                className="message-button notes-button"
                 onClick={message}
               >
                 <ChatBubbleIcon />

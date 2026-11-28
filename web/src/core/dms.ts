@@ -32,6 +32,13 @@ export function dmIsGroup(dm: DirectMessage): boolean {
   return dm.participants.length > 2;
 }
 
+// Only me: the conversation a person has with themselves, for notes and
+// lists nobody else reads. The server makes nothing special of it, so
+// counting is the test here too.
+export function dmIsNotes(dm: DirectMessage): boolean {
+  return dm.participants.length === 1;
+}
+
 // Everyone in a conversation as the members a mention typed in it may
 // name: a conversation has no space, so its people are its participants.
 export function dmMembers(dm: DirectMessage): Member[] {
@@ -60,7 +67,9 @@ export function dmTitle(dm: DirectMessage, meId: string | undefined): string {
     if (rest === 1) return `${names.join(", ")} and ${personName(others[2])}`;
     return `${names.join(", ")} and ${rest} others`;
   }
-  return personName(dmOther(dm, meId)) || "…";
+  const name = personName(dmOther(dm, meId));
+  if (dmIsNotes(dm) && name) return `${name} (you)`;
+  return name || "…";
 }
 
 // The one or two faces a conversation shows: the other person, or the
@@ -102,6 +111,8 @@ export function dmPreview(dm: DirectMessage, meId: string | undefined): string {
   const last = dm.lastMessage;
   if (!last) return "";
   if (last.deleted) return "Message deleted";
+  // In my own notes every line is mine, so none says so.
+  if (dmIsNotes(dm)) return last.preview;
   if (last.author?.id && last.author.id === meId) return `You: ${last.preview}`;
   const who = personName(last.author);
   if (dmIsGroup(dm) && who) return `${who}: ${last.preview}`;

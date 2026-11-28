@@ -34,7 +34,7 @@ import { SidePanelFrame } from "../../components/SidePanel/SidePanelFrame";
 import { SidePanelUnavailable } from "../../components/SidePanel/SidePanelUnavailable";
 import { Tooltip } from "../../components/Tooltip";
 import { isShown } from "../../core/channelLog";
-import { dmIsGroup, dmTitle } from "../../core/dms";
+import { dmIsGroup, dmIsNotes, dmTitle } from "../../core/dms";
 import { canDeleteAnyMessage } from "../../core/permissions";
 import { threadRepliesClosed } from "../../core/threadReplies";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -250,7 +250,8 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
             channelName={channelName}
             channelLabel={channelLabel}
             dm={isDM}
-            group={!!dm && dmIsGroup(dm)}
+            group={!!dm && (dmIsGroup(dm) || dmIsNotes(dm))}
+            notes={!!dm && dmIsNotes(dm)}
             spaceId={spaceId}
             replyTo={replyTo}
             onCancelReply={() => setReplyTo(null)}
@@ -271,7 +272,7 @@ export function ThreadView({ params }: { params: Record<string, string> }) {
           channelName={channelName}
           channelLabel={channelLabel}
           dm={isDM}
-          group={!!dm && dmIsGroup(dm)}
+          group={!!dm && (dmIsGroup(dm) || dmIsNotes(dm))}
           newAfterId={null}
           jumpTarget={focusId}
           editingId={editingId}

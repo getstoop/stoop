@@ -81,6 +81,57 @@
   min-width: 0;
 }
 
+/* Your notes: a button above the people, shaped unlike their rows so it
+   does not read as someone to pick. */
+.notes-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--text);
+  text-align: left;
+}
+
+.notes-entry:disabled {
+  cursor: default;
+  opacity: var(--disabled);
+}
+
+.notes-entry:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.notes-entry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.notes-entry-words {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The line between Your notes and the people, in the kit's eyebrow:
+   more room above it than below, so it reads as heading the search and
+   the list, not as a caption under the button. */
+.notes-entry-or {
+  margin: 8px 0 0;
+}
+
 .picked-chips {
   display: flex;
   flex-wrap: wrap;

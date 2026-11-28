@@ -89,6 +89,7 @@ export function Composer({
   channelLabel,
   dm = false,
   group = false,
+  notes = false,
   announcement = false,
   spaceId,
   replyTo,
@@ -102,8 +103,11 @@ export function Composer({
   channelName?: string;
   channelLabel?: ReactNode;
   dm?: boolean;
-  // A group conversation: its title is a list of names, not a handle.
+  // A conversation named by a title, not one person's handle: a group,
+  // and the reader's own notes.
   group?: boolean;
+  // The reader's own notes: a conversation with nobody else in it.
+  notes?: boolean;
   // An announcement channel the caller may post in: say so.
   announcement?: boolean;
   spaceId: string;
@@ -229,7 +233,11 @@ export function Composer({
       channelId,
       text,
       id: formCount.current,
-      where: reminderPlace({ conversation: dm, name: channelName ?? "" }),
+      where: reminderPlace({
+        conversation: dm,
+        notes,
+        name: channelName ?? "",
+      }),
     });
   };
   useEffect(() => {

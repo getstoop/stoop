@@ -14,7 +14,8 @@ import { useConnectionStore } from "../../stores/connection";
 
 // One conversation in the DM list. A presence dot belongs to a 1:1: in a
 // group, "who of the four is online" is a question for the header, not a
-// dot on one of two faces.
+// dot on one of two faces. My own notes carry my own dot: a row without
+// one looks like something is missing, and it shows how I appear.
 export function DMRow({ dm }: { dm: DirectMessage }) {
   const queryClient = useQueryClient();
   const { data: me } = useMe();

@@ -9,7 +9,7 @@ import { channelsQuery, useMe, useSpaces } from "../../api/queries";
 import { setThreadMuted } from "../../api/threads";
 import { patchChannel, recomputeSpaceUnread } from "../../api/unreads";
 import { DataTable, type TableColumn } from "../../components/DataTable";
-import { dmTitle } from "../../core/dms";
+import { dmIsNotes, dmTitle } from "../../core/dms";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
 import type { Space } from "../../gen/stoop/chat/v1/space_pb";
 import { notice } from "../../stores/dialogs";
@@ -133,7 +133,9 @@ export function MutesSection() {
       id: d.channel?.id ?? "",
       label: dmTitle(d, me?.id),
       note: "direct message",
-      what: `the conversation with ${dmTitle(d, me?.id)}`,
+      what: dmIsNotes(d)
+        ? "your notes"
+        : `the conversation with ${dmTitle(d, me?.id)}`,
       onUnmute: () => unmuteChannel(queryClient, "", d.channel?.id ?? ""),
     })),
     ...(mutedThreads ?? []).map((t) => ({

@@ -73,8 +73,8 @@
   margin: 0;
 }
 
-/* Message (Edit profile, on your own card) fills the row; the ⋮ beside
-   it holds the rest. */
+/* Message fills the row (on your own card it shares it with Edit
+   profile); the ⋮ beside it holds the rest. */
 .user-card-actions {
   display: flex;
   align-items: stretch;
@@ -93,6 +93,24 @@
   gap: 6px;
   padding: 6px 12px;
   font-size: var(--text-ui);
+}
+
+/* Two buttons share the row on your own card: neither wraps, and the
+   one that opens your notes is dressed as the ⋮ beside it, so Edit
+   profile stays the card's one accented button. */
+.user-card-actions .message-button {
+  white-space: nowrap;
+}
+
+.user-card-actions .notes-button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.user-card-actions .notes-button:hover {
+  border-color: var(--accent);
 }
 
 .user-card-actions .message-button > svg {

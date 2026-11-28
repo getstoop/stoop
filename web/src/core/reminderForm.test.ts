@@ -461,5 +461,8 @@ describe("reminderSetText", () => {
     expect(reminderPlace({ conversation: true, name: "Sam Reyes" })).toBe(
       "your conversation with Sam Reyes",
     );
+    expect(
+      reminderPlace({ conversation: true, notes: true, name: "Sam (you)" }),
+    ).toBe("your notes");
   });
 });

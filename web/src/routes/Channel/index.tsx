@@ -13,7 +13,7 @@ import { MenuButton } from "../../components/MenuButton";
 import { PinnedMessages } from "../../components/PinnedMessages";
 import { SearchLauncher } from "../../components/SearchLauncher";
 import { VoiceStage } from "../../components/VoiceStage";
-import { dmIsGroup, dmTitle } from "../../core/dms";
+import { dmIsGroup, dmIsNotes, dmTitle } from "../../core/dms";
 import { canPost, canStartThreads } from "../../core/permissions";
 import { ChannelKind } from "../../gen/stoop/chat/v1/channel_pb";
 import type { Message } from "../../gen/stoop/chat/v1/message_pb";
@@ -71,7 +71,10 @@ export function ChannelView() {
       ? channelNameText(channel)
       : "";
   const label = !isDM && channel ? <ChannelName channel={channel} /> : title;
-  const isGroup = !!dm && dmIsGroup(dm);
+  const isNotes = !!dm && dmIsNotes(dm);
+  // Named by a title, not one person's handle: a group, and the reader's
+  // own notes ("Message Ada (you)", not "Message @Ada (you)").
+  const isGroup = !!dm && (dmIsGroup(dm) || isNotes);
   // ?m=<messageId>: open the view around that message rather than the
   // newest page (activity, shared links).
   // A thread link opens the channel at its root, which ?t= names (the
@@ -198,6 +201,7 @@ export function ChannelView() {
             channelLabel={label}
             dm={isDM}
             group={isGroup}
+            notes={isNotes}
             newAfterId={
               divider?.channelId === channelId ? divider.afterId : null
             }
@@ -216,6 +220,7 @@ export function ChannelView() {
               channelLabel={label}
               dm={isDM}
               group={isGroup}
+              notes={isNotes}
               announcement={isAnnouncement(channel)}
               spaceId={spaceId}
               replyTo={replyTo}

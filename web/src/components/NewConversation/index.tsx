@@ -8,6 +8,7 @@ import type { MessageAuthor } from "../../gen/stoop/chat/v1/message_pb";
 import { notice } from "../../stores/dialogs";
 import { CandidateRow } from "../CandidateRow";
 import { Modal } from "../Modal";
+import { NotesEntry } from "./NotesEntry";
 
 // The maximum a conversation holds, the caller included — the server's
 // cap, mirrored so the picker can stop before the refusal.
@@ -15,7 +16,8 @@ const MAX_PARTICIPANTS = 10;
 
 // Picking who to talk to. One person or nine: a conversation is its
 // people, so picking a set that already has a conversation opens that one
-// rather than starting a second.
+// rather than starting a second. Above the people, Your notes opens the
+// conversation with nobody else in it, at once and with nobody picked.
 export function NewConversation({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -34,12 +36,14 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
         : [...old, person],
     );
 
-  const submit = async () => {
+  // The conversation with these people, or with nobody else: the
+  // reader's own notes.
+  const open = async (people: MessageAuthor[]) => {
     setBusy(true);
     try {
       const id = await openDirectMessage(
         queryClient,
-        picked.map((p) => p.id),
+        people.map((p) => p.id),
       );
       onClose();
       navigate({ to: "/dm/$channelId", params: { channelId: id } });
@@ -58,13 +62,15 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
           type="button"
           className="primary"
           disabled={picked.length === 0 || busy}
-          onClick={submit}
+          onClick={() => open(picked)}
         >
           {picked.length > 1 ? "Start conversation" : "Message"}
         </button>
       }
     >
       <div className="new-conversation">
+        <NotesEntry disabled={busy} onOpen={() => open([])} />
+        <p className="eyebrow notes-entry-or">Or talk to people</p>
         {picked.length > 1 && (
           <p className="muted small">
             Everyone picked is in it for good: nobody can be added later, and
@@ -92,6 +98,9 @@ export function NewConversation({ onClose }: { onClose: () => void }) {
           value={query}
           placeholder="Search people"
           aria-label="Search people"
+          // Typing a name is what the dialog is for; Your notes, above,
+          // would otherwise take the first focus and Enter would open it.
+          data-first-focus
           onChange={(e) => setQuery(e.target.value)}
         />
         <div className="candidate-list">
