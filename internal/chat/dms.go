@@ -174,18 +174,17 @@ func (s *Service) reopenDM(ctx context.Context, channel dbgen.Channel) {
 	}
 }
 
-// dmTargets validates the people a caller wants to talk to: real accounts,
-// not the caller, and each one the caller could message. Deduplicated, so
-// the same person twice is the same conversation.
+// dmTargets validates the people a caller wants to talk to: real accounts
+// and each one the caller could message. Deduplicated, so the same person
+// twice is the same conversation. The caller is always in it, so their
+// own id adds nobody, and nobody else at all is the conversation with
+// only them in it: their notes.
 func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]string, error) {
 	seen := map[string]bool{me: true}
 	out := make([]string, 0, len(ids))
 	for _, id := range ids {
 		if id == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_ids holds an empty id"))
-		}
-		if id == me {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("you can't message yourself"))
 		}
 		if seen[id] {
 			continue
@@ -194,7 +193,7 @@ func (s *Service) dmTargets(ctx context.Context, me string, ids []string) ([]str
 		out = append(out, id)
 	}
 	if len(out) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("user_ids is required"))
+		return nil, nil
 	}
 	if len(out) >= maxDMParticipants {
 		return nil, connect.NewError(connect.CodeFailedPrecondition,

@@ -71,9 +71,8 @@ func TestGroupDirectMessages(t *testing.T) {
 		ids  []string
 		want connect.Code
 	}{
-		{"nobody", nil, connect.CodeInvalidArgument},
-		{"myself", []string{aliceID}, connect.CodeInvalidArgument},
-		{"myself among others", []string{bobID, aliceID}, connect.CodeInvalidArgument},
+		// Nobody, or only myself, is not refused: TestNotesToSelf.
+		{"an empty id", []string{bobID, ""}, connect.CodeInvalidArgument},
 		{"someone with no shared space", []string{bobID, strangerID}, connect.CodePermissionDenied},
 	} {
 		_, err := svc.OpenDirectMessage(alice, connect.NewRequest(&chatv1.OpenDirectMessageRequest{UserIds: tc.ids}))

@@ -1891,6 +1891,16 @@ carrying a `UNIQUE` constraint. That key is the whole model:
   conversation, not how many exist — what bounds *that* is the eligibility
   rule below, and rate limiting if an instance ever needs it.
 
+- **One participant is your own notes.** `OpenDirectMessage` naming nobody
+  (or only the caller, who is always in it) opens the conversation whose
+  key is the caller's id alone: one per person, by the same constraint.
+  It is not a special kind of channel and nothing in the server asks
+  whether a conversation is one. The rules below just come out empty: no
+  space needs sharing because there is nobody to reach, no pair can be
+  blocked, and a message alerts nobody because `recordDM` never tells
+  the author. A reminder set there marks it unread, as in any
+  conversation. Clients tell it by counting `participants`.
+
 DMs have no manager: they are never renamed, reordered or deleted, and each
 person deletes only their own messages. Mentions resolve against
 participants; `@channel` and `@here` are plain text.
